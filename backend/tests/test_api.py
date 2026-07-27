@@ -39,3 +39,56 @@ def test_type_unknown_is_honest_nones(monkeypatch):
     r = client.get("/api/type/000000")
     assert r.status_code == 200
     assert r.json() == {"type": None, "manufacturer": None, "registration": None}
+
+def test_type_malformed_body_collapses_to_none(monkeypatch):
+    """A 200 with {"response": null} must not crash lookup() with an AttributeError."""
+    import httpx
+    from app.feeds import adsbdb
+    adsbdb._cache.clear()
+
+    def handler(request):
+        return httpx.Response(200, json={"response": None})
+    real_async_client = httpx.AsyncClient
+    monkeypatch.setattr(
+        adsbdb.httpx, "AsyncClient",
+        lambda *a, **kw: real_async_client(*a, transport=httpx.MockTransport(handler), **kw),
+    )
+    client = TestClient(create_app())
+    r = client.get("/api/type/000000")
+    assert r.status_code == 200
+    assert r.json() == {"type": None, "manufacturer": None, "registration": None}
+
+def test_type_outage_is_honest_and_not_cached(monkeypatch):
+    """
+    A genuine adsbdb outage must degrade to an honest unknown (200, all-None), not a 500 -
+    and must not be cached, so a later successful lookup for the same hex isn't blocked by a
+    transient failure pinned into the cache for 24h.
+    """
+    import httpx
+    from app.feeds import adsbdb
+    adsbdb._cache.clear()
+    real_async_client = httpx.AsyncClient
+
+    def dead_handler(request):
+        raise httpx.ConnectError("boom", request=request)
+    monkeypatch.setattr(
+        adsbdb.httpx, "AsyncClient",
+        lambda *a, **kw: real_async_client(*a, transport=httpx.MockTransport(dead_handler), **kw),
+    )
+    client = TestClient(create_app())
+    r = client.get("/api/type/ABCDEF")
+    assert r.status_code == 200
+    assert r.json() == {"type": None, "manufacturer": None, "registration": None}
+    assert "ABCDEF" not in adsbdb._cache
+
+    def ok_handler(request):
+        return httpx.Response(200, json={"response": {"aircraft": {
+            "type": "E55P", "manufacturer": "Embraer", "registration": "N435N",
+        }}})
+    monkeypatch.setattr(
+        adsbdb.httpx, "AsyncClient",
+        lambda *a, **kw: real_async_client(*a, transport=httpx.MockTransport(ok_handler), **kw),
+    )
+    r2 = client.get("/api/type/ABCDEF")
+    assert r2.status_code == 200
+    assert r2.json() == {"type": "E55P", "manufacturer": "Embraer", "registration": "N435N"}
