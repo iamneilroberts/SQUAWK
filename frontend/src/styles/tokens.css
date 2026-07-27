@@ -70,3 +70,66 @@ body {
   color: var(--text);
   text-shadow: none;
 }
+
+/* ---- contact list rows: left-aligned identity, right-aligned numeric readout ---- */
+.contact-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--grid);
+  cursor: pointer;
+  font-size: 12px;
+}
+.contact-row:hover {
+  background: rgba(95, 215, 224, 0.08);
+}
+.contact-row-selected {
+  background: rgba(95, 215, 224, 0.16);
+  border-left: 2px solid var(--cyan);
+}
+.contact-row-military {
+  color: var(--amber);
+}
+.contact-cell-id {
+  flex: 1 1 0;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.contact-cell-num {
+  flex: 1 1 0;
+  text-align: right;
+}
+
+/* ---- disabled console control: inert, not a fake affordance ---- */
+.control-button-disabled {
+  border: 1px solid var(--grid);
+  background: transparent;
+  color: var(--text);
+  opacity: 0.4;
+  padding: 6px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-family: var(--mono);
+  cursor: not-allowed;
+  border-radius: 0;
+}
+
+/* ---- status bar: bottom strip, feed chip + counts + clock ---- */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-top: 1px solid var(--grid);
+  padding: 4px 12px;
+  font-size: 11px;
+}
+.status-chip-live {
+  color: var(--cyan);
+}
+.status-chip-warn {
+  color: var(--amber);
+}

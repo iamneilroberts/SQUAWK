@@ -46,3 +46,9 @@ this game's frontend at LORAN's live API instead of its own. Moved the backend d
 target in `frontend/vite.config.ts`); `8021` is reserved for the compose frontend port and
 takes effect when Task 9 lands docker-compose.yml. Both verified free on this box. Ports
 remain `.env`-overridable — this only changes the defaults.
+
+## 2026-07-27 — G-004 · Cesium static assets copied at build time, not committed
+
+LORAN commits ~430 asset files; adsb-game copies from `node_modules` in `predev`/`prebuild`
+instead, keeping the public repo lean. Trade-off: `npm install` required before first run
+(true anyway).
