@@ -26,3 +26,11 @@ EGM2008 geoid applied). ADS-B `alt_geom` is WGS84-ellipsoidal too, so spawn alti
 ground height share a datum with no geoid fudge. Keyless and free, but best-effort with no
 SLA — the fallback (Cesium ion free tier, token, non-commercial terms) is documented and
 the terrain provider sits behind one module so swapping is one file.
+
+## 2026-07-27 — G-005 · Feed env vars are full URL templates, not bases
+
+Upstream path shapes differ per feed (airplanes.live `/point/…`, adsb.lol + adsb.fi
+`/lat/…/lon/…/dist/…`, per LORAN recon), so a single base+path convention cannot express
+real failover. `FEED_PRIMARY`/`FEED_FALLBACK`/`FEED_RESERVE` are now full URL templates
+with `{lat}`/`{lon}`/`{radius}` placeholders, formatted per call — this keeps feeds
+swappable via `.env` without a code change.

@@ -18,9 +18,9 @@ def load_settings() -> Settings:
     return Settings(
         home_lat=float(e("HOME_LAT", "30.6944")),
         home_lon=float(e("HOME_LON", "-88.0399")),
-        feed_primary=e("FEED_PRIMARY", "https://api.airplanes.live/v2"),
-        feed_fallback=e("FEED_FALLBACK", "https://api.adsb.lol/v2"),
-        feed_reserve=e("FEED_RESERVE", "https://opendata.adsb.fi/api/v2"),
+        feed_primary=e("FEED_PRIMARY", "https://api.airplanes.live/v2/point/{lat}/{lon}/{radius}"),
+        feed_fallback=e("FEED_FALLBACK", "https://api.adsb.lol/v2/lat/{lat}/lon/{lon}/dist/{radius}"),
+        feed_reserve=e("FEED_RESERVE", "https://opendata.adsb.fi/api/v2/lat/{lat}/lon/{lon}/dist/{radius}"),
         adsbdb_base=e("ADSBDB_BASE", "https://api.adsbdb.com/v0"),
         feed_min_interval_s=float(e("FEED_MIN_INTERVAL_S", "1.0")),
         host=e("ADSB_GAME_HOST", "127.0.0.1"),

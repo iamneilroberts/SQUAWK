@@ -23,6 +23,16 @@ class FeedUnavailable(Exception):
     """Raised when primary, fallback, and reserve all failed."""
 
 
+def build_url(template: str, lat: float, lon: float, radius_nm: int) -> str:
+    """
+    Feed env vars are full URL templates, not bases (G-005): upstream path shapes differ per
+    feed - airplanes.live takes /point/{lat}/{lon}/{radius}, adsb.lol and adsb.fi take
+    /lat/{lat}/lon/{lon}/dist/{radius}. A single base+path convention can't express that, so
+    each configured template carries its own {lat}/{lon}/{radius} placeholders.
+    """
+    return template.format(lat=lat, lon=lon, radius=int(radius_nm))
+
+
 def _num(v: Any) -> float | None:
     return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
 
@@ -94,11 +104,11 @@ async def fetch_adsb(settings, lat: float, lon: float, radius_nm: int) -> dict:
     if cached and time.monotonic() - cached[0] < _CACHE_TTL_S:
         return cached[1]
 
-    bases = (settings.feed_primary, settings.feed_fallback, settings.feed_reserve)
+    templates = (settings.feed_primary, settings.feed_fallback, settings.feed_reserve)
     errors = []
     async with httpx.AsyncClient(timeout=12.0) as client:
-        for base in bases:
-            url = f"{base}/point/{lat}/{lon}/{radius_nm}"
+        for template in templates:
+            url = build_url(template, lat, lon, radius_nm)
             try:
                 async with _upstream_lock:
                     wait = settings.feed_min_interval_s - (time.monotonic() - _last_upstream)
@@ -111,12 +121,12 @@ async def fetch_adsb(settings, lat: float, lon: float, radius_nm: int) -> dict:
 
                 result = {
                     "contacts": normalize(payload),
-                    "source": urlparse(base).netloc,
+                    "source": urlparse(url).netloc,
                     "fetched_at": int(time.time()),
                 }
                 _cache[key] = (time.monotonic(), result)
                 return result
             except Exception as e:  # noqa: BLE001 - report, then fail over to next source
-                errors.append(f"{base}: {type(e).__name__}: {e}")
+                errors.append(f"{url}: {type(e).__name__}: {e}")
 
     raise FeedUnavailable("; ".join(errors))
