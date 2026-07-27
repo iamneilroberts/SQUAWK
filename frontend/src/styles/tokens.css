@@ -1,0 +1,66 @@
+/*
+ * Visual identity. Tailwind handles layout only — everything that makes this look like
+ * a mission-control terminal rather than a web app lives here.
+ *
+ * Rules from CLAUDE.md: near-black background, one warm amber, one cool cyan, monospace
+ * throughout, uppercase letterspaced labels, 1px borders with bracket corners, translucent
+ * panels (never opaque cards), no radius beyond 2px, no drop shadows, no gradients.
+ */
+
+:root {
+  --bg: #05070a;
+  --amber: #ffb000;
+  --cyan: #5fd7e0;
+  --grid: #1a222c;
+  --text: #c8d3d9;
+  --mono: "JetBrains Mono", "IBM Plex Mono", monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+}
+
+/* ---- panel: 1px border, translucent background, bracket corners ---- */
+.panel {
+  position: relative;
+  border: 1px solid var(--grid);
+  background: rgba(5, 7, 10, 0.82);
+  border-radius: 0;
+}
+.panel::before,
+.panel::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  pointer-events: none;
+}
+.panel::before {
+  top: -1px;
+  left: -1px;
+  border-top: 1px solid var(--cyan);
+  border-left: 1px solid var(--cyan);
+}
+.panel::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 1px solid var(--cyan);
+  border-right: 1px solid var(--cyan);
+}
+
+/* ---- small uppercase label ---- */
+.label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+}
+
+/* Cesium's default chrome is a consumer map widget. Remove all of it. */
+.cesium-viewer-bottom,
+.cesium-widget-credits { display: none !important; }

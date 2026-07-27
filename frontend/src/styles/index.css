@@ -1,0 +1,7 @@
+/* @import must come before every other rule, including the @tailwind directives —
+   otherwise the browser drops it and the visual identity silently vanishes. */
+@import "./tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

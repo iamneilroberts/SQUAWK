@@ -1,6 +1,8 @@
 node_modules/
 dist/
 dist-single/
+frontend/public/cesium/
+*.tsbuildinfo
 .env
 __pycache__/
 *.pyc
