@@ -30,6 +30,7 @@ export function makeChevronCanvas(colorHex: string): HTMLCanvasElement {
   if (cached) return cached;
 
   const canvas = document.createElement("canvas");
+  canvas.id = colorHex; // stable identity contactBillboards.ts passes to Billboard.setImage
   canvas.width = 32;
   canvas.height = 32;
   const ctx = canvas.getContext("2d");
