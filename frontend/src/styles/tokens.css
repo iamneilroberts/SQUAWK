@@ -61,6 +61,12 @@ body {
   font-size: 11px;
 }
 
-/* Cesium's default chrome is a consumer map widget. Remove all of it. */
+/* Cesium's credit container carries required attribution (Esri, GEBCO-style feeds) and must
+   stay visible and legible — only restyled to fit the console aesthetic, never hidden. */
 .cesium-viewer-bottom,
-.cesium-widget-credits { display: none !important; }
+.cesium-widget-credits {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text);
+  text-shadow: none;
+}
