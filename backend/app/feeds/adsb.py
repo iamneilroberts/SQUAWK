@@ -114,10 +114,15 @@ async def fetch_adsb(settings, lat: float, lon: float, radius_nm: int) -> dict:
                     wait = settings.feed_min_interval_s - (time.monotonic() - _last_upstream)
                     if wait > 0:
                         await asyncio.sleep(wait)
-                    resp = await client.get(url)
+                    # Advance the gate for the request just made, not the request that
+                    # succeeded - a failing feed must still count against
+                    # feed_min_interval_s, or an outage collapses the courtesy gate to zero.
+                    try:
+                        resp = await client.get(url)
+                    finally:
+                        _last_upstream = time.monotonic()
                     resp.raise_for_status()
                     payload = resp.json()
-                    _last_upstream = time.monotonic()
 
                 result = {
                     "contacts": normalize(payload),
