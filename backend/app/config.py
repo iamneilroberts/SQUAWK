@@ -24,5 +24,5 @@ def load_settings() -> Settings:
         adsbdb_base=e("ADSBDB_BASE", "https://api.adsbdb.com/v0"),
         feed_min_interval_s=float(e("FEED_MIN_INTERVAL_S", "1.0")),
         host=e("ADSB_GAME_HOST", "127.0.0.1"),
-        port=int(e("ADSB_GAME_PORT", "8010")),
+        port=int(e("ADSB_GAME_PORT", "8020")),
     )

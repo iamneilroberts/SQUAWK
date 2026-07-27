@@ -34,3 +34,15 @@ Upstream path shapes differ per feed (airplanes.live `/point/…`, adsb.lol + ad
 real failover. `FEED_PRIMARY`/`FEED_FALLBACK`/`FEED_RESERVE` are now full URL templates
 with `{lat}`/`{lon}`/`{radius}` placeholders, formatted per call — this keeps feeds
 swappable via `.env` without a code change.
+
+## 2026-07-27 — G-006 · Default ports: backend 8020, compose frontend 8021
+
+The plan's port defaults (backend `:8010`, compose frontend `:8080`) were chosen unaware of
+this homelab box's reality: `:8010` is LORAN's deployed production backend (fronted by the
+`cloudflared-loran` systemd tunnel) and `:8080` is occupied by an unrelated long-running
+Docker container. Colliding defaults would break the bare-metal dev path and could point
+this game's frontend at LORAN's live API instead of its own. Moved the backend default to
+`8020` (`ADSB_GAME_PORT` in `backend/app/config.py` and `.env.example`, and the dev-proxy
+target in `frontend/vite.config.ts`); `8021` is reserved for the compose frontend port and
+takes effect when Task 9 lands docker-compose.yml. Both verified free on this box. Ports
+remain `.env`-overridable — this only changes the defaults.
