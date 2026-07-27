@@ -1,10 +1,13 @@
-// Placeholder only — replaced in Task 6 once the globe and contact list exist.
+import BrowseGlobe from "./globe/BrowseGlobe";
+
 export default function App() {
   return (
-    <div className="flex h-full w-full items-center justify-center">
-      <div className="panel px-6 py-4">
-        <span className="label">ADSB-GAME — PHASE A</span>
+    <div className="flex h-full w-full">
+      <div className="flex-1">
+        <BrowseGlobe />
       </div>
+      {/* Reserved for Task 8: contact list + status bar. */}
+      <div className="w-80 flex-none" />
     </div>
   );
 }
