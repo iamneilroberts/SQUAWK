@@ -57,6 +57,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
 
 export function startPolling(intervalMs = 5000): () => void {
   let stopped = false;
+  let inFlight = false;
   let timer: ReturnType<typeof setInterval> | undefined;
 
   fetchConfig()
@@ -65,12 +66,26 @@ export function startPolling(intervalMs = 5000): () => void {
       useStore.getState().setHome(config.home);
       const { lat, lon } = config.home;
       timer = setInterval(() => {
+        if (inFlight) return; // previous tick's fetch hasn't resolved yet — skip, don't queue
+        inFlight = true;
         fetchAdsb(lat, lon, 80)
-          .then((r) => useStore.getState().applyFetch(r))
-          .catch(() => useStore.getState().markFetchFailed());
+          .then((r) => {
+            if (stopped) return; // stop() fired while this fetch was in flight — don't touch the store
+            useStore.getState().applyFetch(r);
+          })
+          .catch(() => {
+            if (stopped) return;
+            useStore.getState().markFetchFailed();
+          })
+          .finally(() => {
+            inFlight = false;
+          });
       }, intervalMs);
     })
-    .catch(() => useStore.getState().markFetchFailed());
+    .catch(() => {
+      if (stopped) return;
+      useStore.getState().markFetchFailed();
+    });
 
   return () => {
     stopped = true;
