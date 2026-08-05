@@ -6,7 +6,11 @@
 import { useStore } from "../state/store";
 import type { Contact } from "../data/types";
 
-/** Callsign first (contacts without one sort after those with one), hex as tiebreaker. */
+/**
+ * Sorts by `flight ?? ""` via `localeCompare`, hex as tiebreaker. Contacts with no
+ * callsign compare as the empty string, which sorts *before* any lettered callsign —
+ * so unidentified contacts appear first, not last.
+ */
 export function sortContacts(contacts: Contact[]): Contact[] {
   return [...contacts].sort((a, b) => {
     const ka = a.flight ?? "";
