@@ -58,37 +58,44 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
 export function startPolling(intervalMs = 5000): () => void {
   let stopped = false;
   let inFlight = false;
-  let timer: ReturnType<typeof setInterval> | undefined;
+  let home: { lat: number; lon: number } | null = null;
 
-  fetchConfig()
-    .then((config) => {
-      if (stopped) return;
-      useStore.getState().setHome(config.home);
-      const { lat, lon } = config.home;
-      timer = setInterval(() => {
-        if (inFlight) return; // previous tick's fetch hasn't resolved yet — skip, don't queue
-        inFlight = true;
-        fetchAdsb(lat, lon, 80)
-          .then((r) => {
+  // One recurring tick, armed for the whole lifetime of the poller: fetch config until
+  // it succeeds, then fetch ADS-B. This is what lets a backend that's down at page load
+  // (config fetch rejects) still retry on the normal cadence — reaching OFFLINE via the
+  // usual 3-failure threshold and recovering on its own once the backend answers, instead
+  // of failing once and never being retried.
+  function tick() {
+    if (inFlight) return; // previous tick's fetch hasn't resolved yet — skip, don't queue
+    inFlight = true;
+
+    const attempt =
+      home === null
+        ? fetchConfig().then((config) => {
             if (stopped) return; // stop() fired while this fetch was in flight — don't touch the store
-            useStore.getState().applyFetch(r);
+            home = config.home;
+            useStore.getState().setHome(config.home);
           })
-          .catch(() => {
+        : fetchAdsb(home.lat, home.lon, 80).then((r) => {
             if (stopped) return;
-            useStore.getState().markFetchFailed();
-          })
-          .finally(() => {
-            inFlight = false;
+            useStore.getState().applyFetch(r);
           });
-      }, intervalMs);
-    })
-    .catch(() => {
-      if (stopped) return;
-      useStore.getState().markFetchFailed();
-    });
+
+    attempt
+      .catch(() => {
+        if (stopped) return;
+        useStore.getState().markFetchFailed();
+      })
+      .finally(() => {
+        inFlight = false;
+      });
+  }
+
+  tick(); // fire the first attempt immediately rather than waiting a full interval
+  const timer = setInterval(tick, intervalMs);
 
   return () => {
     stopped = true;
-    if (timer !== undefined) clearInterval(timer);
+    clearInterval(timer);
   };
 }

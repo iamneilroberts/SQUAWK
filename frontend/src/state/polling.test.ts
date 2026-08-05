@@ -92,3 +92,50 @@ describe("startPolling overlap and quiescence", () => {
     expect(s.contacts.has("baseline")).toBe(true);
   });
 });
+
+describe("startPolling cold-start recovery (backend down at page load)", () => {
+  it("escalates to OFFLINE via the normal 3-failure threshold when fetchConfig keeps rejecting", async () => {
+    mockedFetchConfig.mockRejectedValue(new Error("backend down"));
+
+    const stop = startPolling(1000);
+    await vi.advanceTimersByTimeAsync(0); // attempt 1: fails immediately, before any interval tick
+    expect(useStore.getState().feedStatus).toBe("stale");
+
+    await vi.advanceTimersByTimeAsync(1000); // attempt 2
+    expect(useStore.getState().feedStatus).toBe("stale");
+
+    await vi.advanceTimersByTimeAsync(1000); // attempt 3 -> threshold reached
+    expect(useStore.getState().feedStatus).toBe("offline");
+
+    stop();
+  });
+
+  it("recovers to LIVE on its own once the backend answers again, with no reload", async () => {
+    mockedFetchConfig
+      .mockRejectedValueOnce(new Error("down"))
+      .mockRejectedValueOnce(new Error("down"))
+      .mockRejectedValueOnce(new Error("down"))
+      .mockResolvedValue({ home: { lat: 1, lon: 2 } });
+    mockedFetchAdsb.mockResolvedValue({
+      contacts: [contact("recovered")],
+      source: "recovered-src",
+      fetched_at: 123,
+    });
+
+    const stop = startPolling(1000);
+    await vi.advanceTimersByTimeAsync(0); // attempt 1: reject
+    await vi.advanceTimersByTimeAsync(1000); // attempt 2: reject
+    await vi.advanceTimersByTimeAsync(1000); // attempt 3: reject -> offline
+    expect(useStore.getState().feedStatus).toBe("offline");
+
+    await vi.advanceTimersByTimeAsync(1000); // attempt 4: fetchConfig finally resolves
+    await vi.advanceTimersByTimeAsync(1000); // attempt 5: fetchAdsb resolves -> back to live
+
+    const s = useStore.getState();
+    expect(s.feedStatus).toBe("live");
+    expect(s.feedSource).toBe("recovered-src");
+    expect(s.contacts.has("recovered")).toBe(true);
+
+    stop();
+  });
+});
