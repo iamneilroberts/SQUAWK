@@ -75,3 +75,26 @@ deferred as documented Phase-A limitations, not defects:
   A bare `npm run dev` (bypassing `dev.sh`) leaves the proxy on the `:8020` fallback.
 - Backend cache/lock micro-races (cache read outside the lock, no `_cache` eviction) are
   unreachable in practice: one fixed home/radius key plus the frontend in-flight guard.
+
+## 2026-08-05 — Phase B owner decisions (B-1..B-5): merged "first flyable", C172-only, GA-only takeover
+
+Owner decisions at Phase B brainstorm, recorded in
+`docs/superpowers/specs/2026-08-05-phase-b-first-flyable-design.md` §1:
+
+- **B-1** Spec §11's B/C split is merged into one "first flyable" phase (sim core AND
+  terrain/FPV/HUD/handoff/collision together). Owner chose seeing it fly over the
+  headless-first split.
+- **B-2** C172S GA piston is the only class this phase; airliner/fighter params and the
+  F-5E/T-38 source-verification are future enhancements.
+- **B-3** Takeover restricted to GA-class contacts (feed `t` vs a GA-piston designator
+  data list; military excluded). Airliners etc. are future. A disclosed envelope clamp in
+  `buildSpawnState` remains as a safety net — silent clamping is banned.
+- **B-4** Minimal ghost ships now (ground rule 2 honored literally), with honest
+  staleness labels.
+- **B-5** End card allows orbiting the impact site (not a hard freeze-frame).
+
+An Opus 4.8 feasibility review (same date) surfaced 9 red flags — spawn-vs-envelope,
+terrain-not-resident-at-spawn, backgrounded-tab dt, ENU-frame drift, Esc/pointer-lock,
+Viewer/polling ownership, selection nulling, height-0 contacts under real terrain,
+snapshot gating — all folded into the spec as requirements rather than left to
+implementation discretion.
