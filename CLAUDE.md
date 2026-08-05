@@ -50,7 +50,10 @@ Same readsb gotchas as LORAN: `alt_geom` (WGS84) preferred, `alt_baro` may be th
 
 Sequential; stop and wait after each. Detail in spec §11.
 
-- **A — Scaffold + browse:** backend proxy + minimal live display + picker.
+- **A — Scaffold + browse:** ✅ Complete. Backend proxy (failover across airplanes.live →
+  adsb.lol → adsb.fi, adsbdb enrichment) + Cesium browse globe with live contacts, chevron
+  icons, picking, contact list, honest feed status bar; Docker Compose and bare-metal dev
+  paths both verified.
 - **B — Sim core:** pure-TS 6-DOF, three parameter files, envelope unit tests. No rendering.
 - **C — FPV:** terrain, damped cockpit camera, HUD, handoff, ground collision. First flyable.
 - **D — Buildings:** PMTiles-vs-Overpass spike, 25 km bubble, collision.
