@@ -23,8 +23,11 @@ if [ ! -x backend/.venv/bin/uvicorn ]; then
   backend/.venv/bin/pip install --quiet -r backend/requirements.txt
 fi
 
-if [ ! -d frontend/node_modules ]; then
-  echo "dev.sh: frontend/node_modules missing -- running npm ci..."
+# `npm ls` exits non-zero if node_modules is missing, or present but incomplete/mismatched
+# against package-lock.json (e.g. an interrupted `npm ci` left a partial install) --
+# unlike a directory-existence check, this self-heals from a half-finished first run.
+if ! (cd frontend && npm ls --silent >/dev/null 2>&1); then
+  echo "dev.sh: frontend/node_modules missing or incomplete -- running npm ci..."
   (cd frontend && npm ci)
 fi
 
