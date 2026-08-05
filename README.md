@@ -33,7 +33,10 @@ docker compose up --build
 ```
 
 **Bare metal** — one script runs the backend (uvicorn, from `backend/.venv`) and the
-Vite dev server together, on **http://localhost:5173** (backend on `:8020`):
+Vite dev server together, on **http://localhost:5173** (backend on `:8020`). Requires
+`python3` and `node`/`npm` on `PATH`. First run creates `backend/.venv` and installs
+`backend/requirements.txt`, and runs `npm ci` in `frontend/` — that's normal and only
+happens once; later runs skip straight to starting the servers:
 
 ```bash
 bash scripts/dev.sh
