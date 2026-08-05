@@ -58,6 +58,22 @@ def test_type_malformed_body_collapses_to_none(monkeypatch):
     assert r.status_code == 200
     assert r.json() == {"type": None, "manufacturer": None, "registration": None}
 
+def test_type_malformed_hex_rejected_without_upstream(monkeypatch):
+    """A non-hex code must be rejected before any upstream call (URL hygiene), degrading to
+    an honest all-None rather than interpolating junk into the adsbdb path."""
+    from app.feeds import adsbdb
+    adsbdb._cache.clear()
+
+    def explode(*a, **kw):
+        raise AssertionError("no upstream call should be made for a malformed hex")
+    monkeypatch.setattr(adsbdb.httpx, "AsyncClient", explode)
+
+    client = TestClient(create_app())
+    r = client.get("/api/type/GHIJKL")  # G/H/I/J are not hex digits
+    assert r.status_code == 200
+    assert r.json() == {"type": None, "manufacturer": None, "registration": None}
+
+
 def test_type_outage_is_honest_and_not_cached(monkeypatch):
     """
     A genuine adsbdb outage must degrade to an honest unknown (200, all-None), not a 500 -

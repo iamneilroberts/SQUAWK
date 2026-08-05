@@ -10,6 +10,7 @@ single-process homelab service that restarts rarely.
 """
 from __future__ import annotations
 
+import re
 import time
 from typing import Any
 
@@ -17,6 +18,11 @@ import httpx
 
 _CACHE_TTL_S = 24 * 60 * 60
 _cache: dict[str, tuple[float, dict[str, Any] | None]] = {}
+
+# Whitelist the hex before interpolating it into the outbound URL (hygiene, mirrors LORAN):
+# rejects anything but hex digits, so path junk never reaches adsbdb and garbage lookups
+# don't waste an upstream call. ICAO addresses are 6 nibbles; allow 1-8 for tolerance.
+_HEX_RE = re.compile(r"^[0-9A-F]{1,8}$")
 
 
 async def lookup(settings, hexcode: str) -> dict[str, Any] | None:
@@ -31,6 +37,8 @@ async def lookup(settings, hexcode: str) -> dict[str, Any] | None:
     404) is cache-worthy.
     """
     key = hexcode.strip().upper()
+    if not _HEX_RE.match(key):
+        return None
     cached = _cache.get(key)
     if cached and time.monotonic() < cached[0]:
         return cached[1]

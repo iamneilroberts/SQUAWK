@@ -47,3 +47,33 @@ async def test_failed_upstream_calls_still_advance_the_gate(monkeypatch):
 
     # All three attempts failed, but each one must have advanced the gate.
     assert adsb._last_upstream > 0.0
+
+
+@pytest.mark.asyncio
+async def test_malformed_template_fails_over(monkeypatch):
+    """
+    A feed whose URL template has a bad placeholder must be treated as that feed being down
+    and fail over to the next source - not raise out of the loop as a 500. Before the fix,
+    build_url ran before the try, so a malformed primary crashed the whole request.
+    """
+    s = Settings(
+        home_lat=30.6944, home_lon=-88.0399,
+        feed_primary="https://primary.example/{nope}",  # unknown placeholder -> KeyError
+        feed_fallback="https://fallback.example/v2/lat/{lat}/lon/{lon}/dist/{radius}",
+        feed_reserve="https://reserve.example/api/v2/lat/{lat}/lon/{lon}/dist/{radius}",
+        adsbdb_base="https://adsbdb.example/v0",
+        feed_min_interval_s=0.0,
+        host="127.0.0.1", port=8010,
+    )
+
+    def handler(request):
+        return httpx.Response(200, json={"ac": []})
+
+    real_async_client = httpx.AsyncClient
+    monkeypatch.setattr(
+        adsb.httpx, "AsyncClient",
+        lambda *a, **kw: real_async_client(*a, transport=httpx.MockTransport(handler), **kw),
+    )
+
+    result = await adsb.fetch_adsb(s, 30.0, -88.0, 100)
+    assert result["source"] == "fallback.example"  # failed over past the bad primary

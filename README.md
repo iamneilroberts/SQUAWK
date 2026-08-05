@@ -7,9 +7,10 @@ keeps flying on the feed as a ghost while yours diverges.
 Browser-based (CesiumJS), self-hosted, single-user, MIT. Sibling of
 [LORAN](https://github.com/iamneilroberts/LORAN).
 
-**Status: design phase.** The approved spec lives at
+**Status: Phase A (Browse) complete.** The live ADS-B browse globe is built and runs (see
+"Running it" below); take-controls and flight are future phases. The approved spec lives at
 [`docs/superpowers/specs/2026-07-27-adsb-game-design.md`](docs/superpowers/specs/2026-07-27-adsb-game-design.md);
-supporting research in [`docs/research/`](docs/research/). No application code yet.
+supporting research in [`docs/research/`](docs/research/).
 
 ## What it will be
 
@@ -44,7 +45,14 @@ bash scripts/dev.sh
 
 Ports default to backend `8020` / compose frontend `8021` (see
 [`docs/decisions.md` G-006](docs/decisions.md) — `:8010`/`:8080` are taken by other
-services on this box) and are `.env`-overridable.
+services on this box).
+
+> **Port overrides:** only the bare-metal path honors `ADSB_GAME_PORT` — `scripts/dev.sh`
+> passes it to uvicorn and `vite.config.ts` proxies to it. The Docker path is fixed: the
+> backend image, `nginx.conf`, and `docker-compose.yml` hardcode backend `8020` / published
+> `8021`, so `ADSB_GAME_PORT` in `.env` does **not** change the compose ports. Running
+> `cd frontend && npm run dev` directly (bypassing `dev.sh`) also leaves `ADSB_GAME_PORT`
+> unset and the Vite proxy falls back to `:8020`.
 
 ## Attribution
 

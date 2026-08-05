@@ -56,6 +56,8 @@ def normalize(payload: dict) -> list[dict]:
 
     contacts = []
     for raw in rows:
+        if not isinstance(raw, dict):
+            continue
         lat, lon = _num(raw.get("lat")), _num(raw.get("lon"))
         if lat is None or lon is None:
             continue
@@ -108,8 +110,10 @@ async def fetch_adsb(settings, lat: float, lon: float, radius_nm: int) -> dict:
     errors = []
     async with httpx.AsyncClient(timeout=12.0) as client:
         for template in templates:
-            url = build_url(template, lat, lon, radius_nm)
             try:
+                # build_url is inside the try so a malformed template (bad placeholder)
+                # counts as this feed being down and fails over, not a 500 for the caller.
+                url = build_url(template, lat, lon, radius_nm)
                 async with _upstream_lock:
                     wait = settings.feed_min_interval_s - (time.monotonic() - _last_upstream)
                     if wait > 0:
@@ -132,6 +136,6 @@ async def fetch_adsb(settings, lat: float, lon: float, radius_nm: int) -> dict:
                 _cache[key] = (time.monotonic(), result)
                 return result
             except Exception as e:  # noqa: BLE001 - report, then fail over to next source
-                errors.append(f"{url}: {type(e).__name__}: {e}")
+                errors.append(f"{template}: {type(e).__name__}: {e}")
 
     raise FeedUnavailable("; ".join(errors))

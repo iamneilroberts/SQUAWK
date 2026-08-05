@@ -52,3 +52,26 @@ remain `.env`-overridable — this only changes the defaults.
 LORAN commits ~430 asset files; adsb-game copies from `node_modules` in `predev`/`prebuild`
 instead, keeping the public repo lean. Trade-off: `npm install` required before first run
 (true anyway).
+
+## 2026-08-05 — Phase A known limitations (final whole-branch review triage)
+
+The final whole-branch review approved Phase A with three ~1-line robustness/hygiene fixes
+applied and tested: malformed-template failover (`adsb.py`), non-dict feed row skip
+(`normalize`), and an adsbdb hex whitelist (`adsbdb.py`). The following are consciously
+deferred as documented Phase-A limitations, not defects:
+
+- **No keyboard selection of contact rows** (`frontend/src/panels/ContactList.tsx`) — rows
+  are click-only, consistent with Cesium picking; add `role`/`tabIndex`/`onKeyDown` post-A.
+- **No `restart:`/healthcheck in `docker-compose.yml`** — fine for manual homelab runs; add
+  `restart: unless-stopped` + a `/healthz` healthcheck if/when it becomes always-on.
+- **`frontend/scripts/copy-cesium-assets.sh` merges, not mirrors** — stale assets could
+  linger on a Cesium version bump; `rm -rf` the target dirs before copy at that time.
+- **Stale contacts stay rendered on OFFLINE** — billboards freeze at last-good positions
+  while the status chip honestly reads STALE/OFFLINE (data is real, just old; this is
+  deliberate anti-flicker). Revisit clearing/dimming on sustained OFFLINE if it misleads.
+- **Port override only works on the bare-metal path.** `scripts/dev.sh` + `vite.config.ts`
+  honor `ADSB_GAME_PORT`; the Docker path (backend image, `nginx.conf`, `docker-compose.yml`)
+  hardcodes backend `8020` / published `8021`, so `.env` does not change the compose ports.
+  A bare `npm run dev` (bypassing `dev.sh`) leaves the proxy on the `:8020` fallback.
+- Backend cache/lock micro-races (cache read outside the lock, no `_cache` eviction) are
+  unreachable in practice: one fixed home/radius key plus the frontend in-flight guard.

@@ -39,3 +39,10 @@ def test_military_flag():
 
 def test_positionless_dropped():
     assert normalize({"ac": [{"hex": "a1b2c3"}]}) == []
+
+
+def test_non_dict_rows_skipped():
+    # A junk non-dict element must not abort the whole batch (which would fail the feed over
+    # and discard its real contacts); it is skipped and the real row survives.
+    out = normalize({"ac": ["garbage", 42, {"hex": "a1b2c3", "lat": 30.0, "lon": -88.0}]})
+    assert len(out) == 1 and out[0]["hex"] == "a1b2c3"
