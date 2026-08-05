@@ -1,0 +1,16 @@
+# adsb-game containerized run. Ports per docs/decisions.md G-006 (this box's :8010 is
+# LORAN's live production backend, :8080 is occupied by an unrelated container).
+services:
+  backend:
+    build: ./backend
+    env_file: .env
+    environment:
+      ADSB_GAME_HOST: 0.0.0.0
+    expose:
+      - "8020"
+  frontend:
+    build: ./frontend
+    ports:
+      - "8021:80"
+    depends_on:
+      - backend

@@ -22,6 +22,27 @@ supporting research in [`docs/research/`](docs/research/). No application code y
 - **End** — terrain contact anywhere on Earth, or a building inside a ~25 km bubble,
   ends the session with a stats card. Gentle, level, slow touchdowns read LANDED.
 
+## Running it
+
+Copy `.env.example` to `.env` first (no secrets required, every upstream feed is keyless).
+
+**Docker Compose** — builds and serves the whole app on **http://localhost:8021**:
+
+```bash
+docker compose up --build
+```
+
+**Bare metal** — one script runs the backend (uvicorn, from `backend/.venv`) and the
+Vite dev server together, on **http://localhost:5173** (backend on `:8020`):
+
+```bash
+bash scripts/dev.sh
+```
+
+Ports default to backend `8020` / compose frontend `8021` (see
+[`docs/decisions.md` G-006](docs/decisions.md) — `:8010`/`:8080` are taken by other
+services on this box) and are `.env`-overridable.
+
 ## Attribution
 
 Imagery © Esri World Imagery · Terrain: Re:Earth Terrain · Mapterhorn (CC BY 4.0) ·
