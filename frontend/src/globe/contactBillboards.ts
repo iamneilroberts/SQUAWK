@@ -26,6 +26,30 @@
 import { Billboard, BillboardCollection, Cartesian3, Color } from "cesium";
 import type { Contact } from "../data/types";
 import { contactColor, contactRotationRad, makeChevronCanvas } from "./icons";
+import { ftToM } from "../sim/units";
+
+/** Ghost billboards are dimmed, not hidden — the real aircraft is still real. */
+export const GHOST_ALPHA = 0.35;
+
+/**
+ * Height for a contact's billboard, in metres above the ellipsoid. `alt_geom` only:
+ * it is WGS84-ellipsoidal, the same datum as the terrain, so a contact placed with it sits
+ * where it actually is. `alt_baro` is pressure altitude and would put aircraft at the wrong
+ * height over real relief, so a contact without alt_geom is not drawn on the globe at all
+ * (it still appears in the contact list, with its baro altitude, honestly labelled).
+ */
+export function contactHeightM(c: Contact): number | null {
+  return c.alt_geom === null ? null : ftToM(c.alt_geom);
+}
+
+/** The subset of contacts that can be placed in 3D. */
+export function renderableContacts(contacts: Map<string, Contact>): Map<string, Contact> {
+  const out = new Map<string, Contact>();
+  for (const [hex, c] of contacts) {
+    if (contactHeightM(c) !== null) out.set(hex, c);
+  }
+  return out;
+}
 
 /** Pure set/map partition: what to add, remove, and leave in place. Tested without Cesium. */
 export function diffContacts(
@@ -65,8 +89,11 @@ export function syncBillboards(
   byHex: Map<string, Billboard>,
   contacts: Map<string, Contact>,
   selectedHex: string | null,
+  opts: { ghostHex?: string | null } = {},
 ): void {
-  const { added, removed, kept } = diffContacts(new Set(byHex.keys()), contacts);
+  const drawable = renderableContacts(contacts);
+  const { added, removed, kept } = diffContacts(new Set(byHex.keys()), drawable);
+  const ghostHex = opts.ghostHex ?? null;
 
   for (const hex of removed) {
     const bb = byHex.get(hex);
@@ -75,12 +102,12 @@ export function syncBillboards(
   }
 
   for (const hex of added) {
-    const c = contacts.get(hex)!;
+    const c = drawable.get(hex)!;
     const bb = collection.add({
       id: hex,
-      position: Cartesian3.fromDegrees(c.lon, c.lat, 0),
+      position: Cartesian3.fromDegrees(c.lon, c.lat, contactHeightM(c)!),
       rotation: contactRotationRad(c.track),
-      color: Color.WHITE, // constant tint; the icon image itself carries civil/military color
+      color: hex === ghostHex ? Color.WHITE.withAlpha(GHOST_ALPHA) : Color.WHITE,
       scale: scaleFor(hex, selectedHex),
     });
     applyIcon(bb, c);
@@ -88,11 +115,13 @@ export function syncBillboards(
   }
 
   for (const hex of kept) {
-    const c = contacts.get(hex)!;
+    const c = drawable.get(hex)!;
     const bb = byHex.get(hex)!;
-    bb.position = Cartesian3.fromDegrees(c.lon, c.lat, 0);
+    bb.position = Cartesian3.fromDegrees(c.lon, c.lat, contactHeightM(c)!);
     bb.rotation = contactRotationRad(c.track);
     applyIcon(bb, c); // cheap no-op unless the contact's color actually changed
     bb.scale = scaleFor(hex, selectedHex);
+    // The origin aircraft keeps flying on the live feed, dimmed — it is still real.
+    bb.color = hex === ghostHex ? Color.WHITE.withAlpha(GHOST_ALPHA) : Color.WHITE;
   }
 }

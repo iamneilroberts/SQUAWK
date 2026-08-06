@@ -5,6 +5,7 @@
  */
 import { useStore } from "../state/store";
 import type { Contact } from "../data/types";
+import { checkEligibility } from "../takeover/eligibility";
 
 /**
  * Sorts by `flight ?? ""` via `localeCompare`, hex as tiebreaker. Contacts with no
@@ -36,6 +37,8 @@ export default function ContactList() {
   const select = useStore((s) => s.select);
 
   const rows = sortContacts(Array.from(contacts.values()));
+  const selected = selectedHex === null ? null : contacts.get(selectedHex) ?? null;
+  const eligibility = checkEligibility(selected);
 
   return (
     <div className="panel flex h-full flex-col">
@@ -66,9 +69,21 @@ export default function ContactList() {
 
       {selectedHex !== null && (
         <div className="p-2">
-          <button disabled title="Phase C" className="control-button-disabled w-full">
+          <button
+            disabled={!eligibility.eligible}
+            title={eligibility.eligible ? "Take controls of this contact" : eligibility.reason}
+            className={eligibility.eligible ? "control-button w-full" : "control-button-disabled w-full"}
+            onClick={() => {
+              // Freeze the snapshot NOW: applyFetch nulls selectedHex the moment the
+              // contact leaves the feed, and the origin must survive that (spec §4).
+              if (!eligibility.eligible || selected === null) return;
+              useStore.getState().setOrigin({ hex: selected.hex, snapshot: { ...selected } });
+              useStore.getState().fire("TAKE_CONTROLS");
+            }}
+          >
             TAKE CONTROLS
           </button>
+          {!eligibility.eligible && <div className="label takeover-reason">{eligibility.reason}</div>}
         </div>
       )}
     </div>

@@ -220,3 +220,94 @@ body {
   opacity: 0.65;
   letter-spacing: 0.04em;
 }
+
+/* ---- an enabled console control (the disabled twin is above) ---- */
+.control-button {
+  border: 1px solid var(--cyan);
+  background: transparent;
+  color: var(--cyan);
+  padding: 6px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-family: var(--mono);
+  cursor: pointer;
+  border-radius: 0;
+}
+.control-button:hover { background: rgba(95, 215, 224, 0.12); }
+.takeover-reason { color: var(--amber); padding-top: 4px; }
+
+/* ---- handoff card ---- */
+.handoff-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 460px;
+  max-height: 80%;
+  overflow-y: auto;
+  padding: 12px 14px;
+  font-size: 12px;
+  pointer-events: auto;
+}
+.handoff-title { color: var(--amber); padding: 6px 0; }
+.handoff-row { display: flex; justify-content: space-between; padding: 2px 0; }
+.handoff-value { color: var(--cyan); }
+.handoff-disclosure {
+  border-top: 1px solid var(--grid);
+  border-bottom: 1px solid var(--grid);
+  margin: 8px 0;
+  padding: 8px 0;
+  font-size: 10px;
+  color: var(--text);
+  letter-spacing: 0.04em;
+}
+.handoff-adjustment {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-left: 2px solid var(--amber);
+  padding: 4px 0 4px 8px;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+.handoff-adjust-field { color: var(--amber); }
+.handoff-adjust-reason { color: var(--text); opacity: 0.75; font-size: 10px; }
+.handoff-note { color: var(--amber); padding-top: 6px; font-size: 11px; }
+.handoff-countdown {
+  text-align: center;
+  font-size: 44px;
+  color: var(--amber);
+  padding-top: 8px;
+}
+
+/* ---- pause / end overlays ---- */
+.pause-overlay,
+.end-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 7, 10, 0.55);
+  pointer-events: auto;
+}
+/* Armed: the player has to reach the canvas underneath, so the backdrop stops intercepting
+   clicks and moves out of the middle of the screen. Only its own buttons stay clickable. */
+.pause-overlay-armed {
+  align-items: flex-start;
+  background: transparent;
+  pointer-events: none;
+}
+.pause-overlay-armed .pause-card {
+  margin-top: 96px;
+  pointer-events: auto;
+}
+.pause-card,
+.end-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px;
+  min-width: 280px;
+}

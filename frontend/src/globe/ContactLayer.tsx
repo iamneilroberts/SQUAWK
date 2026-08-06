@@ -3,10 +3,12 @@
  * scenery, parent spec §5); only the home-camera move is BROWSE-only, because setView in
  * FLYING would fight the FPV camera.
  */
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Cartesian3, Math as CesiumMath } from "cesium";
+import type { Label } from "cesium";
 import { useStore } from "../state/store";
 import { syncBillboards } from "./contactBillboards";
+import { syncGhostLabel } from "./ghost";
 import { useViewer } from "./viewerContext";
 
 const BROWSE_HEIGHT_M = 250_000;
@@ -17,6 +19,9 @@ export default function ContactLayer() {
   const selectedHex = useStore((s) => s.selectedHex);
   const home = useStore((s) => s.home);
   const mode = useStore((s) => s.mode);
+  const origin = useStore((s) => s.origin);
+  const feedStatus = useStore((s) => s.feedStatus);
+  const ghostLabelRef = useRef<{ label: Label | null }>({ label: null });
 
   // Camera waits for the real home from /api/config — never flies to an invented default.
   // Deps key on bundle?.viewer, not bundle itself: the viewer reference is stable for the
@@ -32,8 +37,16 @@ export default function ContactLayer() {
 
   useEffect(() => {
     if (!bundle) return;
-    syncBillboards(bundle.billboards, bundle.byHex, contacts, selectedHex);
-  }, [bundle, contacts, selectedHex]);
+    syncBillboards(bundle.billboards, bundle.byHex, contacts, selectedHex, {
+      ghostHex: origin?.hex ?? null,
+    });
+    syncGhostLabel(
+      bundle.labels,
+      ghostLabelRef.current,
+      origin ? contacts.get(origin.hex) : undefined,
+      feedStatus,
+    );
+  }, [bundle, contacts, selectedHex, origin, feedStatus]);
 
   return null;
 }

@@ -290,3 +290,19 @@ silent gap between the spec and the build.
 Aircraft class, the other half of spec §9's "class + synthetic callsign", **is** present:
 `HudSnapshot.classLabel` carries `params.label` and the HUD renders it in the SIM banner
 next to `SIM-<HEX>`.
+
+## 2026-08-05 — B-014 · Contacts render at alt_geom only, and the ghost never fakes freshness
+
+Two honesty calls in the takeover wiring:
+
+**Globe contacts are placed at `alt_geom` (ellipsoidal), converted ft→m, and contacts
+without `alt_geom` are not drawn on the globe at all.** Phase A drew every contact at
+height 0, which was invisible under real terrain the moment Phase B attached Re:Earth.
+`alt_baro` is pressure altitude — the wrong datum for a 3D position — so substituting it
+would put aircraft at plausible-looking wrong heights. Those contacts still appear in the
+contact list with their baro altitude, where the number is honest.
+
+**The ghost label shows an age only when the feed is LIVE and the contact reported one.**
+When the contact drops out of the feed, or the feed goes STALE/OFFLINE, it reads
+`GHOST · NO DATA` rather than a frozen age that would keep looking fresh. The billboard is
+dimmed to 35% alpha and stays on the globe — the real aircraft is still real.
