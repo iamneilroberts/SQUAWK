@@ -163,6 +163,11 @@ export function createFlightLoop(deps: FlightLoopDeps) {
       unsubscribe();
       unsubscribe = null;
       host.exitFlightView();
+      // Same re-base as resume(), for the same reason: whatever gap follows — a teardown, a
+      // handoff card, the next takeover on this instance — is dead time, not flying time.
+      // Leaving the clock set would hand start() a stale reference and lurch the first frame.
+      lastWallMs = null;
+      paused = false;
     },
     isPaused() {
       return paused;

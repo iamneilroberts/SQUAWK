@@ -86,6 +86,38 @@ describe("flight loop lifecycle", () => {
     loop.stop();
     expect(host.calls.exit).toBe(1);
   });
+  it("a restarted loop re-bases its clock instead of lurching through the dead time", () => {
+    // Task 11 tears a flight down and builds the next one, and stop()/start() is the seam it
+    // does it on. A stop() that leaves the frame clock set turns the gap between two flights
+    // into a clamped-and-dropped 0.25 s of physics on the first frame of the second one.
+    const { loop, host } = makeLoop();
+    loop.start();
+    host.frame(1000);
+    host.frame(1100); // 100 ms -> 6 steps
+    const flown = loop.getState().timeS;
+    loop.stop();
+
+    loop.start();
+    host.frame(400000); // minutes later: this frame only re-establishes the clock
+    expect(loop.getState().timeS).toBeCloseTo(flown, 9);
+    host.frame(400000 + 1000 / 60);
+    expect(loop.getState().timeS).toBeCloseTo(flown + FIXED_DT, 9);
+    loop.stop();
+  });
+  it("a restarted loop is not born paused", () => {
+    const { loop, host } = makeLoop();
+    loop.start();
+    host.frame(1000);
+    loop.pause();
+    loop.stop();
+
+    loop.start();
+    expect(loop.isPaused()).toBe(false);
+    host.frame(2000);
+    host.frame(2100);
+    expect(loop.getState().timeS).toBeCloseTo(6 * FIXED_DT, 9);
+    loop.stop();
+  });
   it("the first frame establishes the clock without simulating a huge jump", () => {
     const { loop, spawn } = makeLoop();
     loop.start();
