@@ -1,0 +1,108 @@
+/*
+ * The display edge. SI comes in, aviation units go out, and this is the ONLY place that
+ * conversion happens for the HUD. Unknown is an em-dash, never a zero — the honest-data
+ * rule applies to the player's own instruments too.
+ */
+import type { HudSnapshot } from "./snapshot";
+import { msToKt, mToFt, msToFpm, radToDeg } from "../sim/units";
+
+export const EM_DASH = "—";
+/** Terrain-proximity warning threshold, feet of clearance. */
+export const TERRAIN_WARNING_FT = 500;
+/** At or above this sim rate the loop is keeping up and says nothing. */
+export const SIM_RATE_WARNING = 0.95;
+
+const dash = (v: number | null | undefined): v is null | undefined =>
+  v === null || v === undefined || !Number.isFinite(v as number);
+
+export function formatIasKt(ms: number | null): string {
+  return dash(ms) ? EM_DASH : String(Math.round(msToKt(ms)));
+}
+export function formatTasKt(ms: number | null): string {
+  return dash(ms) ? EM_DASH : String(Math.round(msToKt(ms)));
+}
+export function formatAltFt(m: number | null): string {
+  return dash(m) ? EM_DASH : String(Math.round(mToFt(m)));
+}
+
+/** Signed, rounded to 10 fpm; level flight reads a bare "0". */
+export function formatVsiFpm(ms: number | null): string {
+  if (dash(ms)) return EM_DASH;
+  const fpm = Math.round(msToFpm(ms) / 10) * 10;
+  if (fpm === 0) return "0";
+  return fpm > 0 ? `+${fpm}` : String(fpm);
+}
+
+/** Three digits, 000-359. 359.6 rounds to 360, which is 000, not "360". */
+export function formatHeadingDeg(rad: number | null): string {
+  if (dash(rad)) return EM_DASH;
+  const deg = Math.round(((radToDeg(rad) % 360) + 360) % 360) % 360;
+  return String(deg).padStart(3, "0");
+}
+
+export function formatAoaDeg(rad: number | null): string {
+  return dash(rad) ? EM_DASH : radToDeg(rad).toFixed(1);
+}
+
+export function formatG(n: number | null): string {
+  if (dash(n)) return EM_DASH;
+  return `${n >= 0 ? "+" : ""}${n.toFixed(1)}`;
+}
+
+export function formatThrottlePct(t: number | null): string {
+  return dash(t) ? EM_DASH : `${Math.round(t * 100)}%`;
+}
+
+export function formatFlaps(label: string | null): string {
+  return `FLAPS ${label ?? EM_DASH}`;
+}
+
+/** The 172's gear is fixed; the HUD says so rather than offering a control that does nothing. */
+export function formatGear(gear: "fixed" | "retractable" | null): string {
+  if (gear === "fixed") return "GEAR FIXED";
+  if (gear === "retractable") return "GEAR DOWN";
+  return `GEAR ${EM_DASH}`;
+}
+
+export function formatClearanceFt(m: number | null): string {
+  return dash(m) ? EM_DASH : String(Math.round(mToFt(m)));
+}
+
+export function formatAirtime(seconds: number): string {
+  const total = Math.max(0, Math.floor(seconds));
+  const mm = String(Math.floor(total / 60)).padStart(2, "0");
+  const ss = String(total % 60).padStart(2, "0");
+  return `${mm}:${ss}`;
+}
+
+/** Null when the sim is keeping up; otherwise the honest multiplier. */
+export function formatSimRate(rate: number): string | null {
+  if (rate >= SIM_RATE_WARNING) return null;
+  return `SIM RATE ${rate.toFixed(1)}×`;
+}
+
+export function formatCallsign(hex: string): string {
+  return `SIM-${hex.toUpperCase()}`;
+}
+
+/** Aircraft class beside the callsign (parent spec §9). Em-dash when it is not known. */
+export function formatClass(label: string | null): string {
+  return label === null || label.length === 0 ? EM_DASH : label.toUpperCase();
+}
+
+/**
+ * Warnings, most urgent first. TERRAIN (you are close to the ground) and TERRAIN UNVERIFIED
+ * (we do not know where the ground is) are deliberately different messages — and proximity
+ * is never claimed when clearance is unknown.
+ */
+export function warningsFor(s: HudSnapshot): string[] {
+  const out: string[] = [];
+  if (s.stalled) out.push("STALL");
+  if (s.overspeed) out.push("OVERSPEED");
+  if (s.gLimited) out.push("G LIMIT");
+  if (s.terrainUnverified) out.push("TERRAIN UNVERIFIED");
+  else if (s.terrainClearanceM !== null && mToFt(s.terrainClearanceM) < TERRAIN_WARNING_FT) {
+    out.push("TERRAIN");
+  }
+  return out;
+}

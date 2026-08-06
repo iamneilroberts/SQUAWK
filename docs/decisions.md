@@ -276,3 +276,17 @@ while PAUSED and so keeps it current) was measured against the hidden-tab case t
 `visibilitychange` auto-pause exists for: with no frames delivered during the pause it
 resumes with a clamped-and-dropped 0.25 s jump. `flightLoop.test.ts`'s "a pause that
 delivered no frames at all" case pins the re-base and fails under that alternative.
+
+## 2026-08-05 — B-013 · The heading readout is numeric this phase; the tape is backlogged
+
+Parent spec §9 asks for a heading TAPE (and a VSI tape). Phase B ships three-digit numeric
+readouts instead: `HDG 270`, `VSI +700`. The information content is identical and every
+honesty rule still applies (000–359 with the 359.6→000 wrap, em-dash when unknown, all
+pinned in `hud/format.test.ts`); what is missing is the moving-scale presentation, which is
+a drawing job with no new data behind it and no bearing on whether the aeroplane flies.
+Deferred to Phase E polish alongside the chase cam. Recorded here rather than left as a
+silent gap between the spec and the build.
+
+Aircraft class, the other half of spec §9's "class + synthetic callsign", **is** present:
+`HudSnapshot.classLabel` carries `params.label` and the HUD renders it in the SIM banner
+next to `SIM-<HEX>`.

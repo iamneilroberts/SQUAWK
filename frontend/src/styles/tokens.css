@@ -133,3 +133,90 @@ body {
 .status-chip-warn {
   color: var(--amber);
 }
+
+/* ---- HUD: instrumentation over the globe. Amber is the SIM accent, cyan is nominal. ---- */
+.hud-root {
+  position: absolute;
+  inset: 0;
+  pointer-events: none; /* the globe stays clickable underneath */
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.hud-banner {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 10px;
+  border: 1px solid var(--amber);
+  background: rgba(5, 7, 10, 0.72);
+  color: var(--amber);
+}
+.hud-sim-badge {
+  font-weight: 700;
+  letter-spacing: 0.24em;
+}
+.hud-model-note {
+  color: var(--text);
+  opacity: 0.75;
+  font-size: 10px;
+}
+.hud-left { position: absolute; top: 25%; left: 16px; }
+.hud-right { position: absolute; top: 25%; right: 16px; text-align: right; }
+.hud-bottom {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 20px;
+}
+.hud-heading {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.hud-heading-value { font-size: 20px; }
+.hud-readout {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 0;
+}
+.hud-right .hud-readout { justify-content: flex-end; }
+.hud-readout-label { font-size: 10px; opacity: 0.7; min-width: 28px; }
+.hud-readout-value { font-size: 18px; }
+.hud-readout-unit { font-size: 10px; opacity: 0.7; }
+.hud-warnings {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+}
+.hud-warning {
+  color: var(--amber);
+  border: 1px solid var(--amber);
+  padding: 2px 8px;
+  background: rgba(5, 7, 10, 0.72);
+}
+.hud-attribution {
+  position: absolute;
+  bottom: 6px;
+  left: 12px;
+  font-size: 9px;
+  color: var(--text);
+  opacity: 0.65;
+  letter-spacing: 0.04em;
+}
