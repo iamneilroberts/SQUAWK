@@ -105,20 +105,23 @@ describe("dragCoefficient", () => {
 describe("thrustNewtons", () => {
   it("is power-limited above the prop peak speed: T = eta*P/V", () => {
     const v = 70;
-    expect(thrustNewtons(P, 1, v)).toBeCloseTo((P.propulsion.propEfficiency * P.propulsion.maxPowerW) / v, 6);
+    expect(thrustNewtons(P, 1, v, 0)).toBeCloseTo((P.propulsion.propEfficiency * P.propulsion.maxPowerW) / v, 6);
   });
   it("does not run away as V -> 0 (static thrust is finite)", () => {
-    const t0 = thrustNewtons(P, 1, 0);
+    const t0 = thrustNewtons(P, 1, 0, 0);
     expect(Number.isFinite(t0)).toBe(true);
     expect(t0).toBeCloseTo(
       (P.propulsion.propEfficiency * P.propulsion.maxPowerW) / P.propulsion.propPeakSpeedMs, 6);
   });
   it("scales linearly with throttle and is zero at idle", () => {
-    expect(thrustNewtons(P, 0.5, 70)).toBeCloseTo(thrustNewtons(P, 1, 70) / 2, 9);
-    expect(thrustNewtons(P, 0, 70)).toBe(0);
+    expect(thrustNewtons(P, 0.5, 70, 0)).toBeCloseTo(thrustNewtons(P, 1, 70, 0) / 2, 9);
+    expect(thrustNewtons(P, 0, 70, 0)).toBe(0);
   });
   it("falls with speed above the peak (a top-speed asymptote exists)", () => {
-    expect(thrustNewtons(P, 1, 90)).toBeLessThan(thrustNewtons(P, 1, 70));
+    expect(thrustNewtons(P, 1, 90, 0)).toBeLessThan(thrustNewtons(P, 1, 70, 0));
+  });
+  it("lapses with density altitude", () => {
+    expect(thrustNewtons(P, 1, 70, 3000)).toBeLessThan(thrustNewtons(P, 1, 70, 0));
   });
 });
 

@@ -80,15 +80,32 @@ export function stallSpeedIasMs(params: ClassParams, flapIndex: number): number 
 }
 
 /**
+ * Normally-aspirated piston power lapse with density altitude (Gagg-Ferrar):
+ *   P(h)/P(0) = (sigma - 0.117) / 0.883,  sigma = rho(h)/rho(0)
+ * Without this a C172 climbs at 970 fpm at its published service ceiling — the ceiling
+ * only exists because the engine loses power with air density, not because drag rises.
+ */
+export function pistonPowerLapse(altitudeM: number): number {
+  const sigma = isaDensity(altitudeM) / RHO_SL;
+  return Math.max(0, (sigma - 0.117) / 0.883);
+}
+
+/**
  * Power-limited propeller thrust with a linear efficiency ramp below the prop's peak
  * speed. `eta(V) * P / V` with `eta(V) = etaMax * min(1, V/Vpeak)` collapses to
  * `etaMax * P / max(V, Vpeak)` — which is finite at V = 0, so static thrust needs no
  * separate cap, and which gives a top-speed asymptote a constant-thrust model cannot.
  */
-export function thrustNewtons(params: ClassParams, throttle: number, tasMs: number): number {
+export function thrustNewtons(
+  params: ClassParams,
+  throttle: number,
+  tasMs: number,
+  altitudeM: number,
+): number {
   const { maxPowerW, propEfficiency, propPeakSpeedMs } = params.propulsion;
   const clamped = Math.min(1, Math.max(0, throttle));
-  return (clamped * propEfficiency * maxPowerW) / Math.max(tasMs, propPeakSpeedMs);
+  const shaftPowerW = clamped * maxPowerW * pistonPowerLapse(altitudeM);
+  return (propEfficiency * shaftPowerW) / Math.max(tasMs, propPeakSpeedMs);
 }
 
 /** Control effectiveness scales with dynamic pressure and saturates at 1. */
@@ -147,7 +164,8 @@ export function computeForces(
 
   // Wind axes -> body axes (rotate by AoA about the body Y axis).
   const forceBody: Vec3 = {
-    x: -drag * Math.cos(aoaRad) + lift * Math.sin(aoaRad) + thrustNewtons(params, controls.throttle, tasMs),
+    x: -drag * Math.cos(aoaRad) + lift * Math.sin(aoaRad) +
+       thrustNewtons(params, controls.throttle, tasMs, state.altitudeM),
     y: side,
     z: -drag * Math.sin(aoaRad) - lift * Math.cos(aoaRad),
   };

@@ -152,3 +152,44 @@ returned carried 3.82, and -1.52 against a real -1.55. `sim/forces.ts` instead s
 `lift = (limit*W - drag*sin(alpha))/cos(alpha)` and then recomputes `loadFactor` from the
 forces that actually leave the function, so the HUD's G readout can never drift from them.
 Drag is deliberately not scaled — you cannot wish drag away by pulling less.
+
+## 2026-08-05 — B-008 · C172S tuning knobs and how the envelope is defended
+
+`frontend/src/sim/envelope.test.ts` is the contract for the flight model: 75% power at
+8000 ft cruises at 122 kt TAS ±5, Vs1 48 KCAS ±3, Vs0 40 KCAS ±3, sea-level top speed near
+the POH's 126 kt Vh, sea-level climb near 730 fpm, and a service ceiling where climb has
+almost but not quite died. Speeds are found by bisection on the force balance and by a trim
+search through the real integrator, so the test proves the model produces the number rather
+than that someone typed it twice.
+
+Three knobs carry the tuning and are marked TUNING KNOB in `params/c172.json` `sources`:
+`aero.cd0` (cruise/top speed), `propulsion.propPeakSpeedMs` (climb, without disturbing
+cruise), and `aero.stallAlphaRad` + `flaps[].dCL0` (stall speeds). **No knob had to move to
+go green** — the Task 1 values already landed inside every band once the power lapse below
+existed. Measured, with the bands in brackets: cruise 8000 ft 75% = 123.4 kt TAS [117–127],
+sea-level Vh = 128.1 kt TAS [118–134], Vs1 = 48.1 KCAS [45–51], Vs0 = 40.4 KCAS [37–43],
+CLmax clean = 1.533 [1.47–1.58], sea-level best climb = 783 fpm [630–830], climb at the
+14000 ft ceiling = 210 fpm [0–300]. The `sources` strings for `propPeakSpeedMs` and `flaps`
+were stale (they quoted ~740 fpm and a flaps-30 CLmax of 2.03 / Vs0 41.8 kt against the real
+783 fpm and 2.176 / 40.4 kt) and were corrected to the measured values in the same pass.
+
+Two model additions came out of writing the suite:
+- **Piston power lapses with density altitude** (Gagg-Ferrar, `pistonPowerLapse`). Without
+  it the aircraft climbs at 971 fpm at its published ceiling — no ceiling at all. A
+  consequence worth knowing: "75% power at 8000 ft" means 75% of *rated* power, which at
+  8000 ft needs 99.0% throttle — the suite asserts that it is still achievable, as the POH
+  implies. `thrustNewtons` therefore takes an `altitudeM` argument.
+- **Vne is warn-only, not clamped.** The parent spec says limits are "clamps + HUD
+  warnings"; for g that means an actual force clamp, but clamping airspeed would mean an
+  invisible hand holding the aircraft back in a dive. Vne is left to the Phase C HUD as a
+  warning, and the suite asserts level flight at full power cannot reach it, so the only way
+  past Vne is a deliberate dive.
+
+**The +3.8 g clamp case enters at 170 kt TAS, not the 140 kt the plan brief assumed.** The
+elevator is a rate command capped at `pitchRateMaxRadS` = 20 deg/s, so the load factor a
+pull can reach is bounded by roughly `1 + V*q/g`: measured 3.31 g from 140 kt, 3.80 g (the
+clamp) from about 165 kt up. That is the rate-command elevator being self-consistent, not
+the clamp failing, so the entry speed moved rather than the assertion being softened — 170
+kt TAS at 2000 m is 154 KIAS, still inside Vne. The case now also asserts the clamp is
+reached *exactly* (`toBeCloseTo(3.8)`), mirroring the negative-g case, so it cannot pass by
+merely never exceeding the limit.

@@ -53,9 +53,9 @@
     "aspectRatio": "derived b^2/S = 121/16.2",
     "cl0": "NACA 2412 zero-AoA lift, typical value",
     "clAlphaPerRad": "NACA 2412 2D slope with finite-AR correction; JSBSim table range 4.5-4.7",
-    "stallAlphaRad": "15.0 deg — NACA 2412 critical AoA. Implies CLmax_clean = 0.25 + 4.9*0.2618 = 1.533, inside the sourced 1.47-1.58 range.",
+    "stallAlphaRad": "TUNING KNOB (stall speeds) — 15.0 deg, NACA 2412 critical AoA. Implies CLmax_clean = 0.25 + 4.9*0.2618 = 1.533, inside the sourced 1.47-1.58 range, and Vs1 = 48.1 KCAS against the POH's 48. Verified by envelope.test.ts.",
     "postStallDecayRad": "TUNING KNOB — 0.20 rad (11.5 deg) fade width from CLmax toward flat-plate lift past the break. Gives the soft mushy stall the 172 is known for (about 15% CL lost in the first 2 deg past the break); smaller is a sharper CL cliff. Does NOT move CLmax.",
-    "cd0": "TUNING KNOB — raised from the JSBSim book value 0.032 to 0.035 so that 75% power at 8000 ft settles at ~123 kt TAS, inside the POH 122-124 kt band. Real CD0 is unpublished.",
+    "cd0": "TUNING KNOB (cruise + top speed) — raised from the JSBSim book value 0.032 to 0.035. Measured by envelope.test.ts: 75% rated power at 8000 ft settles at 123.4 kt TAS (POH 122-124, band 117-127) and sea-level full power tops out at 128.1 kt TAS (POH Vh 126, band 118-134). Real CD0 is unpublished.",
     "oswaldE": "TUNING KNOB — 0.70, derived from a published C172 model (CD0=0.0329, K=0.0599).",
     "cyBeta": "textbook light-single side-force slope; makes a slip cost energy",
     "rollRateMaxRadS": "40 deg/s — middle of the research doc's 30-45 deg/s light-GA estimate",
@@ -66,11 +66,12 @@
     "trimAlphaCenterRad": "1.0 deg — near the cruise AoA so trim = 0 is roughly hands-off cruise",
     "maxPowerW": "180 hp Lycoming IO-360-L2A = 134226 W",
     "propEfficiency": "0.80 cruise assumption, research doc",
-    "propPeakSpeedMs": "TUNING KNOB — 60 m/s (117 kt). Below it, prop efficiency falls linearly, which both caps static thrust at eta*P/60 = 1790 N (402 lbf) and brings sea-level climb from an absurd 1570 fpm down to ~740 fpm vs the POH's 730 fpm.",
+    "propPeakSpeedMs": "TUNING KNOB (climb, without disturbing cruise — it only bites below 60 m/s and cruise is above it) — 60 m/s (117 kt). Below it, prop efficiency falls linearly, which both caps static thrust at eta*P/60 = 1790 N (402 lbf) and brings sea-level best climb from an absurd 1708 fpm down to a measured 783 fpm against the POH's 730 fpm (envelope.test.ts band 630-830).",
+    "pistonPowerLapse": "Not a parameter — forces.ts applies the Gagg-Ferrar normally-aspirated lapse P(h)/P(0) = (sigma-0.117)/0.883 to maxPowerW. Added in Task 3: without it best climb at the 14000 ft service ceiling is 971 fpm, i.e. no ceiling at all; with it, 210 fpm. Consequence: the POH's '75% power at 8000 ft' needs 99.0% throttle, since the lapse there is 0.758.",
     "vneIasMs": "163 KIAS = 83.85 m/s, 172S POH",
     "gLimits": "+3.8 / -1.52, FAR/CS-23 Normal category",
     "serviceCeilingM": "14000 ft = 4267 m, 172S POH",
-    "flaps": "172S has 0/10/20/30 detents. dCL0/dStallAlpha tuned so flaps-30 CLmax = 1.0 + 4.9*0.2094 = 2.03, putting Vs0 at ~41.8 kt against the POH's 40 KIAS. dCD0 values are TUNING KNOBS.",
+    "flaps": "172S has 0/10/20/30 detents. dCL0 (0 / 0.3 / 0.6 / 0.9) is a TUNING KNOB for the stall speeds: flaps-30 CLmax = (0.25 + 0.9) + 4.9*0.2094 = 2.176, measured Vs0 = 40.4 KCAS against the POH's 40 (band 37-43), with Vs 48.1 / 45.1 / 42.5 / 40.4 kt falling monotonically across the detents. dCD0 values are TUNING KNOBS.",
     "gear": "fixed — the 172 has no retractable gear; the HUD reads FIXED and G is inert"
   }
 }
