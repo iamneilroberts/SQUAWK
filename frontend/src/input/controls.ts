@@ -23,6 +23,8 @@ export const KEYMAP: Readonly<Record<string, string>> = {
   KeyS: "throttle down",
   Equal: "throttle up",
   Minus: "throttle down",
+  NumpadAdd: "throttle up",
+  NumpadSubtract: "throttle down",
   KeyF: "flaps down one detent",
   KeyV: "flaps up one detent",
   KeyG: "gear (fixed on this aircraft)",

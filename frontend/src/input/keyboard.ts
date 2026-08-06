@@ -22,7 +22,16 @@ export type KeyboardTarget = {
 export function createKeyboard(target: KeyboardTarget): { held: Set<string>; dispose(): void } {
   const held = new Set<string>();
 
-  const onKeyDown = (e: { code: string; preventDefault(): void }) => {
+  const onKeyDown = (e: {
+    code: string;
+    ctrlKey?: boolean;
+    metaKey?: boolean;
+    altKey?: boolean;
+    preventDefault(): void;
+  }) => {
+    // Ctrl/Cmd/Alt+<game key> is a browser shortcut (close-tab, select-all, save, find...)
+    // sharing a `code` with a game key — let it through untouched, don't capture it.
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (GAME_KEY_CODES.has(e.code)) {
       e.preventDefault(); // arrows must not scroll the page out from under the sim
       held.add(e.code);

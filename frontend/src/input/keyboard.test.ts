@@ -32,6 +32,16 @@ const keyEvent = (code: string) => {
   };
 };
 
+const modifiedKeyEvent = (code: string, modifier: "ctrlKey" | "metaKey" | "altKey") => {
+  let prevented = false;
+  return {
+    code,
+    [modifier]: true,
+    preventDefault() { prevented = true; },
+    get defaultPrevented() { return prevented; },
+  };
+};
+
 describe("createKeyboard", () => {
   it("tracks a held key from keydown to keyup", () => {
     const t = fakeTarget();
@@ -100,5 +110,16 @@ describe("createKeyboard", () => {
   it("Escape is deliberately NOT a game key (the flight loop owns pause)", () => {
     expect(GAME_KEY_CODES.has("Escape")).toBe(false);
     expect(GAME_KEY_CODES.has("ArrowUp")).toBe(true);
+  });
+  it("does not capture or preventDefault a ctrl/cmd/alt-modified game key (browser shortcuts)", () => {
+    const t = fakeTarget();
+    const kb = createKeyboard(t);
+    for (const modifier of ["ctrlKey", "metaKey", "altKey"] as const) {
+      const e = modifiedKeyEvent("KeyW", modifier);
+      t.fire("keydown", e);
+      expect(e.defaultPrevented).toBe(false);
+      expect(kb.held.has("KeyW")).toBe(false);
+    }
+    kb.dispose();
   });
 });
