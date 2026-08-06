@@ -1,0 +1,19 @@
+# Phase B acceptance runbook — owner sign-off walkthrough
+
+Servers are already running (`bash scripts/dev.sh` if not). Open http://localhost:5173.
+Screenshot each checkpoint. Source: plan Task 12 step 9 + StrictMode debt from Task 8.
+
+  1. **Browse** — globe over Esri imagery with real terrain relief; contacts appear at their real altitudes (tilt the camera and confirm they sit above the ground, not buried in it); status bar reads `LIVE <source>` and names the terrain source.
+  2. **Gate** — select a non-GA contact (an airliner). TAKE CONTROLS is disabled and states the gate: `TYPE B738 NOT GA PISTON`. Select a military contact if one is up: `MILITARY CONTACT`.
+  3. **Handoff** — select a real GA contact (C172/P28A/SR22/…). TAKE CONTROLS enables. Click it. The card shows the callsign, hex, the **real** type from the feed, the snapshot altitude/speed/heading, `SIM-<HEX>`, `C172 MODEL THIS BUILD`, the ground-speed-as-TAS disclosure, and either `NO ADJUSTMENTS` or the clamps verbatim.
+  4. **Countdown** — `ACQUIRING TERRAIN…` then 3 · 2 · 1. If terrain does not resolve in 3 s, the card says `TERRAIN UNVERIFIED — COLLISION DISARMED` and the HUD carries that warning throughout.
+  5. **Handover fidelity** — at the instant control passes, the throttle is NOT at idle and the aircraft is not lurching: it holds roughly the snapshot speed and altitude hands-off for the first few seconds. That is `buildSpawnState`'s trimmed handover reaching the control sampler.
+  6. **HUD content** — the SIM banner carries `SIM` + the class (`C172S`) + `SIM-<HEX>`; heading reads as three digits and wraps 359→000 rather than showing 360; IAS/TAS/ALT/VSI/AGL/AoA/G/THR/FLAPS/GEAR all read and move; `GEAR FIXED`; the attribution line names Esri and Re:Earth/Mapterhorn.
+  7. **Flying** — the view is first-person from the cockpit. Fly a circuit: pitch, roll and rudder all respond; `W` spools the throttle; `F` steps the flaps and the stall speed drops; `,`/`.` trims and the aircraft settles at a new speed hands-off. **Check the roll sign**: `→` must put the right wing down and the horizon must tilt the same way. If it is mirrored, fix the sign in `hprFromQuat`/`quatFromHpr` — never by inverting the input.
+  8. **Ghost** — the real aircraft is still on the globe, dimmed, labelled `GHOST · AGE nS`, and diverging from you. Other live traffic is still rendering.
+  9. **Warnings** — pull to the stall and confirm `STALL` fires and the break is soft (mushy, recoverable) rather than a cliff. Dive toward terrain and confirm `TERRAIN` fires under 500 ft of clearance.
+  10. **Pause and the two-step resume** — `Esc` shows the overlay and the sim stops (airtime stops advancing). Press RESUME: the overlay steps aside and reads `CLICK THE GLOBE TO RESUME`, and the sim is **still paused**. Click the globe: flight continues with no jump. Alt-tabbing away auto-pauses. (This is spec §6's canvas-click resume — a one-click RESUME would be the regression to watch for.)
+  11. **End** — land it gently (under 600 fpm, wings level, near stall speed) or fly it into a hill. The stats card shows the classification, airtime, distance, max IAS/alt/g and the impact sink and speed. **Drag the mouse: the site orbits.**
+  12. **Quit, twice** — EXIT TO BROWSE. The globe returns to the browse view, the contact list is back, the ghost dimming is gone, the HUD is gone, the mouse controls the globe again, and the feed is still LIVE. Then take controls of a **second** contact and fly it: nothing from the first session leaks in (no stale ghost, no stuck key, no carried-over stats, no doubled loop).
+
+  13. **StrictMode single-instance (Task 8 debt)** — on first load, open devtools: exactly one stream of /api/adsb polls (~1/s, not 2/s), no Cesium double-Viewer errors, no leaked-listener warnings after a full fly-quit cycle.
