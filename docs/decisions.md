@@ -238,3 +238,14 @@ Vs while reading LANDED against flap Vs, only the other way around. `classify.te
 "the stall speed is flap-dependent" case now asserts the physically consistent direction
 (fine clean, too fast for full flap); `classifyEnd`/`readImpact` themselves are unchanged
 from the brief.
+
+## 2026-08-05 — B-011 · Terrain fallback is Re:Earth → optional ion → labelled flat earth
+
+G-003 named Cesium ion's free tier as the Re:Earth fallback, but ion needs a token and this
+project is keyless by rule. `globe/terrainProvider.ts` resolves that: Re:Earth first; ion
+only if the operator has put their own token in `VITE_CESIUM_ION_TOKEN` (their account,
+their non-commercial terms); otherwise an `EllipsoidTerrainProvider` — a flat earth, said
+out loud in the status bar as "TERRAIN UNAVAILABLE — FLAT ELLIPSOID" rather than quietly
+letting the player fly over an invisible plain and wonder why Colorado is missing. Terrain
+attaches at app start, never at takeover, because swapping providers mid-session forces a
+full tile reload and jumps the camera.
