@@ -24,6 +24,7 @@ import { formatCallsign } from "../hud/format";
 import Hud from "../hud/Hud";
 import HandoffCard from "../panels/HandoffCard";
 import PauseOverlay from "../panels/PauseOverlay";
+import EndCard from "../panels/EndCard";
 import { degToRad, ktToMs } from "../sim/units";
 
 const COUNTDOWN_FROM = 3;
@@ -33,6 +34,7 @@ export default function FlightSession() {
   const bundle = useViewer();
   const mode = useStore((s) => s.mode);
   const origin = useStore((s) => s.origin);
+  const endStats = useStore((s) => s.endStats);
 
   const [spawn, setSpawn] = useState<SpawnResult | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -205,6 +207,15 @@ export default function FlightSession() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
+  // ---- on entering ENDED, hand the mouse back so the site can be orbited (owner decision
+  // B-5). The FPV camera stops driving setView because the loop has already stopped; this
+  // effect is belt-and-braces on top of the loop's own stop() -> exitFlightView() ->
+  // camera.exit(), which already restores enableInputs to what it was before takeover.
+  useEffect(() => {
+    if (mode !== "ENDED" || !bundle) return;
+    bundle.viewer.scene.screenSpaceCameraController.enableInputs = true;
+  }, [mode, bundle]);
+
   if (mode === "BROWSE") return null;
 
   return (
@@ -221,6 +232,9 @@ export default function FlightSession() {
           onArmResume={() => setResumeArmed(true)}
           onQuit={() => leaveToBrowse("QUIT")}
         />
+      )}
+      {mode === "ENDED" && endStats && (
+        <EndCard stats={endStats} onExit={() => leaveToBrowse("EXIT_END")} />
       )}
     </>
   );

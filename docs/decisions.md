@@ -306,3 +306,24 @@ contact list with their baro altitude, where the number is honest.
 When the contact drops out of the feed, or the feed goes STALE/OFFLINE, it reads
 `GHOST · NO DATA` rather than a frozen age that would keep looking fresh. The billboard is
 dimmed to 35% alpha and stays on the globe — the real aircraft is still real.
+
+## 2026-08-06 — B-015 · End card orbit: kept StatusBar's prop bridge; split the overlay's pointer-events
+
+Two implementation-plan deviations in task 12, both to avoid a regression:
+
+**`StatusBar` keeps reading `terrainNote` from the prop `App.tsx` bridges down from
+`ViewerHost`** (the B-011 "Task 8 hoist" entry above), rather than switching to
+`useViewer()` as the task-12 brief's own snippet suggested. `StatusBar` is rendered as a
+flex *sibling* of `ViewerHost` in `App.tsx`, outside `ViewerContext.Provider`'s subtree —
+`useViewer()` called there returns the context's default (`null`) forever, which would have
+frozen the attribution line on `TERRAIN LOADING…` even after Re:Earth attached. The prop
+path was already correct and already covers the requirement ("attribution names what
+actually attached"); the fix was to fold it into the existing static Esri line rather than
+add a second, broken data path.
+
+**`.end-overlay`'s full-screen backdrop no longer takes `pointer-events: auto`.** It shared
+that rule with `.pause-overlay`, which is correct for the (non-armed) pause modal but would
+have swallowed every drag meant to orbit the impact/landing site — the entire point of B-1's
+"end card allows orbiting" (spec §1). `.end-overlay` is now `pointer-events: none` with
+`pointer-events: auto` scoped to `.end-overlay .end-card`, the same trick `PauseOverlay`'s
+armed-resume state already uses to let clicks reach the canvas underneath.

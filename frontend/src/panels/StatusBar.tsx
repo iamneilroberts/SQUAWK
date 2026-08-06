@@ -51,7 +51,7 @@ export default function StatusBar({ terrainNote }: StatusBarProps) {
       <span>CONTACTS {contactCount}</span>
       <span>{formatUtcClock(now)}</span>
       <span className="flex-1" />
-      <span>IMAGERY © ESRI</span>
+      <span>IMAGERY © ESRI · {terrainNote ?? "TERRAIN LOADING…"}</span>
     </div>
   );
 }

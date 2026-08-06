@@ -7,10 +7,11 @@ keeps flying on the feed as a ghost while yours diverges.
 Browser-based (CesiumJS), self-hosted, single-user, MIT. Sibling of
 [LORAN](https://github.com/iamneilroberts/LORAN).
 
-**Status: Phase A (Browse) complete.** The live ADS-B browse globe is built and runs (see
-"Running it" below); take-controls and flight are future phases. The approved spec lives at
-[`docs/superpowers/specs/2026-07-27-adsb-game-design.md`](docs/superpowers/specs/2026-07-27-adsb-game-design.md);
-supporting research in [`docs/research/`](docs/research/).
+**Status: Phase B (First Flyable) complete.** Pick a real GA-piston contact off the live
+browse globe, TAKE CONTROLS, and fly a C172S first-person over real Esri imagery and real
+Re:Earth terrain until you land, crash, or quit. The approved specs live at
+[`docs/superpowers/specs/2026-07-27-adsb-game-design.md`](docs/superpowers/specs/2026-07-27-adsb-game-design.md)
+and [`docs/superpowers/specs/2026-08-05-phase-b-first-flyable-design.md`](docs/superpowers/specs/2026-08-05-phase-b-first-flyable-design.md).
 
 ## What it will be
 
@@ -53,6 +54,26 @@ services on this box).
 > `8021`, so `ADSB_GAME_PORT` in `.env` does **not** change the compose ports. Running
 > `cd frontend && npm run dev` directly (bypassing `dev.sh`) also leaves `ADSB_GAME_PORT`
 > unset and the Vite proxy falls back to `:8020`.
+
+## Controls
+
+Desktop keyboard only in this build.
+
+| Key | Action |
+|---|---|
+| `↑` / `↓` | pitch down / pitch up |
+| `←` / `→` | roll left / roll right |
+| `A` / `D` | rudder left / right |
+| `W` / `S` (or `+` / `-`) | throttle up / down |
+| `F` / `V` | flaps down / up (0 · 10 · 20 · 30) |
+| `,` / `.` | trim nose down / nose up |
+| `G` | gear — the C172's gear is fixed, so this reads GEAR FIXED |
+| `Esc` | pause (RESUME / QUIT TO BROWSE) |
+
+Takeover is restricted to civil GA-piston contacts this build (see
+`frontend/src/params/ga-types.json`); the disabled button says which gate a contact failed.
+All of them fly the C172S parameter set, which the handoff card discloses. Every clamp the
+sim applies to a snapshot is listed on that card before you fly.
 
 ## Attribution
 

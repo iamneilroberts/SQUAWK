@@ -289,7 +289,18 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.pause-overlay {
   background: rgba(5, 7, 10, 0.55);
+  pointer-events: auto;
+}
+/* Not a freeze frame (owner decision B-5): the backdrop itself must not swallow mouse
+   drag, so the default globe controller can orbit the impact/landing site underneath.
+   Only the card's own area — and its buttons — stay clickable. */
+.end-overlay {
+  pointer-events: none;
+}
+.end-overlay .end-card {
   pointer-events: auto;
 }
 /* Armed: the player has to reach the canvas underneath, so the backdrop stops intercepting
