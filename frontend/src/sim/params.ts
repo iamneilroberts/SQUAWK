@@ -1,0 +1,129 @@
+/*
+ * Parameter files are data, not code — so they get validated once, loudly, at load time
+ * rather than producing NaN somewhere inside the integrator three seconds into a flight.
+ * A hand-written validator (not a schema library) keeps the dependency list untouched.
+ */
+import type { ClassParams, FlapDetent } from "./types";
+import c172Raw from "../params/c172.json";
+
+function asRecord(value: unknown, path: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`${path} must be an object`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function num(obj: Record<string, unknown>, key: string, path: string): number {
+  const v = obj[key];
+  if (typeof v !== "number" || !Number.isFinite(v)) {
+    throw new Error(`${path}.${key} must be a finite number`);
+  }
+  return v;
+}
+
+function positive(obj: Record<string, unknown>, key: string, path: string): number {
+  const v = num(obj, key, path);
+  if (v <= 0) throw new Error(`${path}.${key} must be greater than zero`);
+  return v;
+}
+
+function str(obj: Record<string, unknown>, key: string, path: string): string {
+  const v = obj[key];
+  if (typeof v !== "string" || v.length === 0) {
+    throw new Error(`${path}.${key} must be a non-empty string`);
+  }
+  return v;
+}
+
+function flapDetent(raw: unknown, index: number): FlapDetent {
+  const path = `flaps[${index}]`;
+  const o = asRecord(raw, path);
+  return {
+    label: str(o, "label", path),
+    dCL0: num(o, "dCL0", path),
+    dStallAlphaRad: num(o, "dStallAlphaRad", path),
+    dCD0: num(o, "dCD0", path),
+  };
+}
+
+export function validateClassParams(raw: unknown): ClassParams {
+  const o = asRecord(raw, "params");
+
+  // Top-level scalar fields are checked before descending into nested objects, so a params
+  // blob missing (say) `label` reports "label" rather than failing on the first nested
+  // object it happens to also be missing (e.g. `aero`).
+  const id = str(o, "id", "params");
+  const label = str(o, "label", "params");
+  const modelNote = str(o, "modelNote", "params");
+  const massKg = positive(o, "massKg", "params");
+  const wingAreaM2 = positive(o, "wingAreaM2", "params");
+  const wingSpanM = positive(o, "wingSpanM", "params");
+  const aspectRatio = positive(o, "aspectRatio", "params");
+
+  if (!Array.isArray(o.flaps) || o.flaps.length === 0) {
+    throw new Error("params.flaps must be a non-empty array");
+  }
+  const gear = str(o, "gear", "params");
+  if (gear !== "fixed" && gear !== "retractable") {
+    throw new Error('params.gear must be "fixed" or "retractable"');
+  }
+
+  const aero = asRecord(o.aero, "params.aero");
+  const control = asRecord(o.control, "params.control");
+  const propulsion = asRecord(o.propulsion, "params.propulsion");
+  const limits = asRecord(o.limits, "params.limits");
+
+  return {
+    id,
+    label,
+    modelNote,
+    massKg,
+    wingAreaM2,
+    wingSpanM,
+    aspectRatio,
+    aero: {
+      cl0: num(aero, "cl0", "params.aero"),
+      clAlphaPerRad: positive(aero, "clAlphaPerRad", "params.aero"),
+      stallAlphaRad: positive(aero, "stallAlphaRad", "params.aero"),
+      postStallDecayRad: positive(aero, "postStallDecayRad", "params.aero"),
+      cd0: positive(aero, "cd0", "params.aero"),
+      oswaldE: positive(aero, "oswaldE", "params.aero"),
+      cyBeta: num(aero, "cyBeta", "params.aero"),
+    },
+    control: {
+      rollRateMaxRadS: positive(control, "rollRateMaxRadS", "params.control"),
+      pitchRateMaxRadS: positive(control, "pitchRateMaxRadS", "params.control"),
+      yawRateMaxRadS: positive(control, "yawRateMaxRadS", "params.control"),
+      rollDampingPerS: positive(control, "rollDampingPerS", "params.control"),
+      pitchDampingPerS: positive(control, "pitchDampingPerS", "params.control"),
+      yawDampingPerS: positive(control, "yawDampingPerS", "params.control"),
+      pitchStiffnessPerS2: positive(control, "pitchStiffnessPerS2", "params.control"),
+      yawStiffnessPerS2: positive(control, "yawStiffnessPerS2", "params.control"),
+      refDynamicPressurePa: positive(control, "refDynamicPressurePa", "params.control"),
+      trimAlphaCenterRad: num(control, "trimAlphaCenterRad", "params.control"),
+      trimAlphaRangeRad: positive(control, "trimAlphaRangeRad", "params.control"),
+    },
+    propulsion: {
+      maxPowerW: positive(propulsion, "maxPowerW", "params.propulsion"),
+      propEfficiency: positive(propulsion, "propEfficiency", "params.propulsion"),
+      propPeakSpeedMs: positive(propulsion, "propPeakSpeedMs", "params.propulsion"),
+    },
+    limits: {
+      vneIasMs: positive(limits, "vneIasMs", "params.limits"),
+      gLimitPos: positive(limits, "gLimitPos", "params.limits"),
+      gLimitNeg: num(limits, "gLimitNeg", "params.limits"),
+      serviceCeilingM: positive(limits, "serviceCeilingM", "params.limits"),
+    },
+    flaps: o.flaps.map(flapDetent),
+    gear,
+    sources: asRecord(o.sources, "params.sources") as Record<string, string>,
+  };
+}
+
+let cached: ClassParams | null = null;
+
+/** The only class parameter set this phase (owner decision B-2). */
+export function loadC172(): ClassParams {
+  if (cached === null) cached = validateClassParams(c172Raw);
+  return cached;
+}

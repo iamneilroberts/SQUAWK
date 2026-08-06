@@ -98,3 +98,16 @@ terrain-not-resident-at-spawn, backgrounded-tab dt, ENU-frame drift, Esc/pointer
 Viewer/polling ownership, selection nulling, height-0 contacts under real terrain,
 snapshot gating — all folded into the spec as requirements rather than left to
 implementation discretion.
+
+## 2026-08-05 — B-006 · C172S parameters are tuned at typical operating mass, not max gross
+
+The POH quotes Vs1 48 / Vs0 40 KIAS at max gross (1157 kg), but reproducing those at max
+gross needs CLmax ≈ 1.85 — well outside the sourced 1.47–1.58 range. Rather than invent a
+wing, `params/c172.json` uses the sourced typical operating mass (950 kg, research doc
+range 950–1050) with a sourced CLmax of 1.533, which lands Vs1 at 48.1 kt and Vs0 at
+41.8 kt against the book numbers. The trade is stated in `sources.massKg` in the file
+itself. Two knobs carry the rest of the tuning and are labelled TUNING KNOB in `sources`:
+`cd0` 0.032 → 0.035 (cruise lands at ~123 kt TAS inside the POH's 122–124 kt band) and
+`propPeakSpeedMs` (a linear prop-efficiency ramp below 60 m/s, which both caps static
+thrust and brings sea-level climb from ~1570 fpm to ~740 fpm vs the POH's 730 fpm — a
+constant-efficiency `T = ηP/V` model is wildly optimistic in the climb).

@@ -1,0 +1,76 @@
+{
+  "id": "c172s",
+  "label": "C172S",
+  "modelNote": "C172 MODEL THIS BUILD",
+  "massKg": 950,
+  "wingAreaM2": 16.2,
+  "wingSpanM": 11.0,
+  "aspectRatio": 7.469,
+  "aero": {
+    "cl0": 0.25,
+    "clAlphaPerRad": 4.9,
+    "stallAlphaRad": 0.2618,
+    "postStallDecayRad": 0.2,
+    "cd0": 0.035,
+    "oswaldE": 0.7,
+    "cyBeta": -0.31
+  },
+  "control": {
+    "rollRateMaxRadS": 0.6981,
+    "pitchRateMaxRadS": 0.3491,
+    "yawRateMaxRadS": 0.2618,
+    "rollDampingPerS": 3.0,
+    "pitchDampingPerS": 2.5,
+    "yawDampingPerS": 2.0,
+    "pitchStiffnessPerS2": 3.0,
+    "yawStiffnessPerS2": 2.0,
+    "refDynamicPressurePa": 1200,
+    "trimAlphaCenterRad": 0.0175,
+    "trimAlphaRangeRad": 0.0873
+  },
+  "propulsion": {
+    "maxPowerW": 134226,
+    "propEfficiency": 0.8,
+    "propPeakSpeedMs": 60
+  },
+  "limits": {
+    "vneIasMs": 83.85,
+    "gLimitPos": 3.8,
+    "gLimitNeg": -1.52,
+    "serviceCeilingM": 4267
+  },
+  "flaps": [
+    { "label": "0", "dCL0": 0.0, "dStallAlphaRad": 0.0, "dCD0": 0.0 },
+    { "label": "10", "dCL0": 0.3, "dStallAlphaRad": -0.0175, "dCD0": 0.007 },
+    { "label": "20", "dCL0": 0.6, "dStallAlphaRad": -0.035, "dCD0": 0.02 },
+    { "label": "30", "dCL0": 0.9, "dStallAlphaRad": -0.0524, "dCD0": 0.04 }
+  ],
+  "gear": "fixed",
+  "sources": {
+    "massKg": "typical 2-pax + fuel operating mass, research doc range 950-1050 kg. NOT max gross (1157 kg): the POH V-speeds are quoted at max gross, but hitting them at max gross would require a CLmax outside the sourced 1.47-1.58 range. Documented compromise, decisions.md B-006.",
+    "wingAreaM2": "JSBSim c172x.xml, cross-checked Roskam (174 sq ft)",
+    "wingSpanM": "JSBSim c172x.xml (36.0 ft)",
+    "aspectRatio": "derived b^2/S = 121/16.2",
+    "cl0": "NACA 2412 zero-AoA lift, typical value",
+    "clAlphaPerRad": "NACA 2412 2D slope with finite-AR correction; JSBSim table range 4.5-4.7",
+    "stallAlphaRad": "15.0 deg — NACA 2412 critical AoA. Implies CLmax_clean = 0.25 + 4.9*0.2618 = 1.533, inside the sourced 1.47-1.58 range.",
+    "postStallDecayRad": "TUNING KNOB — 0.20 rad (11.5 deg) fade width from CLmax toward flat-plate lift past the break. Gives the soft mushy stall the 172 is known for (about 15% CL lost in the first 2 deg past the break); smaller is a sharper CL cliff. Does NOT move CLmax.",
+    "cd0": "TUNING KNOB — raised from the JSBSim book value 0.032 to 0.035 so that 75% power at 8000 ft settles at ~123 kt TAS, inside the POH 122-124 kt band. Real CD0 is unpublished.",
+    "oswaldE": "TUNING KNOB — 0.70, derived from a published C172 model (CD0=0.0329, K=0.0599).",
+    "cyBeta": "textbook light-single side-force slope; makes a slip cost energy",
+    "rollRateMaxRadS": "40 deg/s — middle of the research doc's 30-45 deg/s light-GA estimate",
+    "pitchRateMaxRadS": "20 deg/s — TUNING KNOB, no published figure",
+    "yawRateMaxRadS": "15 deg/s — TUNING KNOB, no published figure",
+    "damping/stiffness": "TUNING KNOBS. Pitch: omega_n = sqrt(3.0) = 1.73 rad/s, zeta = 2.5/(2*1.73) = 0.72 — a well-damped short period.",
+    "refDynamicPressurePa": "TUNING KNOB — 1200 Pa (~44 m/s at sea level). Controls scale with q/qref, clamped to 1, so authority fades toward the stall.",
+    "trimAlphaCenterRad": "1.0 deg — near the cruise AoA so trim = 0 is roughly hands-off cruise",
+    "maxPowerW": "180 hp Lycoming IO-360-L2A = 134226 W",
+    "propEfficiency": "0.80 cruise assumption, research doc",
+    "propPeakSpeedMs": "TUNING KNOB — 60 m/s (117 kt). Below it, prop efficiency falls linearly, which both caps static thrust at eta*P/60 = 1790 N (402 lbf) and brings sea-level climb from an absurd 1570 fpm down to ~740 fpm vs the POH's 730 fpm.",
+    "vneIasMs": "163 KIAS = 83.85 m/s, 172S POH",
+    "gLimits": "+3.8 / -1.52, FAR/CS-23 Normal category",
+    "serviceCeilingM": "14000 ft = 4267 m, 172S POH",
+    "flaps": "172S has 0/10/20/30 detents. dCL0/dStallAlpha tuned so flaps-30 CLmax = 1.0 + 4.9*0.2094 = 2.03, putting Vs0 at ~41.8 kt against the POH's 40 KIAS. dCD0 values are TUNING KNOBS.",
+    "gear": "fixed — the 172 has no retractable gear; the HUD reads FIXED and G is inert"
+  }
+}
