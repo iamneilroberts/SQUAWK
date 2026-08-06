@@ -18,6 +18,7 @@ import { createKeyboard } from "../input/keyboard";
 import { createCesiumFlightHost } from "../globe/cesiumFlightHost";
 import { createFlightLoop } from "./flightLoop";
 import { preloadTerrain } from "../globe/terrainPreload";
+import { createCountdownTimer } from "./countdownTimer";
 import { hudSnapshot } from "../hud/snapshot";
 import { formatCallsign } from "../hud/format";
 import Hud from "../hud/Hud";
@@ -73,6 +74,19 @@ export default function FlightSession() {
   useEffect(() => {
     if (mode !== "COUNTDOWN" || !bundle || !origin) return;
     let cancelled = false;
+    // Hoisted to effect scope (not returned from the async IIFE below, which is discarded —
+    // `void (async () => {...})()` never surfaces an inner `return` to React) so the effect's
+    // OWN cleanup can always reach it: ViewerHost replaces the `bundle` object when
+    // attachTerrain resolves, and this effect used to depend on the whole object, so a click
+    // on TAKE CONTROLS before that resolve re-ran the effect mid-countdown. The old interval
+    // then ticked forever and the old keyboard listener leaked (see keyboardRef.dispose below).
+    let countdownTimer: { cancel(): void } | null = null;
+    // Distinguishes "this effect instance's countdown finished and handed off to FLYING"
+    // from "it was abandoned mid-countdown": the cleanup below also fires on the normal
+    // COUNTDOWN -> FLYING transition (mode is a dep), and the keyboard created here is the
+    // SAME one the flight loop reads from for the rest of the flight — it must not be
+    // disposed then, only when this instance's own countdown never got to start one.
+    let flightStarted = false;
     const params = loadC172();
     const contact = origin.snapshot;
     setNote("ACQUIRING TERRAIN…");
@@ -100,43 +114,50 @@ export default function FlightSession() {
       keyboardRef.current = keyboard;
 
       setCountdown(COUNTDOWN_FROM);
-      let remaining = COUNTDOWN_FROM;
-      const timer = setInterval(() => {
-        remaining -= 1;
-        if (cancelled) return;
-        if (remaining > 0) {
-          setCountdown(remaining);
-          return;
-        }
-        clearInterval(timer);
-        setCountdown(null);
+      countdownTimer = createCountdownTimer(
+        COUNTDOWN_FROM,
+        (remaining) => setCountdown(remaining),
+        () => {
+          setCountdown(null);
+          flightStarted = true;
 
-        const loop = createFlightLoop({
-          host: createCesiumFlightHost(bundle.viewer),
-          params,
-          terrain,
-          spawn: built,
-          heldKeys: keyboard.held,
-          callsign: formatCallsign(contact.hex),
-          onSnapshot: (s) => hudSnapshot.set(s),
-          onEnd: (stats) => {
-            loopRef.current?.stop();
-            useStore.getState().setEndStats(stats);
-            useStore.getState().fire("IMPACT");
-          },
-        });
-        loopRef.current = loop;
-        loop.start();
-        useStore.getState().fire("COUNTDOWN_DONE");
-      }, 1000);
-
-      return () => clearInterval(timer);
+          const loop = createFlightLoop({
+            host: createCesiumFlightHost(bundle.viewer),
+            params,
+            terrain,
+            spawn: built,
+            heldKeys: keyboard.held,
+            callsign: formatCallsign(contact.hex),
+            onSnapshot: (s) => hudSnapshot.set(s),
+            onEnd: (stats) => {
+              loopRef.current?.stop();
+              useStore.getState().setEndStats(stats);
+              useStore.getState().fire("IMPACT");
+            },
+          });
+          loopRef.current = loop;
+          loop.start();
+          useStore.getState().fire("COUNTDOWN_DONE");
+        },
+      );
     })();
 
     return () => {
       cancelled = true;
+      countdownTimer?.cancel();
+      // Only dispose the keyboard this closure created if its countdown was ABANDONED
+      // (bundle swap mid-countdown, or QUIT before COUNTDOWN_DONE) — not on the ordinary
+      // handoff into FLYING, where the same keyboard keeps being read by the flight loop.
+      if (!flightStarted) {
+        keyboardRef.current?.dispose();
+        keyboardRef.current = null;
+      }
     };
-  }, [mode, bundle, origin]);
+    // Narrowed to the stable pieces of `bundle`, same reasoning as ContactLayer.tsx: the
+    // bundle OBJECT is rebuilt when terrainNote resolves (~1s in) but .viewer/.heightSampler
+    // keep their identity for the whole mount, so depending on the whole object would re-fire
+    // this mid-countdown for a field this effect never reads.
+  }, [mode, bundle?.viewer, bundle?.heightSampler, origin]);
 
   // ---- Esc pauses; visibilitychange auto-pauses (spec §5, §6) ----
   useEffect(() => {

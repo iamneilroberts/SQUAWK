@@ -5,8 +5,8 @@
  */
 import type { Contact } from "../data/types";
 import type { SpawnResult } from "../takeover/spawn";
-import { formatCallsign } from "../hud/format";
-import { mToFt, msToKt, radToDeg } from "../sim/units";
+import { formatCallsign, formatHeadingDeg } from "../hud/format";
+import { mToFt, msToKt } from "../sim/units";
 import { hprFromQuat } from "../sim/quat";
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -29,12 +29,13 @@ export default function HandoffCard({
   countdown: number | null;
   note: string;
 }) {
-  const heading =
-    spawn === null
-      ? "—"
-      : String(
-          Math.round(((radToDeg(hprFromQuat(spawn.state.attitude, spawn.state.position).headingRad) % 360) + 360) % 360),
-        ).padStart(3, "0");
+  // Reuses hud/format.ts's formatHeadingDeg rather than re-deriving the wrap: it rounds
+  // BEFORE the final modulo, so a heading like 359.6° reads "000", not the "360" a naive
+  // round-after-wrap produces — the card is this phase's disclosure surface, so it gets the
+  // same honesty rule as the in-flight HUD.
+  const heading = formatHeadingDeg(
+    spawn === null ? null : hprFromQuat(spawn.state.attitude, spawn.state.position).headingRad,
+  );
 
   return (
     <div className="handoff-card panel">

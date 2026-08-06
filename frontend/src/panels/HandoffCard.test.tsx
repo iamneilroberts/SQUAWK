@@ -69,4 +69,11 @@ describe("HandoffCard", () => {
   it("discloses that ground speed stands in for true airspeed", () => {
     expect(render({ contact: ga(), spawn, countdown: 3, note: "" })).toMatch(/GROUND SPEED/i);
   });
+  it("wraps a heading that rounds up to 360 back to 000, not '360' — 000-359 is the whole range", () => {
+    const nearNorth = ga({ track: 359.6 });
+    const nearNorthSpawn = buildSpawnState(nearNorth, P, { terrainHeightM: 20 });
+    const text = render({ contact: nearNorth, spawn: nearNorthSpawn, countdown: 3, note: "" });
+    expect(text).toContain("000");
+    expect(text).not.toContain("360");
+  });
 });
