@@ -117,6 +117,14 @@ export function buildSpawnState(
   const lonRad = degToRad(contact.lon);
   const position = geodeticToEcef(latRad, lonRad, altitudeM);
   const headingRad = degToRad(contact.track ?? 0);
+  if (contact.baro_rate === null) {
+    adjustments.push({
+      field: "VERTICAL RATE",
+      from: "—",
+      to: "ASSUMED LEVEL",
+      reason: "No baro_rate in the feed.",
+    });
+  }
   const verticalSpeedMs = contact.baro_rate === null ? 0 : fpmToMs(contact.baro_rate);
   const fpaRad =
     tasMs > 0.1 ? Math.asin(Math.min(1, Math.max(-1, verticalSpeedMs / tasMs))) : 0;

@@ -1,7 +1,8 @@
 /*
  * Right-rail contact list: one row per live contact, sorted callsign-then-hex, synced
  * bidirectionally with the globe's selection via the shared store. Selecting a contact
- * reveals the disabled TAKE CONTROLS button — honestly inert until Phase C.
+ * reveals the TAKE CONTROLS button, enabled only when checkEligibility passes; when
+ * disabled, its tooltip and the label beneath it name the failing gate.
  */
 import { useStore } from "../state/store";
 import type { Contact } from "../data/types";

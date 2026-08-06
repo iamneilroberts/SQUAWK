@@ -50,6 +50,19 @@ describe("buildSpawnState — units and datum", () => {
     const { state } = buildSpawnState(ga({ baro_rate: null }), P, { terrainHeightM: 20 });
     expect(state.verticalSpeedMs).toBeCloseTo(0, 1);
   });
+  it("discloses the level-flight assumption when baro_rate is missing", () => {
+    const r = buildSpawnState(ga({ baro_rate: null }), P, { terrainHeightM: 20 });
+    expect(r.adjustments).toContainEqual({
+      field: "VERTICAL RATE",
+      from: "—",
+      to: "ASSUMED LEVEL",
+      reason: "No baro_rate in the feed.",
+    });
+  });
+  it("does not disclose a vertical-rate assumption when baro_rate is present", () => {
+    const r = buildSpawnState(ga({ baro_rate: 500 }), P, { terrainHeightM: 20 });
+    expect(r.adjustments.some((a) => a.field === "VERTICAL RATE")).toBe(false);
+  });
   it("spawns wings level with no rotation rates and zero sim time", () => {
     const { state } = buildSpawnState(ga(), P, { terrainHeightM: 20 });
     expect(radToDeg(hprFromQuat(state.attitude, state.position).rollRad)).toBeCloseTo(0, 6);
