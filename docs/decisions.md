@@ -144,3 +144,11 @@ cost of one sin/cos. The per-step renormalize stays, as float-round-off insuranc
 
 **Earth rotation is ignored** — no Coriolis, no transport rate, documented in
 `sim/geo.ts`. Gravity is taken along `geodeticSurfaceNormal`, not radially (spec §5).
+
+**The g clamp solves for lift rather than scaling it** (added in review). Capping n by
+`lift *= limit/n` leaves the clamp leaky, because drag's share of the normal force
+(`drag*sin(alpha)`) is not scaled with it: the model reported 3.80 g while the force it
+returned carried 3.82, and -1.52 against a real -1.55. `sim/forces.ts` instead solves
+`lift = (limit*W - drag*sin(alpha))/cos(alpha)` and then recomputes `loadFactor` from the
+forces that actually leave the function, so the HUD's G readout can never drift from them.
+Drag is deliberately not scaled — you cannot wish drag away by pulling less.

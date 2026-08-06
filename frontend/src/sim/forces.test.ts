@@ -3,10 +3,12 @@ import {
   liftCoefficient, dragCoefficient, clMaxFor, stallAlphaFor, stallSpeedIasMs,
   thrustNewtons, controlAuthority, computeForces,
 } from "./forces";
+import type { ForceResult } from "./forces";
 import { loadC172 } from "./params";
 import { degToRad } from "./units";
-import { quatFromHpr, qRotate } from "./quat";
-import { geodeticToEcef } from "./geo";
+import { quatFromHpr, qRotate, qRotateInverse } from "./quat";
+import { geodeticToEcef, geodeticSurfaceNormal } from "./geo";
+import { vScale, vSub } from "./vec3";
 import type { SimState, ControlVector, Vec3 } from "./types";
 
 const P = loadC172();
@@ -38,6 +40,24 @@ function stateAt(altM: number, tasMs: number, pitchDeg = 0, fpaDeg = pitchDeg): 
     tasMs, iasMs: 0, aoaRad: 0, sideslipRad: 0, verticalSpeedMs: 0,
     loadFactor: 1, gLimited: false, stalled: false,
   };
+}
+
+const G0 = 9.80665;
+
+/**
+ * The load factor the RETURNED FORCE actually implies — strip gravity off the total ECEF
+ * force, rotate what is left back into the body frame, and take the "up" (-body-z)
+ * component over the weight.
+ *
+ * This exists because `result.loadFactor` is a value computeForces ASSIGNS during the g
+ * clamp, so asserting on it alone is circular: it would read 3.8 even if the clamp scaled
+ * lift by the wrong factor, or forgot to scale it at all. This measures the output.
+ */
+function loadFactorFromOutput(state: SimState, r: ForceResult): number {
+  const weight = P.massKg * G0;
+  const gravityEcef = vScale(geodeticSurfaceNormal(state.position), -weight);
+  const aeroBody = qRotateInverse(state.attitude, vSub(r.forceEcef, gravityEcef));
+  return -aeroBody.z / weight;
 }
 
 describe("liftCoefficient", () => {
@@ -128,21 +148,30 @@ describe("computeForces", () => {
   });
   it("does NOT clamp in ordinary flight — the clamp must not be always-on", () => {
     // 50 m/s, wings level, zero AoA: nowhere near the envelope.
-    const r = computeForces(stateAt(1000, 50, 0, 0), CONTROLS, P);
+    const s = stateAt(1000, 50, 0, 0);
+    const r = computeForces(s, CONTROLS, P);
     expect(r.gLimited).toBe(false);
     expect(r.loadFactor).toBeLessThan(P.limits.gLimitPos);
+    // The reported load factor is the one the returned force actually carries.
+    expect(loadFactorFromOutput(s, r)).toBeCloseTo(r.loadFactor, 9);
   });
   it("clamps a hard pull at +3.8 g and says it clamped", () => {
     // 90 m/s (175 kt) with the nose 6° above a level flight path = 6° AoA. Unclamped that
     // is about 6 g for this airframe, so the clamp MUST engage.
-    const r = computeForces(stateAt(1000, 90, 6, 0), CONTROLS, P);
+    const s = stateAt(1000, 90, 6, 0);
+    const r = computeForces(s, CONTROLS, P);
     expect(r.gLimited).toBe(true);
+    // Measured from the OUTPUT force, so a clamp that scaled lift by the wrong factor
+    // fails here even though it would still have reported loadFactor = 3.8.
+    expect(loadFactorFromOutput(s, r)).toBeCloseTo(P.limits.gLimitPos, 6);
     expect(r.loadFactor).toBeCloseTo(P.limits.gLimitPos, 6);
   });
   it("clamps a hard push at -1.52 g and says it clamped", () => {
     // Same speed, nose 8° BELOW a level flight path: strongly negative lift.
-    const r = computeForces(stateAt(1000, 90, -8, 0), CONTROLS, P);
+    const s = stateAt(1000, 90, -8, 0);
+    const r = computeForces(s, CONTROLS, P);
     expect(r.gLimited).toBe(true);
+    expect(loadFactorFromOutput(s, r)).toBeCloseTo(P.limits.gLimitNeg, 6);
     expect(r.loadFactor).toBeCloseTo(P.limits.gLimitNeg, 6);
   });
 });

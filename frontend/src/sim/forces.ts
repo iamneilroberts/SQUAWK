@@ -120,20 +120,30 @@ export function computeForces(
   const side = qBar * params.wingAreaM2 * params.aero.cyBeta * sideslipRad;
 
   // Load factor is the specific force along -body-z. Clamp + warn only (no structural
-  // failure this phase, parent spec §4): scale lift so n stays inside the cert envelope.
+  // failure this phase, parent spec §4): reduce lift so n stays inside the cert envelope.
+  //
+  // We SOLVE for the lift that puts the total normal force exactly on the limit rather than
+  // scaling lift by limit/n. Drag's share of the normal force (drag*sin(alpha)) is not ours
+  // to scale — you cannot wish drag away by pulling less — so a multiplicative scale leaves
+  // the clamp leaky: it reported 3.80 g while the force it actually returned carried 3.82,
+  // and -1.52 against a real -1.55. `loadFactor` is then recomputed from the forces that
+  // actually leave this function, so the HUD's G readout can never drift from them.
   const weight = params.massKg * G0;
-  const nUnclamped = (lift * Math.cos(aoaRad) + drag * Math.sin(aoaRad)) / weight;
-  let gLimited = false;
-  let loadFactor = nUnclamped;
-  if (nUnclamped > params.limits.gLimitPos) {
-    lift *= params.limits.gLimitPos / nUnclamped;
-    loadFactor = params.limits.gLimitPos;
-    gLimited = true;
-  } else if (nUnclamped < params.limits.gLimitNeg) {
-    lift *= params.limits.gLimitNeg / nUnclamped;
-    loadFactor = params.limits.gLimitNeg;
-    gLimited = true;
+  const cosAlpha = Math.cos(aoaRad);
+  const dragNormal = drag * Math.sin(aoaRad);
+  const nUnclamped = (lift * cosAlpha + dragNormal) / weight;
+  const limit =
+    nUnclamped > params.limits.gLimitPos ? params.limits.gLimitPos
+    : nUnclamped < params.limits.gLimitNeg ? params.limits.gLimitNeg
+    : null;
+  const gLimited = limit !== null;
+  if (limit !== null) {
+    // Near alpha = +-90 deg the wing contributes almost nothing to the normal force and the
+    // solve is ill-conditioned, so there we just kill the lift term and report whatever drag
+    // alone carries. The aircraft is tumbling far outside this model's validity by then.
+    lift = Math.abs(cosAlpha) < 1e-3 ? 0 : (limit * weight - dragNormal) / cosAlpha;
   }
+  const loadFactor = (lift * cosAlpha + dragNormal) / weight;
 
   // Wind axes -> body axes (rotate by AoA about the body Y axis).
   const forceBody: Vec3 = {
