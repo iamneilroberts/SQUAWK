@@ -204,3 +204,17 @@ time rather than defaulting**: defaulting to `"none"` would silently flat-rate a
 engine and defaulting to `"piston"` would re-bury the same assumption, and either way a typo
 in a parameter file would quietly turn one engine into another. The C172 keeps the identical
 Gagg-Ferrar curve and the envelope suite is unchanged.
+
+## 2026-08-05 — B-009 · Keyboard-only stick this phase; mouse stick deferred
+
+Parent spec §8 lists a mouse stick (hold-LMB or pointer-lock) alongside the arrow keys.
+Phase B ships keyboard only. Two reasons: the Phase B spec's own acceptance (§9) says "fly
+the C172 by keyboard"; and pointer lock collides head-on with the Esc-is-pause decision
+(spec §6) — Esc always exits pointer lock, and Chrome rate-limits re-locking, so a
+mouse-stick build would either fight the pause key or need a second re-entry gesture. The
+`ControlVector` interface is unchanged and mouse/touch/tilt still implement it later.
+
+Two keys are Phase B additions to the §8 table, both recorded in `input/controls.ts`
+`KEYMAP` and the README: `Comma`/`Period` for nose-down/nose-up elevator trim (spec §5
+requires two trim keys but does not name them), and `Escape` reassigned from "quit to
+browse" to "pause overlay" per spec §6 — QUIT is a button inside that overlay.

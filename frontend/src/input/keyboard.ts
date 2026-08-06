@@ -1,0 +1,50 @@
+/*
+ * Window-level key capture: a Set of held key codes, nothing more. Sampling that Set into
+ * a control vector is controls.ts's job, so this file has no idea what a throttle is.
+ *
+ * `code` (physical key) not `key` (character) so the bindings survive a non-US layout.
+ * Escape is deliberately absent from GAME_KEY_CODES: it cannot be preventDefault'ed out of
+ * exiting pointer lock anyway, and the flight loop wants it as the pause key (spec §6).
+ */
+export const GAME_KEY_CODES: ReadonlySet<string> = new Set([
+  "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+  "KeyW", "KeyS", "KeyA", "KeyD",
+  "Equal", "Minus", "NumpadAdd", "NumpadSubtract",
+  "KeyF", "KeyV", "KeyG",
+  "Comma", "Period",
+]);
+
+export type KeyboardTarget = {
+  addEventListener(type: string, fn: (e: any) => void): void;
+  removeEventListener(type: string, fn: (e: any) => void): void;
+};
+
+export function createKeyboard(target: KeyboardTarget): { held: Set<string>; dispose(): void } {
+  const held = new Set<string>();
+
+  const onKeyDown = (e: { code: string; preventDefault(): void }) => {
+    if (GAME_KEY_CODES.has(e.code)) {
+      e.preventDefault(); // arrows must not scroll the page out from under the sim
+      held.add(e.code);
+    }
+  };
+  const onKeyUp = (e: { code: string }) => {
+    held.delete(e.code);
+  };
+  // Losing focus mid-throttle would otherwise leave the key "held" forever.
+  const onBlur = () => held.clear();
+
+  target.addEventListener("keydown", onKeyDown);
+  target.addEventListener("keyup", onKeyUp);
+  target.addEventListener("blur", onBlur);
+
+  return {
+    held,
+    dispose() {
+      target.removeEventListener("keydown", onKeyDown);
+      target.removeEventListener("keyup", onKeyUp);
+      target.removeEventListener("blur", onBlur);
+      held.clear();
+    },
+  };
+}
