@@ -1,0 +1,140 @@
+import { describe, it, expect } from "vitest";
+import { buildSpawnState } from "./spawn";
+import { loadC172 } from "../sim/params";
+import { stallSpeedIasMs } from "../sim/forces";
+import { ecefToGeodetic } from "../sim/geo";
+import { hprFromQuat } from "../sim/quat";
+import { ftToM, msToKt, mToFt, radToDeg } from "../sim/units";
+import { tasToIas } from "../sim/isa";
+import { vLength } from "../sim/vec3";
+import type { Contact } from "../data/types";
+
+const P = loadC172();
+
+const ga = (overrides: Partial<Contact> = {}): Contact => ({
+  hex: "a1b2c3", flight: "N12345", t: "C172", lat: 30.6944, lon: -88.0399,
+  alt_geom: 3500, alt_baro: 3400, gs: 105, track: 270, baro_rate: 0,
+  military: false, seen_pos: 2,
+  ...overrides,
+});
+
+describe("buildSpawnState — units and datum", () => {
+  it("puts the aircraft at the contact's lat/lon", () => {
+    const { state } = buildSpawnState(ga(), P, { terrainHeightM: 20 });
+    const g = ecefToGeodetic(state.position);
+    expect(radToDeg(g.latRad)).toBeCloseTo(30.6944, 5);
+    expect(radToDeg(g.lonRad)).toBeCloseTo(-88.0399, 5);
+  });
+  it("prefers alt_geom (ellipsoidal — same datum as the terrain)", () => {
+    const r = buildSpawnState(ga({ alt_geom: 3500, alt_baro: 3400 }), P, { terrainHeightM: 20 });
+    expect(r.altitudeSource).toBe("alt_geom");
+    expect(mToFt(r.state.altitudeM)).toBeCloseTo(3500, 1);
+  });
+  it("converts knots to m/s", () => {
+    const { state } = buildSpawnState(ga({ gs: 105 }), P, { terrainHeightM: 20 });
+    expect(msToKt(state.tasMs)).toBeCloseTo(105, 1);
+    expect(msToKt(vLength(state.velocity))).toBeCloseTo(105, 1);
+  });
+  it("converts track to heading", () => {
+    const { state } = buildSpawnState(ga({ track: 270 }), P, { terrainHeightM: 20 });
+    const hpr = hprFromQuat(state.attitude, state.position);
+    const heading = (radToDeg(hpr.headingRad) + 360) % 360;
+    expect(heading).toBeCloseTo(270, 1);
+  });
+  it("converts baro_rate (fpm) to a vertical speed and a nose-up attitude", () => {
+    const { state } = buildSpawnState(ga({ baro_rate: 500 }), P, { terrainHeightM: 20 });
+    expect(state.verticalSpeedMs).toBeGreaterThan(2);
+    expect(hprFromQuat(state.attitude, state.position).pitchRad).toBeGreaterThan(0);
+  });
+  it("treats a missing baro_rate as level, not as a dive", () => {
+    const { state } = buildSpawnState(ga({ baro_rate: null }), P, { terrainHeightM: 20 });
+    expect(state.verticalSpeedMs).toBeCloseTo(0, 1);
+  });
+  it("spawns wings level with no rotation rates and zero sim time", () => {
+    const { state } = buildSpawnState(ga(), P, { terrainHeightM: 20 });
+    expect(radToDeg(hprFromQuat(state.attitude, state.position).rollRad)).toBeCloseTo(0, 6);
+    expect(state.rates).toEqual({ x: 0, y: 0, z: 0 });
+    expect(state.timeS).toBe(0);
+  });
+  it("hands over a throttle that roughly holds the snapshot speed, not idle", () => {
+    const { controls } = buildSpawnState(ga(), P, { terrainHeightM: 20 });
+    expect(controls.throttle).toBeGreaterThan(0.2);
+    expect(controls.throttle).toBeLessThanOrEqual(1);
+    expect(controls.flapDetent).toBe(0);
+  });
+});
+
+describe("buildSpawnState — the alt_baro fallback path", () => {
+  it("uses alt_baro when alt_geom is missing and says so", () => {
+    const r = buildSpawnState(ga({ alt_geom: null, alt_baro: 3400 }), P, { terrainHeightM: 20 });
+    expect(r.altitudeSource).toBe("alt_baro");
+    expect(r.adjustments.some((a) => /pressure altitude/i.test(a.reason))).toBe(true);
+  });
+  it("clamps a pressure altitude to at least terrain + 300 m and lists the adjustment", () => {
+    const terrain = ftToM(3000);
+    const r = buildSpawnState(ga({ alt_geom: null, alt_baro: 3100 }), P, { terrainHeightM: terrain });
+    expect(r.state.altitudeM).toBeCloseTo(terrain + 300, 1);
+    const adj = r.adjustments.find((a) => a.field === "ALTITUDE");
+    expect(adj).toBeTruthy();
+    expect(adj!.to).toContain("FT");
+  });
+  it("does not clamp a pressure altitude that is already clear of terrain", () => {
+    const r = buildSpawnState(ga({ alt_geom: null, alt_baro: 8000 }), P, { terrainHeightM: 100 });
+    expect(mToFt(r.state.altitudeM)).toBeCloseTo(8000, 1);
+  });
+  it("cannot clamp when terrain height is unknown, and says that too", () => {
+    const r = buildSpawnState(ga({ alt_geom: null, alt_baro: 3100 }), P, { terrainHeightM: null });
+    expect(mToFt(r.state.altitudeM)).toBeCloseTo(3100, 1);
+    expect(r.adjustments.some((a) => /terrain height unknown/i.test(a.reason))).toBe(true);
+  });
+});
+
+describe("buildSpawnState — envelope safety net", () => {
+  it("raises a below-stall snapshot to 1.3 Vs and lists it", () => {
+    const r = buildSpawnState(ga({ gs: 30 }), P, { terrainHeightM: 20 });
+    const ias = tasToIas(r.state.tasMs, r.state.altitudeM);
+    expect(ias).toBeGreaterThanOrEqual(1.3 * stallSpeedIasMs(P, 0) - 1e-6);
+    const adj = r.adjustments.find((a) => a.field === "SPEED");
+    expect(adj).toBeTruthy();
+    expect(adj!.from).toContain("30");
+    expect(adj!.reason).toMatch(/stall/i);
+  });
+  it("lowers an above-Vne snapshot to 0.9 Vne and lists it", () => {
+    const r = buildSpawnState(ga({ gs: 260 }), P, { terrainHeightM: 20 });
+    const ias = tasToIas(r.state.tasMs, r.state.altitudeM);
+    expect(ias).toBeLessThanOrEqual(0.9 * P.limits.vneIasMs + 1e-6);
+    expect(r.adjustments.find((a) => a.field === "SPEED")!.reason).toMatch(/vne/i);
+  });
+  it("clamps above-ceiling altitude and lists it", () => {
+    const r = buildSpawnState(ga({ alt_geom: 20000 }), P, { terrainHeightM: 20 });
+    expect(r.state.altitudeM).toBeLessThanOrEqual(P.limits.serviceCeilingM + 1e-6);
+    expect(r.adjustments.find((a) => a.field === "ALTITUDE")!.reason).toMatch(/ceiling/i);
+  });
+  it("adjusts nothing for a snapshot already inside the envelope", () => {
+    expect(buildSpawnState(ga(), P, { terrainHeightM: 20 }).adjustments).toEqual([]);
+  });
+  it("every adjustment carries a from, a to and a reason (the card prints them verbatim)", () => {
+    const r = buildSpawnState(ga({ gs: 30, alt_geom: 20000 }), P, { terrainHeightM: 20 });
+    expect(r.adjustments.length).toBeGreaterThanOrEqual(2);
+    for (const a of r.adjustments) {
+      expect(a.field.length).toBeGreaterThan(0);
+      expect(a.from.length).toBeGreaterThan(0);
+      expect(a.to.length).toBeGreaterThan(0);
+      expect(a.reason.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("buildSpawnState — purity", () => {
+  it("does not mutate the contact it was handed", () => {
+    const c = ga({ gs: 30 });
+    const before = JSON.stringify(c);
+    buildSpawnState(c, P, { terrainHeightM: 20 });
+    expect(JSON.stringify(c)).toBe(before);
+  });
+  it("is deterministic", () => {
+    const a = buildSpawnState(ga(), P, { terrainHeightM: 20 });
+    const b = buildSpawnState(ga(), P, { terrainHeightM: 20 });
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+});

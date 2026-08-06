@@ -1,0 +1,14 @@
+{
+  "note": "ICAO type designators treated as GA-piston for the Phase B takeover gate. Data, not code: adding a type here is the only thing needed to make it flyable. Every one of these is flown with the C172S parameter set this phase, which the handoff card discloses.",
+  "designators": [
+    "AA1", "AA5", "AC11", "AT3", "BE19", "BE23", "BE24", "BE33", "BE35", "BE36",
+    "BE50", "BE55", "BE58", "BE60", "BE76", "BE95", "C150", "C152", "C162", "C170",
+    "C172", "C175", "C177", "C180", "C182", "C185", "C188", "C195", "C205", "C206",
+    "C207", "C210", "C310", "C337", "COL4", "CH60", "CH7A", "DA20", "DA40", "DA42",
+    "DR40", "DV20", "F260", "GLAS", "GY80", "LNC2", "LNC4", "M20P", "M20T", "MO20",
+    "P28A", "P28B", "P28R", "P28T", "P32R", "P32T", "PA11", "PA18", "PA22", "PA23",
+    "PA24", "PA25", "PA27", "PA28", "PA30", "PA31", "PA32", "PA34", "PA38", "PA44",
+    "PAY1", "RV4", "RV6", "RV7", "RV8", "RV9", "RV10", "RV14", "S208", "SR20",
+    "SR22", "TB10", "TB20", "TB21", "TOBA", "VELO"
+  ]
+}
