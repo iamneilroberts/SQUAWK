@@ -111,3 +111,36 @@ itself. Two knobs carry the rest of the tuning and are labelled TUNING KNOB in `
 `propPeakSpeedMs` (a linear prop-efficiency ramp below 60 m/s, which both caps static
 thrust and brings sea-level climb from ~1570 fpm to ~740 fpm vs the POH's 730 fpm — a
 constant-efficiency `T = ηP/V` model is wildly optimistic in the climb).
+
+## 2026-08-05 — B-007 · Rate-command moments, exact-exponential attitude, semi-implicit Euler
+
+Three modelling calls that shape everything downstream:
+
+**Moments are rate-command-with-lag, not coefficient moments.** `docs/research/
+aero-parameters.md` gives a max roll rate for the C172 but no Cl_p, Cl_delta_a, Cm_q or
+Cm_alpha — writing a derivative-coefficient moment model would mean inventing numbers and
+presenting them as physics. Instead `sim/forces.ts` commands a body rate proportional to
+stick and dynamic-pressure authority and lets a per-axis damping constant pull the actual
+rate toward it, plus a static pitch stiffness toward the trimmed AoA (so elevator trim sets
+speed, as it does in the real aircraft) and a weathercock term in yaw. Every constant is
+named and marked TUNING KNOB in `params/c172.json` `sources`. Consequence to accept: the
+model has no inertia coupling and no adverse yaw.
+
+**Semi-implicit Euler at 60 Hz for the translational state, not RK2/RK4.** The fastest mode
+in the model (pitch short period, omega_n ≈ 1.7 rad/s) is three orders of magnitude below
+the sample rate, so the integrator is not the accuracy bottleneck; semi-implicit Euler costs
+one force evaluation per step instead of two or four and does not pump energy into
+oscillatory modes. Rationale is repeated in the header of `sim/aircraft.ts` where a reader
+will actually meet it.
+
+**Attitude uses the exact exponential map, not the first-order quaternion update.** The
+plan specified `q' = q + 0.5*q⊗ω*dt`, which under-rotates by theta^3/12 per step: harmless
+for the 172 (40 deg/s costs ~8e-6 rad/s) but 0.33 deg of lost roll over one 360 deg/s
+aerobatic roll, and worse again for the fighter class's roll rates — the plan's own
+"a full 360 deg roll returns to the starting attitude" test fails against it at 3 decimal
+places. `sim/quat.ts` therefore builds the per-step delta quaternion from axis-angle
+(`q' = q ⊗ exp(0.5*ω*dt)`), which is exact for a rate held constant across a step, for the
+cost of one sin/cos. The per-step renormalize stays, as float-round-off insurance.
+
+**Earth rotation is ignored** — no Coriolis, no transport rate, documented in
+`sim/geo.ts`. Gravity is taken along `geodeticSurfaceNormal`, not radially (spec §5).

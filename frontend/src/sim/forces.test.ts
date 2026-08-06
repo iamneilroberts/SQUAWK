@@ -1,0 +1,148 @@
+import { describe, it, expect } from "vitest";
+import {
+  liftCoefficient, dragCoefficient, clMaxFor, stallAlphaFor, stallSpeedIasMs,
+  thrustNewtons, controlAuthority, computeForces,
+} from "./forces";
+import { loadC172 } from "./params";
+import { degToRad } from "./units";
+import { quatFromHpr, qRotate } from "./quat";
+import { geodeticToEcef } from "./geo";
+import type { SimState, ControlVector, Vec3 } from "./types";
+
+const P = loadC172();
+const CLEAN = P.flaps[0];
+const FULL = P.flaps[3];
+
+const CONTROLS: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle: 0.75, flapDetent: 0, trim: 0 };
+
+/** Velocity vector for a flight path `fpaDeg` above the horizon, tracking north. */
+function velocityAlong(positionEcef: Vec3, tasMs: number, fpaDeg: number): Vec3 {
+  return qRotate(quatFromHpr(positionEcef, 0, degToRad(fpaDeg), 0), { x: tasMs, y: 0, z: 0 });
+}
+
+/**
+ * A state with a REAL velocity vector: body pitched `pitchDeg`, flight path at `fpaDeg`,
+ * so the angle of attack is `pitchDeg - fpaDeg`. This matters more than it looks — a state
+ * with zero velocity makes every aerodynamic force zero, which would let force assertions
+ * pass without the force model doing anything at all.
+ */
+function stateAt(altM: number, tasMs: number, pitchDeg = 0, fpaDeg = pitchDeg): SimState {
+  const position = geodeticToEcef(degToRad(30.6944), degToRad(-88.0399), altM);
+  return {
+    position,
+    velocity: velocityAlong(position, tasMs, fpaDeg),
+    attitude: quatFromHpr(position, 0, degToRad(pitchDeg), 0),
+    rates: { x: 0, y: 0, z: 0 },
+    timeS: 0,
+    altitudeM: altM,
+    tasMs, iasMs: 0, aoaRad: 0, sideslipRad: 0, verticalSpeedMs: 0,
+    loadFactor: 1, gLimited: false, stalled: false,
+  };
+}
+
+describe("liftCoefficient", () => {
+  it("is exactly linear below the stall", () => {
+    expect(liftCoefficient(degToRad(5), P, CLEAN)).toBeCloseTo(
+      P.aero.cl0 + P.aero.clAlphaPerRad * degToRad(5), 12);
+  });
+  it("peaks at exactly CLmax at the break", () => {
+    expect(liftCoefficient(stallAlphaFor(P, CLEAN), P, CLEAN)).toBeCloseTo(clMaxFor(P, CLEAN), 12);
+  });
+  it("rolls off softly past the break rather than falling off a cliff", () => {
+    const peak = clMaxFor(P, CLEAN);
+    const past = liftCoefficient(stallAlphaFor(P, CLEAN) + degToRad(6), P, CLEAN);
+    expect(past).toBeLessThan(peak);
+    expect(past).toBeGreaterThan(0.55 * peak); // soft, mushy — still flying, badly
+  });
+  it("keeps falling deeper into the stall", () => {
+    const a = liftCoefficient(stallAlphaFor(P, CLEAN) + degToRad(6), P, CLEAN);
+    const b = liftCoefficient(stallAlphaFor(P, CLEAN) + degToRad(20), P, CLEAN);
+    expect(b).toBeLessThan(a);
+  });
+  it("is antisymmetric-ish about zero-lift AoA (negative AoA gives negative lift)", () => {
+    expect(liftCoefficient(degToRad(-10), P, CLEAN)).toBeLessThan(0);
+  });
+  it("flaps raise CLmax and lower the stall AoA", () => {
+    expect(clMaxFor(P, FULL)).toBeGreaterThan(clMaxFor(P, CLEAN));
+    expect(stallAlphaFor(P, FULL)).toBeLessThan(stallAlphaFor(P, CLEAN));
+  });
+});
+
+describe("dragCoefficient", () => {
+  it("is a parabolic polar: CD = CD0 + CL^2/(pi e AR)", () => {
+    const cl = 0.6;
+    const expected = P.aero.cd0 + (cl * cl) / (Math.PI * P.aero.oswaldE * P.aspectRatio);
+    expect(dragCoefficient(cl, P, CLEAN)).toBeCloseTo(expected, 12);
+  });
+  it("flaps add parasite drag as well as lift", () => {
+    expect(dragCoefficient(0.6, P, FULL)).toBeGreaterThan(dragCoefficient(0.6, P, CLEAN));
+  });
+  it("is minimum at zero lift", () => {
+    expect(dragCoefficient(0, P, CLEAN)).toBeCloseTo(P.aero.cd0, 12);
+  });
+});
+
+describe("thrustNewtons", () => {
+  it("is power-limited above the prop peak speed: T = eta*P/V", () => {
+    const v = 70;
+    expect(thrustNewtons(P, 1, v)).toBeCloseTo((P.propulsion.propEfficiency * P.propulsion.maxPowerW) / v, 6);
+  });
+  it("does not run away as V -> 0 (static thrust is finite)", () => {
+    const t0 = thrustNewtons(P, 1, 0);
+    expect(Number.isFinite(t0)).toBe(true);
+    expect(t0).toBeCloseTo(
+      (P.propulsion.propEfficiency * P.propulsion.maxPowerW) / P.propulsion.propPeakSpeedMs, 6);
+  });
+  it("scales linearly with throttle and is zero at idle", () => {
+    expect(thrustNewtons(P, 0.5, 70)).toBeCloseTo(thrustNewtons(P, 1, 70) / 2, 9);
+    expect(thrustNewtons(P, 0, 70)).toBe(0);
+  });
+  it("falls with speed above the peak (a top-speed asymptote exists)", () => {
+    expect(thrustNewtons(P, 1, 90)).toBeLessThan(thrustNewtons(P, 1, 70));
+  });
+});
+
+describe("controlAuthority", () => {
+  it("is full at and above the reference dynamic pressure", () => {
+    expect(controlAuthority(P.control.refDynamicPressurePa, P)).toBeCloseTo(1, 9);
+    expect(controlAuthority(5000, P)).toBe(1);
+  });
+  it("goes mushy at low q", () => {
+    expect(controlAuthority(300, P)).toBeCloseTo(0.25, 6);
+    expect(controlAuthority(0, P)).toBe(0);
+  });
+});
+
+describe("stallSpeedIasMs", () => {
+  it("is lower with flaps down", () => {
+    expect(stallSpeedIasMs(P, 3)).toBeLessThan(stallSpeedIasMs(P, 0));
+  });
+});
+
+describe("computeForces", () => {
+  it("returns a finite force with zero airspeed instead of NaN", () => {
+    const r = computeForces(stateAt(1000, 0), CONTROLS, P);
+    expect(Number.isFinite(r.forceEcef.x)).toBe(true);
+    expect(Number.isFinite(r.aoaRad)).toBe(true);
+    expect(r.tasMs).toBe(0);
+  });
+  it("does NOT clamp in ordinary flight — the clamp must not be always-on", () => {
+    // 50 m/s, wings level, zero AoA: nowhere near the envelope.
+    const r = computeForces(stateAt(1000, 50, 0, 0), CONTROLS, P);
+    expect(r.gLimited).toBe(false);
+    expect(r.loadFactor).toBeLessThan(P.limits.gLimitPos);
+  });
+  it("clamps a hard pull at +3.8 g and says it clamped", () => {
+    // 90 m/s (175 kt) with the nose 6° above a level flight path = 6° AoA. Unclamped that
+    // is about 6 g for this airframe, so the clamp MUST engage.
+    const r = computeForces(stateAt(1000, 90, 6, 0), CONTROLS, P);
+    expect(r.gLimited).toBe(true);
+    expect(r.loadFactor).toBeCloseTo(P.limits.gLimitPos, 6);
+  });
+  it("clamps a hard push at -1.52 g and says it clamped", () => {
+    // Same speed, nose 8° BELOW a level flight path: strongly negative lift.
+    const r = computeForces(stateAt(1000, 90, -8, 0), CONTROLS, P);
+    expect(r.gLimited).toBe(true);
+    expect(r.loadFactor).toBeCloseTo(P.limits.gLimitNeg, 6);
+  });
+});
