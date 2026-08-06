@@ -13,7 +13,16 @@ type State = {
   feedStatus: FeedStatus;
   feedSource: string | null;
   lastFetchAt: number | null;
+  /**
+   * Which terrain tier actually attached (Re:Earth / ion fallback / flat ellipsoid), verbatim
+   * from `attachTerrain`. Lives here — not on the Viewer bundle — so StatusBar can read it
+   * without ViewerHost's bundle object churning every time terrain resolves (that churn was
+   * re-triggering ContactLayer's home-camera effect and snapping browse back home mid-pan).
+   * Null until the Viewer has mounted and attachTerrain has resolved at least once.
+   */
+  terrainNote: string | null;
   setHome(h: { lat: number; lon: number }): void;
+  setTerrainNote(note: string | null): void;
   applyFetch(r: { contacts: Contact[]; source: string; fetched_at: number }): void;
   markFetchFailed(): void;
   select(hex: string | null): void;
@@ -54,12 +63,17 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   feedStatus: "offline",
   feedSource: null,
   lastFetchAt: null,
+  terrainNote: null,
   mode: "BROWSE",
   origin: null,
   endStats: null,
 
   setHome(h) {
     set({ home: h });
+  },
+
+  setTerrainNote(note) {
+    set({ terrainNote: note });
   },
 
   applyFetch(r) {

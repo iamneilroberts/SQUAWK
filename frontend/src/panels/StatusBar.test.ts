@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatUtcClock, feedChipLabel } from "./StatusBar";
+import { formatUtcClock, feedChipLabel, terrainChipClass } from "./StatusBar";
 
 describe("formatUtcClock", () => {
   it("renders HH:MM:SSZ from a UTC instant", () => {
@@ -17,5 +17,18 @@ describe("feedChipLabel", () => {
   it("is bare STALE / OFFLINE otherwise", () => {
     expect(feedChipLabel("stale", "x")).toBe("STALE");
     expect(feedChipLabel("offline", "x")).toBe("OFFLINE");
+  });
+});
+
+describe("terrainChipClass", () => {
+  it("is nominal cyan for a resolved terrain source, including the ion fallback", () => {
+    expect(terrainChipClass("RE:EARTH TERRAIN · MAPTERHORN CC BY 4.0")).toBe("status-chip-live");
+    expect(terrainChipClass("TERRAIN: CESIUM ION (FALLBACK)")).toBe("status-chip-live");
+  });
+  it("is the amber warning for the flat-ellipsoid fallback", () => {
+    expect(terrainChipClass("TERRAIN UNAVAILABLE — FLAT ELLIPSOID")).toBe("status-chip-warn");
+  });
+  it("treats null (not yet attached) as nominal, not a warning", () => {
+    expect(terrainChipClass(null)).toBe("status-chip-live");
   });
 });

@@ -82,14 +82,18 @@ export default function ViewerHost({ children }: { children?: ReactNode }) {
       labels,
       byHex,
       heightSampler: createSceneHeightSampler(viewer.scene),
-      terrainNote: "TERRAIN LOADING…",
     });
+    // Terrain note lives in the store, not the bundle: writing it onto the bundle would
+    // recreate that object every time terrain resolves, and ContactLayer's home-camera
+    // effect depends on the bundle — so a mid-pan terrain resolution would snap the camera
+    // back home. See state/store.ts's terrainNote doc comment.
+    useStore.getState().setTerrainNote("TERRAIN LOADING…");
 
     // Terrain attaches at APP START, not at takeover: a mid-session provider swap forces a
     // full tile reload and jumps the camera (spec §3).
     void attachTerrain(viewer).then(({ note }) => {
       if (cancelled || viewer.isDestroyed()) return;
-      setBundle((b) => (b === null ? b : { ...b, terrainNote: note }));
+      useStore.getState().setTerrainNote(note);
     });
 
     return () => {
@@ -98,6 +102,7 @@ export default function ViewerHost({ children }: { children?: ReactNode }) {
       handler.destroy();
       viewer.destroy();
       setBundle(null);
+      useStore.getState().setTerrainNote(null);
     };
   }, []);
 

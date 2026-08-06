@@ -14,8 +14,6 @@ export type ViewerBundle = {
   /** Billboard per ICAO hex, mutated in place — the LORAN primitive-churn lesson. */
   byHex: Map<string, Billboard>;
   heightSampler: HeightSampler;
-  /** Which terrain source actually attached, for the status bar. */
-  terrainNote: string;
 };
 
 export const ViewerContext = createContext<ViewerBundle | null>(null);

@@ -16,10 +16,20 @@ export function feedChipLabel(status: FeedStatus, source: string | null): string
   return status.toUpperCase();
 }
 
+/**
+ * Honest terrain-tier readout (spec's degrade-honestly rule): cyan for a real terrain source
+ * (Re:Earth or the ion fallback), amber for the flat-ellipsoid warning. Null (not yet attached)
+ * reads as nominal so the chip doesn't flash amber before the first attachTerrain resolves.
+ */
+export function terrainChipClass(note: string | null): string {
+  return note !== null && note.includes("UNAVAILABLE") ? "status-chip-warn" : "status-chip-live";
+}
+
 export default function StatusBar() {
   const feedStatus = useStore((s) => s.feedStatus);
   const feedSource = useStore((s) => s.feedSource);
   const contactCount = useStore((s) => s.contacts.size);
+  const terrainNote = useStore((s) => s.terrainNote);
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -33,6 +43,7 @@ export default function StatusBar() {
     <div className="status-bar">
       <span className={chipClass}>{feedChipLabel(feedStatus, feedSource)}</span>
       {feedStatus === "offline" && <span className="status-chip-warn">FEEDS UNREACHABLE</span>}
+      {terrainNote !== null && <span className={terrainChipClass(terrainNote)}>{terrainNote}</span>}
       <span>CONTACTS {contactCount}</span>
       <span>{formatUtcClock(now)}</span>
       <span className="flex-1" />
