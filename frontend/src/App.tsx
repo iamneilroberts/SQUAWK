@@ -1,3 +1,4 @@
+import { useState } from "react";
 import ViewerHost from "./globe/ViewerHost";
 import ContactLayer from "./globe/ContactLayer";
 import ContactList from "./panels/ContactList";
@@ -6,12 +7,15 @@ import { useStore } from "./state/store";
 
 export default function App() {
   const mode = useStore((s) => s.mode);
+  // Bridged up from ViewerHost's bundle, not zustand: StatusBar is a flex sibling of
+  // ViewerHost here, not a Provider descendant, so it can't read viewerContext directly.
+  const [terrainNote, setTerrainNote] = useState<string | null>(null);
 
   return (
     <div className="flex h-full w-full flex-col">
       <div className="flex flex-1 overflow-hidden">
         <div className="relative flex-1">
-          <ViewerHost>
+          <ViewerHost onTerrainNoteChange={setTerrainNote}>
             <ContactLayer />
           </ViewerHost>
         </div>
@@ -21,7 +25,7 @@ export default function App() {
           </div>
         )}
       </div>
-      <StatusBar />
+      <StatusBar terrainNote={terrainNote} />
     </div>
   );
 }

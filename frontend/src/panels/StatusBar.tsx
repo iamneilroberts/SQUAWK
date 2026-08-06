@@ -25,11 +25,15 @@ export function terrainChipClass(note: string | null): string {
   return note !== null && note.includes("UNAVAILABLE") ? "status-chip-warn" : "status-chip-live";
 }
 
-export default function StatusBar() {
+type StatusBarProps = {
+  /** Bridged down from App.tsx, which gets it from ViewerHost — not zustand (see App.tsx). */
+  terrainNote: string | null;
+};
+
+export default function StatusBar({ terrainNote }: StatusBarProps) {
   const feedStatus = useStore((s) => s.feedStatus);
   const feedSource = useStore((s) => s.feedSource);
   const contactCount = useStore((s) => s.contacts.size);
-  const terrainNote = useStore((s) => s.terrainNote);
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {

@@ -249,3 +249,7 @@ out loud in the status bar as "TERRAIN UNAVAILABLE — FLAT ELLIPSOID" rather th
 letting the player fly over an invisible plain and wonder why Colorado is missing. Terrain
 attaches at app start, never at takeover, because swapping providers mid-session forces a
 full tile reload and jumps the camera.
+
+Task 8 hoist (2026-08-06): the resolved note is bridged from `ViewerHost`'s bundle to
+`StatusBar` via an `onTerrainNoteChange` prop through `App.tsx`, not zustand, to stay within
+the plan's `mode`/`origin`/`endStats`-only cap on this phase's store additions.

@@ -36,7 +36,18 @@ Ion.defaultAccessToken = null as unknown as string;
 const ESRI_WORLD_IMAGERY_URL =
   "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer";
 
-export default function ViewerHost({ children }: { children?: ReactNode }) {
+type ViewerHostProps = {
+  children?: ReactNode;
+  /**
+   * StatusBar needs the terrain tier note but lives outside this component's subtree (a
+   * flex sibling in App.tsx, not a Provider descendant), so ViewerHost — the component that
+   * actually has bundle access — reports it upward instead of duplicating it into zustand
+   * (plan's Global Constraints cap this phase's store additions at mode/origin/endStats).
+   */
+  onTerrainNoteChange?: (note: string | null) => void;
+};
+
+export default function ViewerHost({ children, onTerrainNoteChange }: ViewerHostProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [bundle, setBundle] = useState<ViewerBundle | null>(null);
 
@@ -82,18 +93,16 @@ export default function ViewerHost({ children }: { children?: ReactNode }) {
       labels,
       byHex,
       heightSampler: createSceneHeightSampler(viewer.scene),
+      terrainNote: "TERRAIN LOADING…",
     });
-    // Terrain note lives in the store, not the bundle: writing it onto the bundle would
-    // recreate that object every time terrain resolves, and ContactLayer's home-camera
-    // effect depends on the bundle — so a mid-pan terrain resolution would snap the camera
-    // back home. See state/store.ts's terrainNote doc comment.
-    useStore.getState().setTerrainNote("TERRAIN LOADING…");
+    onTerrainNoteChange?.("TERRAIN LOADING…");
 
     // Terrain attaches at APP START, not at takeover: a mid-session provider swap forces a
     // full tile reload and jumps the camera (spec §3).
     void attachTerrain(viewer).then(({ note }) => {
       if (cancelled || viewer.isDestroyed()) return;
-      useStore.getState().setTerrainNote(note);
+      setBundle((b) => (b === null ? b : { ...b, terrainNote: note }));
+      onTerrainNoteChange?.(note);
     });
 
     return () => {
@@ -102,7 +111,7 @@ export default function ViewerHost({ children }: { children?: ReactNode }) {
       handler.destroy();
       viewer.destroy();
       setBundle(null);
-      useStore.getState().setTerrainNote(null);
+      onTerrainNoteChange?.(null);
     };
   }, []);
 

@@ -19,13 +19,16 @@ export default function ContactLayer() {
   const mode = useStore((s) => s.mode);
 
   // Camera waits for the real home from /api/config — never flies to an invented default.
+  // Deps key on bundle?.viewer, not bundle itself: the viewer reference is stable for the
+  // whole mount, but the bundle object is rebuilt when terrainNote resolves (~1s in), and
+  // depending on the whole object would re-fire this and snap a mid-pan user back home.
   useEffect(() => {
     if (!home || !bundle || mode !== "BROWSE") return;
     bundle.viewer.camera.setView({
       destination: Cartesian3.fromDegrees(home.lon, home.lat, BROWSE_HEIGHT_M),
       orientation: { heading: 0, pitch: -CesiumMath.PI_OVER_TWO, roll: 0 },
     });
-  }, [home, bundle, mode]);
+  }, [home, bundle?.viewer, mode]);
 
   useEffect(() => {
     if (!bundle) return;
