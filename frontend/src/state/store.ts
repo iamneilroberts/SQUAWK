@@ -2,6 +2,9 @@ import { create } from "zustand";
 import type { StoreApi, UseBoundStore } from "zustand";
 import type { Contact, FeedStatus } from "../data/types";
 import { fetchAdsb, fetchConfig } from "../data/api";
+import { nextMode } from "../game/machine";
+import type { GameEvent, Mode } from "../game/machine";
+import type { FlightStats } from "../game/stats";
 
 type State = {
   home: { lat: number; lon: number } | null;
@@ -14,6 +17,30 @@ type State = {
   applyFetch(r: { contacts: Contact[]; source: string; fetched_at: number }): void;
   markFetchFailed(): void;
   select(hex: string | null): void;
+  /**
+   * Session mode. The ONLY session state zustand holds, along with origin and endStats:
+   * sim state lives in a mutable ref because a 60 Hz set() would re-render React.
+   */
+  mode: Mode;
+  /**
+   * The frozen snapshot the flight was built from. Deliberately separate from selectedHex,
+   * which applyFetch nulls the moment the contact leaves the feed — the origin must survive
+   * that, and must never be dead-reckoned forward.
+   */
+  origin: { hex: string; snapshot: Contact } | null;
+  endStats: FlightStats | null;
+  /**
+   * The ONLY thing that changes `mode`. Every transition goes through game/machine.ts's
+   * table, so an illegal event (a terrain impact resolving a frame after QUIT) is a no-op
+   * instead of a bogus state. There is no setMode by design — it would let callers bypass
+   * the machine and the table would quietly become documentation.
+   */
+  fire(event: GameEvent): void;
+  setOrigin(o: { hex: string; snapshot: Contact } | null): void;
+  setEndStats(s: FlightStats | null): void;
+  /** Clears the session payload without touching the mode. */
+  clearSession(): void;
+  resetSession(): void;
 };
 
 // Consecutive-failure count backing markFetchFailed's stale/offline threshold.
@@ -27,6 +54,9 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   feedStatus: "offline",
   feedSource: null,
   lastFetchAt: null,
+  mode: "BROWSE",
+  origin: null,
+  endStats: null,
 
   setHome(h) {
     set({ home: h });
@@ -52,6 +82,27 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
 
   select(hex) {
     set({ selectedHex: hex });
+  },
+
+  fire(event) {
+    set({ mode: nextMode(get().mode, event) });
+  },
+
+  setOrigin(o) {
+    set({ origin: o });
+  },
+
+  setEndStats(s) {
+    set({ endStats: s });
+  },
+
+  clearSession() {
+    set({ origin: null, endStats: null });
+  },
+
+  /** Hard reset: back to BROWSE with no residue (spec §6). */
+  resetSession() {
+    set({ mode: "BROWSE", origin: null, endStats: null });
   },
 }));
 

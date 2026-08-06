@@ -33,3 +33,64 @@ describe("store", () => {
     expect(s().feedStatus).toBe("live");
   });
 });
+
+describe("session state", () => {
+  it("starts in BROWSE with no origin and no stats", () => {
+    useStore.getState().resetSession();
+    const s = useStore.getState();
+    expect(s.mode).toBe("BROWSE");
+    expect(s.origin).toBeNull();
+    expect(s.endStats).toBeNull();
+  });
+  it("holds the frozen origin snapshot independently of selectedHex", () => {
+    const c = contact("abc123");
+    useStore.getState().setOrigin({ hex: "abc123", snapshot: c });
+    // the contact ages out of the feed and the selection is nulled...
+    useStore.getState().applyFetch({ contacts: [], source: "t", fetched_at: 5 });
+    expect(useStore.getState().selectedHex).toBeNull();
+    // ...but the origin snapshot survives
+    expect(useStore.getState().origin?.hex).toBe("abc123");
+    expect(useStore.getState().origin?.snapshot.gs).toBe(120);
+  });
+  it("fire routes every transition through the machine", () => {
+    useStore.getState().resetSession();
+    useStore.getState().fire("TAKE_CONTROLS");
+    expect(useStore.getState().mode).toBe("COUNTDOWN");
+    useStore.getState().fire("COUNTDOWN_DONE");
+    expect(useStore.getState().mode).toBe("FLYING");
+    useStore.getState().fire("IMPACT");
+    expect(useStore.getState().mode).toBe("ENDED");
+    useStore.getState().fire("EXIT_END");
+    expect(useStore.getState().mode).toBe("BROWSE");
+  });
+  it("an illegal event is a no-op, not a bogus mode (late impacts race QUIT)", () => {
+    useStore.getState().resetSession();
+    useStore.getState().fire("IMPACT");
+    expect(useStore.getState().mode).toBe("BROWSE");
+    useStore.getState().fire("TAKE_CONTROLS");
+    useStore.getState().fire("COUNTDOWN_DONE");
+    useStore.getState().fire("QUIT");
+    useStore.getState().fire("IMPACT"); // arrives one frame too late
+    expect(useStore.getState().mode).toBe("BROWSE");
+  });
+  it("resetSession clears mode, origin and stats together (QUIT leaves no residue)", () => {
+    useStore.getState().fire("TAKE_CONTROLS");
+    useStore.getState().fire("COUNTDOWN_DONE");
+    useStore.getState().setOrigin({ hex: "abc123", snapshot: contact("abc123") });
+    useStore.getState().setEndStats({
+      airtimeS: 1, distanceM: 2, maxIasMs: 3, maxAltitudeM: 4, maxG: 5,
+      impactSinkFpm: 6, impactIasMs: 7, classification: "CRASHED",
+    });
+    useStore.getState().resetSession();
+    const s = useStore.getState();
+    expect(s.mode).toBe("BROWSE");
+    expect(s.origin).toBeNull();
+    expect(s.endStats).toBeNull();
+  });
+  it("does not hold any sim state (60 Hz set() would re-render React)", () => {
+    const keys = Object.keys(useStore.getState());
+    expect(keys).not.toContain("simState");
+    expect(keys).not.toContain("position");
+    expect(keys).not.toContain("attitude");
+  });
+});

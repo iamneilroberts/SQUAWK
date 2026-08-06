@@ -218,3 +218,23 @@ Two keys are Phase B additions to the §8 table, both recorded in `input/control
 `KEYMAP` and the README: `Comma`/`Period` for nose-down/nose-up elevator trim (spec §5
 requires two trim keys but does not name them), and `Escape` reassigned from "quit to
 browse" to "pause overlay" per spec §6 — QUIT is a button inside that overlay.
+
+## 2026-08-05 — B-010 · What "near-level attitude" means at touchdown
+
+Parent spec §5 fixes two landing gates numerically (sink under 600 fpm, speed under
+1.3 Vs) and leaves "near-level attitude" to implementation. `game/classify.ts` makes it:
+bank within ±10°, pitch within −5°…+15°. The pitch window is deliberately asymmetric — a
+nose-up flare is how a light single arrives, a nose-down arrival is a crash regardless of
+how slowly it was going. Both bounds are inclusive; the sink and speed gates are strictly
+less-than, so exactly 600 fpm and exactly 1.3 Vs read CRASHED. Every one of those
+boundaries is pinned by a test in `game/classify.test.ts`, and Vs is taken for the flap
+setting actually selected, so a full-flap touchdown is judged against 40 kt, not 48.
+
+One test in the task-6 implementation brief's own worked example was internally
+inconsistent with the actual C172 params and was corrected during implementation: full
+flap lowers Vs (40 kt) below clean Vs (48 kt), so a fixed speed's ratio to the (smaller)
+flap Vs is always the larger, stricter one — a speed can never read CRASHED against clean
+Vs while reading LANDED against flap Vs, only the other way around. `classify.test.ts`'s
+"the stall speed is flap-dependent" case now asserts the physically consistent direction
+(fine clean, too fast for full flap); `classifyEnd`/`readImpact` themselves are unchanged
+from the brief.
