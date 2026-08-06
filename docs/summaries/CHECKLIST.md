@@ -10,6 +10,6 @@
 - [x] Task 9: flight loop + FPV camera + terrain preload
 - [x] Task 10: HUD (format + Hud.tsx)
 - [x] Task 11: takeover UI + ghost + pause + quit
-- [ ] Task 12: end card + acceptance walkthrough
+- [x] Task 12: end card + acceptance walkthrough
 
 _Updated: 2026-08-06 — hindustanis_

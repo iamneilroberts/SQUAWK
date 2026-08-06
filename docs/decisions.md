@@ -327,3 +327,29 @@ have swallowed every drag meant to orbit the impact/landing site — the entire 
 "end card allows orbiting" (spec §1). `.end-overlay` is now `pointer-events: none` with
 `pointer-events: auto` scoped to `.end-overlay .end-card`, the same trick `PauseOverlay`'s
 armed-resume state already uses to let clicks reach the canvas underneath.
+
+## 2026-08-06 — Phase B known limitations (final whole-branch review triage)
+
+Final review (opus, full-suite/build/typecheck verified green: frontend 404, backend 18)
+approved the branch with one honesty fix applied (spawn disclosed "VERTICAL RATE — ASSUMED
+LEVEL" when the feed lacks baro_rate) and a stale-comment fix. Consciously deferred, not
+defects:
+
+- **Spawn trim/throttle saturation undisclosed** (`takeover/spawn.ts`) — at the 1.3·Vs floor
+  trim can clamp at ±1 and throttle at 1, so a handoff promising a trimmed aircraft may start
+  slightly untrimmed/decelerating for non-C172 GA types. Add adjustments entries if it bugs.
+- **Spawn grace shows AGL with collision off but no flag** (`world/terrain.ts`) — during the
+  ~3 s grace `collisionArmed=false` while the HUD shows AGL and no warning. Expose
+  collisionArmed in the snapshot to surface it.
+- **COUNTDOWN_ABORT exists in the machine but nothing fires it** — takeover is unescapable
+  for up to ~6 s (countdown + preload timeout). Esc-in-countdown is the natural trigger.
+- **Heading is a numeric readout, not a tape** (B-013); **terrainPreload timeout timer**
+  never cleared (one stray 3 s timer per takeover); **ContactLayer re-snaps the browse
+  camera on ENDED→BROWSE** (this IS spec §6's "browse camera restored" — documented, kept).
+- **Test-depth**: ghost dimming in syncBillboards, ContactList eligibility states, and
+  FlightSession.tsx have no unit tests (no-jsdom convention) — covered only by the manual
+  acceptance walkthrough.
+- Sim-internal notes: geo pole guard dead code; aircraft.ts derived fields are pre-step vs
+  post-step position (documented); rate damping not scaled by dynamic pressure (tuning
+  knob); |cosα|<1e-3 g-clamp guard discontinuity (outside envelope); envelope bisection
+  bracket unasserted; flapped CLmax unbounded by tests.
