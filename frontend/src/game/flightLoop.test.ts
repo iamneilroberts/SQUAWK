@@ -1,0 +1,313 @@
+import { describe, it, expect } from "vitest";
+import { createFlightLoop, SNAPSHOT_INTERVAL_S } from "./flightLoop";
+import type { FlightHost } from "./flightLoop";
+import { loadC172 } from "../sim/params";
+import { buildSpawnState } from "../takeover/spawn";
+import { createTerrainService } from "../world/terrain";
+import { FIXED_DT } from "../sim/integrator";
+import { ecefToGeodetic } from "../sim/geo";
+import { msToKt } from "../sim/units";
+import type { FlightStats } from "./stats";
+import type { HudSnapshot } from "../hud/snapshot";
+import type { Contact } from "../data/types";
+
+const P = loadC172();
+
+const ga = (o: Partial<Contact> = {}): Contact => ({
+  hex: "a1b2c3", flight: "N12345", t: "C172", lat: 30.6944, lon: -88.0399,
+  alt_geom: 3500, alt_baro: 3400, gs: 105, track: 270, baro_rate: 0,
+  military: false, seen_pos: 2, ...o,
+});
+
+/** A host the test drives frame by frame. */
+function fakeHost() {
+  let cb: ((wallMs: number) => void) | null = null;
+  const calls = { enter: 0, exit: 0, camera: 0 };
+  const host: FlightHost = {
+    onFrame(fn) {
+      cb = fn;
+      return () => { cb = null; };
+    },
+    setCamera() { calls.camera++; },
+    enterFlightView() { calls.enter++; },
+    exitFlightView() { calls.exit++; },
+  };
+  return {
+    host,
+    calls,
+    frame(wallMs: number) { cb?.(wallMs); },
+    get subscribed() { return cb !== null; },
+  };
+}
+
+function makeLoop(overrides: {
+  groundHeight?: number | undefined;
+  held?: Set<string>;
+  contact?: Contact;
+} = {}) {
+  const spawn = buildSpawnState(overrides.contact ?? ga(), P, { terrainHeightM: 100 });
+  const terrain = createTerrainService(() =>
+    "groundHeight" in overrides ? overrides.groundHeight : 100);
+  const ends: FlightStats[] = [];
+  const snaps: HudSnapshot[] = [];
+  const h = fakeHost();
+  const loop = createFlightLoop({
+    host: h.host,
+    params: P,
+    terrain,
+    spawn,
+    heldKeys: overrides.held ?? new Set<string>(),
+    callsign: "SIM-A1B2C3",
+    onSnapshot: (s) => snaps.push(s),
+    onEnd: (s) => ends.push(s),
+  });
+  return { loop, host: h, ends, snaps, terrain, spawn };
+}
+
+describe("flight loop lifecycle", () => {
+  it("start subscribes to frames and enters the flight view", () => {
+    const { loop, host } = makeLoop();
+    loop.start();
+    expect(host.subscribed).toBe(true);
+    expect(host.calls.enter).toBe(1);
+    loop.stop();
+  });
+  it("stop unsubscribes and restores the view (no residue)", () => {
+    const { loop, host } = makeLoop();
+    loop.start();
+    loop.stop();
+    expect(host.subscribed).toBe(false);
+    expect(host.calls.exit).toBe(1);
+  });
+  it("stop is idempotent", () => {
+    const { loop, host } = makeLoop();
+    loop.start();
+    loop.stop();
+    loop.stop();
+    expect(host.calls.exit).toBe(1);
+  });
+  it("the first frame establishes the clock without simulating a huge jump", () => {
+    const { loop, spawn } = makeLoop();
+    loop.start();
+    loop.getState();
+    expect(loop.getState().timeS).toBe(0);
+    expect(loop.getState().altitudeM).toBeCloseTo(spawn.state.altitudeM, 6);
+    loop.stop();
+  });
+});
+
+describe("flight loop stepping", () => {
+  it("advances sim time in 1/60 s increments driven by the host clock", () => {
+    const { loop, host } = makeLoop();
+    loop.start();
+    host.frame(1000);
+    host.frame(1000 + 100); // 100 ms -> 6 steps
+    expect(loop.getState().timeS).toBeCloseTo(6 * FIXED_DT, 9);
+    loop.stop();
+  });
+  it("caps a 30 s gap at 15 steps and reports a low sim rate", () => {
+    const { loop, host, snaps } = makeLoop();
+    loop.start();
+    host.frame(1000);
+    host.frame(31000);
+    expect(loop.getState().timeS).toBeCloseTo(15 * FIXED_DT, 9);
+    const last = snaps[snaps.length - 1];
+    expect(last.simRate).toBeLessThan(0.5);
+    loop.stop();
+  });
+  it("moves the camera every frame", () => {
+    const { loop, host } = makeLoop();
+    loop.start();
+    host.frame(1000);
+    host.frame(1016);
+    host.frame(1032);
+    expect(host.calls.camera).toBeGreaterThanOrEqual(2);
+    loop.stop();
+  });
+});
+
+describe("flight loop pause", () => {
+  it("a paused loop does not advance sim time", () => {
+    const { loop, host } = makeLoop();
+    loop.start();
+    host.frame(1000);
+    host.frame(1100);
+    const t = loop.getState().timeS;
+    loop.pause();
+    host.frame(5000);
+    host.frame(9000);
+    expect(loop.getState().timeS).toBeCloseTo(t, 9);
+    expect(loop.isPaused()).toBe(true);
+    loop.stop();
+  });
+  it("resuming does not simulate the paused wall time", () => {
+    const { loop, host } = makeLoop();
+    loop.start();
+    host.frame(1000);
+    loop.pause();
+    host.frame(60000);
+    loop.resume();
+    host.frame(60100); // the first frame back only re-establishes the clock
+    host.frame(60200); // 100 ms of flying time -> 6 steps, not 59 s worth
+    expect(loop.getState().timeS).toBeCloseTo(6 * FIXED_DT, 9);
+    loop.stop();
+  });
+  it("a pause that delivered no frames at all still does not jump on resume", () => {
+    // The visibilitychange auto-pause is exactly this case: a hidden tab stops delivering
+    // frames, so the clock reference is minutes stale by the time the player comes back.
+    // Re-basing on the first frame after RESUME is what keeps that from arriving as a
+    // clamped-and-dropped 0.25 s lurch the moment the globe is clicked.
+    const { loop, host } = makeLoop();
+    loop.start();
+    host.frame(1000);
+    loop.pause();
+    loop.resume(); // not one frame in between
+    host.frame(300000); // five minutes later
+    host.frame(300000 + 1000 / 60);
+    expect(loop.getState().timeS).toBeCloseTo(FIXED_DT, 9);
+    loop.stop();
+  });
+});
+
+describe("flight loop snapshots", () => {
+  it("publishes about 10 snapshots per simulated second, not 60", () => {
+    const { loop, host, snaps } = makeLoop();
+    loop.start();
+    let t = 1000;
+    for (let i = 0; i < 60; i++) { t += 1000 / 60; host.frame(t); }
+    expect(snaps.length).toBeGreaterThanOrEqual(8);
+    expect(snaps.length).toBeLessThanOrEqual(14);
+    expect(SNAPSHOT_INTERVAL_S).toBeCloseTo(0.1, 9);
+    loop.stop();
+  });
+  it("the snapshot carries the callsign, the flap label and the honest model note", () => {
+    const { loop, host, snaps } = makeLoop();
+    loop.start();
+    host.frame(1000);
+    host.frame(1200);
+    const s = snaps[snaps.length - 1];
+    expect(s.callsign).toBe("SIM-A1B2C3");
+    expect(s.classLabel).toBe(P.label); // "C172S" — spec §9 wants class beside the callsign
+    expect(s.flapLabel).toBe("0");
+    expect(s.modelNote).toBe(P.modelNote);
+    expect(s.gear).toBe("fixed");
+    loop.stop();
+  });
+  it("reports overspeed against Vne and terrain clearance against the sampled ground", () => {
+    const { loop, host, snaps } = makeLoop({ groundHeight: 500 });
+    loop.start();
+    host.frame(1000);
+    host.frame(1200);
+    const s = snaps[snaps.length - 1];
+    expect(s.overspeed).toBe(false);
+    expect(s.terrainClearanceM).toBeCloseTo(s.altitudeM - 500, 3);
+    loop.stop();
+  });
+  it("reports terrainUnverified when the sampler never returns a height", () => {
+    const { loop, host, snaps } = makeLoop({ groundHeight: undefined });
+    loop.start();
+    host.frame(1000);
+    host.frame(1200);
+    const s = snaps[snaps.length - 1];
+    expect(s.terrainUnverified).toBe(true);
+    expect(s.terrainClearanceM).toBeNull();
+    loop.stop();
+  });
+});
+
+describe("flight loop collision", () => {
+  /*
+   * The spawn hands over a TRIMMED, POWERED aircraft, so it holds altitude if left alone —
+   * these tests must therefore fly it down on purpose. `KeyS` walks the throttle to idle
+   * (about 2 s) and the trimmed 172 settles into a ~750 fpm glide, which covers 60 m in
+   * roughly fifteen seconds. They also have to outlast the 3 s spawn grace before
+   * collision can arm at all, which is why none of them is a short run.
+   */
+  const IDLE = () => new Set(["KeyS"]);
+  const spawnAltitudeM = () => buildSpawnState(ga(), P, { terrainHeightM: 100 }).state.altitudeM;
+
+  function fly(loopBits: ReturnType<typeof makeLoop>, frames: number) {
+    let t = 1000;
+    for (let i = 0; i < frames && loopBits.ends.length === 0; i++) {
+      t += 1000 / 60;
+      loopBits.host.frame(t);
+    }
+    return t;
+  }
+
+  it("ends the session when the aircraft glides down onto the sampled terrain", () => {
+    const bits = makeLoop({ groundHeight: spawnAltitudeM() - 60, held: IDLE() });
+    bits.loop.start();
+    fly(bits, 2400); // 40 s of sim, well past both the glide time and the spawn grace
+    expect(bits.ends).toHaveLength(1);
+    expect(["LANDED", "CRASHED"]).toContain(bits.ends[0].classification);
+    expect(bits.ends[0].airtimeS).toBeGreaterThan(3); // it flew, it did not spawn into the dirt
+    bits.loop.stop();
+  });
+  it("a dive into terrain reads CRASHED with a real impact sink rate and speed", () => {
+    // ArrowUp is stick FORWARD (Task 4 KEYMAP: "pitch down"), KeyS is throttle down —
+    // nose down at idle, which arrives fast and steep.
+    const held = new Set(["ArrowUp", "KeyS"]);
+    const bits = makeLoop({ groundHeight: spawnAltitudeM() - 200, held });
+    bits.loop.start();
+    fly(bits, 3600);
+    expect(bits.ends).toHaveLength(1);
+    expect(bits.ends[0].classification).toBe("CRASHED");
+    expect(bits.ends[0].impactSinkFpm).toBeGreaterThan(600);
+    expect(msToKt(bits.ends[0].impactIasMs)).toBeGreaterThan(40);
+    bits.loop.stop();
+  });
+  it("does not collide while the ground has never been sampled", () => {
+    const bits = makeLoop({ groundHeight: undefined, held: IDLE() });
+    bits.loop.start();
+    fly(bits, 1800);
+    expect(bits.ends).toHaveLength(0);
+    bits.loop.stop();
+  });
+  it("does not collide inside the spawn grace, even with the ground above the aircraft", () => {
+    // Ground 500 m ABOVE the spawn: armed, this collides on the very first armed tick.
+    // Inside the grace it must not — that window is what stops a teleport reading as a crash.
+    const bits = makeLoop({ groundHeight: spawnAltitudeM() + 500, held: IDLE() });
+    bits.loop.start();
+    fly(bits, 120); // 2 s of sim, inside the 3 s grace
+    expect(bits.ends).toHaveLength(0);
+    fly(bits, 300); // past the grace — now it must fire
+    expect(bits.ends).toHaveLength(1);
+    bits.loop.stop();
+  });
+  it("does not collide after terrain.disarm() — and WOULD have without it", () => {
+    const ground = spawnAltitudeM() + 500;
+    // Control arm first: prove the setup really does collide when collision is armed.
+    const armed = makeLoop({ groundHeight: ground, held: IDLE() });
+    armed.loop.start();
+    fly(armed, 600);
+    expect(armed.ends).toHaveLength(1);
+    armed.loop.stop();
+
+    const disarmed = makeLoop({ groundHeight: ground, held: IDLE() });
+    disarmed.terrain.disarm();
+    disarmed.loop.start();
+    fly(disarmed, 600);
+    expect(disarmed.ends).toHaveLength(0);
+    disarmed.loop.stop();
+  });
+  it("stops stepping once the session has ended (no physics past the impact)", () => {
+    const bits = makeLoop({ groundHeight: spawnAltitudeM() - 60, held: IDLE() });
+    bits.loop.start();
+    let t = fly(bits, 2400);
+    expect(bits.ends).toHaveLength(1);
+    const frozen = bits.loop.getState().timeS;
+    for (let i = 0; i < 60; i++) { t += 1000 / 60; bits.host.frame(t); }
+    expect(bits.loop.getState().timeS).toBeCloseTo(frozen, 9);
+    bits.loop.stop();
+  });
+  it("the position at the end is at or below the ground it hit", () => {
+    const ground = spawnAltitudeM() - 60;
+    const bits = makeLoop({ groundHeight: ground, held: IDLE() });
+    bits.loop.start();
+    fly(bits, 2400);
+    expect(bits.ends).toHaveLength(1);
+    expect(ecefToGeodetic(bits.loop.getState().position).heightM).toBeLessThanOrEqual(ground);
+    bits.loop.stop();
+  });
+});

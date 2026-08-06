@@ -253,3 +253,26 @@ full tile reload and jumps the camera.
 Task 8 hoist (2026-08-06): the resolved note is bridged from `ViewerHost`'s bundle to
 `StatusBar` via an `onTerrainNoteChange` prop through `App.tsx`, not zustand, to stay within
 the plan's `mode`/`origin`/`endStats`-only cap on this phase's store additions.
+
+## 2026-08-05 — B-012 · The flight loop talks to a FlightHost, not to a Viewer
+
+`game/flightLoop.ts` — accumulator, collision test, pause, sim-rate metering, end
+classification — is written against a three-method `FlightHost` interface (frame callback,
+camera, enter/exit view). `globe/cesiumFlightHost.ts` is the ten-line Cesium implementation.
+Same seam, same reason, as `world/terrain.ts`'s injected height sampler: the parts with
+decisions in them get unit tests driven by a fake, and the parts that are just Cesium API
+calls stay small enough to verify by flying the thing. Twenty-one flight-loop tests exist
+because of this seam; none of them load Cesium.
+
+Two behaviours that came out of writing those tests and are worth stating: RESUME clears
+the frame clock rather than carrying it, so a five-minute pause does not arrive as a
+clamped-and-dropped 300-second frame; and controls are sampled once per PHYSICS tick while
+the camera is driven once per FRAME, so control response does not change with frame rate.
+
+Clearing the clock costs the one frame after RESUME, which advances no physics because it
+is the frame that re-establishes the reference — a visible 16 ms and the price of never
+lurching. The alternative (carry the clock, since a visible tab keeps delivering frames
+while PAUSED and so keeps it current) was measured against the hidden-tab case the
+`visibilitychange` auto-pause exists for: with no frames delivered during the pause it
+resumes with a clamped-and-dropped 0.25 s jump. `flightLoop.test.ts`'s "a pause that
+delivered no frames at all" case pins the re-base and fails under that alternative.
