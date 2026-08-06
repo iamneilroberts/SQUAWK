@@ -9,7 +9,7 @@ import { degToRad } from "./units";
 import { quatFromHpr, qRotate, qRotateInverse } from "./quat";
 import { geodeticToEcef, geodeticSurfaceNormal } from "./geo";
 import { vScale, vSub } from "./vec3";
-import type { SimState, ControlVector, Vec3 } from "./types";
+import type { ClassParams, SimState, ControlVector, Vec3 } from "./types";
 
 const P = loadC172();
 const CLEAN = P.flaps[0];
@@ -122,6 +122,13 @@ describe("thrustNewtons", () => {
   });
   it("lapses with density altitude", () => {
     expect(thrustNewtons(P, 1, 70, 3000)).toBeLessThan(thrustNewtons(P, 1, 70, 0));
+  });
+  // The lapse is chosen by propulsion.lapseModel, not assumed: a flat-rated powerplant must
+  // be expressible in data alone, without a per-class branch in this file.
+  it("takes no density lapse when the class declares a flat-rated powerplant", () => {
+    const flatRated: ClassParams = { ...P, propulsion: { ...P.propulsion, lapseModel: "none" } };
+    expect(thrustNewtons(flatRated, 1, 70, 3000)).toBeCloseTo(thrustNewtons(flatRated, 1, 70, 0), 9);
+    expect(thrustNewtons(flatRated, 1, 70, 3000)).toBeGreaterThan(thrustNewtons(P, 1, 70, 3000));
   });
 });
 

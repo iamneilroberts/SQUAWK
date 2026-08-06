@@ -11,6 +11,7 @@ describe("loadC172", () => {
     expect(p.flaps).toHaveLength(4);
     expect(p.flaps.map((f) => f.label)).toEqual(["0", "10", "20", "30"]);
     expect(p.gear).toBe("fixed");
+    expect(p.propulsion.lapseModel).toBe("piston");
   });
   it("has an aspect ratio consistent with its span and area", () => {
     const p = loadC172();
@@ -44,6 +45,30 @@ describe("validateClassParams", () => {
       flaps: [{ label: "0", dCL0: 0, dStallAlphaRad: 0 }],
     };
     expect(() => validateClassParams(bad)).toThrow(/dCD0/);
+  });
+  // The lapse model is data because the alternative is a per-class branch in forces.ts. It
+  // must fail loudly rather than default, or a typo silently turns one engine into another.
+  it("rejects an unknown propulsion lapse model", () => {
+    const p = loadC172();
+    const bad = {
+      ...(p as unknown as Record<string, unknown>),
+      propulsion: { ...p.propulsion, lapseModel: "turboprop" },
+    };
+    expect(() => validateClassParams(bad)).toThrow(/lapseModel must be one of/);
+  });
+  it("rejects a missing propulsion lapse model rather than defaulting", () => {
+    const p = loadC172();
+    const { lapseModel: _omitted, ...propulsion } = p.propulsion;
+    const bad = { ...(p as unknown as Record<string, unknown>), propulsion };
+    expect(() => validateClassParams(bad)).toThrow(/lapseModel/);
+  });
+  it("accepts a flat-rated powerplant that takes no density lapse", () => {
+    const p = loadC172();
+    const jetish = {
+      ...(p as unknown as Record<string, unknown>),
+      propulsion: { ...p.propulsion, lapseModel: "none" },
+    };
+    expect(validateClassParams(jetish).propulsion.lapseModel).toBe("none");
   });
   it("accepts the shipped file unchanged", () => {
     expect(() => validateClassParams(loadC172())).not.toThrow();

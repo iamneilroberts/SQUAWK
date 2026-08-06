@@ -193,3 +193,14 @@ the clamp failing, so the entry speed moved rather than the assertion being soft
 kt TAS at 2000 m is 154 KIAS, still inside Vne. The case now also asserts the clamp is
 reached *exactly* (`toBeCloseTo(3.8)`), mirroring the negative-g case, so it cannot pass by
 merely never exceeding the limit.
+
+**The density-altitude lapse is selected by data, not applied to everyone** (added in
+review). `thrustNewtons` first applied the piston lapse unconditionally, which buries a
+light-single assumption in a core that is supposed to be class-agnostic — the airliner's
+flat-rated turbofan would then have needed a per-class branch or a retrofit. `propulsion`
+now carries `lapseModel` (`"piston"` | `"none"`), `forces.ts` looks the curve up in
+`POWER_LAPSE_MODELS`, and `validateClassParams` **rejects an absent or unknown value at load
+time rather than defaulting**: defaulting to `"none"` would silently flat-rate a piston
+engine and defaulting to `"piston"` would re-bury the same assumption, and either way a typo
+in a parameter file would quietly turn one engine into another. The C172 keeps the identical
+Gagg-Ferrar curve and the envelope suite is unchanged.

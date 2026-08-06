@@ -3,7 +3,7 @@
  * rather than producing NaN somewhere inside the integrator three seconds into a flight.
  * A hand-written validator (not a schema library) keeps the dependency list untouched.
  */
-import type { ClassParams, FlapDetent } from "./types";
+import type { ClassParams, FlapDetent, LapseModel } from "./types";
 import c172Raw from "../params/c172.json";
 
 function asRecord(value: unknown, path: string): Record<string, unknown> {
@@ -33,6 +33,22 @@ function str(obj: Record<string, unknown>, key: string, path: string): string {
     throw new Error(`${path}.${key} must be a non-empty string`);
   }
   return v;
+}
+
+/**
+ * The powerplant's density-altitude lapse is data. An absent or unrecognised value is a
+ * load-time error, not a silent default: defaulting to "none" would quietly flat-rate a
+ * piston engine, and defaulting to "piston" would bake a light-single assumption into every
+ * future class. Keep this list in step with `POWER_LAPSE_MODELS` in forces.ts.
+ */
+const LAPSE_MODELS: readonly LapseModel[] = ["piston", "none"];
+
+function lapseModel(obj: Record<string, unknown>, path: string): LapseModel {
+  const v = str(obj, "lapseModel", path);
+  if (!LAPSE_MODELS.includes(v as LapseModel)) {
+    throw new Error(`${path}.lapseModel must be one of: ${LAPSE_MODELS.join(", ")}`);
+  }
+  return v as LapseModel;
 }
 
 function flapDetent(raw: unknown, index: number): FlapDetent {
@@ -105,6 +121,7 @@ export function validateClassParams(raw: unknown): ClassParams {
     },
     propulsion: {
       maxPowerW: positive(propulsion, "maxPowerW", "params.propulsion"),
+      lapseModel: lapseModel(propulsion, "params.propulsion"),
       propEfficiency: positive(propulsion, "propEfficiency", "params.propulsion"),
       propPeakSpeedMs: positive(propulsion, "propPeakSpeedMs", "params.propulsion"),
     },

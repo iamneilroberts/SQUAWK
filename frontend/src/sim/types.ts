@@ -9,6 +9,15 @@
 export type Vec3 = { x: number; y: number; z: number };
 export type Quat = { x: number; y: number; z: number; w: number };
 
+/**
+ * How this class's powerplant loses power with air density — data, not a code branch
+ * (spec §5, CLAUDE.md). "piston" is the Gagg-Ferrar lapse a normally-aspirated engine
+ * suffers; "none" is a flat-rated powerplant that holds its rated output over the altitude
+ * band this sim flies. Every model here has an entry in `POWER_LAPSE_MODELS` in forces.ts,
+ * and `validateClassParams` rejects any other value at load time.
+ */
+export type LapseModel = "piston" | "none";
+
 /** One flap detent. Deltas are applied on top of the clean aero block. */
 export type FlapDetent = {
   /** HUD text, e.g. "0", "10", "20", "30" (degrees of flap). */
@@ -69,6 +78,8 @@ export type ClassParams = {
   };
   propulsion: {
     maxPowerW: number;
+    /** Which density-altitude power lapse this powerplant obeys. */
+    lapseModel: LapseModel;
     /** Peak propeller efficiency, reached at and above propPeakSpeedMs. */
     propEfficiency: number;
     /**

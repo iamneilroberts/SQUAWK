@@ -14,7 +14,7 @@
  * derivative coefficients would mean inventing numbers and calling them physics. The
  * response constants are named, documented tuning knobs instead. Decisions.md B-007.
  */
-import type { ClassParams, ControlVector, FlapDetent, SimState, Vec3 } from "./types";
+import type { ClassParams, ControlVector, FlapDetent, LapseModel, SimState, Vec3 } from "./types";
 import { isaDensity, RHO_SL, tasToIas } from "./isa";
 import { geodeticSurfaceNormal } from "./geo";
 import { qRotate, qRotateInverse } from "./quat";
@@ -91,6 +91,19 @@ export function pistonPowerLapse(altitudeM: number): number {
 }
 
 /**
+ * Which lapse a powerplant obeys is DATA (`propulsion.lapseModel`), not a class branch:
+ * the piston lapse above is a C172 fact, and applying it to a flat-rated turbofan would be
+ * an invisible piston assumption baked into a supposedly class-agnostic core. A jet class
+ * ships `"none"` and holds its rated output over the band this sim flies. `params.ts`
+ * rejects any value not keyed here at load time rather than silently defaulting — a typo in
+ * a parameter file must not quietly turn an engine into a different engine.
+ */
+export const POWER_LAPSE_MODELS: Record<LapseModel, (altitudeM: number) => number> = {
+  piston: pistonPowerLapse,
+  none: () => 1,
+};
+
+/**
  * Power-limited propeller thrust with a linear efficiency ramp below the prop's peak
  * speed. `eta(V) * P / V` with `eta(V) = etaMax * min(1, V/Vpeak)` collapses to
  * `etaMax * P / max(V, Vpeak)` — which is finite at V = 0, so static thrust needs no
@@ -102,9 +115,9 @@ export function thrustNewtons(
   tasMs: number,
   altitudeM: number,
 ): number {
-  const { maxPowerW, propEfficiency, propPeakSpeedMs } = params.propulsion;
+  const { maxPowerW, propEfficiency, propPeakSpeedMs, lapseModel } = params.propulsion;
   const clamped = Math.min(1, Math.max(0, throttle));
-  const shaftPowerW = clamped * maxPowerW * pistonPowerLapse(altitudeM);
+  const shaftPowerW = clamped * maxPowerW * POWER_LAPSE_MODELS[lapseModel](altitudeM);
   return (propEfficiency * shaftPowerW) / Math.max(tasMs, propPeakSpeedMs);
 }
 
