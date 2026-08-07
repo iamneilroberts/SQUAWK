@@ -12,7 +12,7 @@ import type { HudSnapshot } from "../hud/snapshot";
 import type { ClassParams } from "../sim/types";
 import { EM_DASH, formatHeadingDeg, formatIasKt, formatVsiFpm } from "../hud/format";
 import {
-  asiArcs, asiNeedle, altimeterDrum, altimeterNeedle, attitudePitchOffsetPx, attitudeRollDeg,
+  asiArcs, asiNeedle, asiTicks, altimeterDrum, altimeterNeedle, attitudePitchOffsetPx, attitudeRollDeg,
   headingCardDeg, pitchLadderRungs, slipBallOffsetPx, turnSymbolBankDeg, vsiNeedle,
   TC_SYMBOL_BANK_AT_STD_DEG, type Arc, type Needle,
 } from "./gaugeMath";
@@ -85,7 +85,7 @@ export default function SixPack({ snapshot, params }: {
   return (
     <div className="six-pack">
       {/* --- airspeed --- */}
-      <Dial title="ASI KT" digits={formatIasKt(ias)} needle={asiNeedle(ias)}>
+      <Dial title="ASI KT" digits={formatIasKt(ias)} needle={asiNeedle(ias, params.display.asiMinKt, params.display.asiMaxKt)}>
         {asiArcs(params).map((a) => (
           <path
             key={a.kind}
@@ -94,6 +94,10 @@ export default function SixPack({ snapshot, params }: {
               ? `M ${polar(a.fromDeg, R - 10).x.toFixed(2)} ${polar(a.fromDeg, R - 10).y.toFixed(2)} L ${polar(a.fromDeg, R - 2).x.toFixed(2)} ${polar(a.fromDeg, R - 2).y.toFixed(2)}`
               : arcPath(a.fromDeg, a.toDeg, R - 6)}
           />
+        ))}
+        {asiTicks(params.display.asiMinKt, params.display.asiMaxKt).map((t) => (
+          <text key={t.kt} x={polar(t.deg, R - 16).x} y={polar(t.deg, R - 16).y + 3}
+            className="gauge-card-text" textAnchor="middle">{t.label}</text>
         ))}
       </Dial>
 

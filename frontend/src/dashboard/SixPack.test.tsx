@@ -109,4 +109,16 @@ describe("SixPack", () => {
     expect(text).not.toContain("1013");
     expect(text).not.toContain("BUG");
   });
+
+  it("shows the C172's 40-180 kt ASI tick range", () => {
+    const text = render(snap());
+    expect(text).toContain("40");
+    expect(text).toContain("180");
+  });
+
+  it("shows a wide-range jet's own ASI tick labels, not the C172's", () => {
+    const jetParams = { ...P, display: { asiMinKt: 60, asiMaxKt: 400, attitudeStyle: "ball" as const } };
+    const text = collectText(SixPack({ snapshot: snap(), params: jetParams })).join(" ");
+    expect(text).toContain("400");
+  });
 });

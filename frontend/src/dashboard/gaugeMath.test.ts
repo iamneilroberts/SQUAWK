@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
-  ASI_MIN_KT, ASI_MAX_KT, ASI_START_DEG, ASI_SWEEP_DEG,
+  ASI_START_DEG, ASI_SWEEP_DEG,
   VSI_FULL_SCALE_FPM, VSI_ZERO_DEG, AI_PX_PER_DEG,
   STANDARD_RATE_DEG_S, TC_SYMBOL_BANK_AT_STD_DEG, TC_MAX_SYMBOL_BANK_DEG,
   SLIP_FULL_SCALE_BETA_DEG, SLIP_BALL_TRAVEL_PX, SLIP_BALL_SIGN,
-  asiNeedle, asiArcs, altimeterNeedle, altimeterDrum, vsiNeedle,
+  asiNeedle, asiArcs, asiTicks, altimeterNeedle, altimeterDrum, vsiNeedle,
   attitudePitchOffsetPx, attitudeRollDeg, pitchLadderRungs,
   headingCardDeg, turnSymbolBankDeg, slipBallOffsetPx,
 } from "./gaugeMath";
@@ -16,32 +16,32 @@ import { EM_DASH } from "../hud/format";
 const P = loadC172();
 /** The scale the tests expect, written out independently of the implementation. */
 const asiDeg = (kt: number) =>
-  ASI_START_DEG + ((kt - ASI_MIN_KT) / (ASI_MAX_KT - ASI_MIN_KT)) * ASI_SWEEP_DEG;
+  ASI_START_DEG + ((kt - 40) / (180 - 40)) * ASI_SWEEP_DEG;
 
 describe("airspeed indicator needle", () => {
   it("puts the bottom and top of the scale on the dial's stops", () => {
-    expect(asiNeedle(ktToMs(ASI_MIN_KT))!.deg).toBeCloseTo(ASI_START_DEG, 6);
-    expect(asiNeedle(ktToMs(ASI_MAX_KT))!.deg).toBeCloseTo(ASI_START_DEG + ASI_SWEEP_DEG, 6);
+    expect(asiNeedle(ktToMs(40), 40, 180)!.deg).toBeCloseTo(ASI_START_DEG, 6);
+    expect(asiNeedle(ktToMs(180), 40, 180)!.deg).toBeCloseTo(ASI_START_DEG + ASI_SWEEP_DEG, 6);
   });
   it("places Vne inside the dial, short of the top stop", () => {
-    const vne = asiNeedle(P.limits.vneIasMs)!;
+    const vne = asiNeedle(P.limits.vneIasMs, P.display.asiMinKt, P.display.asiMaxKt)!;
     expect(vne.deg).toBeCloseTo(asiDeg(msToKt(P.limits.vneIasMs)), 6);
     expect(vne.deg).toBeLessThan(ASI_START_DEG + ASI_SWEEP_DEG);
     expect(vne.pegged).toBe(false);
   });
   it("pegs against the bottom stop below the scale instead of running off the face", () => {
-    const slow = asiNeedle(ktToMs(12))!;
+    const slow = asiNeedle(ktToMs(12), 40, 180)!;
     expect(slow.deg).toBe(ASI_START_DEG);
     expect(slow.pegged).toBe(true);
   });
   it("pegs against the top stop above the scale", () => {
-    const fast = asiNeedle(ktToMs(400))!;
+    const fast = asiNeedle(ktToMs(400), 40, 180)!;
     expect(fast.deg).toBe(ASI_START_DEG + ASI_SWEEP_DEG);
     expect(fast.pegged).toBe(true);
   });
   it("returns null for an unknown airspeed — the view em-dashes it, it does not read zero", () => {
-    expect(asiNeedle(null)).toBeNull();
-    expect(asiNeedle(Number.NaN)).toBeNull();
+    expect(asiNeedle(null, 40, 180)).toBeNull();
+    expect(asiNeedle(Number.NaN, 40, 180)).toBeNull();
   });
 });
 
@@ -71,6 +71,28 @@ describe("airspeed indicator arcs", () => {
   });
   it("never produces an inverted or backwards arc", () => {
     for (const a of arcs) expect(a.toDeg).toBeGreaterThanOrEqual(a.fromDeg);
+  });
+});
+
+describe("per-class ASI face", () => {
+  it("C172 needle math is unchanged at the 40–180 range", () => {
+    // 40 kt sits at the ASI_START_DEG stop; 180 at the far end.
+    expect(asiNeedle(ktToMs(40), 40, 180)!.deg).toBeCloseTo(ASI_START_DEG, 4);
+    expect(asiNeedle(ktToMs(180), 40, 180)!.deg).toBeCloseTo(ASI_START_DEG + ASI_SWEEP_DEG, 4);
+  });
+  it("maps a wide jet range linearly across the same sweep", () => {
+    expect(asiNeedle(ktToMs(60), 60, 400)!.deg).toBeCloseTo(ASI_START_DEG, 4);
+    expect(asiNeedle(ktToMs(230), 60, 400)!.deg).toBeCloseTo(ASI_START_DEG + ASI_SWEEP_DEG / 2, 1);
+  });
+  it("pegs past the ends of the class range", () => {
+    expect(asiNeedle(ktToMs(20), 40, 180)!.pegged).toBe(true);
+    expect(asiNeedle(ktToMs(500), 60, 400)!.pegged).toBe(true);
+  });
+  it("derives major tick labels from the range endpoints", () => {
+    const t = asiTicks(60, 400);
+    expect(t[0].kt).toBe(60);
+    expect(t[t.length - 1].kt).toBe(400);
+    expect(t.map((x) => x.label)).toContain("400");
   });
 });
 

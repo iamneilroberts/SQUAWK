@@ -37,24 +37,22 @@ function wrap360(deg: number): number {
 
 // ---- airspeed indicator ----------------------------------------------------------------
 /**
- * A linear 40-180 kt face over a 300-degree sweep starting at the 1 o'clock stop.
- * Real ASIs are slightly non-linear at the bottom of the scale; a linear map is one line of
- * arithmetic, keeps needle and arcs in exact agreement by construction, and covers the whole
- * C172S band (Vs0 40.4 kt to Vne 163 kt) with headroom at both ends.
+ * A linear face over a 300-degree sweep starting at the 1 o'clock stop. The range is per-class
+ * (spec §2.4/§6): a jet does not fly the C172's 40-180 kt gauge, so the range comes from
+ * `params.display` rather than a module constant. Real ASIs are slightly non-linear at the
+ * bottom of the scale; a linear map is one line of arithmetic and keeps needle and arcs in
+ * exact agreement by construction.
  */
-export const ASI_MIN_KT = 40;
-export const ASI_MAX_KT = 180;
 export const ASI_START_DEG = 30;
 export const ASI_SWEEP_DEG = 300;
 
-function asiDegFor(kt: number): number {
-  return ASI_START_DEG + ((kt - ASI_MIN_KT) / (ASI_MAX_KT - ASI_MIN_KT)) * ASI_SWEEP_DEG;
+function asiDegFor(kt: number, minKt: number, maxKt: number): number {
+  return ASI_START_DEG + ((kt - minKt) / (maxKt - minKt)) * ASI_SWEEP_DEG;
 }
 
-export function asiNeedle(iasMs: number | null): Needle | null {
+export function asiNeedle(iasMs: number | null, minKt: number, maxKt: number): Needle | null {
   if (!known(iasMs)) return null;
-  const kt = msToKt(iasMs);
-  const raw = asiDegFor(kt);
+  const raw = asiDegFor(msToKt(iasMs), minKt, maxKt);
   const lo = ASI_START_DEG;
   const hi = ASI_START_DEG + ASI_SWEEP_DEG;
   return { deg: clamp(raw, lo, hi), pegged: raw < lo || raw > hi };
@@ -70,17 +68,32 @@ export function asiNeedle(iasMs: number | null): Needle | null {
  * POH), so the arcs cannot drift away from the aeroplane the sim actually flies.
  */
 export function asiArcs(params: ClassParams): Arc[] {
+  const { asiMinKt, asiMaxKt } = params.display;
+  const deg = (kt: number) => asiDegFor(kt, asiMinKt, asiMaxKt);
   const vs0 = msToKt(stallSpeedIasMs(params, params.flaps.length - 1));
   const vs1 = msToKt(stallSpeedIasMs(params, 0));
   const vfe = msToKt(params.limits.vfeIasMs);
   const vno = msToKt(params.limits.vnoIasMs);
   const vne = msToKt(params.limits.vneIasMs);
   return [
-    { kind: "white", fromDeg: asiDegFor(vs0), toDeg: asiDegFor(vfe) },
-    { kind: "green", fromDeg: asiDegFor(vs1), toDeg: asiDegFor(vno) },
-    { kind: "yellow", fromDeg: asiDegFor(vno), toDeg: asiDegFor(vne) },
-    { kind: "red", fromDeg: asiDegFor(vne), toDeg: asiDegFor(vne) },
+    { kind: "white", fromDeg: deg(vs0), toDeg: deg(vfe) },
+    { kind: "green", fromDeg: deg(vs1), toDeg: deg(vno) },
+    { kind: "yellow", fromDeg: deg(vno), toDeg: deg(vne) },
+    { kind: "red", fromDeg: deg(vne), toDeg: deg(vne) },
   ];
+}
+
+/**
+ * Major tick labels for the ASI, derived from the class range so a 60-400 kt jet face reads
+ * its own numbers (the 40-180 C172 math is unchanged). Five evenly spaced ticks, endpoints
+ * included; the label is the rounded knot value.
+ */
+export function asiTicks(minKt: number, maxKt: number): { kt: number; deg: number; label: string }[] {
+  const N = 4; // 4 intervals -> 5 ticks
+  return Array.from({ length: N + 1 }, (_, i) => {
+    const kt = minKt + ((maxKt - minKt) * i) / N;
+    return { kt, deg: asiDegFor(kt, minKt, maxKt), label: String(Math.round(kt)) };
+  });
 }
 
 // ---- altimeter -------------------------------------------------------------------------
