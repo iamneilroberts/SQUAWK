@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatUtcClock, feedChipLabel, terrainChipClass } from "./StatusBar";
+import { formatUtcClock, feedChipLabel, terrainChipClass, nextRadius, radiusChipLabel } from "./StatusBar";
 
 describe("formatUtcClock", () => {
   it("renders HH:MM:SSZ from a UTC instant", () => {
@@ -30,5 +30,24 @@ describe("terrainChipClass", () => {
   });
   it("treats null (not yet attached) as nominal, not a warning", () => {
     expect(terrainChipClass(null)).toBe("status-chip-live");
+  });
+});
+
+describe("nextRadius", () => {
+  it("cycles the preset ladder 40 -> 80 -> 150 -> 250 -> 40", () => {
+    expect(nextRadius(40)).toBe(80);
+    expect(nextRadius(80)).toBe(150);
+    expect(nextRadius(150)).toBe(250);
+    expect(nextRadius(250)).toBe(40);
+  });
+  it("falls back to the first preset for an unrecognized value", () => {
+    expect(nextRadius(999)).toBe(40);
+  });
+});
+
+describe("radiusChipLabel", () => {
+  it("formats as RADIUS <n> NM", () => {
+    expect(radiusChipLabel(80)).toBe("RADIUS 80 NM");
+    expect(radiusChipLabel(250)).toBe("RADIUS 250 NM");
   });
 });

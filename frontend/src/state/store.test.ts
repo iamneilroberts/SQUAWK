@@ -34,6 +34,17 @@ describe("store", () => {
   });
 });
 
+describe("radiusNm", () => {
+  it("defaults to 80", () => {
+    expect(useStore.getState().radiusNm).toBe(80);
+  });
+  it("setRadiusNm updates it", () => {
+    useStore.getState().setRadiusNm(150);
+    expect(useStore.getState().radiusNm).toBe(150);
+    useStore.getState().setRadiusNm(80); // reset for other tests sharing the singleton store
+  });
+});
+
 describe("session state", () => {
   it("starts in BROWSE with no origin and no stats", () => {
     useStore.getState().resetSession();

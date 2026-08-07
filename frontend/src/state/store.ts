@@ -13,7 +13,10 @@ type State = {
   feedStatus: FeedStatus;
   feedSource: string | null;
   lastFetchAt: number | null;
+  /** Fetch radius in nautical miles, cycled by the status-bar chip (StatusBar.tsx's nextRadius). */
+  radiusNm: number;
   setHome(h: { lat: number; lon: number }): void;
+  setRadiusNm(n: number): void;
   applyFetch(r: { contacts: Contact[]; source: string; fetched_at: number }): void;
   markFetchFailed(): void;
   select(hex: string | null): void;
@@ -54,12 +57,17 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   feedStatus: "offline",
   feedSource: null,
   lastFetchAt: null,
+  radiusNm: 80,
   mode: "BROWSE",
   origin: null,
   endStats: null,
 
   setHome(h) {
     set({ home: h });
+  },
+
+  setRadiusNm(n) {
+    set({ radiusNm: n });
   },
 
   applyFetch(r) {
@@ -127,7 +135,7 @@ export function startPolling(intervalMs = 5000): () => void {
             home = config.home;
             useStore.getState().setHome(config.home);
           })
-        : fetchAdsb(home.lat, home.lon, 80).then((r) => {
+        : fetchAdsb(home.lat, home.lon, useStore.getState().radiusNm).then((r) => {
             if (stopped) return;
             useStore.getState().applyFetch(r);
           });

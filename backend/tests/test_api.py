@@ -22,6 +22,33 @@ def test_adsb_endpoint_proxies(monkeypatch):
     r = client.get("/api/adsb?lat=30.69&lon=-88.04&radius_nm=80")
     assert r.status_code == 200 and r.json()["source"] == "test"
 
+def test_adsb_endpoint_rejects_radius_below_minimum(monkeypatch):
+    from app.feeds import adsb as feeds
+    async def fake_fetch(settings, lat, lon, radius_nm):
+        return {"contacts": [], "source": "test", "fetched_at": 0}
+    monkeypatch.setattr(feeds, "fetch_adsb", fake_fetch)
+    client = TestClient(create_app())
+    r = client.get("/api/adsb?lat=30.69&lon=-88.04&radius_nm=9")
+    assert r.status_code == 422
+
+def test_adsb_endpoint_rejects_radius_above_maximum(monkeypatch):
+    from app.feeds import adsb as feeds
+    async def fake_fetch(settings, lat, lon, radius_nm):
+        return {"contacts": [], "source": "test", "fetched_at": 0}
+    monkeypatch.setattr(feeds, "fetch_adsb", fake_fetch)
+    client = TestClient(create_app())
+    r = client.get("/api/adsb?lat=30.69&lon=-88.04&radius_nm=251")
+    assert r.status_code == 422
+
+def test_adsb_endpoint_accepts_radius_at_maximum(monkeypatch):
+    from app.feeds import adsb as feeds
+    async def fake_fetch(settings, lat, lon, radius_nm):
+        return {"contacts": [], "source": "test", "fetched_at": 0}
+    monkeypatch.setattr(feeds, "fetch_adsb", fake_fetch)
+    client = TestClient(create_app())
+    r = client.get("/api/adsb?lat=30.69&lon=-88.04&radius_nm=250")
+    assert r.status_code == 200
+
 def test_adsb_endpoint_feeds_down(monkeypatch):
     from app.feeds import adsb as feeds
     async def dead(settings, lat, lon, radius_nm):

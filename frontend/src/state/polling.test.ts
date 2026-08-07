@@ -93,6 +93,23 @@ describe("startPolling overlap and quiescence", () => {
   });
 });
 
+describe("startPolling radius", () => {
+  it("reads the current radiusNm from the store on each tick, not a hard-coded value", async () => {
+    mockedFetchConfig.mockResolvedValue({ home: { lat: 1, lon: 2 } });
+    mockedFetchAdsb.mockResolvedValue({ contacts: [], source: "t", fetched_at: 0 });
+    useStore.getState().setRadiusNm(150);
+
+    const stop = startPolling(1000);
+    await vi.advanceTimersByTimeAsync(0); // fetchConfig resolves, arms the interval
+    await vi.advanceTimersByTimeAsync(1000); // tick fires the ADS-B fetch
+
+    expect(mockedFetchAdsb).toHaveBeenCalledWith(1, 2, 150);
+
+    stop();
+    useStore.getState().setRadiusNm(80); // reset for other tests sharing the singleton store
+  });
+});
+
 describe("startPolling cold-start recovery (backend down at page load)", () => {
   it("escalates to OFFLINE via the normal 3-failure threshold when fetchConfig keeps rejecting", async () => {
     mockedFetchConfig.mockRejectedValue(new Error("backend down"));

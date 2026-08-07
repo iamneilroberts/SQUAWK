@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from .config import load_settings
 from .feeds import adsb, adsbdb
 
@@ -16,7 +16,7 @@ def create_app() -> FastAPI:
         return {"home": {"lat": settings.home_lat, "lon": settings.home_lon}}
 
     @app.get("/api/adsb")
-    async def get_adsb(lat: float, lon: float, radius_nm: int):
+    async def get_adsb(lat: float, lon: float, radius_nm: int = Query(ge=10, le=250)):
         try:
             return await adsb.fetch_adsb(settings, lat, lon, radius_nm)
         except adsb.FeedUnavailable:

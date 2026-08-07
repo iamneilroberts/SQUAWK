@@ -133,6 +133,19 @@ body {
 .status-chip-warn {
   color: var(--amber);
 }
+.status-chip-button {
+  border: 1px solid var(--cyan);
+  background: transparent;
+  color: var(--cyan);
+  padding: 1px 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-family: var(--mono);
+  cursor: pointer;
+  border-radius: 0;
+}
+.status-chip-button:hover { background: rgba(95, 215, 224, 0.12); }
 
 /* ---- HUD: instrumentation over the globe. Amber is the SIM accent, cyan is nominal. ---- */
 .hud-root {

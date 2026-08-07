@@ -25,6 +25,18 @@ export function terrainChipClass(note: string | null): string {
   return note !== null && note.includes("UNAVAILABLE") ? "status-chip-warn" : "status-chip-live";
 }
 
+const RADIUS_PRESETS_NM = [40, 80, 150, 250];
+
+/** Cycles the feed-radius preset ladder; an unrecognized current value resets to the first preset. */
+export function nextRadius(current: number): number {
+  const i = RADIUS_PRESETS_NM.indexOf(current);
+  return RADIUS_PRESETS_NM[(i + 1) % RADIUS_PRESETS_NM.length];
+}
+
+export function radiusChipLabel(n: number): string {
+  return `RADIUS ${n} NM`;
+}
+
 type StatusBarProps = {
   /** Bridged down from App.tsx, which gets it from ViewerHost — not zustand (see App.tsx). */
   terrainNote: string | null;
@@ -34,6 +46,8 @@ export default function StatusBar({ terrainNote }: StatusBarProps) {
   const feedStatus = useStore((s) => s.feedStatus);
   const feedSource = useStore((s) => s.feedSource);
   const contactCount = useStore((s) => s.contacts.size);
+  const radiusNm = useStore((s) => s.radiusNm);
+  const setRadiusNm = useStore((s) => s.setRadiusNm);
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -49,6 +63,13 @@ export default function StatusBar({ terrainNote }: StatusBarProps) {
       {feedStatus === "offline" && <span className="status-chip-warn">FEEDS UNREACHABLE</span>}
       {terrainNote !== null && <span className={terrainChipClass(terrainNote)}>{terrainNote}</span>}
       <span>CONTACTS {contactCount}</span>
+      <button
+        type="button"
+        className="status-chip-button"
+        onClick={() => setRadiusNm(nextRadius(radiusNm))}
+      >
+        {radiusChipLabel(radiusNm)}
+      </button>
       <span>{formatUtcClock(now)}</span>
       <span className="flex-1" />
       <span>IMAGERY © ESRI · {terrainNote ?? "TERRAIN LOADING…"}</span>
