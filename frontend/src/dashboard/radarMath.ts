@@ -89,7 +89,7 @@ export function blipsFor(o: {
 
 /** The feed's state, said out loud on the scope face. Same semantics as the status-bar chip. */
 export function scopeStatus(feedStatus: FeedStatus): ScopeStatus {
-  if (feedStatus === "offline") return { text: "RADAR OFFLINE · NO FEED", dim: true };
+  if (feedStatus === "offline") return { text: "RADAR OFFLINE · BLIPS FROZEN", dim: true };
   if (feedStatus === "stale") return { text: "FEED STALE · BLIPS FROZEN", dim: true };
   return { text: null, dim: false };
 }

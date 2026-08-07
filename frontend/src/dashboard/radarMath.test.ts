@@ -127,8 +127,8 @@ describe("scopeStatus", () => {
   it("says nothing extra when the feed is live", () => {
     expect(scopeStatus("live")).toEqual({ text: null, dim: false });
   });
-  it("states the offline case explicitly rather than showing a clean empty scope", () => {
-    expect(scopeStatus("offline").text).toBe("RADAR OFFLINE · NO FEED");
+  it("states the offline case explicitly and discloses that any blips shown are frozen — the store keeps last-known contacts around while offline, so the label must say so, not just NO FEED", () => {
+    expect(scopeStatus("offline").text).toBe("RADAR OFFLINE · BLIPS FROZEN");
     expect(scopeStatus("offline").dim).toBe(true);
   });
   it("says the plots are frozen when the feed is stale", () => {

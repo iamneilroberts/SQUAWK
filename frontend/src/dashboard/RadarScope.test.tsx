@@ -75,11 +75,19 @@ describe("RadarScope", () => {
     expect(hexes).toEqual(["a1b2c3"]);
   });
 
-  it("says RADAR OFFLINE · NO FEED rather than showing a clean empty scope", () => {
+  it("says RADAR OFFLINE · BLIPS FROZEN and keeps painting the dimmed last-known blips — the store keeps contacts populated while offline, so the label must disclose that, not the blips vanish", () => {
+    const rendered = RadarScope({ ...base, feedStatus: "offline" }); // base carries a non-empty contacts map
+    const text = collectText(rendered).join(" ");
+    expect(text).toContain("RADAR OFFLINE · BLIPS FROZEN");
+    expect(collectProp(rendered, "data-hex")).toEqual(["a1b2c3"]);
+    expect(collectProp(rendered, "className").join(" ")).toContain("radar-dim");
+  });
+
+  it("says RADAR OFFLINE · BLIPS FROZEN even with genuinely no traffic to plot", () => {
     const text = collectText(
       RadarScope({ ...base, contacts: new Map(), feedStatus: "offline" }),
     ).join(" ");
-    expect(text).toContain("RADAR OFFLINE · NO FEED");
+    expect(text).toContain("RADAR OFFLINE · BLIPS FROZEN");
   });
 
   it("says the plots are frozen when the feed is stale", () => {
