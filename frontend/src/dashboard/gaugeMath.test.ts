@@ -5,7 +5,7 @@ import {
   STANDARD_RATE_DEG_S, TC_SYMBOL_BANK_AT_STD_DEG, TC_MAX_SYMBOL_BANK_DEG,
   SLIP_FULL_SCALE_BETA_DEG, SLIP_BALL_TRAVEL_PX, SLIP_BALL_SIGN,
   asiNeedle, asiArcs, asiTicks, altimeterNeedle, altimeterDrum, vsiNeedle,
-  attitudePitchOffsetPx, attitudeRollDeg, pitchLadderRungs,
+  attitudePitchOffsetPx, attitudeRollDeg, pitchLadderRungs, bankScaleTicks,
   headingCardDeg, turnSymbolBankDeg, slipBallOffsetPx,
 } from "./gaugeMath";
 import { loadC172 } from "../sim/params";
@@ -174,6 +174,15 @@ describe("attitude indicator", () => {
   it("returns null when attitude is unknown", () => {
     expect(attitudePitchOffsetPx(null)).toBeNull();
     expect(attitudeRollDeg(null)).toBeNull();
+  });
+});
+
+describe("attitude ball bank scale", () => {
+  it("marks the standard bank angles with 0/30/60 as majors", () => {
+    const marks = bankScaleTicks();
+    expect(marks.map((m) => m.deg)).toEqual(expect.arrayContaining([0, 30, 60, -30, -60]));
+    expect(marks.find((m) => m.deg === 30)!.major).toBe(true);
+    expect(marks.find((m) => m.deg === 10)?.major ?? false).toBe(false);
   });
 });
 

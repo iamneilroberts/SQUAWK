@@ -45,6 +45,11 @@ function collectAttr(node: unknown, key: string, out: string[] = []): string[] {
   return out;
 }
 
+/** Every className found anywhere in the tree, split on whitespace — for "is this class present" checks. */
+function classNamesIn(node: unknown): string[] {
+  return collectAttr(node, "className").flatMap((c) => c.split(/\s+/));
+}
+
 const render = (snapshot: HudSnapshot | null) =>
   collectText(SixPack({ snapshot, params: P })).join(" ");
 const transforms = (snapshot: HudSnapshot | null) =>
@@ -120,5 +125,15 @@ describe("SixPack", () => {
     const jetParams = { ...P, display: { asiMinKt: 60, asiMaxKt: 400, attitudeStyle: "ball" as const } };
     const text = collectText(SixPack({ snapshot: snap(), params: jetParams })).join(" ");
     expect(text).toContain("400");
+  });
+
+  it("renders the filled ball for a ball class and the line horizon for a line class", () => {
+    const jetBall = { ...P, display: { asiMinKt: 60, asiMaxKt: 400, attitudeStyle: "ball" as const } };
+    const line = SixPack({ snapshot: snap(), params: P });          // attitudeStyle "line"
+    const ball = SixPack({ snapshot: snap(), params: jetBall });    // attitudeStyle "ball"
+    expect(classNamesIn(line)).toContain("gauge-horizon");          // existing line element
+    expect(classNamesIn(line)).not.toContain("gauge-adi-sky");
+    expect(classNamesIn(ball)).toContain("gauge-adi-sky");          // filled ball elements
+    expect(classNamesIn(ball)).toContain("gauge-adi-ground");
   });
 });

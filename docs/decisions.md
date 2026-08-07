@@ -650,3 +650,21 @@ taken by the return-to-level assist and re-sync, so `KeyB` was picked as the nex
 letter. Registered in `GAME_KEY_CODES` (keyboard capture), `KEYMAP` (documentation + sampler), and
 `ControlsHelp`'s `KEY_LABELS` (cockpit help panel), following the same three-file pattern as every
 other game key.
+
+## 2026-08-07 — AF-006 · per-class ASI face + attitude style: line vs palette-safe ball, both data-selected
+
+Task 6 adds the second data-selected face: `SixPack`'s attitude dial now branches on
+`params.display.attitudeStyle` ("line" | "ball", added in AF-001) — not on class id — to choose
+between the existing minimalist line horizon (C172, unchanged) and a filled ADI ball for jets.
+The ball is a clipped `<g>` (SVG `clipPath` circle of radius `R`) holding a sky rect and a ground
+rect split at the horizon, the same `pitchLadderRungs()` used by the line horizon, a new
+`bankScaleTicks()` (`gaugeMath.ts`, pure: `-60/-45/-30/-20/-10/0/10/20/30/45/60`, majors at
+multiples of 30) for the roll scale painted on the ball, and a fixed amber pointer triangle
+outside the rotating/clipped group marking the zero-bank reference as the ball rotates under it.
+
+Palette stays zero-new-hex: `.gauge-adi-sky`/`.gauge-adi-ground` use `color-mix()` against the
+existing `--cyan`/`--grid`/`--bg` tokens (dim cyan-tinted sky, darker olive-grey ground — not
+garish blue/brown), `.gauge-adi-horizon`/`.gauge-adi-bank-major` reuse `--cyan`,
+`.gauge-adi-bank` reuses `--grid`, `.gauge-adi-pointer` reuses `--amber`. No shadows, no
+gradients, no new literals in `tokens.css`. `SixPack.tsx` stays hook-free; `gaugeMath.ts` stays
+React/Cesium-free.

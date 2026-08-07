@@ -13,7 +13,7 @@ import type { ClassParams } from "../sim/types";
 import { EM_DASH, formatHeadingDeg, formatIasKt, formatVsiFpm } from "../hud/format";
 import {
   asiArcs, asiNeedle, asiTicks, altimeterDrum, altimeterNeedle, attitudePitchOffsetPx, attitudeRollDeg,
-  headingCardDeg, pitchLadderRungs, slipBallOffsetPx, turnSymbolBankDeg, vsiNeedle,
+  bankScaleTicks, headingCardDeg, pitchLadderRungs, slipBallOffsetPx, turnSymbolBankDeg, vsiNeedle,
   TC_SYMBOL_BANK_AT_STD_DEG, type Arc, type Needle,
 } from "./gaugeMath";
 
@@ -104,21 +104,54 @@ export default function SixPack({ snapshot, params }: {
       {/* --- attitude --- */}
       <div className="gauge">
         <svg viewBox="0 0 120 120" className="gauge-face" role="img">
+          <defs><clipPath id="adiClip"><circle cx={C} cy={C} r={R} /></clipPath></defs>
           <circle cx={C} cy={C} r={R} className="gauge-bezel" />
           {roll !== null && pitch !== null && (
-            <g transform={`rotate(${round(roll)} ${C} ${C})`}>
-              <g transform={`translate(0 ${round(pitch.px)})`}>
-                <line x1={C - 46} y1={C} x2={C + 46} y2={C} className="gauge-horizon" />
-                {pitchLadderRungs().map((r) => (
-                  <line
-                    key={r.deg}
-                    x1={C - r.halfWidthPx} y1={C + round(r.px)}
-                    x2={C + r.halfWidthPx} y2={C + round(r.px)}
-                    className="gauge-ladder"
-                  />
-                ))}
+            params.display.attitudeStyle === "ball" ? (
+              <>
+                <g clipPath="url(#adiClip)" transform={`rotate(${round(roll)} ${C} ${C})`}>
+                  <g transform={`translate(0 ${round(pitch.px)})`}>
+                    <rect x={C - R} y={C - R * 3} width={R * 2} height={R * 3} className="gauge-adi-sky" />
+                    <rect x={C - R} y={C} width={R * 2} height={R * 3} className="gauge-adi-ground" />
+                    <line x1={C - 46} y1={C} x2={C + 46} y2={C} className="gauge-adi-horizon" />
+                    {pitchLadderRungs().map((r) => (
+                      <line
+                        key={r.deg}
+                        x1={C - r.halfWidthPx} y1={C + round(r.px)}
+                        x2={C + r.halfWidthPx} y2={C + round(r.px)}
+                        className="gauge-ladder"
+                      />
+                    ))}
+                  </g>
+                  {bankScaleTicks().map((t) => (
+                    <line
+                      key={t.deg}
+                      x1={polar(t.deg, R).x} y1={polar(t.deg, R).y}
+                      x2={polar(t.deg, R - (t.major ? 8 : 4)).x} y2={polar(t.deg, R - (t.major ? 8 : 4)).y}
+                      className={t.major ? "gauge-adi-bank-major" : "gauge-adi-bank"}
+                    />
+                  ))}
+                </g>
+                <path
+                  d={`M ${C - 4} ${C - R + 2} L ${C + 4} ${C - R + 2} L ${C} ${C - R + 10} Z`}
+                  className="gauge-adi-pointer"
+                />
+              </>
+            ) : (
+              <g transform={`rotate(${round(roll)} ${C} ${C})`}>
+                <g transform={`translate(0 ${round(pitch.px)})`}>
+                  <line x1={C - 46} y1={C} x2={C + 46} y2={C} className="gauge-horizon" />
+                  {pitchLadderRungs().map((r) => (
+                    <line
+                      key={r.deg}
+                      x1={C - r.halfWidthPx} y1={C + round(r.px)}
+                      x2={C + r.halfWidthPx} y2={C + round(r.px)}
+                      className="gauge-ladder"
+                    />
+                  ))}
+                </g>
               </g>
-            </g>
+            )
           )}
           <path d={`M ${C - 18} ${C} L ${C - 6} ${C} L ${C} ${C + 5} L ${C + 6} ${C} L ${C + 18} ${C}`}
             className="gauge-aircraft" />

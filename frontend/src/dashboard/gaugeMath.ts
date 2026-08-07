@@ -171,6 +171,14 @@ export function pitchLadderRungs(): {
   }));
 }
 
+/** Bank-angle marks around the top of the horizon ball. 0/30/60 are majors; 10/20/45 minors. */
+export function bankScaleTicks(): { deg: number; major: boolean }[] {
+  return [-60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60].map((deg) => ({
+    deg,
+    major: deg % 30 === 0,
+  }));
+}
+
 // ---- directional gyro --------------------------------------------------------------------
 /** The card turns opposite the aeroplane, so the current heading stays under the lubber line. */
 export function headingCardDeg(headingRad: number | null): number | null {
