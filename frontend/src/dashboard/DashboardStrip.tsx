@@ -41,8 +41,19 @@ export function toggleStrip(s: StripState): StripState {
   return { ...s, open: !s.open };
 }
 
-/** The only two keys this strip claims. Everything else belongs to the aeroplane. */
-export function stripKeyAction(code: string): "strip" | "help" | null {
+/**
+ * The only two keys this strip claims. Everything else belongs to the aeroplane.
+ *
+ * Ctrl/Cmd/Alt+<code> is an OS or browser shortcut sharing a `code` with one of ours
+ * (Ctrl+C = copy, Cmd+C = copy, Ctrl+/ or Alt+/ in various browsers) — mirrors the same guard
+ * in input/keyboard.ts's onKeyDown, so this listener doesn't hijack a shortcut anywhere on the
+ * page just because the physical key matches.
+ */
+export function stripKeyAction(
+  code: string,
+  modifiers?: { ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean },
+): "strip" | "help" | null {
+  if (modifiers?.ctrlKey || modifiers?.metaKey || modifiers?.altKey) return null;
   if (code === "KeyC") return "strip";
   if (code === "Slash") return "help";
   return null;
@@ -100,7 +111,7 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const action = stripKeyAction(e.code);
+      const action = stripKeyAction(e.code, e);
       if (action === null) return;
       setState((s) => (action === "strip" ? toggleStrip(s) : togglePanel(s, "help")));
     };

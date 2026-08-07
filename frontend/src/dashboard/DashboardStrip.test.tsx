@@ -72,6 +72,17 @@ describe("strip keys", () => {
       expect(stripKeyAction(code)).toBeNull();
     }
   });
+  it("lets an OS/browser shortcut through untouched when a modifier is held (Ctrl+C copy, etc.)", () => {
+    expect(stripKeyAction("KeyC", { ctrlKey: true })).toBeNull();
+    expect(stripKeyAction("KeyC", { metaKey: true })).toBeNull();
+    expect(stripKeyAction("KeyC", { altKey: true })).toBeNull();
+    expect(stripKeyAction("Slash", { ctrlKey: true })).toBeNull();
+    expect(stripKeyAction("Slash", { altKey: true })).toBeNull();
+  });
+  it("still toggles on the bare, unmodified key", () => {
+    expect(stripKeyAction("KeyC", {})).toBe("strip");
+    expect(stripKeyAction("Slash", { ctrlKey: false, metaKey: false, altKey: false })).toBe("help");
+  });
 });
 
 describe("DashboardStripBody", () => {
