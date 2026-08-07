@@ -28,10 +28,10 @@ function Readout({ label, value, unit }: { label: string; value: string; unit?: 
 
 export default function Hud({
   snapshot,
-  terrainNote,
+  attribution,
 }: {
   snapshot: HudSnapshot | null;
-  terrainNote: string;
+  attribution: string;
 }) {
   if (snapshot === null) return null;
   const warnings = warningsFor(snapshot);
@@ -80,9 +80,7 @@ export default function Hud({
         </div>
       )}
 
-      <div className="hud-attribution">
-        IMAGERY © ESRI · {terrainNote} · TRAFFIC: AIRPLANES.LIVE / ADSB.LOL / ADSB.FI
-      </div>
+      <div className="hud-attribution">{attribution}</div>
     </div>
   );
 }

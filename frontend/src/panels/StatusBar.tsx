@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../state/store";
 import type { FeedStatus } from "../data/types";
+import { attributionFor, type BasemapKind } from "../globe/mapSources";
 
 export function formatUtcClock(now: Date): string {
   return now.toISOString().slice(11, 19) + "Z";
@@ -37,6 +38,19 @@ export function radiusChipLabel(n: number): string {
   return `RADIUS ${n} NM`;
 }
 
+export function basemapChipLabel(k: BasemapKind): string {
+  return `MAP ${k}`;
+}
+
+/** Two basemaps, so the chip is a straight toggle rather than the radius chip's ladder. */
+export function nextBasemap(k: BasemapKind): BasemapKind {
+  return k === "SAT" ? "CHART" : "SAT";
+}
+
+export function labelsChipLabel(on: boolean): string {
+  return on ? "LABELS ON" : "LABELS OFF";
+}
+
 type StatusBarProps = {
   /** Bridged down from App.tsx, which gets it from ViewerHost — not zustand (see App.tsx). */
   terrainNote: string | null;
@@ -48,6 +62,10 @@ export default function StatusBar({ terrainNote }: StatusBarProps) {
   const contactCount = useStore((s) => s.contacts.size);
   const radiusNm = useStore((s) => s.radiusNm);
   const setRadiusNm = useStore((s) => s.setRadiusNm);
+  const basemap = useStore((s) => s.basemap);
+  const setBasemap = useStore((s) => s.setBasemap);
+  const labelsOn = useStore((s) => s.labelsOn);
+  const setLabelsOn = useStore((s) => s.setLabelsOn);
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -70,9 +88,20 @@ export default function StatusBar({ terrainNote }: StatusBarProps) {
       >
         {radiusChipLabel(radiusNm)}
       </button>
+      <button type="button" className="status-chip-button"
+        onClick={() => setBasemap(nextBasemap(basemap))}>
+        {basemapChipLabel(basemap)}
+      </button>
+      <button
+        type="button"
+        className={labelsOn ? "status-chip-button status-chip-button-active" : "status-chip-button"}
+        onClick={() => setLabelsOn(!labelsOn)}
+      >
+        {labelsChipLabel(labelsOn)}
+      </button>
       <span>{formatUtcClock(now)}</span>
       <span className="flex-1" />
-      <span>IMAGERY © ESRI · {terrainNote ?? "TERRAIN LOADING…"}</span>
+      <span>{attributionFor({ basemap, labelsOn, terrainNote })}</span>
     </div>
   );
 }

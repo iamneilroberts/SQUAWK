@@ -46,20 +46,20 @@ const snap = (o: Partial<HudSnapshot> = {}): HudSnapshot => ({
 
 describe("Hud", () => {
   it("shows the SIM banner and the synthetic callsign at all times", () => {
-    const text = collectText(Hud({ snapshot: snap(), terrainNote: "RE:EARTH TERRAIN" }));
+    const text = collectText(Hud({ snapshot: snap(), attribution: "RE:EARTH TERRAIN" }));
     expect(text).toContain("SIM");
     expect(text).toContain("SIM-A1B2C3");
   });
   it("shows the aircraft class beside the callsign (spec §9 asks for class AND callsign)", () => {
-    const text = collectText(Hud({ snapshot: snap({ classLabel: "C172S" }), terrainNote: "" }));
+    const text = collectText(Hud({ snapshot: snap({ classLabel: "C172S" }), attribution: "" }));
     expect(text).toContain("C172S");
   });
   it("discloses which flight model is actually flying", () => {
-    const text = collectText(Hud({ snapshot: snap(), terrainNote: "" }));
+    const text = collectText(Hud({ snapshot: snap(), attribution: "" }));
     expect(text).toContain("C172 MODEL THIS BUILD");
   });
   it("shows every §9 readout", () => {
-    const text = collectText(Hud({ snapshot: snap(), terrainNote: "" })).join(" ");
+    const text = collectText(Hud({ snapshot: snap(), attribution: "" })).join(" ");
     expect(text).toContain("105"); // IAS
     expect(text).toContain("118"); // TAS
     expect(text).toContain("3500"); // altitude
@@ -72,29 +72,44 @@ describe("Hud", () => {
     expect(text).toContain("01:05"); // airtime
   });
   it("shows the required attribution line", () => {
-    const text = collectText(Hud({ snapshot: snap(), terrainNote: "RE:EARTH TERRAIN · MAPTERHORN CC BY 4.0" })).join(" ");
+    const text = collectText(
+      Hud({
+        snapshot: snap(),
+        attribution: "IMAGERY © ESRI · RE:EARTH TERRAIN · MAPTERHORN CC BY 4.0 · TRAFFIC: AIRPLANES.LIVE",
+      }),
+    ).join(" ");
     expect(text).toContain("ESRI");
     expect(text).toContain("MAPTERHORN");
   });
   it("shows warnings when they fire", () => {
-    const text = collectText(Hud({ snapshot: snap({ stalled: true, overspeed: true }), terrainNote: "" }));
+    const text = collectText(Hud({ snapshot: snap({ stalled: true, overspeed: true }), attribution: "" }));
     expect(text).toContain("STALL");
     expect(text).toContain("OVERSPEED");
   });
   it("shows the SIM RATE indicator only when the sim is behind", () => {
-    expect(collectText(Hud({ snapshot: snap({ simRate: 1 }), terrainNote: "" })).join(" "))
+    expect(collectText(Hud({ snapshot: snap({ simRate: 1 }), attribution: "" })).join(" "))
       .not.toContain("SIM RATE");
-    expect(collectText(Hud({ snapshot: snap({ simRate: 0.6 }), terrainNote: "" })).join(" "))
+    expect(collectText(Hud({ snapshot: snap({ simRate: 0.6 }), attribution: "" })).join(" "))
       .toContain("SIM RATE 0.6×");
   });
   it("renders nothing at all without a snapshot", () => {
-    expect(Hud({ snapshot: null, terrainNote: "" })).toBeNull();
+    expect(Hud({ snapshot: null, attribution: "" })).toBeNull();
   });
   it("em-dashes terrain clearance rather than inventing a number", () => {
     const text = collectText(
-      Hud({ snapshot: snap({ terrainClearanceM: null, terrainUnverified: true }), terrainNote: "" }),
+      Hud({ snapshot: snap({ terrainClearanceM: null, terrainUnverified: true }), attribution: "" }),
     ).join(" ");
     expect(text).toContain("—");
     expect(text).toContain("TERRAIN UNVERIFIED");
+  });
+  it("prints the attribution it is given, so it cannot disagree with the status bar", () => {
+    const text = collectText(
+      Hud({
+        snapshot: snap(),
+        attribution: "BASEMAP © ESRI DARK GRAY CANVAS · TERRAIN LOADING… · TRAFFIC: AIRPLANES.LIVE",
+      }),
+    ).join(" ");
+    expect(text).toContain("DARK GRAY CANVAS");
+    expect(text).not.toContain("IMAGERY © ESRI");
   });
 });

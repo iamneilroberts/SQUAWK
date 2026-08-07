@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { formatUtcClock, feedChipLabel, terrainChipClass, nextRadius, radiusChipLabel } from "./StatusBar";
+import {
+  formatUtcClock, feedChipLabel, terrainChipClass, nextRadius, radiusChipLabel,
+  basemapChipLabel, labelsChipLabel, nextBasemap,
+} from "./StatusBar";
 
 describe("formatUtcClock", () => {
   it("renders HH:MM:SSZ from a UTC instant", () => {
@@ -49,5 +52,20 @@ describe("radiusChipLabel", () => {
   it("formats as RADIUS <n> NM", () => {
     expect(radiusChipLabel(80)).toBe("RADIUS 80 NM");
     expect(radiusChipLabel(250)).toBe("RADIUS 250 NM");
+  });
+});
+
+describe("basemap and labels chips", () => {
+  it("names the active basemap", () => {
+    expect(basemapChipLabel("SAT")).toBe("MAP SAT");
+    expect(basemapChipLabel("CHART")).toBe("MAP CHART");
+  });
+  it("toggles between the two basemaps", () => {
+    expect(nextBasemap("SAT")).toBe("CHART");
+    expect(nextBasemap("CHART")).toBe("SAT");
+  });
+  it("states the labels layer's actual state, both ways", () => {
+    expect(labelsChipLabel(true)).toBe("LABELS ON");
+    expect(labelsChipLabel(false)).toBe("LABELS OFF");
   });
 });

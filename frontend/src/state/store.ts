@@ -5,6 +5,7 @@ import { fetchAdsb, fetchConfig } from "../data/api";
 import { nextMode } from "../game/machine";
 import type { GameEvent, Mode } from "../game/machine";
 import type { FlightStats } from "../game/stats";
+import type { BasemapKind } from "../globe/mapSources";
 
 type State = {
   home: { lat: number; lon: number } | null;
@@ -15,8 +16,17 @@ type State = {
   lastFetchAt: number | null;
   /** Fetch radius in nautical miles, cycled by the status-bar chip (StatusBar.tsx's nextRadius). */
   radiusNm: number;
+  /**
+   * View preferences, NOT session state — which is why `resetSession` does not touch them.
+   * They live in the store, unlike the cockpit strip's collapse flags, because `StatusBar` is a
+   * flex sibling of `ViewerHost` (decisions B-015) and has no other route to the viewer.
+   */
+  basemap: BasemapKind;
+  labelsOn: boolean;
   setHome(h: { lat: number; lon: number }): void;
   setRadiusNm(n: number): void;
+  setBasemap(k: BasemapKind): void;
+  setLabelsOn(on: boolean): void;
   applyFetch(r: { contacts: Contact[]; source: string; fetched_at: number }): void;
   markFetchFailed(): void;
   select(hex: string | null): void;
@@ -58,6 +68,8 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   feedSource: null,
   lastFetchAt: null,
   radiusNm: 80,
+  basemap: "SAT",
+  labelsOn: false,
   mode: "BROWSE",
   origin: null,
   endStats: null,
@@ -68,6 +80,14 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
 
   setRadiusNm(n) {
     set({ radiusNm: n });
+  },
+
+  setBasemap(k) {
+    set({ basemap: k });
+  },
+
+  setLabelsOn(on) {
+    set({ labelsOn: on });
   },
 
   applyFetch(r) {

@@ -483,3 +483,45 @@ plot needs latitude and longitude, which the feed gave us, unlike the globe bill
 a 3D position and correctly skip it. **The scope caps at 60 nearest blips**, so a 250 NM sweep
 over a busy area degrades by dropping the far edge rather than by turning into a smear; the cap is
 on nearest-first order, not on Map iteration order, so what is dropped is predictable.
+
+## 2026-08-07 — CD-009 · Airport labels ship as a committed generated extract, never a runtime fetch
+
+`frontend/src/data/airports-world.json` is generated once by `scripts/fetch-ourairports.sh` from
+OurAirports' public-domain CSV and committed. The browser never fetches it, never parses CSV, and
+the labels keep working with the backend down and OurAirports unreachable. It is also the only
+way to have airport labels without adding a CSV parser to the dependency list, which ground rule
+3 would have required asking about.
+
+**Filter: `large_airport` + `medium_airport` only** (5,272 records). The unfiltered large+medium
+extract came to 607,159 bytes — over the 600 KB budget the schema-guard test asserts — so `name`
+is additionally dropped for `medium` airports (kept for `large`, where there are few enough that
+the identifier alone is less useful for a major hub). That brought it to 512,730 bytes. Adding
+`small_airport` and `heliport` was never on the table: ~60,000 more records is a multi-megabyte
+bundle and an unreadable label soup at every camera height a C172 actually flies at. If a future
+OurAirports release pushes the file back over budget, narrow the filter further and say so here —
+do not raise the assertion.
+
+Declutter is by camera height and is pure (`visibleAirports` in `data/airports.ts`, tested):
+nothing above 500 km, large airports only above 40 km, everything below that, capped at the 60
+nearest to the camera centre. Attribution is appended to the status bar and the HUD only while
+the layer is actually on.
+
+## 2026-08-07 — CD-010 · CHART is an imagery-layer swap with the SAT base hidden, not a rebuild
+
+The SAT↔CHART toggle adds Esri's Dark Gray Canvas layer above the base imagery and sets the base
+layer's `show = false`; switching back removes the chart layer and shows the base again. It does
+**not** destroy and recreate the base layer, and it does not touch the terrain provider, the
+camera, the primitives or the poller — a provider swap forces a full tile reload and jumps the
+camera, which is the same reason terrain attaches at app start rather than at takeover (parent
+spec §3).
+
+`attributionFor()` in `globe/mapSources.ts` is the single builder for the credit line, called by
+both `StatusBar` and `Hud`, so the two can never disagree and a layer that is off is never
+credited. `mapSources.ts` is deliberately Cesium-free even though it lives in `globe/`, because
+`StatusBar` is a flex sibling of `ViewerHost` (decisions B-015) and should not pull Cesium in to
+print a string.
+
+Neither `globe/basemap.ts` nor `globe/labelLayers.ts` nor `globe/OverlayLayers.tsx` has a unit
+test — all three need a live `Viewer`. Everything they *decide* (URLs, the attribution string,
+which airports are visible, the data file's schema) is in `mapSources.ts` and `data/airports.ts`,
+which have 22 tests between them. The rest is covered by the acceptance walkthrough.

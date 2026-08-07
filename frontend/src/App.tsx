@@ -1,6 +1,7 @@
 import { useState } from "react";
 import ViewerHost from "./globe/ViewerHost";
 import ContactLayer from "./globe/ContactLayer";
+import OverlayLayers from "./globe/OverlayLayers";
 import FlightSession from "./game/FlightSession";
 import ContactList from "./panels/ContactList";
 import StatusBar from "./panels/StatusBar";
@@ -18,6 +19,7 @@ export default function App() {
         <div className="relative flex-1">
           <ViewerHost onTerrainNoteChange={setTerrainNote}>
             <ContactLayer />
+            <OverlayLayers />
             <FlightSession />
           </ViewerHost>
         </div>

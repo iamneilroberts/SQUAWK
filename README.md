@@ -75,8 +75,32 @@ Takeover is restricted to civil GA-piston contacts this build (see
 All of them fly the C172S parameter set, which the handoff card discloses. Every clamp the
 sim applies to a snapshot is listed on that card before you fly.
 
+### Map layers
+
+Two toggles live in the status bar, beside the feed-radius chip:
+
+- **MAP SAT / MAP CHART** — swaps the imagery layer between Esri World Imagery (satellite) and
+  Esri Dark Gray Canvas (a much lighter vector-style basemap). Terrain, camera and traffic are
+  untouched; only the imagery changes. Use CHART if tiles are slow.
+- **LABELS ON / OFF** — adds Esri's keyless "World Boundaries and Places" reference layer plus
+  airport idents from a bundled OurAirports extract. Off by default.
+
+Both are keyless Esri REST services; the app still runs with `Ion.defaultAccessToken = null`.
+The attribution line in the status bar and on the HUD names exactly the layers that are on.
+
+**Refreshing the airport data** (rarely needed — it is committed):
+
+```bash
+bash scripts/fetch-ourairports.sh
+```
+
+That downloads OurAirports' public-domain `airports.csv`, keeps large and medium airports, and
+rewrites `frontend/src/data/airports-world.json`. It is a build-time-only script: the browser
+never fetches it and never parses CSV. The current extract holds 5,272 airports at 512 KB.
+
 ## Attribution
 
 Imagery © Esri World Imagery · Terrain: Re:Earth Terrain · Mapterhorn (CC BY 4.0) ·
 Buildings (when active): Overture Maps / © OpenStreetMap contributors · Live traffic:
-airplanes.live, adsb.lol, adsb.fi · Aircraft data: adsbdb.
+airplanes.live, adsb.lol, adsb.fi · Aircraft data: adsbdb · Basemap (CHART): Esri Dark Gray
+Canvas · Places: Esri World Boundaries and Places · Airport labels: OurAirports (public domain).

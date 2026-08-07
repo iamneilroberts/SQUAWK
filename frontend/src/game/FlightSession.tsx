@@ -11,6 +11,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useStore } from "../state/store";
 import type { GameEvent } from "./machine";
 import { useViewer } from "../globe/viewerContext";
+import { attributionFor } from "../globe/mapSources";
 import { loadC172 } from "../sim/params";
 import { buildSpawnState, type SpawnResult } from "../takeover/spawn";
 import { createTerrainService, type TerrainService } from "../world/terrain";
@@ -38,6 +39,8 @@ export default function FlightSession() {
   const mode = useStore((s) => s.mode);
   const origin = useStore((s) => s.origin);
   const endStats = useStore((s) => s.endStats);
+  const basemap = useStore((s) => s.basemap);
+  const labelsOn = useStore((s) => s.labelsOn);
 
   const [spawn, setSpawn] = useState<SpawnResult | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -231,7 +234,12 @@ export default function FlightSession() {
       )}
       {(mode === "FLYING" || mode === "PAUSED" || mode === "ENDED") && (
         <>
-          <Hud snapshot={snapshot} terrainNote={bundle?.terrainNote ?? ""} />
+          <Hud
+            snapshot={snapshot}
+            attribution={attributionFor({
+              basemap, labelsOn, terrainNote: bundle?.terrainNote ?? null,
+            })}
+          />
           <DashboardStrip snapshot={snapshot} />
         </>
       )}

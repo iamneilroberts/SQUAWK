@@ -105,3 +105,30 @@ describe("session state", () => {
     expect(keys).not.toContain("attitude");
   });
 });
+
+describe("view preferences", () => {
+  it("starts on the satellite basemap with the labels layer OFF", () => {
+    const s = useStore.getState();
+    expect(s.basemap).toBe("SAT");
+    expect(s.labelsOn).toBe(false);
+  });
+  it("switches the basemap", () => {
+    useStore.getState().setBasemap("CHART");
+    expect(useStore.getState().basemap).toBe("CHART");
+    useStore.getState().setBasemap("SAT");
+  });
+  it("turns the labels layer on and off", () => {
+    useStore.getState().setLabelsOn(true);
+    expect(useStore.getState().labelsOn).toBe(true);
+    useStore.getState().setLabelsOn(false);
+  });
+  it("leaves them alone when the session resets — they are preferences, not session state", () => {
+    useStore.getState().setBasemap("CHART");
+    useStore.getState().setLabelsOn(true);
+    useStore.getState().resetSession();
+    expect(useStore.getState().basemap).toBe("CHART");
+    expect(useStore.getState().labelsOn).toBe(true);
+    useStore.getState().setBasemap("SAT");
+    useStore.getState().setLabelsOn(false);
+  });
+});
