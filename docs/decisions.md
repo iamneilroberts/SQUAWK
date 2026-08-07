@@ -353,3 +353,69 @@ defects:
   post-step position (documented); rate damping not scaled by dynamic pressure (tuning
   knob); |cosα|<1e-3 g-clamp guard discontinuity (outside envelope); envelope bisection
   bracket unasserted; flapped CLmax unbounded by tests.
+
+## 2026-08-07 — CD-001 · The cockpit reads a wider 10 Hz snapshot, not a second bridge
+
+The six-pack needs pitch, roll, rate of turn and sideslip; the radar scope and the windscreen
+tags need the aircraft's own lat/lon. Every one of those already exists inside the sim each
+tick — `publish()` simply threw them away. `HudSnapshot` gains `pitchRad`, `rollRad`,
+`turnRateRadS`, `sideslipRad`, `latDeg`, `lonDeg` and the loop publishes them at the same ~10 Hz
+as everything else. No second observer, no zustand at sim cadence, no component reaching into
+`flightLoop`'s closure.
+
+`turnRateRadS` is deliberately NOT `state.rates.z`. Body yaw rate is the rate of turn only when
+the wings are level; rolled up on a wingtip it is mostly pitch. It gets a pure function in
+`sim/quat.ts` (`turnRateRadS`), beside the frame math it belongs to, which rotates the body rates
+into ECEF and projects them onto the local up axis — **negated**, because body Z points DOWN, so
+the un-negated dot product reads a right turn as negative and would bank the turn coordinator's
+little aeroplane the wrong way. That sign is pinned by signed tests (not `Math.abs`) in
+`quat.test.ts`, which is the only kind of test that can catch it.
+
+## 2026-08-07 — CD-002 · The slip ball is driven by sideslip, and the face says so
+
+A real turn coordinator's ball is a lateral accelerometer. This sim has no accelerometer — but
+it also has no crosswind, no P-factor and no engine torque, and the only lateral specific force
+in the model is `Y = q·S·cyBeta·β`, a strictly monotone function of sideslip. So β is not a
+stand-in for the ball: within this model it is exactly what the ball would be measuring.
+
+The instrument is labelled `SLIP β` rather than dressed up as a coordination ball, and the
+left/right convention lives in one constant, `SLIP_BALL_SIGN` in `dashboard/gaugeMath.ts`, which
+the acceptance walkthrough verifies against "step on the ball". If a later phase adds crosswind
+or asymmetric thrust, β stops being the whole story and this instrument must be re-derived from
+a real lateral acceleration — noted here so that is not discovered by accident.
+
+## 2026-08-07 — CD-003 · Vno and Vfe are POH data added to c172.json; Vs0/Vs1 stay derived
+
+The ASI's arcs need four speeds. Two of them, Vs0 and Vs1, are already *derived* from the aero
+block by `forces.stallSpeedIasMs` — the same function `envelope.test.ts` holds to the POH's 40
+and 48 KCAS — so the arcs are computed, never typed in, and cannot drift away from the aeroplane
+the sim actually flies. The other two did not exist anywhere: `limits.vnoIasMs` (129 KIAS) and
+`limits.vfeIasMs` (85 KIAS) are added to `c172.json` with 172S POH provenance in `sources`, and
+the validator now requires them.
+
+Both are **display-only**. Nothing in the physics reads them: this build does not speed-limit the
+flap regime, and adding a Vfe limit would be new behaviour nobody asked for. The white arc is a
+marking, not an enforcement.
+
+## 2026-08-07 — CD-004 · Drum-pointer altimeter; no Kollsman window, no heading bug
+
+The altimeter ships ONE hundreds-of-feet hand plus a digital drum, not the classic three-pointer.
+The three-pointer's 10,000 ft hand is the canonical misread, the owner is not an instrument
+pilot, and a second scale that can disagree with the HUD's numeric ALT is a bug surface with no
+new information behind it.
+
+Two faces that a real six-pack has are simply absent rather than drawn inert: the **barometric
+setting window** (this sim flies pure ISA and `altitudeM` is geometric — a fixed `29.92` would
+imply a setting the player can neither read nor change) and the **heading bug** (nothing sets one
+and nothing flies to one). Ground rule 1 applies to decoration as much as to data.
+
+## 2026-08-07 — CD-005 · Linear VSI, linear ASI, both with explicit pegging
+
+Real VSIs compress above 1000 fpm and real ASIs are slightly non-linear at the bottom of the
+scale. Both are linear here: `±2000 fpm` over `±90°` for the VSI, `40–180 kt` over `300°` for the
+ASI. The reason is agreement, not laziness — a linear map keeps needle and arcs derivable from
+one function, and keeps the dial in exact step with the HUD's numeric readouts, so a player can
+never see the tape and the needle disagree.
+
+Anything off the end of a scale comes back clamped with `pegged: true` and the needle turns amber
+with a `PEG` legend, rather than silently sitting on the stop as if that were the reading.

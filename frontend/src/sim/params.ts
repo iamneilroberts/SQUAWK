@@ -127,6 +127,8 @@ export function validateClassParams(raw: unknown): ClassParams {
     },
     limits: {
       vneIasMs: positive(limits, "vneIasMs", "params.limits"),
+      vnoIasMs: positive(limits, "vnoIasMs", "params.limits"),
+      vfeIasMs: positive(limits, "vfeIasMs", "params.limits"),
       gLimitPos: positive(limits, "gLimitPos", "params.limits"),
       gLimitNeg: num(limits, "gLimitNeg", "params.limits"),
       serviceCeilingM: positive(limits, "serviceCeilingM", "params.limits"),

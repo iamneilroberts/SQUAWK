@@ -19,7 +19,8 @@ import type { FlightStats } from "./stats";
 import { stepAircraft } from "../sim/aircraft";
 import { createAccumulator, runFixedSteps, FIXED_DT } from "../sim/integrator";
 import { ecefToGeodetic } from "../sim/geo";
-import { hprFromQuat } from "../sim/quat";
+import { hprFromQuat, turnRateRadS } from "../sim/quat";
+import { radToDeg } from "../sim/units";
 import { createControlSampler } from "../input/controls";
 import { createStatsAccumulator } from "./stats";
 import { classifyEnd, readImpact } from "./classify";
@@ -71,12 +72,21 @@ export function createFlightLoop(deps: FlightLoopDeps) {
 
   function publish() {
     const hpr = hprFromQuat(state.attitude, state.position);
+    const geo = ecefToGeodetic(state.position);
+
     onSnapshot({
       iasMs: state.iasMs,
       tasMs: state.tasMs,
       altitudeM: state.altitudeM,
       verticalSpeedMs: state.verticalSpeedMs,
       headingRad: hpr.headingRad,
+      pitchRad: hpr.pitchRad,
+      rollRad: hpr.rollRad,
+      // Rate of TURN, not body yaw rate, and signed positive-right — see sim/quat.ts.
+      turnRateRadS: turnRateRadS(state.attitude, state.position, state.rates),
+      sideslipRad: state.sideslipRad,
+      latDeg: radToDeg(geo.latRad),
+      lonDeg: radToDeg(geo.lonRad),
       aoaRad: state.aoaRad,
       loadFactor: state.loadFactor,
       throttle: controls.throttle,

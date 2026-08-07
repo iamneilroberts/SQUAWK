@@ -10,7 +10,10 @@ import type { HudSnapshot } from "./snapshot";
 
 const snap = (o: Partial<HudSnapshot> = {}): HudSnapshot => ({
   iasMs: ktToMs(100), tasMs: ktToMs(110), altitudeM: ftToM(3500),
-  verticalSpeedMs: 0, headingRad: 0, aoaRad: degToRad(3), loadFactor: 1,
+  verticalSpeedMs: 0, headingRad: 0,
+  pitchRad: 0, rollRad: 0, turnRateRadS: 0, sideslipRad: 0,
+  latDeg: 30.6944, lonDeg: -88.0399,
+  aoaRad: degToRad(3), loadFactor: 1,
   throttle: 0.6, flapLabel: "0", gear: "fixed", stalled: false, overspeed: false,
   gLimited: false, terrainClearanceM: ftToM(2000), terrainUnverified: false,
   simRate: 1, airtimeS: 0, classLabel: "C172S", callsign: "SIM-A1B2C3",

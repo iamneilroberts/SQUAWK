@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { validateClassParams, loadC172 } from "./params";
+import { msToKt } from "./units";
+import c172Raw from "../params/c172.json";
 
 describe("loadC172", () => {
   it("loads and validates the shipped C172S parameter file", () => {
@@ -72,5 +74,22 @@ describe("validateClassParams", () => {
   });
   it("accepts the shipped file unchanged", () => {
     expect(() => validateClassParams(loadC172())).not.toThrow();
+  });
+});
+
+describe("ASI arc V-speeds", () => {
+  it("carries the POH's Vno and Vfe — the ASI arcs are sourced data, not drawn from taste", () => {
+    const p = loadC172();
+    expect(msToKt(p.limits.vnoIasMs)).toBeCloseTo(129, 0); // 172S POH max structural cruising
+    expect(msToKt(p.limits.vfeIasMs)).toBeCloseTo(85, 0);  // 172S POH, flaps 10-30 deg
+    // Ordering is what makes the arcs meaningful at all.
+    expect(p.limits.vfeIasMs).toBeLessThan(p.limits.vnoIasMs);
+    expect(p.limits.vnoIasMs).toBeLessThan(p.limits.vneIasMs);
+  });
+
+  it("rejects a params file that omits them rather than defaulting to a guess", () => {
+    const raw = JSON.parse(JSON.stringify(c172Raw)) as Record<string, unknown>;
+    delete (raw.limits as Record<string, unknown>).vnoIasMs;
+    expect(() => validateClassParams(raw)).toThrow(/vnoIasMs/);
   });
 });

@@ -10,6 +10,24 @@ export type HudSnapshot = {
   altitudeM: number;
   verticalSpeedMs: number;
   headingRad: number;
+  /** Nose above the local horizontal, radians. Positive = nose up. Attitude indicator. */
+  pitchRad: number;
+  /** Right wing down, radians. Positive = right wing down. Attitude indicator. */
+  rollRad: number;
+  /**
+   * Rate of heading change about the LOCAL VERTICAL, rad/s. Positive = turning right.
+   * Not `rates.z`: body yaw rate is only the rate of turn when the wings are level.
+   * Turn coordinator.
+   */
+  turnRateRadS: number;
+  /**
+   * Sideslip angle, radians. Drives the slip ball — in this model the only lateral specific
+   * force is q*S*cyBeta*beta, so beta IS the ball (decisions.md CD-002). Not an accelerometer.
+   */
+  sideslipRad: number;
+  /** Own geodetic position — the radar scope and the windscreen tags measure range from it. */
+  latDeg: number;
+  lonDeg: number;
   aoaRad: number;
   loadFactor: number;
   throttle: number;

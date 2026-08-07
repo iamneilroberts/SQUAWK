@@ -110,6 +110,24 @@ export function hprFromQuat(
   return { headingRad, pitchRad, rollRad };
 }
 
+/**
+ * Rate of TURN — the rate at which heading is changing, rad/s, positive = turning right.
+ *
+ * This is what a turn coordinator indicates, and it is NOT `rates.z`: body yaw rate is the rate
+ * of turn only when the wings are level. Rolled up on a wingtip, a pure body yaw rate changes
+ * pitch and leaves heading alone entirely.
+ *
+ * The MINUS SIGN is load-bearing. Body Z points DOWN (see this module's header), so a positive
+ * r — nose right, i.e. turning right — rotates into ECEF pointing roughly along local DOWN.
+ * Dotting that with local UP therefore yields a negative number for a right turn, and the
+ * negation puts it back in the "positive = right" convention the snapshot and the turn
+ * coordinator both use. Pinned by the signed tests in quat.test.ts.
+ */
+export function turnRateRadS(q: Quat, positionEcef: Vec3, ratesBody: Vec3): number {
+  const { up } = enuBasis(positionEcef);
+  return -vDot(qRotate(q, ratesBody), up);
+}
+
 /** The inverse: build a body -> ECEF attitude from ENU heading/pitch/roll. */
 export function quatFromHpr(
   positionEcef: Vec3,

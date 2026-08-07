@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   QUAT_IDENTITY, qMultiply, qNormalize, qConjugate, qRotate, qRotateInverse,
-  qIntegrate, hprFromQuat, quatFromHpr,
+  qIntegrate, hprFromQuat, quatFromHpr, turnRateRadS,
 } from "./quat";
 import { geodeticToEcef, enuBasis } from "./geo";
 import { degToRad, radToDeg } from "./units";
@@ -112,5 +112,44 @@ describe("HPR round-trip", () => {
     const q = quatFromHpr(HOME, degToRad(210), degToRad(-30), degToRad(15));
     expect(vLength({ x: q.x, y: q.y, z: q.z })).toBeLessThanOrEqual(1);
     expect(Math.hypot(q.x, q.y, q.z, q.w)).toBeCloseTo(1, 12);
+  });
+});
+
+describe("turnRateRadS", () => {
+  const pos = geodeticToEcef(degToRad(30), degToRad(-88), 1000);
+
+  it("is POSITIVE for a right turn — body Z is down, so the naive dot product is backwards", () => {
+    const level = quatFromHpr(pos, 0, 0, 0);
+    // r about body Z is "nose right" (see this module's header), i.e. turning right.
+    expect(turnRateRadS(level, pos, { x: 0, y: 0, z: 0.05 })).toBeCloseTo(0.05, 6);
+  });
+
+  it("is NEGATIVE for a left turn", () => {
+    const level = quatFromHpr(pos, 0, 0, 0);
+    expect(turnRateRadS(level, pos, { x: 0, y: 0, z: -0.05 })).toBeCloseTo(-0.05, 6);
+  });
+
+  it("is zero when the heading is not changing: level attitude, roll+pitch body rates only", () => {
+    // Level attitude puts both body X and body Y in the horizontal plane, so p/q rates
+    // have zero projection on local up — heading genuinely isn't changing. (A banked,
+    // pitched aircraft with the same rates WOULD change heading; that case belongs to
+    // the signed tests above, not here.)
+    const level = quatFromHpr(pos, degToRad(45), 0, 0);
+    expect(turnRateRadS(level, pos, { x: 0.4, y: 0.2, z: 0 })).toBeCloseTo(0, 6);
+  });
+
+  it("is NOT the raw body yaw rate: knife-edge, a pure body yaw rate is pitch, not a turn", () => {
+    // Rolled 90 degrees, body Z points along the horizon, so yawing about it changes pitch and
+    // not heading at all. `state.rates.z` would claim a hard turn here.
+    const knifeEdge = quatFromHpr(pos, 0, 0, degToRad(90));
+    expect(turnRateRadS(knifeEdge, pos, { x: 0, y: 0, z: 0.05 })).toBeCloseTo(0, 6);
+  });
+
+  it("reads a level turn out of a body ROLL rate when the aeroplane is on its side", () => {
+    // The mirror of the case above: rolled 90 degrees, body X (the roll axis) points... still
+    // along the nose. Rolled 90 with the nose up 90 (pointing at the zenith), body X is up.
+    const noseUp = quatFromHpr(pos, 0, degToRad(90), 0);
+    expect(turnRateRadS(noseUp, pos, { x: 0, y: 0, z: 0.05 })).toBeCloseTo(0, 6);
+    expect(Math.abs(turnRateRadS(noseUp, pos, { x: 0.05, y: 0, z: 0 }))).toBeCloseTo(0.05, 6);
   });
 });

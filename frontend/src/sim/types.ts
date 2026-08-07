@@ -90,6 +90,10 @@ export type ClassParams = {
   };
   limits: {
     vneIasMs: number;
+    /** Max structural cruising speed — top of the ASI's green arc, bottom of the yellow. */
+    vnoIasMs: number;
+    /** Max flaps-extended speed — top of the ASI's white arc. */
+    vfeIasMs: number;
     gLimitPos: number;
     gLimitNeg: number;
     serviceCeilingM: number;

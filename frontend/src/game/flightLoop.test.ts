@@ -343,3 +343,51 @@ describe("flight loop collision", () => {
     bits.loop.stop();
   });
 });
+
+describe("the 10 Hz snapshot carries everything the cockpit instruments need", () => {
+  it("publishes pitch and roll, not just heading — the attitude indicator has no other source", () => {
+    const { loop, host, snaps } = makeLoop();
+    loop.start();
+    host.frame(0);
+    expect(snaps.length).toBeGreaterThan(0);
+    const s = snaps[snaps.length - 1];
+    expect(Number.isFinite(s.pitchRad)).toBe(true);
+    expect(Number.isFinite(s.rollRad)).toBe(true);
+    // buildSpawnState hands over trimmed and wings-level, so roll starts at (near) zero.
+    expect(Math.abs(s.rollRad)).toBeLessThan(0.05);
+    loop.stop();
+  });
+
+  it("publishes a POSITIVE rate of turn for a right turn", () => {
+    // Right rudder, through the real physics — a sign error here is what puts the turn
+    // coordinator's little aeroplane the wrong way up in a turn.
+    const { loop, host, snaps } = makeLoop({ held: new Set(["KeyD"]) });
+    loop.start();
+    host.frame(0);
+    for (let i = 1; i <= 120; i++) host.frame(i * 16.7);
+    const s = snaps[snaps.length - 1];
+    expect(s.turnRateRadS).toBeGreaterThan(0);
+    loop.stop();
+  });
+
+  it("publishes a NEGATIVE rate of turn for a left turn", () => {
+    const { loop, host, snaps } = makeLoop({ held: new Set(["KeyA"]) });
+    loop.start();
+    host.frame(0);
+    for (let i = 1; i <= 120; i++) host.frame(i * 16.7);
+    expect(snaps[snaps.length - 1].turnRateRadS).toBeLessThan(0);
+    loop.stop();
+  });
+
+  it("publishes sideslip and the aircraft's own geodetic position", () => {
+    const { loop, host, snaps } = makeLoop();
+    loop.start();
+    host.frame(0);
+    const s = snaps[snaps.length - 1];
+    expect(Number.isFinite(s.sideslipRad)).toBe(true);
+    // The `ga()` contact this file spawns from sits at 30.6944 N, 88.0399 W.
+    expect(s.latDeg).toBeCloseTo(30.69, 1);
+    expect(s.lonDeg).toBeCloseTo(-88.04, 1);
+    loop.stop();
+  });
+});

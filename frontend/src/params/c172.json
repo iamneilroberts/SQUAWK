@@ -36,6 +36,8 @@
   },
   "limits": {
     "vneIasMs": 83.85,
+    "vnoIasMs": 66.36,
+    "vfeIasMs": 43.73,
     "gLimitPos": 3.8,
     "gLimitNeg": -1.52,
     "serviceCeilingM": 4267
@@ -70,6 +72,8 @@
     "propPeakSpeedMs": "TUNING KNOB (climb, without disturbing cruise — it only bites below 60 m/s and cruise is above it) — 60 m/s (117 kt). Below it, prop efficiency falls linearly, which both caps static thrust at eta*P/60 = 1790 N (402 lbf) and brings sea-level best climb from an absurd 1708 fpm down to a measured 783 fpm against the POH's 730 fpm (envelope.test.ts band 630-830).",
     "lapseModel": "\"piston\" — the IO-360 is normally aspirated, so forces.ts applies the Gagg-Ferrar lapse P(h)/P(0) = (sigma-0.117)/0.883 to maxPowerW. Selected by this key rather than assumed, so a flat-rated turbofan class can ship \"none\" without a per-class branch; an absent or unknown value is a load-time validator error, never a silent default. Added in Task 3: without the lapse, best climb at the 14000 ft service ceiling is 971 fpm, i.e. no ceiling at all; with it, 210 fpm. Consequence: the POH's '75% power at 8000 ft' needs 99.0% throttle, since the lapse there is 0.758.",
     "vneIasMs": "163 KIAS = 83.85 m/s, 172S POH",
+    "vnoIasMs": "129 KIAS = 66.36 m/s, 172S POH max structural cruising speed. Top of the ASI green arc / bottom of the yellow caution band. Not a tuning knob and not used by the physics - display only.",
+    "vfeIasMs": "85 KIAS = 43.73 m/s, 172S POH max flaps-extended speed for the 10-30 deg range (the 10 deg-only limit is 110 KIAS; the ASI white arc uses the more restrictive figure, which is what the arc means). Top of the ASI white arc. Display only.",
     "gLimits": "+3.8 / -1.52, FAR/CS-23 Normal category",
     "serviceCeilingM": "14000 ft = 4267 m, 172S POH",
     "flaps": "172S has 0/10/20/30 detents. dCL0 (0 / 0.3 / 0.6 / 0.9) is a TUNING KNOB for the stall speeds: flaps-30 CLmax = (0.25 + 0.9) + 4.9*0.2094 = 2.176, measured Vs0 = 40.4 KCAS against the POH's 40 (band 37-43), with Vs 48.1 / 45.1 / 42.5 / 40.4 kt falling monotonically across the detents. dCD0 values are TUNING KNOBS.",
