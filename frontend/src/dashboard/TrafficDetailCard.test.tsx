@@ -23,7 +23,7 @@ const c = (o: Partial<Contact> = {}): Contact => ({
 
 const ok: EnrichmentState = {
   kind: "ok",
-  info: { type: "172S Skyhawk", manufacturer: "Cessna", registration: "N12345" },
+  info: { type: "172S Skyhawk", manufacturer: "Cessna", registration: "N12345", available: true },
 };
 
 const render = (contact: Contact, enrichment: EnrichmentState) =>
@@ -69,7 +69,7 @@ describe("TrafficDetailBody — the three adsbdb states are distinct", () => {
 
   it("says NO ADSBDB RECORD when adsbdb answered and has never heard of the hex", () => {
     const text = render(c(), {
-      kind: "ok", info: { type: null, manufacturer: null, registration: null },
+      kind: "ok", info: { type: null, manufacturer: null, registration: null, available: true },
     });
     expect(text).toContain("NO ADSBDB RECORD");
     expect(text).not.toContain("ADSBDB UNREACHABLE");
@@ -77,6 +77,15 @@ describe("TrafficDetailBody — the three adsbdb states are distinct", () => {
 
   it("says ADSBDB UNREACHABLE when the lookup itself failed", () => {
     const text = render(c(), { kind: "unreachable" });
+    expect(text).toContain("ADSBDB UNREACHABLE");
+    expect(text).not.toContain("NO ADSBDB RECORD");
+  });
+
+  it("says ADSBDB UNREACHABLE (not NO ADSBDB RECORD) when the backend answers but " +
+    "reports adsbdb itself did not — an outage must not read as a confirmed no-record", () => {
+    const text = render(c(), {
+      kind: "ok", info: { type: null, manufacturer: null, registration: null, available: false },
+    });
     expect(text).toContain("ADSBDB UNREACHABLE");
     expect(text).not.toContain("NO ADSBDB RECORD");
   });
@@ -89,7 +98,7 @@ describe("TrafficDetailBody — the three adsbdb states are distinct", () => {
 
   it("em-dashes an individual missing enrichment field without claiming the whole record is absent", () => {
     const text = render(c(), {
-      kind: "ok", info: { type: "172", manufacturer: null, registration: null },
+      kind: "ok", info: { type: "172", manufacturer: null, registration: null, available: true },
     });
     expect(text).toContain("172");
     expect(text).toContain(EM_DASH);

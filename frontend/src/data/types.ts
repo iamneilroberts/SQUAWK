@@ -20,4 +20,12 @@ export type TypeInfo = {
   type: string | null;
   manufacturer: string | null;
   registration: string | null;
+  /**
+   * False when the backend reached adsbdb's endpoint but adsbdb itself did not answer
+   * (timeout, network error, non-404 HTTP error) — as distinct from adsbdb answering and
+   * genuinely having no record for this hex, which is `available: true` with the three
+   * fields above still null. Collapsing these two into one shape is what used to make an
+   * outage render as "no record" on the card.
+   */
+  available: boolean;
 };

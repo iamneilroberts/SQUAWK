@@ -29,10 +29,12 @@ export async function fetchAdsb(
 }
 
 /**
- * adsbdb enrichment for one contact. The backend already distinguishes "adsbdb says it has never
- * heard of this hex" (a 200 with all-null fields) from "adsbdb is unreachable" (also a 200 with
- * all-null fields, but uncached) — from the browser's side the difference we CAN see is a bad
- * HTTP status, which throws. The card renders three states from that; see TrafficDetailCard.
+ * adsbdb enrichment for one contact. Two failure modes, not one: `!res.ok` means OUR backend
+ * didn't answer (thrown as FeedDownError, same as the other endpoints); a 200 with
+ * `available: false` means the backend answered but adsbdb itself did not (timeout, network
+ * error, non-404 HTTP error upstream) — distinct from `available: true` with all-null fields,
+ * which is adsbdb genuinely having no record for this hex. The card renders the difference;
+ * see TrafficDetailCard.
  */
 export async function fetchTypeInfo(hex: string): Promise<TypeInfo> {
   const res = await fetch(`/api/type/${hex}`);

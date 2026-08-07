@@ -26,9 +26,10 @@ def create_app() -> FastAPI:
     async def get_type(hex: str):
         data = await adsbdb.lookup(settings, hex)
         return {
-            "type": data.get("type") if data else None,
-            "manufacturer": data.get("manufacturer") if data else None,
-            "registration": data.get("registration") if data else None,
+            "type": data["type"],
+            "manufacturer": data["manufacturer"],
+            "registration": data["registration"],
+            "available": data["available"],
         }
 
     return app

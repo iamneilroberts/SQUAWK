@@ -5,7 +5,13 @@
  * THREE adsbdb states, never collapsed into one, because they mean different things:
  *   loading      the lookup is in flight
  *   ok, all null adsbdb answered and has genuinely never heard of this hex
- *   unreachable  the lookup failed - we do not know whether adsbdb knows this hex
+ *   unreachable  we do not know whether adsbdb has a record for this hex
+ * "unreachable" has two causes rendered identically, both meaning the same thing to a
+ * player: the fetch to OUR backend itself failing (kind: "unreachable"), and OUR backend
+ * answering but reporting that adsbdb did not (kind: "ok", info.available === false, e.g. an
+ * adsbdb timeout). Folding these into one visible state — not into `emptyRecord` — is what
+ * keeps a real adsbdb outage from rendering as "NO ADSBDB RECORD", which would assert an
+ * answer adsbdb never gave.
  * Every individual field the feed or adsbdb omitted is an em-dash.
  *
  * Split as usual: `TrafficDetailBody` is hook-free and holds every element (and every test);
@@ -47,8 +53,13 @@ export function TrafficDetailBody({ contact, enrichment, onClose }: {
   onClose(): void;
 }) {
   const info = enrichment.kind === "ok" ? enrichment.info : null;
+  // adsbdb itself being unreachable is reported two ways - the fetch to our own backend
+  // failing outright, or our backend answering with available: false - and both mean the
+  // same thing here: we do not know whether adsbdb has a record for this hex.
+  const adsbdbUnreachable = enrichment.kind === "unreachable" || info?.available === false;
   const emptyRecord =
-    info !== null && info.type === null && info.manufacturer === null && info.registration === null;
+    info !== null && info.available &&
+    info.type === null && info.manufacturer === null && info.registration === null;
 
   return (
     <div className="traffic-card panel">
@@ -67,11 +78,11 @@ export function TrafficDetailBody({ contact, enrichment, onClose }: {
 
       <div className="label handoff-title">ADSBDB</div>
       {enrichment.kind === "loading" && <div className="handoff-adjustment">ADSBDB LOOKUP…</div>}
-      {enrichment.kind === "unreachable" && (
+      {adsbdbUnreachable && (
         <div className="handoff-note">ADSBDB UNREACHABLE — ENRICHMENT UNKNOWN</div>
       )}
       {emptyRecord && <div className="handoff-note">NO ADSBDB RECORD FOR THIS HEX</div>}
-      {info !== null && !emptyRecord && (
+      {info !== null && info.available && !emptyRecord && (
         <>
           <Row label="TYPE" value={orDash(info.type)} />
           <Row label="MANUFACTURER" value={orDash(info.manufacturer)} />
