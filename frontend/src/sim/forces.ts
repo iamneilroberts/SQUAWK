@@ -122,8 +122,8 @@ export function turbofanPowerLapse(altitudeM: number): number {
 /**
  * Which lapse a powerplant obeys is DATA (`propulsion.lapseModel`), not a class branch:
  * the piston lapse above is a C172 fact, and applying it to a flat-rated turbofan would be
- * an invisible piston assumption baked into a supposedly class-agnostic core. A jet class
- * ships `"none"` and holds its rated output over the band this sim flies. `params.ts`
+ * an invisible piston assumption baked into a supposedly class-agnostic core. The jet classes
+ * (b738, f5e) ship `"turbofan"` — flat-rated to the corner, then a density falloff. `params.ts`
  * rejects any value not keyed here at load time rather than silently defaulting — a typo in
  * a parameter file must not quietly turn an engine into a different engine.
  */

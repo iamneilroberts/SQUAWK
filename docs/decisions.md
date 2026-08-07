@@ -698,3 +698,32 @@ constant-thrust formula cannot represent both, and the sim spawns airborne, so c
 what matters). Pinned by the FL350 cruise test: 85% throttle trims level at **M0.7785** (target
 M0.78). `afterburnerFactor` 1.0 (no reheat). Recorded so the "power" and "prop peak speed" fields
 in `b738.json` are not read as literal turbofan physical quantities.
+
+## 2026-08-07 — AF-004b · F-5E thrust + afterburner sourced to J85-GE-21 book static thrust
+
+Task 8 (f5e) drives the F-5E through the SAME shared thrust formula as the other classes — no
+`if (class === …)`. The seed numbers (`maxPowerW` 22 MW, `afterburnerFactor` 1.5) produced an
+absurd ~53,000 fpm burner best-climb (dry T/W ~0.70, well above the real jet), so they were
+retuned to the documented **J85-GE-21** figures instead of left as loose knobs: **3,500 lbf
+(15.6 kN) dry / 5,000 lbf (22.2 kN) wet per engine**, ×2 = **31.2 kN dry / 44.4 kN wet total**.
+`propPeakSpeedMs` 320 m/s sits above max sustained TAS so dry thrust is modeled constant with
+speed at the book static value: `η·P/320 = 0.85·11.75e6/320 ≈ 31.2 kN` (so `maxPowerW` = 11.75 MW,
+a fictitious "power" as in AF-004a, not shaft power — a turbojet has no propeller). The afterburner
+uses the shared dry/wet toggle (Task 3): `afterburnerFactor` = **1.43** = the J85-GE-21 wet/dry
+static thrust ratio (5,000/3,500 lbf). Result: T/W ~0.37 dry / ~0.54 wet at 8.5 t, burner best-climb
+~20,900 fpm at 10,000 ft (dry ~11,700) — credible, below the ~34,500 fpm sea-level book figure.
+Aero coefficients (cl0/clAlpha/cd0/oswaldE) and all control derivatives remain TUNING KNOBS
+(no published F-5E derivatives; decisions B-007). Phase B source verification still pending
+(CLAUDE.md).
+
+## 2026-08-07 — AF-005 · F-5E capped subsonic (no wave-drag path; issue #2)
+
+The 6-DOF model has no transonic/supersonic wave-drag physics, so the F-5E ships **capped
+subsonic**: `limits.mmo` = **0.95** and the shared Mach annunciator trips there. The F-5E is a
+genuinely supersonic airframe (~M1.6), but modeling that honestly needs a wave-drag rise the
+model does not have; shipping it without one would let the jet accelerate past M1 with no drag
+penalty — a lie. Supersonic flight + wave drag is deferred to **issue #2**. The F-5E's operating
+speed placards (`vne`/`vno`/`vfe`, display-only) are likewise subsonic-capped TUNING KNOBs; the
+sim caps at Mmo before those IAS values are reached. The service ceiling (15,700 m) sits above the
+shared turbofan corner (FL380, AF-002) but no envelope test reaches it (airborne-spawn sim; no
+ceiling-hang test), so the shared corner is inert for the F-5E — validated, not re-tuned.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateClassParams, loadC172, loadB738 } from "./params";
+import { validateClassParams, loadC172, loadB738, loadF5e } from "./params";
 import { msToKt } from "./units";
 import c172Raw from "../params/c172.json";
 
@@ -53,6 +53,32 @@ describe("loadB738", () => {
   });
   it("documents every tuning knob in sources", () => {
     const text = JSON.stringify(loadB738().sources);
+    expect(text).toContain("TUNING KNOB");
+  });
+});
+
+describe("loadF5e", () => {
+  it("loads and validates the shipped F-5E file", () => {
+    const p = loadF5e();
+    expect(p.id).toBe("f5e");
+    expect(p.label).toBe("F5E");
+    expect(p.modelNote).toBe("F-5E MODEL");
+    expect(p.propulsion.lapseModel).toBe("turbofan");
+    expect(p.propulsion.afterburnerFactor).toBeGreaterThan(1); // real dry->wet factor
+    expect(p.limits.mmo).toBeLessThanOrEqual(0.95);            // capped subsonic
+    expect(p.limits.gLimitPos).toBeGreaterThan(5);             // fighter g
+    expect(p.limits.gLimitNeg).toBeLessThan(0);
+    expect(p.display.attitudeStyle).toBe("ball");
+    expect(p.display.asiMinKt).toBe(80);
+    expect(p.display.asiMaxKt).toBe(800);
+    expect(p.gear).toBe("retractable");
+  });
+  it("has an aspect ratio consistent with its span and area", () => {
+    const p = loadF5e();
+    expect(p.aspectRatio).toBeCloseTo((p.wingSpanM * p.wingSpanM) / p.wingAreaM2, 1);
+  });
+  it("documents every tuning knob in sources", () => {
+    const text = JSON.stringify(loadF5e().sources);
     expect(text).toContain("TUNING KNOB");
   });
 });

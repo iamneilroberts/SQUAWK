@@ -6,6 +6,7 @@
 import type { ClassParams, FlapDetent, LapseModel } from "./types";
 import c172Raw from "../params/c172.json";
 import b738Raw from "../params/b738.json";
+import f5eRaw from "../params/f5e.json";
 
 function asRecord(value: unknown, path: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -172,4 +173,12 @@ let cachedB738: ClassParams | null = null;
 export function loadB738(): ClassParams {
   if (cachedB738 === null) cachedB738 = validateClassParams(b738Raw);
   return cachedB738;
+}
+
+let cachedF5e: ClassParams | null = null;
+
+/** The F-5E fighter class (own cache; validated through the same shared validator). */
+export function loadF5e(): ClassParams {
+  if (cachedF5e === null) cachedF5e = validateClassParams(f5eRaw);
+  return cachedF5e;
 }
