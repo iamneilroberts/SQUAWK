@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
   liftCoefficient, dragCoefficient, clMaxFor, stallAlphaFor, stallSpeedIasMs,
-  thrustNewtons, controlAuthority, computeForces,
+  thrustNewtons, controlAuthority, computeForces, turbofanPowerLapse, POWER_LAPSE_MODELS,
 } from "./forces";
 import type { ForceResult } from "./forces";
 import { loadC172 } from "./params";
-import { degToRad } from "./units";
+import { degToRad, ftToM } from "./units";
 import { quatFromHpr, qRotate, qRotateInverse } from "./quat";
 import { geodeticToEcef, geodeticSurfaceNormal } from "./geo";
 import { vScale, vSub } from "./vec3";
@@ -183,5 +183,21 @@ describe("computeForces", () => {
     expect(r.gLimited).toBe(true);
     expect(loadFactorFromOutput(s, r)).toBeCloseTo(P.limits.gLimitNeg, 6);
     expect(r.loadFactor).toBeCloseTo(P.limits.gLimitNeg, 6);
+  });
+});
+
+describe("turbofan power lapse", () => {
+  it("holds rated thrust (1.0) at and below the flat-rated corner altitude", () => {
+    expect(turbofanPowerLapse(0)).toBeCloseTo(1, 6);
+    expect(turbofanPowerLapse(ftToM(30000))).toBeCloseTo(1, 6);
+  });
+  it("falls below 1 above the corner and is monotone decreasing there", () => {
+    const a = turbofanPowerLapse(ftToM(37000));
+    const b = turbofanPowerLapse(ftToM(41000));
+    expect(a).toBeLessThan(1);
+    expect(b).toBeLessThan(a);
+  });
+  it("is registered under the turbofan lapse key", () => {
+    expect(POWER_LAPSE_MODELS.turbofan(0)).toBeCloseTo(1, 6);
   });
 });

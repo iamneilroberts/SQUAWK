@@ -91,6 +91,28 @@ export function pistonPowerLapse(altitudeM: number): number {
 }
 
 /**
+ * Flat-rated turbofan thrust lapse. A modern high-bypass fan holds close to its rated thrust
+ * from sea level up to a corner altitude (roughly the tropopause, where the flat-rating runs
+ * out), then loses thrust with density in the stratosphere. Modelled as: 1.0 up to
+ * TURBOFAN_CORNER_M, then (sigma/sigma_corner)^TURBOFAN_LAPSE_EXP above it.
+ *
+ * TUNING KNOBS (pinned by the b738 cruise envelope test, Task 7): the corner altitude and the
+ * exponent. FL360 corner keeps full rated thrust available at the 737's FL350 cruise; exponent
+ * 1.0 makes stratospheric thrust track density (T ∝ rho), the standard first-order jet model.
+ * One shared curve for both jets in v1 (both are flat-rated turbofans); per-jet parameterisation
+ * is deferred (spec §2.1) unless an envelope test demands it.
+ */
+export const TURBOFAN_CORNER_M = 10972; // FL360
+export const TURBOFAN_LAPSE_EXP = 1.0;
+
+export function turbofanPowerLapse(altitudeM: number): number {
+  if (altitudeM <= TURBOFAN_CORNER_M) return 1;
+  const sigma = isaDensity(altitudeM) / RHO_SL;
+  const sigmaCorner = isaDensity(TURBOFAN_CORNER_M) / RHO_SL;
+  return Math.pow(sigma / sigmaCorner, TURBOFAN_LAPSE_EXP);
+}
+
+/**
  * Which lapse a powerplant obeys is DATA (`propulsion.lapseModel`), not a class branch:
  * the piston lapse above is a C172 fact, and applying it to a flat-rated turbofan would be
  * an invisible piston assumption baked into a supposedly class-agnostic core. A jet class
@@ -101,7 +123,7 @@ export function pistonPowerLapse(altitudeM: number): number {
 export const POWER_LAPSE_MODELS: Record<LapseModel, (altitudeM: number) => number> = {
   piston: pistonPowerLapse,
   none: () => 1,
-  turbofan: () => 1,
+  turbofan: turbofanPowerLapse,
 };
 
 /**
