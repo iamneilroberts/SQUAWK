@@ -182,3 +182,13 @@ export function loadF5e(): ClassParams {
   if (cachedF5e === null) cachedF5e = validateClassParams(f5eRaw);
   return cachedF5e;
 }
+
+/** Resolve a class id (from resolveClass) to its validated params. Unknown id is a bug, not data. */
+export function loadClassById(id: string): ClassParams {
+  switch (id) {
+    case "c172s": return loadC172();
+    case "b738": return loadB738();
+    case "f5e": return loadF5e();
+    default: throw new Error(`unknown class id: ${id}`);
+  }
+}

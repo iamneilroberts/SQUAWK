@@ -1,0 +1,7 @@
+{
+  "note": "ICAO type designators treated as fast-jet fighter for the class resolver. Data, not code: adding a type here is the only thing needed to fly it as the F-5E. Coverage is honest via disclosure (spec §9), not completeness.",
+  "designators": [
+    "F5", "F16", "F15", "F18", "F22", "F35",
+    "EUFI", "RFAL", "MIG29", "SU27", "SU35", "A10", "T38"
+  ]
+}
