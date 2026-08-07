@@ -24,6 +24,7 @@ const body = (state = defaultStripState()) =>
   collectText(
     DashboardStripBody({
       state, snapshot: null, params: P, contacts: new Map(), feedStatus: "live", ghostHex: null,
+      feedRadiusNm: 80,
       onTogglePanel: () => {}, onToggleStrip: () => {}, onRangeChange: () => {},
     }),
   ).join(" ");

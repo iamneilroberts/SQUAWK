@@ -34,13 +34,20 @@ export default function OverlayLayers() {
     return () => disposeBasemap(viewer, ref);
   }, [bundle?.viewer, basemap]);
 
+  // `basemap` is in these deps even though this effect never reads it: applyBasemap's own
+  // effect appends the new imagery layer with `layers.add()`, which lands it ABOVE whatever
+  // is already in the stack — including places, if labels are on. Re-running this effect on
+  // every basemap change removes and re-adds the places layer so it ends up on top again
+  // (React runs effect cleanups in declaration order before re-running effects, so the
+  // basemap effect settles first). Without this dep, SAT -> CHART with labels on strands
+  // places under the opaque Dark Gray Canvas while attributionFor() keeps crediting it.
   useEffect(() => {
     if (!bundle) return;
     const viewer = bundle.viewer;
     const ref = placesRef.current;
     applyPlacesLayer(viewer, labelsOn, ref);
     return () => applyPlacesLayer(viewer, false, ref);
-  }, [bundle?.viewer, labelsOn]);
+  }, [bundle?.viewer, labelsOn, basemap]);
 
   useEffect(() => {
     if (!bundle) return;

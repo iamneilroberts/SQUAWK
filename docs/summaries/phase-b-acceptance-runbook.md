@@ -87,3 +87,11 @@ screenshot each checkpoint, stop at the end and wait for sign-off.
       while labels are on. Then QUIT and take controls of a second contact: the map toggles are
       still where you left them (they are preferences), and the cockpit strip is back to its
       defaults (it is not).
+      **Layer-order check (no automated coverage — this needs a live Viewer):** with `LABELS ON`,
+      click `MAP SAT` → `MAP CHART` → `MAP SAT` → `MAP CHART` a few times. Both place names AND
+      airport idents must be visible (not just present in the attribution line) on **every**
+      CHART frame, not only the first. `OverlayLayers.tsx`'s places effect re-runs on every
+      basemap change specifically so the places imagery layer gets removed and re-added above the
+      new basemap layer (Cesium's `imageryLayers.add()` always appends to the top of the stack) —
+      if it regresses, labels silently vanish under CHART while the attribution line keeps
+      crediting them, which only a rendered frame will show.

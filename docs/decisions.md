@@ -494,9 +494,16 @@ way to have airport labels without adding a CSV parser to the dependency list, w
 
 **Filter: `large_airport` + `medium_airport` only** (5,272 records). The unfiltered large+medium
 extract came to 607,159 bytes — over the 600 KB budget the schema-guard test asserts — so `name`
-is additionally dropped for `medium` airports (kept for `large`, where there are few enough that
-the identifier alone is less useful for a major hub). That brought it to 512,730 bytes. Adding
-`small_airport` and `heliport` was never on the table: ~60,000 more records is a multi-megabyte
+is additionally dropped for `medium` airports (kept for `large`). That brought it to 512,730
+bytes. **Correction (2026-08-07):** the original wording here claimed `name` was kept for large
+airports because "the identifier alone is less useful for a major hub" — that misdescribes the
+code. `airportLabelText()` renders `iata ?? ident` for every airport regardless of size, and
+`name` has zero consumers anywhere in the frontend; it is parsed into `Airport` and never read.
+`name` is retained for `large` airports as data provenance only (so the field exists on the
+record class most likely to need it later, e.g. a future info panel), not because rendering uses
+it today. It is a candidate for dropping from `large` too if the budget gets tight again — say so
+here if that happens. Adding `small_airport` and `heliport` was never on the table: ~60,000 more
+records is a multi-megabyte
 bundle and an unreadable label soup at every camera height a C172 actually flies at. If a future
 OurAirports release pushes the file back over budget, narrow the filter further and say so here —
 do not raise the assertion.

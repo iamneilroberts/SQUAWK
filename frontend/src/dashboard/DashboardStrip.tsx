@@ -86,7 +86,7 @@ export function stripKeyAction(
 }
 
 export function DashboardStripBody({
-  state, snapshot, params, contacts, feedStatus, ghostHex,
+  state, snapshot, params, contacts, feedStatus, ghostHex, feedRadiusNm,
   onTogglePanel, onToggleStrip, onRangeChange,
 }: {
   state: StripState;
@@ -95,6 +95,7 @@ export function DashboardStripBody({
   contacts: Map<string, Contact>;
   feedStatus: FeedStatus;
   ghostHex: string | null;
+  feedRadiusNm: number;
   onTogglePanel(id: PanelId): void;
   onToggleStrip(): void;
   onRangeChange(nm: number): void;
@@ -124,6 +125,7 @@ export function DashboardStripBody({
           feedStatus={feedStatus}
           ghostHex={ghostHex}
           scopeRangeNm={state.scopeRangeNm}
+          feedRadiusNm={feedRadiusNm}
           onRangeChange={onRangeChange}
         />
       </PanelFrame>
@@ -155,6 +157,7 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
   const contacts = useStore((s) => s.contacts);
   const feedStatus = useStore((s) => s.feedStatus);
   const origin = useStore((s) => s.origin);
+  const radiusNm = useStore((s) => s.radiusNm);
   const params = loadC172();
 
   useEffect(() => {
@@ -175,6 +178,7 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
       contacts={contacts}
       feedStatus={feedStatus}
       ghostHex={origin?.hex ?? null}
+      feedRadiusNm={radiusNm}
       onTogglePanel={(id) => setState((s) => togglePanel(s, id))}
       onToggleStrip={() => setState(toggleStrip)}
       onRangeChange={(nm) => setState((s) => setScopeRange(s, nm))}

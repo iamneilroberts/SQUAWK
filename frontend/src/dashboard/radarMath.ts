@@ -93,3 +93,14 @@ export function scopeStatus(feedStatus: FeedStatus): ScopeStatus {
   if (feedStatus === "stale") return { text: "FEED STALE · BLIPS FROZEN", dim: true };
   return { text: null, dim: false };
 }
+
+/**
+ * The feed is polled home-centred at a fixed radius (`radiusNm` in the store), but the scope
+ * dials out to 250 NM aircraft-centred. Beyond the feed's radius, an empty ring is not confirmed
+ * empty sky — it is simply unpolled — so the face has to say so rather than imply an unqualified
+ * "nothing out there".
+ */
+export function coverageNote(scopeRangeNm: number, feedRadiusNm: number): string | null {
+  if (scopeRangeNm <= feedRadiusNm) return null;
+  return `FEED ${feedRadiusNm} NM`;
+}

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   RANGE_PRESETS_NM, DEFAULT_RANGE_NM, SCOPE_RADIUS_PX, MAX_BLIPS,
-  scopeXY, ringsFor, blipsFor, scopeStatus,
+  scopeXY, ringsFor, blipsFor, scopeStatus, coverageNote,
 } from "./radarMath";
 import type { Contact } from "../data/types";
 
@@ -134,5 +134,20 @@ describe("scopeStatus", () => {
   it("says the plots are frozen when the feed is stale", () => {
     expect(scopeStatus("stale").text).toBe("FEED STALE · BLIPS FROZEN");
     expect(scopeStatus("stale").dim).toBe(true);
+  });
+});
+
+describe("coverageNote — the scope face must not claim empty sky the feed never polled", () => {
+  it("says nothing when the dialed-in range is within the feed's polling radius", () => {
+    expect(coverageNote(40, 80)).toBeNull();
+  });
+  it("says nothing at exactly the feed's radius — that ring IS covered", () => {
+    expect(coverageNote(80, 80)).toBeNull();
+  });
+  it("names the feed radius once the scope is dialed out past it", () => {
+    expect(coverageNote(250, 80)).toBe("FEED 80 NM");
+  });
+  it("follows whatever radius the store is actually polling, not a hardcoded default", () => {
+    expect(coverageNote(150, 40)).toBe("FEED 40 NM");
   });
 });

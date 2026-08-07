@@ -49,6 +49,7 @@ const base = {
   feedStatus: "live" as const,
   ghostHex: null,
   scopeRangeNm: 40,
+  feedRadiusNm: 80,
   onRangeChange: () => {},
 };
 
@@ -108,5 +109,15 @@ describe("RadarScope", () => {
 
   it("plots nothing at all without a snapshot — there is no own position to measure from", () => {
     expect(collectProp(RadarScope({ ...base, snapshot: null }), "data-hex")).toEqual([]);
+  });
+
+  it("says nothing extra when the dialed-in range is within the feed's polled radius", () => {
+    const text = collectText(RadarScope({ ...base, scopeRangeNm: 40, feedRadiusNm: 80 })).join(" ");
+    expect(text).not.toContain("FEED");
+  });
+
+  it("discloses the feed radius once the scope is dialed out past it — the outer rings are unpolled, not confirmed empty", () => {
+    const text = collectText(RadarScope({ ...base, scopeRangeNm: 250, feedRadiusNm: 80 })).join(" ");
+    expect(text).toContain("FEED 80 NM");
   });
 });

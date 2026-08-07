@@ -144,6 +144,7 @@ body {
   font-family: var(--mono);
   cursor: pointer;
   border-radius: 0;
+  pointer-events: auto;
 }
 .status-chip-button:hover { background: rgba(95, 215, 224, 0.12); }
 
@@ -367,6 +368,10 @@ body {
 .gauge-peg { color: var(--amber); font-size: 9px; letter-spacing: 0.08em; }
 
 /* ---- cockpit strip: the bottom instrument shelf ---- */
+/* The strip spans the full width but its panels don't fill it (PAUSED mounts it too, spec
+   D-1/CD-006) — same rule as .end-overlay: the strip itself must not swallow the armed-resume
+   click over its empty right-hand region, so only the panels and chip buttons re-enable
+   pointer-events. */
 .dash-strip {
   position: absolute;
   left: 0;
@@ -376,12 +381,12 @@ body {
   align-items: flex-end;
   gap: 8px;
   padding: 6px 10px;
-  pointer-events: auto;
+  pointer-events: none;
   font-size: 11px;
 }
 .dash-strip-closed { justify-content: flex-start; }
 .dash-strip-hide { align-self: flex-start; }
-.dash-panel { padding: 0; }
+.dash-panel { padding: 0; pointer-events: auto; }
 .dash-panel-header {
   display: flex;
   align-items: center;
@@ -486,6 +491,14 @@ body {
   opacity: 0.55;
   font-family: var(--mono);
   font-size: 9px;
+}
+.radar-coverage-note {
+  fill: var(--amber);
+  opacity: 0.85;
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 .radar-blip { fill: var(--cyan); }
 .radar-blip-mil { fill: var(--amber); }

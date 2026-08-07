@@ -11,23 +11,25 @@ import type { HudSnapshot } from "../hud/snapshot";
 import { formatHeadingDeg } from "../hud/format";
 import { radToDeg } from "../sim/units";
 import {
-  RANGE_PRESETS_NM, SCOPE_RADIUS_PX, blipsFor, ringsFor, scopeStatus,
+  RANGE_PRESETS_NM, SCOPE_RADIUS_PX, blipsFor, coverageNote, ringsFor, scopeStatus,
 } from "./radarMath";
 
 const SIZE = SCOPE_RADIUS_PX * 2 + 16; // a little bezel outside the outer ring
 const C = SIZE / 2;
 
 export default function RadarScope({
-  snapshot, contacts, feedStatus, ghostHex, scopeRangeNm, onRangeChange,
+  snapshot, contacts, feedStatus, ghostHex, scopeRangeNm, feedRadiusNm, onRangeChange,
 }: {
   snapshot: HudSnapshot | null;
   contacts: Map<string, Contact>;
   feedStatus: FeedStatus;
   ghostHex: string | null;
   scopeRangeNm: number;
+  feedRadiusNm: number;
   onRangeChange(nm: number): void;
 }) {
   const status = scopeStatus(feedStatus);
+  const coverage = coverageNote(scopeRangeNm, feedRadiusNm);
   const ownHeadingDeg = snapshot === null ? 0 : radToDeg(snapshot.headingRad);
   const blips =
     snapshot === null
@@ -53,6 +55,12 @@ export default function RadarScope({
         ))}
         <line x1={C} y1={C - SCOPE_RADIUS_PX} x2={C} y2={C + SCOPE_RADIUS_PX} className="radar-ring" />
         <line x1={C - SCOPE_RADIUS_PX} y1={C} x2={C + SCOPE_RADIUS_PX} y2={C} className="radar-ring" />
+
+        {coverage !== null && (
+          <text x={C} y={C + SCOPE_RADIUS_PX + 6} textAnchor="middle" className="radar-coverage-note">
+            {coverage}
+          </text>
+        )}
 
         {blips.map((b) => (
           <rect
