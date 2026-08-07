@@ -14,7 +14,7 @@
  */
 import type { Contact } from "../data/types";
 import type { ClassParams, ControlVector, SimState } from "../sim/types";
-import { dragCoefficient, liftCoefficient, pistonPowerLapse, stallSpeedIasMs } from "../sim/forces";
+import { dragCoefficient, liftCoefficient, POWER_LAPSE_MODELS, stallSpeedIasMs } from "../sim/forces";
 import { iasToTas, isaDensity, tasToIas } from "../sim/isa";
 import { geodeticSurfaceNormal, geodeticToEcef } from "../sim/geo";
 import { qRotate, quatFromHpr } from "../sim/quat";
@@ -147,7 +147,8 @@ export function buildSpawnState(
   const cl = liftCoefficient(alphaTrimRad, params, flap);
   const dragN = dragCoefficient(cl, params, flap) * qBar * params.wingAreaM2;
   const thrustCapacityN =
-    (params.propulsion.propEfficiency * params.propulsion.maxPowerW * pistonPowerLapse(altitudeM)) /
+    (params.propulsion.propEfficiency * params.propulsion.maxPowerW *
+      POWER_LAPSE_MODELS[params.propulsion.lapseModel](altitudeM)) /
     Math.max(tasMs, params.propulsion.propPeakSpeedMs);
   const throttle = thrustCapacityN > 0 ? Math.min(1, Math.max(0, dragN / thrustCapacityN)) : 0;
   const trim = Math.min(

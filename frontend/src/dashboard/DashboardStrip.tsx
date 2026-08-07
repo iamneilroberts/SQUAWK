@@ -15,7 +15,8 @@ import type { Contact, FeedStatus } from "../data/types";
 import type { HudSnapshot } from "../hud/snapshot";
 import type { ClassParams } from "../sim/types";
 import type { Mode } from "../game/machine";
-import { loadC172 } from "../sim/params";
+import { loadC172, loadClassById } from "../sim/params";
+import { resolveClass } from "../takeover/eligibility";
 import { useStore } from "../state/store";
 import PanelFrame from "./PanelFrame";
 import SixPack from "./SixPack";
@@ -160,7 +161,9 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
   const feedStatus = useStore((s) => s.feedStatus);
   const origin = useStore((s) => s.origin);
   const radiusNm = useStore((s) => s.radiusNm);
-  const params = loadC172();
+  // Gauges read the flown class's params (per-class ASI face, attitude style). Falls back to the
+  // C172 before an origin is set — the strip can mount a frame before a takeover exists.
+  const params = origin ? loadClassById(resolveClass(origin.snapshot).classId) : loadC172();
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {

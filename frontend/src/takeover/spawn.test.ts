@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildSpawnState } from "./spawn";
-import { loadC172 } from "../sim/params";
+import { loadC172, loadB738 } from "../sim/params";
 import { stallSpeedIasMs } from "../sim/forces";
 import { ecefToGeodetic } from "../sim/geo";
 import { hprFromQuat } from "../sim/quat";
@@ -135,6 +135,30 @@ describe("buildSpawnState — envelope safety net", () => {
       expect(a.to.length).toBeGreaterThan(0);
       expect(a.reason.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("buildSpawnState — per-class thrust lapse (no hidden piston assumption)", () => {
+  it("trims a turbofan class using its own lapse, not the piston curve", () => {
+    const b738 = loadB738();
+    const c = { t: "A320", gs: 450, alt_geom: 35000, alt_baro: 35000, baro_rate: 0,
+      lat: 30, lon: -88, track: 90, hex: "abc", flight: "T", military: false, seen_pos: 2 } as Contact;
+    const spawn = buildSpawnState(c, b738, { terrainHeightM: null });
+    // The trimmed throttle holds level flight: re-derive drag and confirm thrust ≈ drag at spawn.
+    expect(spawn.controls.throttle).toBeGreaterThan(0);
+    expect(spawn.controls.throttle).toBeLessThanOrEqual(1);
+    expect(spawn.state.machNumber).toBeGreaterThan(0.6); // it spawned at a real cruise Mach
+  });
+
+  it("holds level with power to spare, not pinned at full throttle (the piston-lapse tell)", () => {
+    // FL350 is below the turbofan corner (11582 m), so the flat-rated turbofan gives lapse 1.0
+    // while the piston curve at that density gives ~0.22 — enough to leave the trimmed throttle
+    // pinned at the 1.0 clamp (underpowered) if spawn.ts kept the piston assumption for a jet.
+    const b738 = loadB738();
+    const c = { t: "A320", gs: 450, alt_geom: 35000, alt_baro: 35000, baro_rate: 0,
+      lat: 30, lon: -88, track: 90, hex: "abc", flight: "T", military: false, seen_pos: 2 } as Contact;
+    const spawn = buildSpawnState(c, b738, { terrainHeightM: null });
+    expect(spawn.controls.throttle).toBeLessThan(1);
   });
 });
 

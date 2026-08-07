@@ -12,7 +12,8 @@ import { useStore } from "../state/store";
 import type { GameEvent } from "./machine";
 import { useViewer } from "../globe/viewerContext";
 import { attributionFor } from "../globe/mapSources";
-import { loadC172 } from "../sim/params";
+import { loadClassById } from "../sim/params";
+import { resolveClass } from "../takeover/eligibility";
 import { buildSpawnState, type SpawnResult } from "../takeover/spawn";
 import { resyncDecision } from "../takeover/resync";
 import { createTerrainService, type TerrainService } from "../world/terrain";
@@ -109,8 +110,11 @@ export default function FlightSession() {
     // SAME one the flight loop reads from for the rest of the flight — it must not be
     // disposed then, only when this instance's own countdown never got to start one.
     let flightStarted = false;
-    const params = loadC172();
     const contact = origin.snapshot;
+    // The flight model is inferred from the REAL feed type (spec §4): a real airliner flies the
+    // 737 model, a real fast-jet the F-5E, everything else the C172 default. The substitution is
+    // disclosed on the handoff card, never silently swapped — data, not a per-class code branch.
+    const params = loadClassById(resolveClass(contact).classId);
     setNote("ACQUIRING TERRAIN…");
 
     void (async () => {
@@ -221,9 +225,13 @@ export default function FlightSession() {
       const st = useStore.getState();
       const flown = st.origin;
       if (!flown || st.mode !== "FLYING") return;
-      const decision = resyncDecision(st.contacts.get(flown.hex), loadC172(), {
-        terrainHeightM: null,
-      });
+      // Re-sync keeps the class the player took over (resolved from the origin snapshot, not the
+      // live contact) so a jet re-syncs as a jet — the flight model must not flip mid-flight.
+      const decision = resyncDecision(
+        st.contacts.get(flown.hex),
+        loadClassById(resolveClass(flown.snapshot).classId),
+        { terrainHeightM: null },
+      );
       if (resyncTimerRef.current) clearTimeout(resyncTimerRef.current);
       if (decision.ok) {
         loopRef.current?.resync(decision.spawn);
@@ -335,10 +343,15 @@ export default function FlightSession() {
 
   if (mode === "BROWSE") return null;
 
+  // The card discloses the substitution from the SAME resolver the countdown uses to load params.
+  const originResolution = origin ? resolveClass(origin.snapshot) : null;
+  const originParams = originResolution ? loadClassById(originResolution.classId) : null;
+
   return (
     <>
       {mode === "COUNTDOWN" && origin && (
-        <HandoffCard contact={origin.snapshot} spawn={spawn} countdown={countdown} note={note} />
+        <HandoffCard contact={origin.snapshot} spawn={spawn} params={originParams}
+          matched={originResolution?.matched ?? false} countdown={countdown} note={note} />
       )}
       {stripMountedForMode(mode) && (
         <>

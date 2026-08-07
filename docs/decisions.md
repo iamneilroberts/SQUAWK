@@ -727,3 +727,25 @@ speed placards (`vne`/`vno`/`vfe`, display-only) are likewise subsonic-capped TU
 sim caps at Mmo before those IAS values are reached. The service ceiling (15,700 m) sits above the
 shared turbofan corner (FL380, AF-002) but no envelope test reaches it (airborne-spawn sim; no
 ceiling-hang test), so the shared corner is inert for the F-5E — validated, not re-tuned.
+
+## 2026-08-07 — AF-007 · class threads from the real feed type through every takeover path
+
+Task 10 (capstone) wires the Task 9 resolver into the takeover so a real airliner/fighter
+actually flies its own class. `FlightSession` and `DashboardStrip` now load params via
+`loadClassById(resolveClass(contact).classId)` instead of hard-loading the C172, and the
+handoff card discloses the substitution with `disclosureLine` (`<REAL TYPE> → <MODEL>`, a `—`
+for a missing type, `(NO MATCHING CLASS)` for an unmatched one) in place of the hardcoded
+"C172 MODEL THIS BUILD". `takeover/spawn.ts` no longer hard-codes `pistonPowerLapse` — it trims
+through `POWER_LAPSE_MODELS[params.propulsion.lapseModel]`, so a jet spawns on its own turbofan
+curve, not an invisible piston assumption (a b738 at FL350 previously pinned to the throttle
+clamp; the given brief test could not see this because the clamp keeps throttle in (0,1], so a
+`throttle < 1` broken-arm assertion was added alongside the verbatim test).
+
+Two edits beyond the brief's literal enumerated list, kept in scope because the task's own
+self-review requires the class to thread end-to-end and never flip mid-flight:
+(1) the KeyR **re-sync** path (`FlightSession`, was `loadC172()`) now resolves the class from the
+**origin snapshot**, so a jet re-syncs as a jet — class is fixed at takeover, not re-inferred from
+the live contact; (2) `DashboardStrip`'s gauge params resolve from `origin` (with the C172 kept as
+the pre-origin mount fallback). No per-class `if` branch enters the physics or the gauges — the
+difference is entirely `resolveClass` + data (data-not-branches). The SIM banner, amber accent,
+`SIM-<hex>` callsign and the ghost are untouched.

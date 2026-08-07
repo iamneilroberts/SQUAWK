@@ -4,8 +4,10 @@
  * list is printed verbatim from buildSpawnState — clamping is legal, silent clamping is not.
  */
 import type { Contact } from "../data/types";
+import type { ClassParams } from "../sim/types";
 import type { SpawnResult } from "../takeover/spawn";
-import { formatCallsign, formatHeadingDeg } from "../hud/format";
+import { disclosureLine } from "../takeover/eligibility";
+import { EM_DASH, formatCallsign, formatHeadingDeg } from "../hud/format";
 import { mToFt, msToKt } from "../sim/units";
 import { hprFromQuat } from "../sim/quat";
 
@@ -21,11 +23,15 @@ function Row({ label, value }: { label: string; value: string }) {
 export default function HandoffCard({
   contact,
   spawn,
+  params,
+  matched,
   countdown,
   note,
 }: {
   contact: Contact;
   spawn: SpawnResult | null;
+  params: ClassParams | null;
+  matched: boolean;
   countdown: number | null;
   note: string;
 }) {
@@ -50,9 +56,9 @@ export default function HandoffCard({
       <Row label="CALLSIGN" value={formatCallsign(contact.hex)} />
 
       <div className="handoff-disclosure">
-        FLYING THE {spawn === null ? "—" : "C172 MODEL THIS BUILD"} · GROUND SPEED IS USED AS
-        TRUE AIRSPEED (STILL AIR) · ALTITUDE FROM{" "}
-        {spawn === null ? "—" : spawn.altitudeSource === "alt_geom" ? "ALT_GEOM" : "ALT_BARO"}
+        FLYING THE {spawn === null || params === null ? EM_DASH : disclosureLine(contact, params, matched)} ·
+        GROUND SPEED IS USED AS TRUE AIRSPEED (STILL AIR) · ALTITUDE FROM{" "}
+        {spawn === null ? EM_DASH : spawn.altitudeSource === "alt_geom" ? "ALT_GEOM" : "ALT_BARO"}
       </div>
 
       <div className="label handoff-title">ADJUSTMENTS</div>
