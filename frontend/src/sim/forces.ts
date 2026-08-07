@@ -97,13 +97,19 @@ export function pistonPowerLapse(altitudeM: number): number {
  * out), then loses thrust with density in the stratosphere. Modelled as: 1.0 up to
  * TURBOFAN_CORNER_M, then (sigma/sigma_corner)^TURBOFAN_LAPSE_EXP above it.
  *
- * TUNING KNOBS (pinned by the b738 cruise envelope test, Task 7): the corner altitude and the
- * exponent. FL360 corner keeps full rated thrust available at the 737's FL350 cruise; exponent
- * 1.0 makes stratospheric thrust track density (T ∝ rho), the standard first-order jet model.
- * One shared curve for both jets in v1 (both are flat-rated turbofans); per-jet parameterisation
- * is deferred (spec §2.1) unless an envelope test demands it.
+ * TUNING KNOBS (pinned by the b738 envelope tests, Task 7): the corner altitude and the exponent.
+ * FL380 corner keeps full rated thrust available at the 737's FL350 cruise (FL350 < corner, so
+ * cruise Mach is immune to these two knobs) while still lapsing enough above it that the FL410
+ * service ceiling is a real ceiling — full-throttle best climb there measures ~190 fpm (barely
+ * climbing) with this corner; at the tropopause-height FL360 corner it was -52 fpm (no ceiling at
+ * all, the model could not reach FL410). The flat-rated CFM56 holds close to rated thrust a little
+ * way into the lower stratosphere before the density falloff dominates, so a corner just above the
+ * 11000 m tropopause is honest. Exponent 1.0 makes stratospheric thrust track density (T ∝ rho),
+ * the standard first-order jet model, and is left at that textbook value. One shared curve for both
+ * jets in v1 (both are flat-rated turbofans); per-jet parameterisation is deferred (spec §2.1)
+ * unless the fighter's envelope (Task 8) demands it.
  */
-export const TURBOFAN_CORNER_M = 10972; // FL360
+export const TURBOFAN_CORNER_M = 11582; // FL380
 export const TURBOFAN_LAPSE_EXP = 1.0;
 
 export function turbofanPowerLapse(altitudeM: number): number {

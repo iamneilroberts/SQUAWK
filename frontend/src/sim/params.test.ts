@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateClassParams, loadC172 } from "./params";
+import { validateClassParams, loadC172, loadB738 } from "./params";
 import { msToKt } from "./units";
 import c172Raw from "../params/c172.json";
 
@@ -26,6 +26,33 @@ describe("loadC172", () => {
   });
   it("documents every tuning knob in sources", () => {
     const text = JSON.stringify(loadC172().sources);
+    expect(text).toContain("TUNING KNOB");
+  });
+});
+
+describe("loadB738", () => {
+  it("loads and validates the shipped 737-800 file", () => {
+    const p = loadB738();
+    expect(p.id).toBe("b738");
+    expect(p.label).toBe("B738");
+    expect(p.modelNote).toBe("737-800 MODEL");
+    expect(p.propulsion.lapseModel).toBe("turbofan");
+    expect(p.propulsion.afterburnerFactor).toBe(1.0);
+    expect(p.limits.mmo).toBeCloseTo(0.82, 2);
+    expect(p.limits.gLimitPos).toBe(2.5);
+    expect(p.limits.gLimitNeg).toBe(-1.0);
+    expect(p.display.attitudeStyle).toBe("ball");
+    expect(p.display.asiMinKt).toBe(60);
+    expect(p.display.asiMaxKt).toBe(400);
+    expect(p.gear).toBe("retractable");
+    expect(p.flaps.map((f) => f.label)).toEqual(["0", "1", "2", "5", "10", "15", "25", "30", "40"]);
+  });
+  it("has an aspect ratio consistent with its span and area", () => {
+    const p = loadB738();
+    expect(p.aspectRatio).toBeCloseTo((p.wingSpanM * p.wingSpanM) / p.wingAreaM2, 1);
+  });
+  it("documents every tuning knob in sources", () => {
+    const text = JSON.stringify(loadB738().sources);
     expect(text).toContain("TUNING KNOB");
   });
 });

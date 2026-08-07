@@ -192,7 +192,9 @@ describe("turbofan power lapse", () => {
     expect(turbofanPowerLapse(ftToM(30000))).toBeCloseTo(1, 6);
   });
   it("falls below 1 above the corner and is monotone decreasing there", () => {
-    const a = turbofanPowerLapse(ftToM(37000));
+    // Corner is FL380 (TURBOFAN_CORNER_M, retuned in Task 7 against the 737 FL410 service
+    // ceiling), so both sample altitudes are above it.
+    const a = turbofanPowerLapse(ftToM(39000));
     const b = turbofanPowerLapse(ftToM(41000));
     expect(a).toBeLessThan(1);
     expect(b).toBeLessThan(a);

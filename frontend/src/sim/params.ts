@@ -5,6 +5,7 @@
  */
 import type { ClassParams, FlapDetent, LapseModel } from "./types";
 import c172Raw from "../params/c172.json";
+import b738Raw from "../params/b738.json";
 
 function asRecord(value: unknown, path: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -159,8 +160,16 @@ export function validateClassParams(raw: unknown): ClassParams {
 
 let cached: ClassParams | null = null;
 
-/** The only class parameter set this phase (owner decision B-2). */
+/** The C172S piston class. */
 export function loadC172(): ClassParams {
   if (cached === null) cached = validateClassParams(c172Raw);
   return cached;
+}
+
+let cachedB738: ClassParams | null = null;
+
+/** The 737-800 airliner class (own cache; validated through the same shared validator). */
+export function loadB738(): ClassParams {
+  if (cachedB738 === null) cachedB738 = validateClassParams(b738Raw);
+  return cachedB738;
 }

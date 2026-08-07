@@ -668,3 +668,33 @@ garish blue/brown), `.gauge-adi-horizon`/`.gauge-adi-bank-major` reuse `--cyan`,
 `.gauge-adi-bank` reuses `--grid`, `.gauge-adi-pointer` reuses `--amber`. No shadows, no
 gradients, no new literals in `tokens.css`. `SixPack.tsx` stays hook-free; `gaugeMath.ts` stays
 React/Cesium-free.
+
+## 2026-08-07 — AF-002 · one shared turbofan lapse curve for both jets
+
+Task 7 (b738) ships the 737-800 through the SAME 6-DOF force model as the C172 — no
+`if (class === …)`. The turbofan's density-altitude thrust lapse is DATA (`propulsion.lapseModel:
+"turbofan"`, selected at load time, validator-rejected if unknown), and the curve itself is one
+shared function `turbofanPowerLapse` in `forces.ts` with two module-level TUNING KNOBS:
+`TURBOFAN_CORNER_M` (flat-rated corner) and `TURBOFAN_LAPSE_EXP` (stratospheric falloff). Both
+jets in v1 (737 now, F-5E in Task 8) are flat-rated turbofans, so a single curve serves both;
+per-jet parameterisation stays deferred (spec §2.1) unless the fighter's envelope demands it.
+
+Task 7 retuned the corner from FL360 (tropopause, seeded in Task 2) to **FL380 (11582 m)**,
+pinned by the 737's FL410 service-ceiling envelope test: at the FL360 corner full-throttle best
+climb at FL410 was **-52 fpm** (no ceiling at all — the model could not reach FL410); at FL380 it
+is **~190 fpm** (barely climbing, a real ceiling). FL350 cruise is below the corner, so cruise
+Mach is immune to this knob. The exponent stays at the textbook **1.0** (stratospheric thrust
+tracks density, T ∝ ρ). C172 is piston-lapse and unaffected; its envelope suite stayed green.
+
+## 2026-08-07 — AF-004a · flat turbofan thrust via a high propPeakSpeedMs, no jet branch
+
+The shared thrust formula is the power-limited prop `T = η·P / max(V, propPeakSpeedMs)` for ALL
+classes. A flat-rated turbofan (constant thrust with speed) is expressed — WITHOUT a jet code
+path — by setting `propPeakSpeedMs` (260 m/s) ABOVE the aircraft's max cruise TAS, so the
+`max(V, peak)` denominator is always `peak` and thrust collapses to the constant `η·P/260`.
+`maxPowerW` (13.7 MW) is then a fictitious "power" chosen so `η·P/260 = 0.85·13.7e6/260 ≈ 44.8 kN`
+lands on a realistic 737 cruise/climb thrust — NOT the ~2×107 kN static takeoff thrust (a
+constant-thrust formula cannot represent both, and the sim spawns airborne, so cruise thrust is
+what matters). Pinned by the FL350 cruise test: 85% throttle trims level at **M0.7785** (target
+M0.78). `afterburnerFactor` 1.0 (no reheat). Recorded so the "power" and "prop peak speed" fields
+in `b738.json` are not read as literal turbofan physical quantities.
