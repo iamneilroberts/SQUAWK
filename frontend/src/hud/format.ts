@@ -53,6 +53,17 @@ export function formatThrottlePct(t: number | null): string {
   return dash(t) ? EM_DASH : `${Math.round(t * 100)}%`;
 }
 
+/**
+ * Elevator trim as a signed nose-up/down percentage of full authority. Trim is [-1, 1] with
+ * positive = nose-up (Period key, spec KEYMAP); centre reads NEUTRAL rather than "0%".
+ */
+export function formatTrim(t: number | null): string {
+  if (dash(t)) return EM_DASH;
+  const pct = Math.round(Math.abs(t) * 100);
+  if (pct === 0) return "NEUTRAL";
+  return t > 0 ? `NOSE UP ${pct}%` : `NOSE DN ${pct}%`;
+}
+
 export function formatFlaps(label: string | null): string {
   return `FLAPS ${label ?? EM_DASH}`;
 }

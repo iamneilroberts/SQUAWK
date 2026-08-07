@@ -19,6 +19,7 @@ import { loadC172 } from "../sim/params";
 import { useStore } from "../state/store";
 import PanelFrame from "./PanelFrame";
 import SixPack from "./SixPack";
+import ControlState from "./ControlState";
 import RadarScope from "./RadarScope";
 import { DEFAULT_RANGE_NM } from "./radarMath";
 import WeatherPanel from "./WeatherPanel";
@@ -115,6 +116,7 @@ export function DashboardStripBody({
       <PanelFrame title="INSTRUMENTS" collapsed={state.collapsed.gauges}
         onToggle={() => onTogglePanel("gauges")}>
         <SixPack snapshot={snapshot} params={params} />
+        <ControlState snapshot={snapshot} />
       </PanelFrame>
 
       <PanelFrame title="RADAR" collapsed={state.collapsed.radar}

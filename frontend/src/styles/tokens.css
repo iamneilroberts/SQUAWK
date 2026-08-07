@@ -375,6 +375,21 @@ body {
 .gauge-digits { color: var(--cyan); font-size: 12px; letter-spacing: 0.06em; }
 .gauge-peg { color: var(--amber); font-size: 9px; letter-spacing: 0.08em; }
 
+/* Issue #7: control-state readout under the six-pack — THR / FLAPS / TRIM / GEAR. */
+.control-state {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--grid);
+}
+.control-state-item {
+  color: var(--cyan);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
 /* ---- cockpit strip: the bottom instrument shelf ---- */
 /* The strip spans the full width but its panels don't fill it (PAUSED mounts it too, spec
    D-1/CD-006) — same rule as .end-overlay: the strip itself must not swallow the armed-resume

@@ -225,6 +225,17 @@ describe("flight loop snapshots", () => {
     expect(s.gear).toBe("fixed");
     loop.stop();
   });
+  it("publishes the sampled trim so the cockpit control-state readout has a source (issue #7)", () => {
+    const { loop, host, snaps, spawn } = makeLoop();
+    loop.start();
+    host.frame(1000);
+    host.frame(1200);
+    const s = snaps[snaps.length - 1];
+    expect(Number.isFinite(s.trim)).toBe(true);
+    // The spawn hands over a trimmed aircraft; left alone for two frames trim is unchanged.
+    expect(s.trim).toBeCloseTo(spawn.controls.trim, 9);
+    loop.stop();
+  });
   it("reports overspeed against Vne and terrain clearance against the sampled ground", () => {
     const { loop, host, snaps } = makeLoop({ groundHeight: 500 });
     loop.start();

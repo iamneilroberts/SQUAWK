@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   EM_DASH, TERRAIN_WARNING_FT, SIM_RATE_WARNING,
   formatIasKt, formatTasKt, formatAltFt, formatVsiFpm, formatHeadingDeg, formatAoaDeg,
-  formatG, formatThrottlePct, formatFlaps, formatGear, formatClearanceFt, formatAirtime,
-  formatSimRate, formatCallsign, formatClass, warningsFor,
+  formatG, formatThrottlePct, formatTrim, formatFlaps, formatGear, formatClearanceFt,
+  formatAirtime, formatSimRate, formatCallsign, formatClass, warningsFor,
 } from "./format";
 import { ktToMs, ftToM, fpmToMs, degToRad } from "../sim/units";
 import type { HudSnapshot } from "./snapshot";
@@ -14,7 +14,7 @@ const snap = (o: Partial<HudSnapshot> = {}): HudSnapshot => ({
   pitchRad: 0, rollRad: 0, turnRateRadS: 0, sideslipRad: 0,
   latDeg: 30.6944, lonDeg: -88.0399,
   aoaRad: degToRad(3), loadFactor: 1,
-  throttle: 0.6, flapLabel: "0", gear: "fixed", stalled: false, overspeed: false,
+  throttle: 0.6, trim: 0, flapLabel: "0", gear: "fixed", stalled: false, overspeed: false,
   gLimited: false, terrainClearanceM: ftToM(2000), terrainUnverified: false,
   simRate: 1, airtimeS: 0, classLabel: "C172S", callsign: "SIM-A1B2C3",
   modelNote: "C172 MODEL THIS BUILD",
@@ -96,6 +96,13 @@ describe("the rest of the readouts", () => {
     expect(formatFlaps(null)).toBe(`FLAPS ${EM_DASH}`);
     expect(formatGear("fixed")).toBe("GEAR FIXED");
     expect(formatGear("retractable")).toBe("GEAR DOWN");
+  });
+  it("trim reads as a signed nose-up/down percentage, neutral at centre (issue #7)", () => {
+    expect(formatTrim(0)).toBe("NEUTRAL");
+    expect(formatTrim(0.25)).toBe("NOSE UP 25%");
+    expect(formatTrim(-0.4)).toBe("NOSE DN 40%");
+    expect(formatTrim(1)).toBe("NOSE UP 100%");
+    expect(formatTrim(null)).toBe(EM_DASH);
   });
   it("terrain clearance is whole feet, em-dashed when the ground is unknown", () => {
     expect(formatClearanceFt(ftToM(1240))).toBe("1240");

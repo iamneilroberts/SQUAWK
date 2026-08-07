@@ -90,6 +90,7 @@ export function createFlightLoop(deps: FlightLoopDeps) {
       aoaRad: state.aoaRad,
       loadFactor: state.loadFactor,
       throttle: controls.throttle,
+      trim: controls.trim,
       flapLabel: params.flaps[controls.flapDetent].label,
       gear: params.gear,
       stalled: state.stalled,

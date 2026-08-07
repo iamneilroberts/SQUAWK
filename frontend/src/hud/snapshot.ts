@@ -31,6 +31,8 @@ export type HudSnapshot = {
   aoaRad: number;
   loadFactor: number;
   throttle: number;
+  /** Elevator trim, [-1, 1], positive = nose-up. Drives the cockpit control-state readout. */
+  trim: number;
   flapLabel: string;
   gear: "fixed" | "retractable";
   stalled: boolean;

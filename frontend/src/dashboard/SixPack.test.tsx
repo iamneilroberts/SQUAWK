@@ -11,7 +11,7 @@ const snap = (o: Partial<HudSnapshot> = {}): HudSnapshot => ({
   iasMs: ktToMs(100), tasMs: ktToMs(110), altitudeM: ftToM(3500),
   verticalSpeedMs: 0, headingRad: degToRad(270), pitchRad: 0, rollRad: 0,
   turnRateRadS: 0, sideslipRad: 0, latDeg: 30.6944, lonDeg: -88.0399,
-  aoaRad: degToRad(3), loadFactor: 1, throttle: 0.6, flapLabel: "0", gear: "fixed",
+  aoaRad: degToRad(3), loadFactor: 1, throttle: 0.6, trim: 0, flapLabel: "0", gear: "fixed",
   stalled: false, overspeed: false, gLimited: false, terrainClearanceM: ftToM(2000),
   terrainUnverified: false, simRate: 1, airtimeS: 0, classLabel: "C172S",
   callsign: "SIM-A1B2C3", modelNote: "C172 MODEL THIS BUILD",
