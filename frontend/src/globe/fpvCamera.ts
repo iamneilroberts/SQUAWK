@@ -18,9 +18,17 @@ import { Cartesian3, PerspectiveFrustum, type Viewer } from "cesium";
 import type { SimState, Vec3 } from "../sim/types";
 import { hprFromQuat, qRotate } from "../sim/quat";
 import { vAdd } from "../sim/vec3";
+import { ZERO_LOOK, type LookOffset } from "./lookAround";
 
 /** Eye point relative to the CG in body axes: 0.8 m forward, 0.6 m up (z is down). */
 export const EYE_OFFSET_BODY_M: Vec3 = { x: 0.8, y: 0, z: -0.6 };
+
+/** Final camera pitch is clamped just shy of the poles so a look-up never hits the singularity. */
+const MAX_CAMERA_PITCH_RAD = (89 * Math.PI) / 180;
+
+function clamp(v: number, lo: number, hi: number): number {
+  return v < lo ? lo : v > hi ? hi : v;
+}
 
 /**
  * First-order low-pass coefficient for a given cutoff and frame time. Derived from the
@@ -62,7 +70,7 @@ export function createFpvCamera(viewer: Viewer, cutoffHz = 8) {
       }
       primed = false;
     },
-    update(state: SimState, dtS: number) {
+    update(state: SimState, dtS: number, look: LookOffset = ZERO_LOOK) {
       const target = hprFromQuat(state.attitude, state.position);
       if (!primed) {
         heading = target.headingRad;
@@ -78,9 +86,16 @@ export function createFpvCamera(viewer: Viewer, cutoffHz = 8) {
       // Eye point uses the RAW attitude so the offset stays attached to the airframe;
       // only the look direction is filtered.
       const eye = vAdd(state.position, qRotate(state.attitude, EYE_OFFSET_BODY_M));
+      // Free-look (issue #9) layers a yaw/pitch offset on top of the filtered cockpit
+      // orientation; roll is untouched. A zero offset reproduces the pre-free-look view
+      // exactly (heading + 0, pitch already within the clamp), which is the regression guard.
       viewer.camera.setView({
         destination: new Cartesian3(eye.x, eye.y, eye.z),
-        orientation: { heading, pitch, roll },
+        orientation: {
+          heading: heading + look.yawRad,
+          pitch: clamp(pitch + look.pitchRad, -MAX_CAMERA_PITCH_RAD, MAX_CAMERA_PITCH_RAD),
+          roll,
+        },
       });
     },
     exit() {

@@ -10,6 +10,7 @@ import { degToRad, radToDeg } from "../sim/units";
 import { loadC172 } from "../sim/params";
 import { buildSpawnState } from "../takeover/spawn";
 import { hprFromQuat } from "../sim/quat";
+import { ZERO_LOOK } from "./lookAround";
 import { vLength, vSub } from "../sim/vec3";
 import type { SimState } from "../sim/types";
 import type { Contact } from "../data/types";
@@ -198,5 +199,69 @@ describe("fpv camera update", () => {
     const offsetM = vLength(vSub(views[0].destination, s.position));
     expect(offsetM).toBeGreaterThan(0.5);
     expect(offsetM).toBeCloseTo(vLength(EYE_OFFSET_BODY_M), 6); // rotation preserves length
+  });
+});
+
+describe("fpv camera look offset (issue #9)", () => {
+  const s = stateHeading(30);
+
+  it("REGRESSION GUARD: an absent offset reproduces today's orientation exactly", () => {
+    // The whole safety claim of this feature: with no look offset the camera is byte-identical
+    // to before it existed. The first update snaps to the raw attitude, so this is that value.
+    const { viewer, views } = fakeViewer();
+    const camera = createFpvCamera(viewer);
+    camera.enter();
+    camera.update(s, 1 / 60);
+    const target = hprFromQuat(s.attitude, s.position);
+    expect(views[0].orientation.heading).toBe(target.headingRad);
+    expect(views[0].orientation.pitch).toBe(target.pitchRad);
+    expect(views[0].orientation.roll).toBe(target.rollRad);
+  });
+
+  it("a passed-in ZERO_LOOK is identical to passing nothing", () => {
+    const base = fakeViewer();
+    const camB = createFpvCamera(base.viewer);
+    camB.enter();
+    camB.update(s, 1 / 60);
+
+    const withZero = fakeViewer();
+    const camZ = createFpvCamera(withZero.viewer);
+    camZ.enter();
+    camZ.update(s, 1 / 60, ZERO_LOOK);
+
+    expect(withZero.views[0].orientation).toEqual(base.views[0].orientation);
+  });
+
+  it("BROKEN-ARM: a non-zero offset shifts heading and pitch by exactly the offset, roll untouched", () => {
+    // A camera that ignored the offset (the no-op bug) would produce the zero-offset orientation
+    // here and fail. The offset must land on the view, and land by the exact amount.
+    const off = fakeViewer();
+    const camOff = createFpvCamera(off.viewer);
+    camOff.enter();
+    camOff.update(s, 1 / 60);
+    const zero = off.views[0].orientation;
+
+    const on = fakeViewer();
+    const camOn = createFpvCamera(on.viewer);
+    camOn.enter();
+    const look = { yawRad: 0.7, pitchRad: 0.2 };
+    camOn.update(s, 1 / 60, look);
+    const shifted = on.views[0].orientation;
+
+    expect(shifted.heading).not.toBeCloseTo(zero.heading, 6);
+    expect(shifted.heading).toBeCloseTo(zero.heading + look.yawRad, 9);
+    expect(shifted.pitch).toBeCloseTo(zero.pitch + look.pitchRad, 9);
+    expect(shifted.roll).toBe(zero.roll);
+  });
+
+  it("clamps the FINAL camera pitch so a big look-up plus a nose-high attitude can't hit the pole", () => {
+    // filtered pitch is small here; add far more than a quarter turn of look-up and the summed
+    // pitch must saturate just under 90 deg rather than passing through the singularity.
+    const { viewer, views } = fakeViewer();
+    const camera = createFpvCamera(viewer);
+    camera.enter();
+    camera.update(s, 1 / 60, { yawRad: 0, pitchRad: 10 });
+    expect(views[0].orientation.pitch).toBeLessThan(Math.PI / 2);
+    expect(views[0].orientation.pitch).toBeGreaterThan(0);
   });
 });
