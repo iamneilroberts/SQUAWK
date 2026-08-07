@@ -33,3 +33,12 @@ LORAN visual language · no new deps (SVG/canvas hand-rolled) · no jsdom (pure 
 ## 5. Acceptance sketch
 
 Fly the C172: six-pack needles track HUD numbers (AI horizon matches the real horizon); a live contact crossing the windscreen gets a tag; clicking it opens the detail card with real feed + adsbdb data; radar shows the same traffic at the selected range; weather/ATC panels show honest FUTURE states; `?` (or button) toggles controls help; every panel collapses; browse mode unaffected.
+
+## 6. Addendum (owner, 2026-08-07): labels + light basemap
+
+| # | Decision |
+|---|---|
+| D-7 | **Place/airport names toggle**: Esri "World Boundaries & Places" keyless reference layer for place names + bundled OurAirports public-domain extract for airport names/idents (LORAN-styled Cesium labels, declutter by camera height). Off by default; toggle in the status bar/dashboard. Attribution appended when active. |
+| D-8 | **Alternative basemap toggle for low load**: `SAT` (Esri World Imagery, current) ↔ `CHART` (Esri Dark Gray Canvas, keyless — lighter tiles, LORAN-compatible dark look). Imagery layer swap only; terrain unchanged. Attribution line follows the active basemap. Honest fallback rules unchanged. |
+
+Both are real data sources (no synthesis); both toggles live with the radius chip's pattern.
