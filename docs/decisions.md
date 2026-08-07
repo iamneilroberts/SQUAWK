@@ -436,3 +436,35 @@ residue" rule the whole session teardown already follows. Pinned by a test in Ta
 The two cockpit keys (`KeyC` strip, `Slash` help) are in `KEYMAP` even though the control sampler
 never reads them — `ControlsHelp` renders from `KEYMAP`, and a key documented in two places is a
 key that will eventually be documented wrongly in one of them.
+
+## 2026-08-07 — CD-007 · Windscreen tags are DOM over the canvas, projected at snapshot cadence
+
+Tags are absolutely-positioned DOM elements over the Cesium canvas, not Cesium billboards or
+labels. Three reasons: a click is then an ordinary React `onClick` (no second picking path
+alongside `ViewerHost`'s BROWSE-only handler); the LORAN card styling is CSS the app already has;
+and the whole selection rule stays in a pure module. The Cesium half is one function —
+`SceneTransforms.worldToWindowCoordinates` plus a front-of-camera dot product — in
+`globe/TrafficOverlay.tsx`.
+
+**Cadence:** tags recompute when the ~10 Hz snapshot changes identity or the contact map changes,
+not per rendered frame. A fast camera slew can therefore drag its tags by up to 100 ms. That is
+the accepted price of keeping React out of the render loop, which is the same rule the HUD has
+followed since Phase B.
+
+**Known limitation:** no terrain occlusion test. A contact behind a ridge inside the 40 NM tag
+range still gets a tag. The fix (an `EllipsoidalOccluder` plus a terrain-height ray) is real work
+for a small honesty gain — the tag is not claiming line of sight — so it is recorded here rather
+than silently missing. `globe/TrafficOverlay.tsx` itself is untested (it needs a live `Scene`);
+everything it decides beyond projection is in `dashboard/trafficProjection.ts`, which has 16.
+
+**Deviation from the task skeleton:** the tag markup lives in `dashboard/TrafficTags.tsx`, not
+inside `TrafficOverlay.tsx`. Splitting the presentational half into `dashboard/` is what lets it
+be tested at all (the overlay's half needs a live `Scene`), and it is what makes "thin adapter"
+checkable rather than aspirational.
+
+**Test-fixture fix:** the task brief's own `trafficProjection.test.ts` "orders tags nearest
+first" case originally projected both contacts to the identical screen point via the shared
+`at(x, y)` helper, which collided under `TAG_MIN_SPACING_PX` and made the declutter rule (its own
+dedicated test, further down the same file) drop the far tag before ordering could be observed.
+Fixed by giving the two contacts distinct screen positions in that one test; the implementation
+in `trafficProjection.ts` is unchanged from the brief.

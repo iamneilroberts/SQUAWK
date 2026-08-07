@@ -437,3 +437,41 @@ body {
   border-radius: 0;
 }
 .controls-help-action { color: var(--text); opacity: 0.8; }
+
+/* ---- windscreen traffic tags ---- */
+.traffic-tag {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  border: 1px solid var(--grid);
+  border-left: 1px solid var(--cyan);
+  background: rgba(5, 7, 10, 0.62);
+  color: var(--cyan);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  padding: 2px 5px;
+  cursor: pointer;
+  pointer-events: auto;
+  border-radius: 0;
+}
+.traffic-tag:hover { background: rgba(95, 215, 224, 0.16); }
+.traffic-tag-label { font-size: 10px; }
+.traffic-tag-line { color: var(--text); opacity: 0.75; }
+.traffic-tag-mil { color: var(--amber); border-left-color: var(--amber); }
+.traffic-tag-ghost { opacity: 0.55; border-left-style: dashed; }
+.traffic-overlay { position: absolute; inset: 0; pointer-events: none; }
+.traffic-card {
+  position: absolute;
+  top: 64px;
+  right: 16px;
+  width: 300px;
+  max-height: 70%;
+  overflow-y: auto;
+  padding: 10px 12px;
+  font-size: 11px;
+  pointer-events: auto;
+}

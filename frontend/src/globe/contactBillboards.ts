@@ -26,21 +26,17 @@
 import { Billboard, BillboardCollection, Cartesian3, Color } from "cesium";
 import type { Contact } from "../data/types";
 import { contactColor, contactRotationRad, makeChevronCanvas } from "./icons";
-import { ftToM } from "../sim/units";
+import { contactHeightM } from "../data/contactGeo";
 
 /** Ghost billboards are dimmed, not hidden — the real aircraft is still real. */
 export const GHOST_ALPHA = 0.35;
 
 /**
- * Height for a contact's billboard, in metres above the ellipsoid. `alt_geom` only:
- * it is WGS84-ellipsoidal, the same datum as the terrain, so a contact placed with it sits
- * where it actually is. `alt_baro` is pressure altitude and would put aircraft at the wrong
- * height over real relief, so a contact without alt_geom is not drawn on the globe at all
- * (it still appears in the contact list, with its baro altitude, honestly labelled).
+ * Re-exported so the globe layer still has one import for everything billboard-shaped. It now
+ * LIVES in data/contactGeo.ts, which is Cesium-free, because dashboard/trafficProjection.ts
+ * applies the same datum rule and must not import a module that pulls in Cesium.
  */
-export function contactHeightM(c: Contact): number | null {
-  return c.alt_geom === null ? null : ftToM(c.alt_geom);
-}
+export { contactHeightM } from "../data/contactGeo";
 
 /** The subset of contacts that can be placed in 3D. */
 export function renderableContacts(contacts: Map<string, Contact>): Map<string, Contact> {

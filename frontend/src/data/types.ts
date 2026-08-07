@@ -14,3 +14,10 @@ export type Contact = {
 };
 
 export type FeedStatus = "live" | "stale" | "offline";
+
+/** adsbdb enrichment, proxied through the backend's /api/type/{hex}. Any field may be null. */
+export type TypeInfo = {
+  type: string | null;
+  manufacturer: string | null;
+  registration: string | null;
+};

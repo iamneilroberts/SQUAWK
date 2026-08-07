@@ -23,6 +23,8 @@ import { hudSnapshot } from "../hud/snapshot";
 import { formatCallsign } from "../hud/format";
 import Hud from "../hud/Hud";
 import DashboardStrip from "../dashboard/DashboardStrip";
+import TrafficOverlay from "../globe/TrafficOverlay";
+import TrafficDetailCard from "../dashboard/TrafficDetailCard";
 import HandoffCard from "../panels/HandoffCard";
 import PauseOverlay from "../panels/PauseOverlay";
 import EndCard from "../panels/EndCard";
@@ -42,6 +44,8 @@ export default function FlightSession() {
   const [note, setNote] = useState("");
   /** RESUME pressed, waiting for the canvas click that spec §6 requires. */
   const [resumeArmed, setResumeArmed] = useState(false);
+  /** Hex of the windscreen tag the player clicked, or null when no detail card is open. */
+  const [trafficHex, setTrafficHex] = useState<string | null>(null);
 
   const loopRef = useRef<ReturnType<typeof createFlightLoop> | null>(null);
   const keyboardRef = useRef<ReturnType<typeof createKeyboard> | null>(null);
@@ -61,6 +65,7 @@ export default function FlightSession() {
     setCountdown(null);
     setNote("");
     setResumeArmed(false);
+    setTrafficHex(null);
   }
 
   /**
@@ -228,6 +233,17 @@ export default function FlightSession() {
         <>
           <Hud snapshot={snapshot} terrainNote={bundle?.terrainNote ?? ""} />
           <DashboardStrip snapshot={snapshot} />
+        </>
+      )}
+      {/* ENDED is deliberately excluded: the end card owns the screen and the mouse is handed
+          back for orbiting (decisions B-015), so clickable tags over the impact site would
+          fight that. */}
+      {(mode === "FLYING" || mode === "PAUSED") && (
+        <>
+          <TrafficOverlay onSelect={setTrafficHex} />
+          {trafficHex !== null && (
+            <TrafficDetailCard hex={trafficHex} onClose={() => setTrafficHex(null)} />
+          )}
         </>
       )}
       {mode === "PAUSED" && (
