@@ -749,3 +749,18 @@ the live contact; (2) `DashboardStrip`'s gauge params resolve from `origin` (wit
 the pre-origin mount fallback). No per-class `if` branch enters the physics or the gauges — the
 difference is entirely `resolveClass` + data (data-not-branches). The SIM banner, amber accent,
 `SIM-<hex>` callsign and the ghost are untouched.
+
+## 2026-08-07 — AF-008 · spawn envelope also clamps to Mmo, not just IAS/Vne
+
+Review finding on the airliner-fighter branch: `buildSpawnState`'s envelope safety net clamped
+speed against stall and `0.9 x Vne`, both IAS bounds, but never against `limits.mmo`. Vne is an
+IAS limit and goes toothless at altitude — low density means a given TAS produces a much lower
+IAS the higher you go — so a fast contact spawning high (e.g. a fighter above ~M0.95 at FL500)
+could clear the Vne check yet spawn already past Mmo, tripping the HUD's MMO annunciator the
+instant a handoff card calls the aircraft "trimmed." Added a third clamp: TAS is capped to
+`limits.mmo * speedOfSoundMs(altitudeM)` (both already existed, from Task 4's `isa.ts`), same
+`adjustments[]` disclosure pattern as the existing clamps. Purely data-driven — no `if (class
+=== …)` branch — so it's inert for the C172 (`mmo` 0.45 is unreachable, per AF-005's note) and
+for any subsonic spawn, and only bites a genuinely trans-Mmo jet spawn. Supersonic flight itself
+remains deferred to issue #2 (AF-005); this only stops the spawn from starting *already* past
+the cap the sim already enforces in flight.

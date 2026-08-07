@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { buildSpawnState } from "./spawn";
-import { loadC172, loadB738 } from "../sim/params";
+import { loadC172, loadB738, loadF5e } from "../sim/params";
 import { stallSpeedIasMs } from "../sim/forces";
 import { ecefToGeodetic } from "../sim/geo";
 import { hprFromQuat } from "../sim/quat";
 import { ftToM, msToKt, mToFt, radToDeg } from "../sim/units";
-import { tasToIas } from "../sim/isa";
+import { tasToIas, machNumber } from "../sim/isa";
 import { vLength } from "../sim/vec3";
 import type { Contact } from "../data/types";
 
@@ -159,6 +159,44 @@ describe("buildSpawnState — per-class thrust lapse (no hidden piston assumptio
       lat: 30, lon: -88, track: 90, hex: "abc", flight: "T", military: false, seen_pos: 2 } as Contact;
     const spawn = buildSpawnState(c, b738, { terrainHeightM: null });
     expect(spawn.controls.throttle).toBeLessThan(1);
+  });
+});
+
+describe("buildSpawnState — envelope safety net (Mmo)", () => {
+  it("clamps a spawn TAS that would exceed Mmo at altitude, even though IAS is nowhere near Vne", () => {
+    // At 15000 m (49213 ft) a 631 kt ground speed is Mach ~1.1 for the F-5E (Mmo 0.95),
+    // but the IAS it corresponds to at that density is only ~130 m/s — far under the
+    // 0.9*Vne (324 m/s) clamp. Without an Mmo clamp this snapshot spawns already
+    // over-Mmo, tripping the HUD's MMO annunciator on an aircraft the handoff calls trimmed.
+    const f5e = loadF5e();
+    const altFt = mToFt(15000);
+    const c: Contact = {
+      hex: "abc", flight: "T", t: "F5E", lat: 30, lon: -88,
+      alt_geom: altFt, alt_baro: altFt, gs: 631, track: 90, baro_rate: 0,
+      military: false, seen_pos: 2,
+    };
+    const r = buildSpawnState(c, f5e, { terrainHeightM: null });
+    const mach = machNumber(r.state.tasMs, r.state.altitudeM);
+    expect(mach).toBeLessThanOrEqual(f5e.limits.mmo + 1e-6);
+    const adj = r.adjustments.find((a) => a.field === "SPEED");
+    expect(adj).toBeTruthy();
+    expect(adj!.reason).toMatch(/mmo/i);
+  });
+
+  it("does not touch a normal subsonic cruise spawn (b738) — Mmo clamp is inert below Mmo", () => {
+    const b738 = loadB738();
+    const c: Contact = {
+      hex: "abc", flight: "T", t: "A320", lat: 30, lon: -88,
+      alt_geom: 35000, alt_baro: 35000, gs: 450, track: 90, baro_rate: 0,
+      military: false, seen_pos: 2,
+    };
+    const r = buildSpawnState(c, b738, { terrainHeightM: null });
+    expect(r.adjustments).toEqual([]);
+  });
+
+  it("does not touch the C172 (its Mmo of 0.45 is unreachable) — Mmo clamp is data-driven, inert here", () => {
+    const r = buildSpawnState(ga(), P, { terrainHeightM: 20 });
+    expect(r.adjustments).toEqual([]);
   });
 });
 

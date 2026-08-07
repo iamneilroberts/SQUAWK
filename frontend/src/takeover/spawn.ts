@@ -15,7 +15,7 @@
 import type { Contact } from "../data/types";
 import type { ClassParams, ControlVector, SimState } from "../sim/types";
 import { dragCoefficient, liftCoefficient, POWER_LAPSE_MODELS, stallSpeedIasMs } from "../sim/forces";
-import { iasToTas, isaDensity, tasToIas } from "../sim/isa";
+import { iasToTas, isaDensity, speedOfSoundMs, tasToIas } from "../sim/isa";
 import { geodeticSurfaceNormal, geodeticToEcef } from "../sim/geo";
 import { qRotate, quatFromHpr } from "../sim/quat";
 import { degToRad, fpmToMs, ftToM, ktToMs, msToKt, mToFt } from "../sim/units";
@@ -110,6 +110,21 @@ export function buildSpawnState(
       to: `${Math.round(msToKt(tasMs))} KT`,
       reason: `Above 0.9 x Vne for the ${params.label} — lowered into the envelope.`,
     });
+  }
+
+  // Vne is an IAS limit and is toothless at altitude (low density -> low IAS for a high TAS),
+  // so a fast contact spawning high can clear the check above yet still sit past Mmo. Clamp
+  // TAS to the class's Mmo at this altitude too, or the HUD's MMO annunciator trips the instant
+  // the "trimmed" handoff card hands over control.
+  const mmoTasMax = params.limits.mmo * speedOfSoundMs(altitudeM);
+  if (tasMs > mmoTasMax) {
+    adjustments.push({
+      field: "SPEED",
+      from: `${Math.round(msToKt(tasMs))} KT`,
+      to: `${Math.round(msToKt(mmoTasMax))} KT`,
+      reason: `Above Mmo (M${params.limits.mmo.toFixed(2)}) for the ${params.label} — lowered into the envelope.`,
+    });
+    tasMs = mmoTasMax;
   }
 
   // ---- attitude: flight path from the vertical rate, body pitched by the trimmed AoA ----
