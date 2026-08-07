@@ -1,24 +1,12 @@
-# Phase B first-flyable — SDD checklist
-- [x] Task 1: sim foundations (types/units/vec3/isa/params + c172.json)
-- [x] Task 2: rigid body (geo/quat/forces/integrator/aircraft)
-- [x] Task 3: envelope tests + tuning
-- [x] Task 4: input (keyboard/controls)
-- [x] Task 5: takeover (ga-types/eligibility/spawn)
-- [x] Task 6: game core (machine/classify/stats/simRate + store fields)
-- [x] Task 7: world terrain service + globe/terrainProvider
-- [x] Task 8: Viewer/polling hoist (ViewerHost + ContactLayer)
-- [x] Task 9: flight loop + FPV camera + terrain preload
-- [x] Task 10: HUD (format + Hud.tsx)
-- [x] Task 11: takeover UI + ghost + pause + quit
-- [x] Task 12: end card + acceptance walkthrough
+# adsb-game — current checklist
+- [x] Phase B merged to origin/main @ 4ac6862
+- [x] Dashboard 6 SDD tasks + final review + fix wave (code HEAD eefbba8)
+- [x] Durable public URL live: https://adsb.voygent.app (Docker :8021 + loran tunnel; verified 200)
+- [ ] Owner acceptance flight (remote OK: https://adsb.voygent.app) — runbook checkpoints 14–25 → sign-off
+- [ ] On sign-off: merge → main + push; docker compose up -d --build from main; rm SDD workspaces; drop stash@{0}
+- [ ] Cloudflare dashboard cleanup (owner): junk adsb.voygent.app.voygent.ai + 3 stale voygent.ai records (plain DNS only — Trap 4)
+- [ ] Strip adsb.voygent.ai from ~/.cloudflared/config.yml + sudo restart cloudflared-voygent
+- [ ] Airliner (737-800): brainstorm → spec → plan → SDD (prereqs: per-class ASI face, turbofan lapse row, Mach limit)
+- [ ] Controllable-only filter toggle: brainstorm (list vs globe) → implement + review
 
-_Updated: 2026-08-06 — hindustanis_
-
-# Cockpit dashboard — SDD checklist
-- [x] Task 1: gauge math + six-pack (snapshot extension, turnRateRadS)
-- [x] Task 2: dashboard strip + collapse + help + placeholders
-- [x] Task 3: windscreen tags + detail card
-- [x] Task 4: radar scope
-- [x] Task 5: labels + basemap toggles
-- [x] Task 6: integration + acceptance addendum
 _Updated: 2026-08-07 — hindustanis_
