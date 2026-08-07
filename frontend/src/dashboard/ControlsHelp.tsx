@@ -26,6 +26,7 @@ export const KEY_LABELS: Readonly<Record<string, string>> = {
   KeyF: "F",
   KeyV: "V",
   KeyG: "G",
+  KeyB: "B",
   KeyL: "L",
   KeyQ: "Q",
   KeyR: "R",

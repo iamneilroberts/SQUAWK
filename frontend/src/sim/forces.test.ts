@@ -201,3 +201,21 @@ describe("turbofan power lapse", () => {
     expect(POWER_LAPSE_MODELS.turbofan(0)).toBeCloseTo(1, 6);
   });
 });
+
+describe("afterburner thrust", () => {
+  it("scales dry thrust by afterburnerFactor when wet", () => {
+    const p = loadC172(); // afterburnerFactor 1.0 → wet == dry for the C172
+    const dry = thrustNewtons(p, 1, 100, 0, false);
+    const wet = thrustNewtons(p, 1, 100, 0, true);
+    expect(wet).toBeCloseTo(dry * p.propulsion.afterburnerFactor, 6);
+  });
+  it("multiplies by a real factor when one is present", () => {
+    const p = loadC172();
+    const jet = { ...p, propulsion: { ...p.propulsion, afterburnerFactor: 1.5 } };
+    expect(thrustNewtons(jet, 1, 100, 0, true)).toBeCloseTo(thrustNewtons(jet, 1, 100, 0, false) * 1.5, 6);
+  });
+  it("defaults to dry when the flag is omitted", () => {
+    const p = loadC172();
+    expect(thrustNewtons(p, 1, 100, 0)).toBeCloseTo(thrustNewtons(p, 1, 100, 0, false), 6);
+  });
+});

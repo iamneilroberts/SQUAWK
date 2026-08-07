@@ -632,3 +632,21 @@ is now a required `boolean` (not optional) — the F-5E's dry/wet toggle — swe
 `ControlVector` object literal in the codebase (`input/controls.ts`, `takeover/spawn.ts`, and the
 sim/input test suites) as `afterburner: false`; the live toggle wiring is deferred to Task 3.
 No flight behaviour changes: the C172 envelope suite stays green unchanged.
+
+## 2026-08-07 — AF-003 · afterburner wired as `boolean × afterburnerFactor` data; `KeyB` toggle
+
+Task 3 threads the `afterburnerFactor` foundation from AF-001 into live thrust and input, keeping
+the "class differences are data, not branches" rule intact: `thrustNewtons` gains a trailing
+`afterburner: boolean = false` parameter that multiplies shaft power by `afterburnerFactor` when
+wet and by `1` when dry — no `if (class === …)` anywhere, and a class with `afterburnerFactor: 1.0`
+(the C172) is unaffected by the flag either way. The default is a pure code convenience so the
+existing `levelFlightExcessThrustN` call in `envelope.test.ts` keeps compiling unchanged;
+`afterburnerFactor` itself stays a REQUIRED `ClassParams` field per AF-001, not a silent default.
+`computeForces` passes `controls.afterburner` explicitly through to `thrustNewtons`.
+
+Input: `KeyB` is the dry/wet toggle, edge-triggered exactly like the flap detent keys (one flip
+per press, no re-flip while held, state persists across release) — `KeyL` and `KeyR` were already
+taken by the return-to-level assist and re-sync, so `KeyB` was picked as the next free, mnemonic
+letter. Registered in `GAME_KEY_CODES` (keyboard capture), `KEYMAP` (documentation + sampler), and
+`ControlsHelp`'s `KEY_LABELS` (cockpit help panel), following the same three-file pattern as every
+other game key.

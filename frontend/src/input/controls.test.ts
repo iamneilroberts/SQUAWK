@@ -165,3 +165,14 @@ describe("KEYMAP documents the cockpit keys as well as the flight controls", () 
     expect(after).toEqual(before);
   });
 });
+
+describe("afterburner toggle", () => {
+  it("KeyB toggles afterburner edge-triggered — one flip per press", () => {
+    const s = createControlSampler(loadC172());
+    expect(s.sample(new Set(), 1 / 60).afterburner).toBe(false);
+    expect(s.sample(new Set(["KeyB"]), 1 / 60).afterburner).toBe(true);   // edge: off→on
+    expect(s.sample(new Set(["KeyB"]), 1 / 60).afterburner).toBe(true);   // held: no re-flip
+    expect(s.sample(new Set(), 1 / 60).afterburner).toBe(true);           // released: stays on
+    expect(s.sample(new Set(["KeyB"]), 1 / 60).afterburner).toBe(false);  // next press: on→off
+  });
+});

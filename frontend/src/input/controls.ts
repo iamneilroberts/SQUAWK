@@ -31,6 +31,7 @@ export const KEYMAP: Readonly<Record<string, string>> = {
   Comma: "trim nose down",
   Period: "trim nose up",
   KeyL: "return to level (assist)",
+  KeyB: "afterburner dry/wet",
   KeyQ: "hold — look around",
   Escape: "pause",
   // Cockpit chrome, not flight controls: the sampler matches on codes and never sees these.
@@ -81,6 +82,8 @@ export function createControlSampler(params: ClassParams, initial: ControlVector
   let flapDetent = initial.flapDetent;
   let prevFlapDown = false;
   let prevFlapUp = false;
+  let afterburner = initial.afterburner;
+  let prevBurner = false;
 
   return {
     sample(held, dtS) {
@@ -107,12 +110,17 @@ export function createControlSampler(params: ClassParams, initial: ControlVector
       prevFlapDown = flapDown;
       prevFlapUp = flapUp;
 
-      return { pitch, roll, yaw, throttle, flapDetent, trim, afterburner: false };
+      const burnerKey = held.has("KeyB");
+      if (burnerKey && !prevBurner) afterburner = !afterburner;
+      prevBurner = burnerKey;
+
+      return { pitch, roll, yaw, throttle, flapDetent, trim, afterburner };
     },
     reset() {
       pitch = initial.pitch; roll = initial.roll; yaw = initial.yaw;
       throttle = initial.throttle; trim = initial.trim; flapDetent = initial.flapDetent;
       prevFlapDown = false; prevFlapUp = false;
+      afterburner = initial.afterburner; prevBurner = false;
     },
   };
 }

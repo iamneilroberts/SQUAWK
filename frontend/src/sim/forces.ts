@@ -137,10 +137,13 @@ export function thrustNewtons(
   throttle: number,
   tasMs: number,
   altitudeM: number,
+  afterburner: boolean = false,
 ): number {
-  const { maxPowerW, propEfficiency, propPeakSpeedMs, lapseModel } = params.propulsion;
+  const { maxPowerW, propEfficiency, propPeakSpeedMs, lapseModel, afterburnerFactor } =
+    params.propulsion;
   const clamped = Math.min(1, Math.max(0, throttle));
-  const shaftPowerW = clamped * maxPowerW * POWER_LAPSE_MODELS[lapseModel](altitudeM);
+  const burner = afterburner ? afterburnerFactor : 1;
+  const shaftPowerW = clamped * maxPowerW * POWER_LAPSE_MODELS[lapseModel](altitudeM) * burner;
   return (propEfficiency * shaftPowerW) / Math.max(tasMs, propPeakSpeedMs);
 }
 
@@ -201,7 +204,7 @@ export function computeForces(
   // Wind axes -> body axes (rotate by AoA about the body Y axis).
   const forceBody: Vec3 = {
     x: -drag * Math.cos(aoaRad) + lift * Math.sin(aoaRad) +
-       thrustNewtons(params, controls.throttle, tasMs, state.altitudeM),
+       thrustNewtons(params, controls.throttle, tasMs, state.altitudeM, controls.afterburner),
     y: side,
     z: -drag * Math.sin(aoaRad) - lift * Math.cos(aoaRad),
   };
