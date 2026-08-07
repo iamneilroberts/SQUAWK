@@ -584,3 +584,32 @@ pure `takeover/resync.ts`, so re-sync can never accept a contact the initial tak
 rejected, and the message is the gate's own honest reason string. `loop.resync()` re-creates the
 control sampler at the new spawn's trim and re-bases the frame clock the same way resume()/stop()
 do — the rebuild gap is dead time, not flying time.
+
+## 2026-08-07 — CD-013 · free-look is a camera-only offset, never a control input
+
+Hold `Q` in FPV flight to swivel the cockpit view (issue #9). The offset is a pure
+`{yawRad,pitchRad}` accumulator (`globe/lookAround.ts`, Cesium-free, unit-tested) layered on top
+of the low-passed cockpit orientation in `fpvCamera.update`: `heading += yawRad`, `pitch` clamps
+`filtered+offset` just shy of the poles, `roll` untouched. It is NEVER routed through
+`ControlVector`, the sampler or the physics — the aeroplane keeps flying its held inputs while the
+player looks around (spec §1, "zero control coupling"). The regression guard is byte-exact: a zero
+or absent offset reproduces the pre-free-look view (`heading + 0`, `pitch` already inside the
+clamp), pinned in `fpvCamera.test.ts`; a broken-arm test proves a non-zero offset shifts the view
+by exactly the offset so a no-op accumulator would fail. Yaw WRAPS to (-pi, pi] so you can face the
+rear to spot traffic; look-offset pitch clamps at ~85 deg so the view never flips over the top.
+
+## 2026-08-07 — CD-014 · pointer lock with a bounded-mousemove fallback; ease back to forward on release
+
+Engagement is pointer-lock-based, requested on the `Q` keydown (a genuine user gesture, so the
+browser allows it) on the Cesium canvas, giving the infinite mouse travel needed to swing a full
+half-turn. If pointer lock is unavailable or denied, FlightSession falls back to bounded
+`mousemove` deltas (capped per-event) so the feature still works without flinging the view — honest
+degradation, no crash (spec §2). Escape (which the browser also uses to drop the lock), a lock lost
+for any reason (`pointerlockchange`), or the window losing focus all exit look mode cleanly rather
+than leaving the view stuck off-axis. On release the offset EASES back to forward over ~0.3 s
+(`easeToward`, exponential rate 12/s, snapping to exactly zero), matching the return-to-level
+feel (CD-011). Sensitivity (0.0025 rad/px) and the ease rate are documented tuning knobs in
+`lookAround.ts`. The accumulator + ease-back live in the Cesium host (next to the camera and the
+per-frame dt), so the flight loop and its tests stay entirely unaware of free-look; FlightSession
+owns only the DOM plumbing on the canvas it controls (acceptance-verified, no jsdom test per the
+no-Cesium convention).
