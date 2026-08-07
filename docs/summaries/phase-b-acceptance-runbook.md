@@ -63,8 +63,10 @@ screenshot each checkpoint, stop at the end and wait for sign-off.
       the range and distant contacts come and go accordingly.
   22. **The radar is honest when the feed is not** — stop the backend and wait for the status bar
       to reach `OFFLINE` (three failed polls, ~15 s). The scope dims and reads
-      `RADAR OFFLINE · NO FEED`; the windscreen tags disappear. It must never show a clean, empty,
-      nominal-looking scope. Restart the backend and confirm both recover.
+      `RADAR OFFLINE · BLIPS FROZEN` (the store keeps last-known contacts while offline, so
+      "NO FEED" would claim an empty picture that isn't there — see `radarMath.ts`); the
+      windscreen tags disappear. It must never show a clean, empty, nominal-looking scope.
+      Restart the backend and confirm both recover.
   23. **Weather, ATC and the controls help** — both placeholder panels read
       `NO FEED · FUTURE INTEGRATION` with a one-line statement of what is planned, and contain
       **no numbers of any kind**. Press `?`: the CONTROLS panel unfolds and lists every key —
