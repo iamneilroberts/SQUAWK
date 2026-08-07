@@ -22,6 +22,7 @@ import { createCountdownTimer } from "./countdownTimer";
 import { hudSnapshot } from "../hud/snapshot";
 import { formatCallsign } from "../hud/format";
 import Hud from "../hud/Hud";
+import DashboardStrip from "../dashboard/DashboardStrip";
 import HandoffCard from "../panels/HandoffCard";
 import PauseOverlay from "../panels/PauseOverlay";
 import EndCard from "../panels/EndCard";
@@ -224,7 +225,10 @@ export default function FlightSession() {
         <HandoffCard contact={origin.snapshot} spawn={spawn} countdown={countdown} note={note} />
       )}
       {(mode === "FLYING" || mode === "PAUSED" || mode === "ENDED") && (
-        <Hud snapshot={snapshot} terrainNote={bundle?.terrainNote ?? ""} />
+        <>
+          <Hud snapshot={snapshot} terrainNote={bundle?.terrainNote ?? ""} />
+          <DashboardStrip snapshot={snapshot} />
+        </>
       )}
       {mode === "PAUSED" && (
         <PauseOverlay

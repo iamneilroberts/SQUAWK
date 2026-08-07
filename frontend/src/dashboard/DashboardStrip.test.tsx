@@ -1,0 +1,99 @@
+import { describe, it, expect } from "vitest";
+import {
+  PANEL_IDS, defaultStripState, togglePanel, toggleStrip, stripKeyAction, DashboardStripBody,
+} from "./DashboardStrip";
+import { loadC172 } from "../sim/params";
+
+const P = loadC172();
+
+function collectText(node: unknown, out: string[] = []): string[] {
+  if (node === null || node === undefined || node === false || node === true) return out;
+  if (typeof node === "string" || typeof node === "number") { out.push(String(node)); return out; }
+  if (Array.isArray(node)) { for (const c of node) collectText(c, out); return out; }
+  const type = (node as { type?: unknown }).type;
+  const props = (node as { props?: unknown }).props;
+  if (typeof type === "function") return collectText((type as (p: unknown) => unknown)(props), out);
+  const withChildren = props as { children?: unknown } | undefined;
+  if (withChildren && "children" in withChildren) collectText(withChildren.children, out);
+  return out;
+}
+
+const body = (state = defaultStripState()) =>
+  collectText(
+    DashboardStripBody({
+      state, snapshot: null, params: P,
+      onTogglePanel: () => {}, onToggleStrip: () => {},
+    }),
+  ).join(" ");
+
+describe("strip state", () => {
+  it("opens with the instruments showing and the help folded away", () => {
+    const s = defaultStripState();
+    expect(s.open).toBe(true);
+    expect(s.collapsed.gauges).toBe(false);
+    expect(s.collapsed.weather).toBe(false);
+    expect(s.collapsed.help).toBe(true);
+  });
+
+  it("has a collapse flag for every panel it knows about", () => {
+    const s = defaultStripState();
+    for (const id of PANEL_IDS) expect(typeof s.collapsed[id]).toBe("boolean");
+  });
+
+  it("collapses exactly the panel named and leaves the others alone", () => {
+    const s = togglePanel(defaultStripState(), "weather");
+    expect(s.collapsed.weather).toBe(true);
+    expect(s.collapsed.gauges).toBe(false);
+    expect(s.collapsed.atc).toBe(false);
+  });
+
+  it("does not mutate the state it was given", () => {
+    const before = defaultStripState();
+    const snapshot = JSON.stringify(before);
+    togglePanel(before, "weather");
+    toggleStrip(before);
+    expect(JSON.stringify(before)).toBe(snapshot);
+  });
+
+  it("toggles the whole strip without disturbing the per-panel flags", () => {
+    const s = toggleStrip(togglePanel(defaultStripState(), "atc"));
+    expect(s.open).toBe(false);
+    expect(s.collapsed.atc).toBe(true);
+  });
+});
+
+describe("strip keys", () => {
+  it("maps KeyC to the whole strip and Slash to the help panel", () => {
+    expect(stripKeyAction("KeyC")).toBe("strip");
+    expect(stripKeyAction("Slash")).toBe("help");
+  });
+  it("ignores every flight-control key so the cockpit cannot eat an input", () => {
+    for (const code of ["ArrowUp", "ArrowDown", "KeyW", "KeyS", "KeyF", "KeyV", "Escape"]) {
+      expect(stripKeyAction(code)).toBeNull();
+    }
+  });
+});
+
+describe("DashboardStripBody", () => {
+  it("titles every panel it is showing", () => {
+    const text = body();
+    for (const title of ["INSTRUMENTS", "WEATHER", "ATC", "CONTROLS"]) {
+      expect(text).toContain(title);
+    }
+  });
+
+  it("keeps a collapsed panel's frame and title but drops its contents", () => {
+    const text = body(togglePanel(defaultStripState(), "weather"));
+    expect(text).toContain("WEATHER");
+    // Assert on the WEATHER panel's own line: NO_FEED is shared with AtcPanel, which is still
+    // open, so asserting on that string would pass or fail for the wrong reason.
+    expect(text).not.toContain("WEATHER RADAR MOSAIC");
+    expect(text).toContain("NO FEED · FUTURE INTEGRATION"); // still there — from the ATC panel
+  });
+
+  it("shows only the restore affordance when the whole strip is closed", () => {
+    const text = body(toggleStrip(defaultStripState()));
+    expect(text).toContain("COCKPIT");
+    expect(text).not.toContain("INSTRUMENTS");
+  });
+});

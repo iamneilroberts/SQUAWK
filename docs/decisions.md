@@ -419,3 +419,20 @@ never see the tape and the needle disagree.
 
 Anything off the end of a scale comes back clamped with `pegged: true` and the needle turns amber
 with a `PEG` legend, rather than silently sitting on the stop as if that were the reading.
+
+## 2026-08-07 — CD-006 · Panel collapse is local React state; it resets on QUIT by design
+
+The cockpit strip's open/closed flags live in `useState` inside `DashboardStrip`, not in zustand.
+Nothing outside that subtree reads them, they change at human cadence, and the store's remit is
+session state (`mode`/`origin`/`endStats`) plus the two genuinely cross-subtree view preferences
+Task 5 adds (`basemap`/`labelsOn`, which `StatusBar` needs from outside `ViewerHost`'s provider).
+
+The consequence is deliberate and is what makes it the right call rather than merely the easy
+one: because the strip stays mounted for `FLYING | PAUSED | ENDED`, folding a panel **survives a
+pause and the end card**; because it unmounts when the mode returns to `BROWSE`, folding
+**resets on QUIT**. A new flight therefore starts with a fresh cockpit, which is the same "no
+residue" rule the whole session teardown already follows. Pinned by a test in Task 6.
+
+The two cockpit keys (`KeyC` strip, `Slash` help) are in `KEYMAP` even though the control sampler
+never reads them — `ControlsHelp` renders from `KEYMAP`, and a key documented in two places is a
+key that will eventually be documented wrongly in one of them.

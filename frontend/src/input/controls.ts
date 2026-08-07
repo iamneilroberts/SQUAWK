@@ -31,6 +31,10 @@ export const KEYMAP: Readonly<Record<string, string>> = {
   Comma: "trim nose down",
   Period: "trim nose up",
   Escape: "pause",
+  // Cockpit chrome, not flight controls: the sampler matches on codes and never sees these.
+  // They live here so ControlsHelp can render the keymap without a second, hand-copied list.
+  KeyC: "collapse / restore the cockpit strip",
+  Slash: "controls help",
 };
 
 const STICK_RATE_PER_S = 2.5; // full deflection in 0.4 s

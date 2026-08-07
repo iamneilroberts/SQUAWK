@@ -151,3 +151,17 @@ describe("KEYMAP", () => {
     expect(Object.keys(KEYMAP).length).toBeGreaterThan(10);
   });
 });
+
+describe("KEYMAP documents the cockpit keys as well as the flight controls", () => {
+  it("names the strip toggle and the controls-help toggle", () => {
+    expect(KEYMAP.KeyC).toMatch(/cockpit|strip/i);
+    expect(KEYMAP.Slash).toMatch(/help/i);
+  });
+
+  it("does not let either of them move a flight control", () => {
+    const sampler = createControlSampler(loadC172());
+    const before = sampler.sample(new Set<string>(), 1 / 60);
+    const after = sampler.sample(new Set(["KeyC", "Slash"]), 1 / 60);
+    expect(after).toEqual(before);
+  });
+});
