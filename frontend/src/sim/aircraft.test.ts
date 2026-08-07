@@ -24,7 +24,7 @@ const P = loadC172();
 const LAT = degToRad(30.6944);
 const LON = degToRad(-88.0399);
 
-const CONTROLS: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle: 0.75, flapDetent: 0, trim: 0 };
+const CONTROLS: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle: 0.75, flapDetent: 0, trim: 0, afterburner: false };
 
 function levelState(altM: number, tasMs: number): SimState {
   const position = geodeticToEcef(LAT, LON, altM);

@@ -157,7 +157,7 @@ export function buildSpawnState(
       (alphaTrimRad - params.control.trimAlphaCenterRad) / params.control.trimAlphaRangeRad,
     ),
   );
-  const controls: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle, flapDetent: 0, trim };
+  const controls: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle, flapDetent: 0, trim, afterburner: false };
 
   // Placeholder derived readouts — refreshDerived below is the source of truth for these
   // (carried review note: computeForces reads density from state.altitudeM, so a hand-built

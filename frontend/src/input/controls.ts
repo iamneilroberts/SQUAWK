@@ -61,7 +61,7 @@ function stepAxis(current: number, target: number, dtS: number): number {
 }
 
 /** Cold start: centred stick, idle, flaps up, neutral trim. */
-const COLD: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle: 0, flapDetent: 0, trim: 0 };
+const COLD: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle: 0, flapDetent: 0, trim: 0, afterburner: false };
 
 /**
  * `initial` is how the takeover hands over a TRIMMED, POWERED aircraft: buildSpawnState
@@ -107,7 +107,7 @@ export function createControlSampler(params: ClassParams, initial: ControlVector
       prevFlapDown = flapDown;
       prevFlapUp = flapUp;
 
-      return { pitch, roll, yaw, throttle, flapDetent, trim };
+      return { pitch, roll, yaw, throttle, flapDetent, trim, afterburner: false };
     },
     reset() {
       pitch = initial.pitch; roll = initial.roll; yaw = initial.yaw;

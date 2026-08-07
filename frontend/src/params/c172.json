@@ -32,7 +32,8 @@
     "maxPowerW": 134226,
     "lapseModel": "piston",
     "propEfficiency": 0.8,
-    "propPeakSpeedMs": 60
+    "propPeakSpeedMs": 60,
+    "afterburnerFactor": 1.0
   },
   "limits": {
     "vneIasMs": 83.85,
@@ -40,7 +41,8 @@
     "vfeIasMs": 43.73,
     "gLimitPos": 3.8,
     "gLimitNeg": -1.52,
-    "serviceCeilingM": 4267
+    "serviceCeilingM": 4267,
+    "mmo": 0.45
   },
   "flaps": [
     { "label": "0", "dCL0": 0.0, "dStallAlphaRad": 0.0, "dCD0": 0.0 },
@@ -49,6 +51,7 @@
     { "label": "30", "dCL0": 0.9, "dStallAlphaRad": -0.0524, "dCD0": 0.04 }
   ],
   "gear": "fixed",
+  "display": { "asiMinKt": 40, "asiMaxKt": 180, "attitudeStyle": "line" },
   "sources": {
     "massKg": "typical 2-pax + fuel operating mass, research doc range 950-1050 kg. NOT max gross (1157 kg): the POH V-speeds are quoted at max gross, but hitting them at max gross would require a CLmax outside the sourced 1.47-1.58 range. Documented compromise, decisions.md B-006.",
     "wingAreaM2": "JSBSim c172x.xml, cross-checked Roskam (174 sq ft)",
@@ -77,6 +80,9 @@
     "gLimits": "+3.8 / -1.52, FAR/CS-23 Normal category",
     "serviceCeilingM": "14000 ft = 4267 m, 172S POH",
     "flaps": "172S has 0/10/20/30 detents. dCL0 (0 / 0.3 / 0.6 / 0.9) is a TUNING KNOB for the stall speeds: flaps-30 CLmax = (0.25 + 0.9) + 4.9*0.2094 = 2.176, measured Vs0 = 40.4 KCAS against the POH's 40 (band 37-43), with Vs 48.1 / 45.1 / 42.5 / 40.4 kt falling monotonically across the detents. dCD0 values are TUNING KNOBS.",
-    "gear": "fixed — the 172 has no retractable gear; the HUD reads FIXED and G is inert"
+    "gear": "fixed — the 172 has no retractable gear; the HUD reads FIXED and G is inert",
+    "afterburnerFactor": "1.0 — the IO-360 has no afterburner. Required in every params file so a jet class can ship a real dry→wet factor without a per-class branch; 1.0 leaves thrustNewtons unchanged.",
+    "mmo": "0.45 — a value the C172 never reaches (Vh 126 kt TAS at SL is M0.19; at the 14000 ft ceiling still under M0.25). Present only so the Mach annunciator is data everywhere, per spec §2.3; not a real placard limit.",
+    "display": "ASI face 40–180 kt is the existing C172 gauge range (Vs0 40.4 to Vne 163 with headroom); attitudeStyle \"line\" keeps the minimalist horizon. Jets override both."
   }
 }

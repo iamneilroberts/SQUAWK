@@ -16,7 +16,10 @@ export type Quat = { x: number; y: number; z: number; w: number };
  * band this sim flies. Every model here has an entry in `POWER_LAPSE_MODELS` in forces.ts,
  * and `validateClassParams` rejects any other value at load time.
  */
-export type LapseModel = "piston" | "none";
+export type LapseModel = "piston" | "none" | "turbofan";
+
+/** ASI face style is data: C172 keeps its minimalist line horizon, jets get a filled ball. */
+export type AttitudeStyle = "line" | "ball";
 
 /** One flap detent. Deltas are applied on top of the clean aero block. */
 export type FlapDetent = {
@@ -87,6 +90,11 @@ export type ClassParams = {
      * linearly — which is also what caps static thrust: T -> eta*P/propPeakSpeedMs.
      */
     propPeakSpeedMs: number;
+    /**
+     * Dry→wet thrust multiplier when ControlVector.afterburner is true. 1.0 for any class
+     * without an afterburner — a factor of 1 leaves thrustNewtons unchanged, so no branch.
+     */
+    afterburnerFactor: number;
   };
   limits: {
     vneIasMs: number;
@@ -97,9 +105,17 @@ export type ClassParams = {
     gLimitPos: number;
     gLimitNeg: number;
     serviceCeilingM: number;
+    /** Max operating Mach. The HUD trips a Mach-overspeed annunciator past this. */
+    mmo: number;
   };
   flaps: FlapDetent[];
   gear: "fixed" | "retractable";
+  /** Per-class instrument faces — data, so no jet flies the C172's 40–180 kt gauge (spec §6). */
+  display: {
+    asiMinKt: number;
+    asiMaxKt: number;
+    attitudeStyle: AttitudeStyle;
+  };
   /** Free-text provenance for every number above; displayed nowhere, read by humans. */
   sources: Record<string, string>;
 };
@@ -118,6 +134,8 @@ export type ControlVector = {
   flapDetent: number;
   /** [-1, 1], elevator trim: shifts the AoA the aircraft settles at. */
   trim: number;
+  /** Dry (false) / wet (true) — the F-5E's burner toggle. Ignored where afterburnerFactor is 1. */
+  afterburner: boolean;
 };
 
 /** Everything the physics owns. Mutated in place by stepAircraft (via a fresh object). */

@@ -14,6 +14,11 @@ describe("loadC172", () => {
     expect(p.flaps.map((f) => f.label)).toEqual(["0", "10", "20", "30"]);
     expect(p.gear).toBe("fixed");
     expect(p.propulsion.lapseModel).toBe("piston");
+    expect(p.propulsion.afterburnerFactor).toBe(1.0);
+    expect(p.limits.mmo).toBeGreaterThan(0);
+    expect(p.display.asiMinKt).toBe(40);
+    expect(p.display.asiMaxKt).toBe(180);
+    expect(p.display.attitudeStyle).toBe("line");
   });
   it("has an aspect ratio consistent with its span and area", () => {
     const p = loadC172();
@@ -74,6 +79,35 @@ describe("validateClassParams", () => {
   });
   it("accepts the shipped file unchanged", () => {
     expect(() => validateClassParams(loadC172())).not.toThrow();
+  });
+  it("accepts turbofan as a lapse model", () => {
+    const p = loadC172();
+    const jet = {
+      ...(p as unknown as Record<string, unknown>),
+      propulsion: { ...p.propulsion, lapseModel: "turbofan" },
+    };
+    expect(validateClassParams(jet).propulsion.lapseModel).toBe("turbofan");
+  });
+  it("rejects a missing propulsion.afterburnerFactor rather than defaulting", () => {
+    const p = loadC172();
+    const { afterburnerFactor: _omitted, ...propulsion } = p.propulsion as Record<string, unknown>;
+    const bad = { ...(p as unknown as Record<string, unknown>), propulsion };
+    expect(() => validateClassParams(bad)).toThrow(/afterburnerFactor/);
+  });
+  it("rejects a missing limits.mmo rather than defaulting", () => {
+    const raw = JSON.parse(JSON.stringify(c172Raw)) as Record<string, unknown>;
+    delete (raw.limits as Record<string, unknown>).mmo;
+    expect(() => validateClassParams(raw)).toThrow(/mmo/);
+  });
+  it("rejects a missing display block", () => {
+    const raw = JSON.parse(JSON.stringify(c172Raw)) as Record<string, unknown>;
+    delete raw.display;
+    expect(() => validateClassParams(raw)).toThrow(/display/);
+  });
+  it("rejects an unknown attitudeStyle", () => {
+    const raw = JSON.parse(JSON.stringify(c172Raw)) as Record<string, unknown>;
+    (raw.display as Record<string, unknown>).attitudeStyle = "sphere";
+    expect(() => validateClassParams(raw)).toThrow(/attitudeStyle/);
   });
 });
 

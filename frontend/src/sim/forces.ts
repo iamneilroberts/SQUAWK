@@ -101,6 +101,7 @@ export function pistonPowerLapse(altitudeM: number): number {
 export const POWER_LAPSE_MODELS: Record<LapseModel, (altitudeM: number) => number> = {
   piston: pistonPowerLapse,
   none: () => 1,
+  turbofan: () => 1,
 };
 
 /**

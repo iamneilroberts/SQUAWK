@@ -17,7 +17,7 @@ describe("control sampler — stick", () => {
   it("starts centred with idle throttle, flaps up and neutral trim", () => {
     const s = createControlSampler(P);
     const c = s.sample(new Set(), DT);
-    expect(c).toEqual({ pitch: 0, roll: 0, yaw: 0, throttle: 0, flapDetent: 0, trim: 0 });
+    expect(c).toEqual({ pitch: 0, roll: 0, yaw: 0, throttle: 0, flapDetent: 0, trim: 0, afterburner: false });
   });
   it("ArrowDown pitches up, ArrowUp pitches down", () => {
     expect(hold(createControlSampler(P), ["ArrowDown"], 60).pitch).toBeGreaterThan(0);
@@ -124,7 +124,7 @@ describe("control sampler — trim", () => {
 describe("handover start state", () => {
   it("can start from the spawn's trimmed, powered controls instead of cold", () => {
     const s = createControlSampler(P, {
-      pitch: 0, roll: 0, yaw: 0, throttle: 0.62, flapDetent: 2, trim: -0.4,
+      pitch: 0, roll: 0, yaw: 0, throttle: 0.62, flapDetent: 2, trim: -0.4, afterburner: false,
     });
     const c = s.sample(new Set(), DT);
     expect(c.throttle).toBeCloseTo(0.62, 9);
@@ -139,7 +139,7 @@ describe("reset", () => {
     hold(s, ["KeyW", "ArrowDown", "Period", "KeyF"], 120);
     s.reset();
     expect(s.sample(new Set(), DT)).toEqual({
-      pitch: 0, roll: 0, yaw: 0, throttle: 0, flapDetent: 0, trim: 0,
+      pitch: 0, roll: 0, yaw: 0, throttle: 0, flapDetent: 0, trim: 0, afterburner: false,
     });
   });
 });

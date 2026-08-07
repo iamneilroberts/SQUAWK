@@ -41,7 +41,7 @@ function str(obj: Record<string, unknown>, key: string, path: string): string {
  * piston engine, and defaulting to "piston" would bake a light-single assumption into every
  * future class. Keep this list in step with `POWER_LAPSE_MODELS` in forces.ts.
  */
-const LAPSE_MODELS: readonly LapseModel[] = ["piston", "none"];
+const LAPSE_MODELS: readonly LapseModel[] = ["piston", "none", "turbofan"];
 
 function lapseModel(obj: Record<string, unknown>, path: string): LapseModel {
   const v = str(obj, "lapseModel", path);
@@ -49,6 +49,16 @@ function lapseModel(obj: Record<string, unknown>, path: string): LapseModel {
     throw new Error(`${path}.lapseModel must be one of: ${LAPSE_MODELS.join(", ")}`);
   }
   return v as LapseModel;
+}
+
+const ATTITUDE_STYLES = ["line", "ball"] as const;
+
+function attitudeStyle(obj: Record<string, unknown>, path: string): "line" | "ball" {
+  const v = str(obj, "attitudeStyle", path);
+  if (!ATTITUDE_STYLES.includes(v as (typeof ATTITUDE_STYLES)[number])) {
+    throw new Error(`${path}.attitudeStyle must be one of: ${ATTITUDE_STYLES.join(", ")}`);
+  }
+  return v as "line" | "ball";
 }
 
 function flapDetent(raw: unknown, index: number): FlapDetent {
@@ -88,6 +98,7 @@ export function validateClassParams(raw: unknown): ClassParams {
   const control = asRecord(o.control, "params.control");
   const propulsion = asRecord(o.propulsion, "params.propulsion");
   const limits = asRecord(o.limits, "params.limits");
+  const display = asRecord(o.display, "params.display");
 
   return {
     id,
@@ -124,6 +135,7 @@ export function validateClassParams(raw: unknown): ClassParams {
       lapseModel: lapseModel(propulsion, "params.propulsion"),
       propEfficiency: positive(propulsion, "propEfficiency", "params.propulsion"),
       propPeakSpeedMs: positive(propulsion, "propPeakSpeedMs", "params.propulsion"),
+      afterburnerFactor: positive(propulsion, "afterburnerFactor", "params.propulsion"),
     },
     limits: {
       vneIasMs: positive(limits, "vneIasMs", "params.limits"),
@@ -132,9 +144,15 @@ export function validateClassParams(raw: unknown): ClassParams {
       gLimitPos: positive(limits, "gLimitPos", "params.limits"),
       gLimitNeg: num(limits, "gLimitNeg", "params.limits"),
       serviceCeilingM: positive(limits, "serviceCeilingM", "params.limits"),
+      mmo: positive(limits, "mmo", "params.limits"),
     },
     flaps: o.flaps.map(flapDetent),
     gear,
+    display: {
+      asiMinKt: positive(display, "asiMinKt", "params.display"),
+      asiMaxKt: positive(display, "asiMaxKt", "params.display"),
+      attitudeStyle: attitudeStyle(display, "params.display"),
+    },
     sources: asRecord(o.sources, "params.sources") as Record<string, string>,
   };
 }

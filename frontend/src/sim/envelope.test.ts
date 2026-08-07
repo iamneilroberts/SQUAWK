@@ -102,7 +102,7 @@ function flyAndMeasure(
 /** Bisect on elevator trim until 120 s of flight ends at the altitude it started at. */
 function trimForLevelFlight(altM: number, throttle: number, startTasMs: number): number {
   const run = (trim: number) => {
-    const controls: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle, flapDetent: 0, trim };
+    const controls: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle, flapDetent: 0, trim, afterburner: false };
     return flyAndMeasure(levelState(altM, startTasMs, controls), controls, 120).dAltM;
   };
   let lo = -1;
@@ -131,7 +131,7 @@ describe("C172S envelope — cruise", () => {
     const throttle = 0.75 / pistonPowerLapse(alt);
     const analytic = maxLevelSpeedMs(P, alt, throttle);
     const trim = trimForLevelFlight(alt, throttle, analytic);
-    const controls: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle, flapDetent: 0, trim };
+    const controls: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle, flapDetent: 0, trim, afterburner: false };
     const flown = flyAndMeasure(levelState(alt, analytic, controls), controls, 180);
     expect(Math.abs(flown.dAltM)).toBeLessThan(150); // held altitude within 150 m over 3 min
     expect(msToKt(flown.meanTasMs)).toBeGreaterThan(117);
@@ -164,7 +164,7 @@ describe("C172S envelope — stall speeds", () => {
     for (let i = 1; i < speeds.length; i++) expect(speeds[i]).toBeLessThan(speeds[i - 1]);
   });
   it("holding the stick back below Vs1 stalls rather than climbing away", () => {
-    const controls: ControlVector = { pitch: 1, roll: 0, yaw: 0, throttle: 0.2, flapDetent: 0, trim: 1 };
+    const controls: ControlVector = { pitch: 1, roll: 0, yaw: 0, throttle: 0.2, flapDetent: 0, trim: 1, afterburner: false };
     let s = levelState(1500, stallSpeedIasMs(P, 0) * 0.95, controls);
     let sawStall = false;
     for (let i = 0; i < 600; i++) {
@@ -212,7 +212,7 @@ describe("C172S envelope — limits", () => {
    * being softened. Measured values are in the Task 3 report.
    */
   it("a hard pull from a fast entry is clamped at +3.8 g and reports it", () => {
-    const controls: ControlVector = { pitch: 1, roll: 0, yaw: 0, throttle: 1, flapDetent: 0, trim: 1 };
+    const controls: ControlVector = { pitch: 1, roll: 0, yaw: 0, throttle: 1, flapDetent: 0, trim: 1, afterburner: false };
     let s = levelState(2000, ktToMs(170), controls);
     let maxG = 0;
     let sawLimit = false;
@@ -227,7 +227,7 @@ describe("C172S envelope — limits", () => {
     expect(maxG).toBeCloseTo(P.limits.gLimitPos, 6);
   });
   it("a hard push is clamped at -1.52 g, and actually reaches it", () => {
-    const controls: ControlVector = { pitch: -1, roll: 0, yaw: 0, throttle: 1, flapDetent: 0, trim: -1 };
+    const controls: ControlVector = { pitch: -1, roll: 0, yaw: 0, throttle: 1, flapDetent: 0, trim: -1, afterburner: false };
     let s = levelState(2000, ktToMs(140), controls);
     let minG = Number.POSITIVE_INFINITY;
     let sawNegLimit = false;
@@ -246,7 +246,7 @@ describe("C172S envelope — limits", () => {
     expect(maxLevelSpeedMs(P, 0, 1)).toBeLessThan(P.limits.vneIasMs);
   });
   it("the aircraft never produces NaN across the whole envelope sweep", () => {
-    const controls: ControlVector = { pitch: 0.6, roll: 0.6, yaw: 0.6, throttle: 1, flapDetent: 3, trim: 1 };
+    const controls: ControlVector = { pitch: 0.6, roll: 0.6, yaw: 0.6, throttle: 1, flapDetent: 3, trim: 1, afterburner: false };
     let s = levelState(3000, ktToMs(90), controls);
     for (let i = 0; i < 3600; i++) s = stepAircraft(s, controls, P);
     expect(Number.isFinite(s.position.x)).toBe(true);

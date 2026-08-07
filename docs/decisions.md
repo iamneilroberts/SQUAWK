@@ -613,3 +613,22 @@ feel (CD-011). Sensitivity (0.0025 rad/px) and the ease rate are documented tuni
 per-frame dt), so the flight loop and its tests stay entirely unaware of free-look; FlightSession
 owns only the DOM plumbing on the canvas it controls (acceptance-verified, no jsdom test per the
 no-Cesium convention).
+
+## 2026-08-07 — AF-001 · three new required `ClassParams` fields, no silent defaults
+
+Foundation for the Airliner/Fighter classes (spec, Task 1): `propulsion.afterburnerFactor`,
+`limits.mmo`, and a new `display` block (`asiMinKt`/`asiMaxKt`/`attitudeStyle`) are all REQUIRED
+in `ClassParams`, validated with no silent default — an absent or malformed value throws at load
+time, matching the existing hand-written `sim/params.ts` validator style (no schema library).
+Defaulting `afterburnerFactor` to 1.0 or `attitudeStyle` to `"line"` when missing would let a
+future jet params file ship silently unafterburning or with the wrong ASI face; forcing every
+class to state its own value keeps the "class differences are data" rule honest. `c172.json`
+now carries all three (`afterburnerFactor: 1.0` — no afterburner; `mmo: 0.45` — unreachable for
+a GA piston, present only so the Mach annunciator is data everywhere; `display` — its existing
+40–180 kt gauge and line-style horizon), each with a `sources` entry. `LapseModel` gains
+`"turbofan"` (flat-rated, same lapse behaviour as `"none"` — the distinct name documents the
+powerplant; `forces.ts`'s `POWER_LAPSE_MODELS` map was extended to match). `ControlVector.afterburner`
+is now a required `boolean` (not optional) — the F-5E's dry/wet toggle — swept through every
+`ControlVector` object literal in the codebase (`input/controls.ts`, `takeover/spawn.ts`, and the
+sim/input test suites) as `afterburner: false`; the live toggle wiring is deferred to Task 3.
+No flight behaviour changes: the C172 envelope suite stays green unchanged.
