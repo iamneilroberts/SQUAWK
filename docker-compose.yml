@@ -8,9 +8,11 @@ services:
       ADSB_GAME_HOST: 0.0.0.0
     expose:
       - "8020"
+    restart: unless-stopped
   frontend:
     build: ./frontend
     ports:
       - "8021:80"
     depends_on:
       - backend
+    restart: unless-stopped
