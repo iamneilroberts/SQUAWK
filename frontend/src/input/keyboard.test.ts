@@ -124,6 +124,16 @@ describe("createKeyboard", () => {
   it("does NOT capture KeyR — re-sync is a React-level chrome key, not a held control (issue #5b)", () => {
     expect(GAME_KEY_CODES.has("KeyR")).toBe(false);
   });
+  it("captures KeyQ and preventDefaults it — free-look holds it while pointer-locked (issue #9)", () => {
+    expect(GAME_KEY_CODES.has("KeyQ")).toBe(true);
+    const t = fakeTarget();
+    const kb = createKeyboard(t);
+    const e = keyEvent("KeyQ");
+    t.fire("keydown", e);
+    expect(kb.held.has("KeyQ")).toBe(true);
+    expect(e.defaultPrevented).toBe(true);
+    kb.dispose();
+  });
   it("does not capture or preventDefault a ctrl/cmd/alt-modified game key (browser shortcuts)", () => {
     const t = fakeTarget();
     const kb = createKeyboard(t);

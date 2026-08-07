@@ -54,6 +54,7 @@ export default function FlightSession() {
   const [resyncNote, setResyncNote] = useState("");
 
   const loopRef = useRef<ReturnType<typeof createFlightLoop> | null>(null);
+  const hostRef = useRef<ReturnType<typeof createCesiumFlightHost> | null>(null);
   const keyboardRef = useRef<ReturnType<typeof createKeyboard> | null>(null);
   const terrainRef = useRef<TerrainService | null>(null);
   const resyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -64,6 +65,7 @@ export default function FlightSession() {
   function teardown() {
     loopRef.current?.stop();
     loopRef.current = null;
+    hostRef.current = null;
     keyboardRef.current?.dispose();
     keyboardRef.current = null;
     terrainRef.current = null;
@@ -141,8 +143,10 @@ export default function FlightSession() {
           setCountdown(null);
           flightStarted = true;
 
+          const host = createCesiumFlightHost(bundle.viewer);
+          hostRef.current = host;
           const loop = createFlightLoop({
-            host: createCesiumFlightHost(bundle.viewer),
+            host,
             params,
             terrain,
             spawn: built,
@@ -232,6 +236,73 @@ export default function FlightSession() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [mode]);
+
+  // ---- hold Q = mouse free-look (issue #9) ----
+  // FlightSession owns the canvas + DOM, so the pointer-lock / mousemove plumbing lives here; the
+  // accumulator and ease-back live in the host (cesiumFlightHost). This never touches ControlVector
+  // — the aircraft keeps flying its held inputs while the player swivels the view (spec §1).
+  useEffect(() => {
+    if (mode !== "FLYING" || !bundle) return;
+    const canvas = bundle.viewer.scene.canvas;
+    // Bound a single fallback-mode mousemove delta so a drag without pointer lock can't fling the
+    // view; under pointer lock movementX/Y are already the small per-frame deltas we want.
+    const FALLBACK_MAX_DELTA_PX = 40;
+    let looking = false;
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!looking) return;
+      const locked = document.pointerLockElement === canvas;
+      const bound = (d: number) =>
+        locked ? d : Math.max(-FALLBACK_MAX_DELTA_PX, Math.min(FALLBACK_MAX_DELTA_PX, d));
+      hostRef.current?.applyLook(bound(e.movementX), bound(e.movementY));
+    };
+    const start = () => {
+      if (looking) return;
+      looking = true;
+      hostRef.current?.setLookActive(true);
+      // requestPointerLock needs a user gesture — the Q keydown IS one. If it's unavailable or the
+      // browser refuses, we simply fall back to bounded mousemove deltas (honest degradation).
+      try {
+        canvas.requestPointerLock?.();
+      } catch {
+        /* no pointer lock — the mousemove fallback still works */
+      }
+      window.addEventListener("mousemove", onMouseMove);
+    };
+    const stop = () => {
+      if (!looking) return;
+      looking = false;
+      hostRef.current?.setLookActive(false); // begins the ease-back to forward
+      window.removeEventListener("mousemove", onMouseMove);
+      if (document.pointerLockElement === canvas) document.exitPointerLock?.();
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== "KeyQ" || e.ctrlKey || e.metaKey || e.altKey) return;
+      start();
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === "KeyQ") stop();
+    };
+    // Escape (which the browser also uses to drop pointer lock), a lost lock for any reason, or the
+    // window losing focus all exit look mode cleanly rather than leaving the view stuck off-axis.
+    const onPointerLockChange = () => {
+      if (looking && document.pointerLockElement !== canvas) stop();
+    };
+    const onBlur = () => stop();
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    document.addEventListener("pointerlockchange", onPointerLockChange);
+    return () => {
+      stop();
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+      document.removeEventListener("pointerlockchange", onPointerLockChange);
+    };
+  }, [mode, bundle]);
 
   // ---- the armed resume waits for a click on the globe itself (spec §6) ----
   useEffect(() => {
