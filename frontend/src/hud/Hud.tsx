@@ -47,14 +47,14 @@ export default function Hud({
         {simRate ? <span className="hud-warning">{simRate}</span> : null}
       </div>
 
-      <div className="hud-left">
+      <div className="hud-left hud-scrim">
         <Readout label="IAS" value={formatIasKt(snapshot.iasMs)} unit="KT" />
         <Readout label="TAS" value={formatTasKt(snapshot.tasMs)} unit="KT" />
         <Readout label="AOA" value={formatAoaDeg(snapshot.aoaRad)} unit="°" />
         <Readout label="G" value={formatG(snapshot.loadFactor)} />
       </div>
 
-      <div className="hud-right">
+      <div className="hud-right hud-scrim">
         <Readout label="ALT" value={formatAltFt(snapshot.altitudeM)} unit="FT" />
         <Readout label="VSI" value={formatVsiFpm(snapshot.verticalSpeedMs)} unit="FPM" />
         <Readout label="AGL" value={formatClearanceFt(snapshot.terrainClearanceM)} unit="FT" />

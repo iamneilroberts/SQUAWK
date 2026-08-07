@@ -31,6 +31,27 @@ function collectText(node: unknown, out: string[] = []): string[] {
   return out;
 }
 
+/** Walks the element tree collecting every className, so we can assert on structure. */
+function collectClasses(node: unknown, out: string[] = []): string[] {
+  if (node === null || node === undefined || typeof node !== "object") return out;
+  if (Array.isArray(node)) {
+    for (const c of node) collectClasses(c, out);
+    return out;
+  }
+  const type = (node as { type?: unknown }).type;
+  const props = (node as { props?: unknown }).props as
+    | { className?: unknown; children?: unknown }
+    | undefined;
+  if (typeof type === "function") {
+    return collectClasses((type as (p: unknown) => unknown)(props), out);
+  }
+  if (props) {
+    if (typeof props.className === "string") out.push(props.className);
+    if ("children" in props) collectClasses(props.children, out);
+  }
+  return out;
+}
+
 const snap = (o: Partial<HudSnapshot> = {}): HudSnapshot => ({
   iasMs: ktToMs(105), tasMs: ktToMs(118), altitudeM: ftToM(3500),
   verticalSpeedMs: 0, headingRad: degToRad(270),
@@ -91,6 +112,12 @@ describe("Hud", () => {
       .not.toContain("SIM RATE");
     expect(collectText(Hud({ snapshot: snap({ simRate: 0.6 }), attribution: "" })).join(" "))
       .toContain("SIM RATE 0.6×");
+  });
+  it("backs the corner readouts with a scrim so cyan reads over bright sky (issue #6)", () => {
+    // The fix is a translucent near-black backing panel (NOT a drop shadow — that violates the
+    // no-shadow rule). Assert the scrim class rides on the corner readout blocks.
+    const classes = collectClasses(Hud({ snapshot: snap(), attribution: "" }));
+    expect(classes.some((c) => c.includes("hud-scrim"))).toBe(true);
   });
   it("renders nothing at all without a snapshot", () => {
     expect(Hud({ snapshot: null, attribution: "" })).toBeNull();

@@ -183,6 +183,14 @@ body {
 }
 .hud-left { position: absolute; top: 25%; left: 16px; }
 .hud-right { position: absolute; top: 25%; right: 16px; text-align: right; }
+/* Issue #6: a translucent near-black backing so the cyan corner readouts stay legible over
+   bright sky. A backing panel is the sanctioned fix — NOT a drop shadow (no-shadow rule). It
+   matches the banner/warning panels: same rgba, 1px border, no radius. */
+.hud-scrim {
+  padding: 4px 10px;
+  border: 1px solid rgba(95, 215, 224, 0.25);
+  background: rgba(5, 7, 10, 0.72);
+}
 .hud-bottom {
   position: absolute;
   bottom: 28px;
