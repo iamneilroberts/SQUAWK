@@ -112,6 +112,8 @@ export function createFlightLoop(deps: FlightLoopDeps) {
       gear: params.gear,
       stalled: state.stalled,
       overspeed: state.iasMs > params.limits.vneIasMs,
+      machNumber: state.machNumber,
+      machOverspeed: state.machNumber > params.limits.mmo,
       gLimited: state.gLimited,
       terrainClearanceM,
       terrainUnverified: terrain.unverified,

@@ -177,6 +177,7 @@ export function buildSpawnState(
     loadFactor: 1,
     gLimited: false,
     stalled: false,
+    machNumber: 0,
   };
 
   const state = refreshDerived(provisional, controls, params);

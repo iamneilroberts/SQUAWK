@@ -18,6 +18,7 @@ const snap = (o: Partial<HudSnapshot> = {}): HudSnapshot => ({
   gLimited: false, terrainClearanceM: ftToM(2000), terrainUnverified: false,
   simRate: 1, airtimeS: 0, classLabel: "C172S", callsign: "SIM-A1B2C3",
   modelNote: "C172 MODEL THIS BUILD",
+  machNumber: 0, machOverspeed: false,
   ...o,
 });
 
@@ -143,6 +144,10 @@ describe("warningsFor", () => {
     expect(warningsFor(snap({ stalled: true }))).toContain("STALL");
   });
   it("reports an overspeed", () => {
+    expect(warningsFor(snap({ overspeed: true }))).toContain("OVERSPEED");
+  });
+  it("reports a Mach overspeed distinctly from an IAS overspeed", () => {
+    expect(warningsFor(snap({ machOverspeed: true }))).toContain("MMO");
     expect(warningsFor(snap({ overspeed: true }))).toContain("OVERSPEED");
   });
   it("reports the g limit being reached", () => {

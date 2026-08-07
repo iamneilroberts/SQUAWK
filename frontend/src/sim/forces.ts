@@ -15,7 +15,7 @@
  * response constants are named, documented tuning knobs instead. Decisions.md B-007.
  */
 import type { ClassParams, ControlVector, FlapDetent, LapseModel, SimState, Vec3 } from "./types";
-import { isaDensity, RHO_SL, tasToIas } from "./isa";
+import { isaDensity, RHO_SL, tasToIas, machNumber } from "./isa";
 import { geodeticSurfaceNormal } from "./geo";
 import { qRotate, qRotateInverse } from "./quat";
 import { vAdd, vLength, vScale } from "./vec3";
@@ -31,6 +31,7 @@ export type ForceResult = {
   sideslipRad: number;
   tasMs: number;
   iasMs: number;
+  machNumber: number;
   loadFactor: number;
   gLimited: boolean;
   stalled: boolean;
@@ -237,6 +238,7 @@ export function computeForces(
     sideslipRad,
     tasMs,
     iasMs,
+    machNumber: machNumber(tasMs, state.altitudeM),
     loadFactor,
     gLimited,
     stalled: Math.abs(aoaRad) > stallAlphaFor(params, flap),

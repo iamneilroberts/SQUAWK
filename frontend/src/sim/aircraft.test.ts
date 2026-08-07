@@ -36,7 +36,7 @@ function levelState(altM: number, tasMs: number): SimState {
     rates: { x: 0, y: 0, z: 0 },
     timeS: 0,
     altitudeM: altM, tasMs, iasMs: 0, aoaRad: 0, sideslipRad: 0,
-    verticalSpeedMs: 0, loadFactor: 1, gLimited: false, stalled: false,
+    verticalSpeedMs: 0, loadFactor: 1, gLimited: false, stalled: false, machNumber: 0,
   };
   return refreshDerived(state, CONTROLS, P);
 }

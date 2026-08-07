@@ -110,6 +110,7 @@ export function warningsFor(s: HudSnapshot): string[] {
   const out: string[] = [];
   if (s.stalled) out.push("STALL");
   if (s.overspeed) out.push("OVERSPEED");
+  if (s.machOverspeed) out.push("MMO");
   if (s.gLimited) out.push("G LIMIT");
   if (s.terrainUnverified) out.push("TERRAIN UNVERIFIED");
   else if (s.terrainClearanceM !== null && mToFt(s.terrainClearanceM) < TERRAIN_WARNING_FT) {

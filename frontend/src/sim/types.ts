@@ -162,4 +162,6 @@ export type SimState = {
   gLimited: boolean;
   /** True when |AoA| is past the stall break for the current flap setting. */
   stalled: boolean;
+  /** Mach number = TAS / local speed of sound. HUD annunciator only; ASI face is unchanged. */
+  machNumber: number;
 };

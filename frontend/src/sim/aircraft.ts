@@ -35,6 +35,7 @@ export function refreshDerived(
     loadFactor: f.loadFactor,
     gLimited: f.gLimited,
     stalled: f.stalled,
+    machNumber: f.machNumber,
   };
 }
 
@@ -70,6 +71,7 @@ export function stepAircraft(
     loadFactor: f.loadFactor,
     gLimited: f.gLimited,
     stalled: f.stalled,
+    machNumber: f.machNumber,
   };
   return advanced;
 }

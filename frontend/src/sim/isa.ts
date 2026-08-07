@@ -46,3 +46,16 @@ export function tasToIas(tasMs: number, altitudeM: number): number {
 export function iasToTas(iasMs: number, altitudeM: number): number {
   return iasMs / Math.sqrt(isaDensity(altitudeM) / RHO_SL);
 }
+
+/** Ratio of specific heats for dry air. */
+export const GAMMA_AIR = 1.4;
+
+/** Local speed of sound, a = sqrt(gamma * R * T), from the ISA temperature at this altitude. */
+export function speedOfSoundMs(altitudeM: number): number {
+  return Math.sqrt(GAMMA_AIR * R_AIR * isaTemperatureK(altitudeM));
+}
+
+/** Mach number = TAS / local speed of sound. */
+export function machNumber(tasMs: number, altitudeM: number): number {
+  return tasMs / speedOfSoundMs(altitudeM);
+}

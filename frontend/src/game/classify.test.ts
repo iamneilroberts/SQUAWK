@@ -106,7 +106,7 @@ describe("readImpact", () => {
       rates: { x: 0, y: 0, z: 0 },
       timeS: 10,
       altitudeM: 300, tasMs, iasMs: tasMs, aoaRad: 0, sideslipRad: 0,
-      verticalSpeedMs: -sinkMs, loadFactor: 1, gLimited: false, stalled: false,
+      verticalSpeedMs: -sinkMs, loadFactor: 1, gLimited: false, stalled: false, machNumber: 0,
     };
   }
   it("reports sink rate as a positive fpm number when descending", () => {

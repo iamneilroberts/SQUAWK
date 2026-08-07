@@ -38,6 +38,10 @@ export type HudSnapshot = {
   stalled: boolean;
   overspeed: boolean;
   gLimited: boolean;
+  /** Mach number, HUD annunciator only (ASI stays the analog four-arc face, spec §2.3/§7). */
+  machNumber: number;
+  /** True when Mach has exceeded limits.mmo — trips the MMO annunciator. */
+  machOverspeed: boolean;
   /** Height above the sampled ground, or null when the ground has never been sampled. */
   terrainClearanceM: number | null;
   terrainUnverified: boolean;

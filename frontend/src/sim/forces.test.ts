@@ -38,7 +38,7 @@ function stateAt(altM: number, tasMs: number, pitchDeg = 0, fpaDeg = pitchDeg): 
     timeS: 0,
     altitudeM: altM,
     tasMs, iasMs: 0, aoaRad: 0, sideslipRad: 0, verticalSpeedMs: 0,
-    loadFactor: 1, gLimited: false, stalled: false,
+    loadFactor: 1, gLimited: false, stalled: false, machNumber: 0,
   };
 }
 

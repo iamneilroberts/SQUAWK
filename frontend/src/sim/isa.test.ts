@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { RHO_SL, isaTemperatureK, isaPressurePa, isaDensity, tasToIas, iasToTas } from "./isa";
+import { speedOfSoundMs, machNumber } from "./isa";
 import { ftToM, ktToMs, msToKt } from "./units";
 
 describe("ISA atmosphere vs the standard table", () => {
@@ -44,5 +45,19 @@ describe("IAS / TAS", () => {
   it("round-trips TAS -> IAS -> TAS", () => {
     const tas = ktToMs(180);
     expect(iasToTas(tasToIas(tas, ftToM(12000)), ftToM(12000))).toBeCloseTo(tas, 9);
+  });
+});
+
+describe("speed of sound and Mach", () => {
+  it("is about 340 m/s at sea level (ISA 15°C)", () => {
+    expect(speedOfSoundMs(0)).toBeCloseTo(340.3, 1);
+  });
+  it("falls with temperature up to the tropopause, then holds", () => {
+    expect(speedOfSoundMs(11000)).toBeLessThan(speedOfSoundMs(0));
+    expect(speedOfSoundMs(12000)).toBeCloseTo(speedOfSoundMs(11000), 3); // isothermal above 11 km
+  });
+  it("Mach is TAS over the local speed of sound", () => {
+    expect(machNumber(340.3, 0)).toBeCloseTo(1, 3);
+    expect(machNumber(0, 0)).toBe(0);
   });
 });
