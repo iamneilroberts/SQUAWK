@@ -15,10 +15,10 @@
 _Updated: 2026-08-06 — hindustanis_
 
 # Cockpit dashboard — SDD checklist
-- [ ] Task 1: gauge math + six-pack (snapshot extension, turnRateRadS)
-- [ ] Task 2: dashboard strip + collapse + help + placeholders
-- [ ] Task 3: windscreen tags + detail card
-- [ ] Task 4: radar scope
-- [ ] Task 5: labels + basemap toggles
-- [ ] Task 6: integration + acceptance addendum
+- [x] Task 1: gauge math + six-pack (snapshot extension, turnRateRadS)
+- [x] Task 2: dashboard strip + collapse + help + placeholders
+- [x] Task 3: windscreen tags + detail card
+- [x] Task 4: radar scope
+- [x] Task 5: labels + basemap toggles
+- [x] Task 6: integration + acceptance addendum
 _Updated: 2026-08-07 — hindustanis_

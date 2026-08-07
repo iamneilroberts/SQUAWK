@@ -23,7 +23,7 @@ import { createCountdownTimer } from "./countdownTimer";
 import { hudSnapshot } from "../hud/snapshot";
 import { formatCallsign } from "../hud/format";
 import Hud from "../hud/Hud";
-import DashboardStrip from "../dashboard/DashboardStrip";
+import DashboardStrip, { stripMountedForMode } from "../dashboard/DashboardStrip";
 import TrafficOverlay from "../globe/TrafficOverlay";
 import TrafficDetailCard from "../dashboard/TrafficDetailCard";
 import HandoffCard from "../panels/HandoffCard";
@@ -232,7 +232,7 @@ export default function FlightSession() {
       {mode === "COUNTDOWN" && origin && (
         <HandoffCard contact={origin.snapshot} spawn={spawn} countdown={countdown} note={note} />
       )}
-      {(mode === "FLYING" || mode === "PAUSED" || mode === "ENDED") && (
+      {stripMountedForMode(mode) && (
         <>
           <Hud
             snapshot={snapshot}

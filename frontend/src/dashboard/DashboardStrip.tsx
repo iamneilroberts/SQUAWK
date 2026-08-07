@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import type { Contact, FeedStatus } from "../data/types";
 import type { HudSnapshot } from "../hud/snapshot";
 import type { ClassParams } from "../sim/types";
+import type { Mode } from "../game/machine";
 import { loadC172 } from "../sim/params";
 import { useStore } from "../state/store";
 import PanelFrame from "./PanelFrame";
@@ -32,6 +33,18 @@ export type StripState = {
 };
 
 export const PANEL_IDS: readonly PanelId[] = ["gauges", "radar", "weather", "atc", "help"];
+
+/**
+ * Which modes have a cockpit. FLYING, PAUSED and ENDED do; BROWSE and COUNTDOWN do not.
+ *
+ * This is also the reset rule (decisions.md CD-006): collapse flags and the selected radar range
+ * live in `useState` inside `DashboardStrip`, so leaving the mounted set discards them. Folding a
+ * panel therefore survives a pause and the end card, and QUIT gives the next flight a fresh
+ * cockpit — the same "no residue" rule `FlightSession.teardown()` follows for everything else.
+ */
+export function stripMountedForMode(mode: Mode): boolean {
+  return mode === "FLYING" || mode === "PAUSED" || mode === "ENDED";
+}
 
 /** Instruments and the honest placeholders are up; the help panel starts folded. */
 export function defaultStripState(): StripState {

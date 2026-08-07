@@ -98,6 +98,32 @@ That downloads OurAirports' public-domain `airports.csv`, keeps large and medium
 rewrites `frontend/src/data/airports-world.json`. It is a build-time-only script: the browser
 never fetches it and never parses CSV. The current extract holds 5,272 airports at 512 KB.
 
+### The cockpit dashboard
+
+While flying, a collapsible strip along the bottom of the screen carries:
+
+- **INSTRUMENTS** — an analog six-pack (ASI, attitude, altimeter, turn coordinator, DG, VSI) drawn
+  from the same ~10 Hz snapshot as the HUD, so the needles and the numbers can never disagree. The
+  ASI's arcs are computed from the C172S parameter file: the stall speeds come out of the aero
+  block, Vno and Vfe out of the POH figures in `c172.json`.
+- **RADAR** — a PPI scope of the **live ADS-B feed**, own ship centred, heading-up, ranges
+  10/40/80/150/250 NM. Blips are real contacts and nothing else; if the feed drops the scope says
+  `RADAR OFFLINE · NO FEED` rather than going quietly empty.
+- **WEATHER** and **ATC** — chrome only. Both read `NO FEED · FUTURE INTEGRATION` and name the feed
+  that is planned. Nothing fake is ever drawn in them.
+- **CONTROLS** — the keymap, generated from the `KEYMAP` constant in `input/controls.ts`. There is
+  no second, hand-maintained key list to fall out of date.
+
+Live contacts crossing the windscreen also get a small screen-anchored tag (callsign, type,
+altitude); click one for a card with the feed's fields plus adsbdb enrichment.
+
+Each panel header folds its own panel, and the strip folds as a whole. **The keys are not listed
+here on purpose** — the CONTROLS panel in the app is generated from the `KEYMAP` constant in
+`frontend/src/input/controls.ts`, and a second hand-maintained key table in the README is exactly
+the thing that would go stale and start lying. Open the app and press `?`.
+
+Fold state is per-flight: it survives a pause, and a new takeover starts with a fresh cockpit.
+
 ## Attribution
 
 Imagery © Esri World Imagery · Terrain: Re:Earth Terrain · Mapterhorn (CC BY 4.0) ·

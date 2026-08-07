@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   PANEL_IDS, defaultStripState, togglePanel, toggleStrip, stripKeyAction, DashboardStripBody,
+  stripMountedForMode,
 } from "./DashboardStrip";
 import { loadC172 } from "../sim/params";
 import { DEFAULT_RANGE_NM } from "./radarMath";
@@ -127,5 +128,26 @@ describe("the radar panel joins the strip", () => {
   it("starts on the 40 NM range", () => {
     expect(DEFAULT_RANGE_NM).toBe(40);
     expect(defaultStripState().scopeRangeNm).toBe(40);
+  });
+});
+
+describe("when the cockpit exists at all", () => {
+  it("is up for the whole flight, including the pause and the end card", () => {
+    expect(stripMountedForMode("FLYING")).toBe(true);
+    expect(stripMountedForMode("PAUSED")).toBe(true);
+    expect(stripMountedForMode("ENDED")).toBe(true);
+  });
+
+  it("is NOT up in BROWSE or COUNTDOWN — which is exactly what makes QUIT reset the cockpit", () => {
+    // Collapse flags and the scope range live in useState inside DashboardStrip (CD-006), so
+    // unmounting IS the reset. Pinning the mount rule pins the reset; React supplies the rest.
+    expect(stripMountedForMode("BROWSE")).toBe(false);
+    expect(stripMountedForMode("COUNTDOWN")).toBe(false);
+  });
+
+  it("keeps a folded panel folded across a pause, because the strip never unmounts to pause", () => {
+    const folded = togglePanel(defaultStripState(), "weather");
+    expect(stripMountedForMode("FLYING")).toBe(stripMountedForMode("PAUSED"));
+    expect(folded.collapsed.weather).toBe(true);
   });
 });
