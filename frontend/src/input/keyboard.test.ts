@@ -111,6 +111,19 @@ describe("createKeyboard", () => {
     expect(GAME_KEY_CODES.has("Escape")).toBe(false);
     expect(GAME_KEY_CODES.has("ArrowUp")).toBe(true);
   });
+  it("captures KeyL — the leveling assist reads it from the held set (issue #5a)", () => {
+    expect(GAME_KEY_CODES.has("KeyL")).toBe(true);
+    const t = fakeTarget();
+    const kb = createKeyboard(t);
+    const e = keyEvent("KeyL");
+    t.fire("keydown", e);
+    expect(kb.held.has("KeyL")).toBe(true);
+    expect(e.defaultPrevented).toBe(true);
+    kb.dispose();
+  });
+  it("does NOT capture KeyR — re-sync is a React-level chrome key, not a held control (issue #5b)", () => {
+    expect(GAME_KEY_CODES.has("KeyR")).toBe(false);
+  });
   it("does not capture or preventDefault a ctrl/cmd/alt-modified game key (browser shortcuts)", () => {
     const t = fakeTarget();
     const kb = createKeyboard(t);

@@ -25,8 +25,17 @@ import { createControlSampler } from "../input/controls";
 import { createStatsAccumulator } from "./stats";
 import { classifyEnd, readImpact } from "./classify";
 import { createRateMeter } from "./simRate";
+import { levelingCommand, isLevel, C172_LEVELING, MAX_LEVELING_S } from "./leveling";
 
 export const SNAPSHOT_INTERVAL_S = 0.1;
+
+/**
+ * Body roll/pitch rate (rad/s) below which the leveling assist counts the aircraft settled.
+ * Set above the small residual oscillation that lingers once the bank is already level, but well
+ * under the ~0.6 rad/s the aircraft is still rolling at when it crosses through level on its
+ * natural overshoot — so the assist disengages when genuinely level, not mid-overshoot.
+ */
+const LEVELING_RATE_TOLERANCE_RADS = 0.15;
 
 export type FlightHost = {
   /** Subscribe to render frames; returns the unsubscribe. */
@@ -54,8 +63,10 @@ export function createFlightLoop(deps: FlightLoopDeps) {
   // The spawn's trimmed throttle and trim ARE the sampler's starting position — otherwise
   // the player inherits an idle, untrimmed aeroplane a second after the handoff card
   // promised otherwise.
-  const sampler = createControlSampler(params, spawn.controls);
-  const accumulator = createAccumulator();
+  // sampler and accumulator are re-created on resync() (new starting trim, fresh clock), so they
+  // are `let`, not `const`.
+  let sampler = createControlSampler(params, spawn.controls);
+  let accumulator = createAccumulator();
   const rateMeter = createRateMeter(2);
   const stats = createStatsAccumulator(spawn.state);
 
@@ -69,6 +80,12 @@ export function createFlightLoop(deps: FlightLoopDeps) {
   let ended = false;
   let sinceSnapshotS = SNAPSHOT_INTERVAL_S; // publish immediately on the first frame
   let terrainClearanceM: number | null = null;
+
+  // Return-to-level assist (issue #5a): edge-triggered on KeyL, auto-disengages at level or on
+  // the timeout, and cancels the moment the player gives manual roll/pitch input.
+  let leveling = false;
+  let levelingElapsedS = 0;
+  let prevLevelKey = false;
 
   function publish() {
     const hpr = hprFromQuat(state.attitude, state.position);
@@ -119,6 +136,39 @@ export function createFlightLoop(deps: FlightLoopDeps) {
   function stepOnce() {
     if (ended) return;
     controls = sampler.sample(heldKeys, FIXED_DT);
+
+    // ---- return-to-level assist (issue #5a) ----
+    const levelKey = heldKeys.has("KeyL");
+    if (levelKey && !prevLevelKey) {
+      leveling = true;
+      levelingElapsedS = 0;
+    }
+    prevLevelKey = levelKey;
+    if (leveling) {
+      const manualInput =
+        heldKeys.has("ArrowLeft") || heldKeys.has("ArrowRight") ||
+        heldKeys.has("ArrowUp") || heldKeys.has("ArrowDown");
+      if (manualInput) {
+        // The player took the controls back — hand them straight back, no fight.
+        leveling = false;
+      } else {
+        const hpr = hprFromQuat(state.attitude, state.position);
+        const cmd = levelingCommand(hpr.rollRad, hpr.pitchRad, C172_LEVELING);
+        controls = { ...controls, roll: cmd.roll, pitch: cmd.pitch };
+        levelingElapsedS += FIXED_DT;
+        // Disengage only when it is actually SETTLED — attitude AND body roll/pitch rate both
+        // small. Attitude alone would disengage at the zero-crossing of the natural overshoot,
+        // while the aircraft is still rolling through level, and leave a residual bank.
+        const settled =
+          isLevel(hpr.rollRad, hpr.pitchRad, C172_LEVELING) &&
+          Math.abs(state.rates.x) < LEVELING_RATE_TOLERANCE_RADS &&
+          Math.abs(state.rates.y) < LEVELING_RATE_TOLERANCE_RADS;
+        if (settled || levelingElapsedS >= MAX_LEVELING_S) {
+          leveling = false;
+        }
+      }
+    }
+
     state = stepAircraft(state, controls, params);
     stats.update(state);
 
@@ -182,6 +232,29 @@ export function createFlightLoop(deps: FlightLoopDeps) {
     },
     isPaused() {
       return paused;
+    },
+    isLeveling() {
+      return leveling;
+    },
+    /**
+     * Re-sync to the real aircraft (issue #5b): replace the sim state, controls and sampler
+     * starting position with a fresh spawn built from the CURRENT live contact, and re-base the
+     * clock the same way resume()/stop() do — the gap while the takeover is rebuilt is dead time,
+     * not flying time. FlightSession decides eligibility (takeover/resync.ts) and only calls this
+     * when the genuine contact is still fresh; a stale/offline contact is refused there, not here.
+     */
+    resync(newSpawn: SpawnResult) {
+      if (ended) return;
+      state = newSpawn.state;
+      controls = newSpawn.controls;
+      sampler = createControlSampler(params, newSpawn.controls);
+      accumulator = createAccumulator();
+      leveling = false;
+      levelingElapsedS = 0;
+      prevLevelKey = false;
+      lastWallMs = null;
+      sinceSnapshotS = SNAPSHOT_INTERVAL_S;
+      publish();
     },
     getState(): SimState {
       return state;

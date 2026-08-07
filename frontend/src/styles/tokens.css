@@ -233,6 +233,22 @@ body {
   padding: 2px 8px;
   background: rgba(5, 7, 10, 0.72);
 }
+/* Issue #5b: brief honest refusal when a re-sync is declined (stale/offline contact). Amber,
+   like the other warnings; a backing panel, no shadow. */
+.resync-note {
+  position: absolute;
+  top: 54%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border: 1px solid var(--amber);
+  background: rgba(5, 7, 10, 0.72);
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
 .hud-attribution {
   position: absolute;
   bottom: 6px;

@@ -30,9 +30,11 @@ export const KEYMAP: Readonly<Record<string, string>> = {
   KeyG: "gear (fixed on this aircraft)",
   Comma: "trim nose down",
   Period: "trim nose up",
+  KeyL: "return to level (assist)",
   Escape: "pause",
   // Cockpit chrome, not flight controls: the sampler matches on codes and never sees these.
   // They live here so ControlsHelp can render the keymap without a second, hand-copied list.
+  KeyR: "re-sync to real aircraft",
   KeyC: "collapse / restore the cockpit strip",
   Slash: "controls help",
 };

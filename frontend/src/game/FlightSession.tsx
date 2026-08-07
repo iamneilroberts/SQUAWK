@@ -14,6 +14,7 @@ import { useViewer } from "../globe/viewerContext";
 import { attributionFor } from "../globe/mapSources";
 import { loadC172 } from "../sim/params";
 import { buildSpawnState, type SpawnResult } from "../takeover/spawn";
+import { resyncDecision } from "../takeover/resync";
 import { createTerrainService, type TerrainService } from "../world/terrain";
 import { createKeyboard } from "../input/keyboard";
 import { createCesiumFlightHost } from "../globe/cesiumFlightHost";
@@ -49,10 +50,13 @@ export default function FlightSession() {
   const [resumeArmed, setResumeArmed] = useState(false);
   /** Hex of the windscreen tag the player clicked, or null when no detail card is open. */
   const [trafficHex, setTrafficHex] = useState<string | null>(null);
+  /** Brief honest message when a re-sync is refused; "" when there is nothing to say. */
+  const [resyncNote, setResyncNote] = useState("");
 
   const loopRef = useRef<ReturnType<typeof createFlightLoop> | null>(null);
   const keyboardRef = useRef<ReturnType<typeof createKeyboard> | null>(null);
   const terrainRef = useRef<TerrainService | null>(null);
+  const resyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const snapshot = useSyncExternalStore(hudSnapshot.subscribe, hudSnapshot.get, hudSnapshot.get);
 
@@ -64,11 +68,16 @@ export default function FlightSession() {
     keyboardRef.current = null;
     terrainRef.current = null;
     hudSnapshot.set(null);
+    if (resyncTimerRef.current) {
+      clearTimeout(resyncTimerRef.current);
+      resyncTimerRef.current = null;
+    }
     setSpawn(null);
     setCountdown(null);
     setNote("");
     setResumeArmed(false);
     setTrafficHex(null);
+    setResyncNote("");
   }
 
   /**
@@ -196,6 +205,34 @@ export default function FlightSession() {
     };
   }, [mode]);
 
+  // ---- KeyR re-syncs to the real aircraft's CURRENT live position (issue #5b) ----
+  // The live contact lives in the store (updated by the poller), not in the flight loop, so the
+  // decision is made here and only a rebuilt spawn crosses into the loop. If the genuine aircraft
+  // is stale, off the feed or otherwise ineligible we REFUSE and say so — never a synthesized
+  // position (honesty rule). resyncDecision reuses the takeover's own eligibility + freshness gate.
+  useEffect(() => {
+    if (mode !== "FLYING") return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== "KeyR" || e.ctrlKey || e.metaKey || e.altKey) return;
+      const st = useStore.getState();
+      const flown = st.origin;
+      if (!flown || st.mode !== "FLYING") return;
+      const decision = resyncDecision(st.contacts.get(flown.hex), loadC172(), {
+        terrainHeightM: null,
+      });
+      if (resyncTimerRef.current) clearTimeout(resyncTimerRef.current);
+      if (decision.ok) {
+        loopRef.current?.resync(decision.spawn);
+        setResyncNote("");
+      } else {
+        setResyncNote(`RE-SYNC REFUSED — ${decision.reason}`);
+        resyncTimerRef.current = setTimeout(() => setResyncNote(""), 4000);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mode]);
+
   // ---- the armed resume waits for a click on the globe itself (spec §6) ----
   useEffect(() => {
     if (mode !== "PAUSED" || !resumeArmed || !bundle) return;
@@ -253,6 +290,9 @@ export default function FlightSession() {
             <TrafficDetailCard hex={trafficHex} onClose={() => setTrafficHex(null)} />
           )}
         </>
+      )}
+      {mode === "FLYING" && resyncNote !== "" && (
+        <div className="resync-note">{resyncNote}</div>
       )}
       {mode === "PAUSED" && (
         <PauseOverlay

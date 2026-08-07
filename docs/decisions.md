@@ -551,3 +551,36 @@ Consciously deferred, not defects:
   offline dim — revisit if it misleads.
 - **OverlayLayers dep-array wiring** can only be proven with a live Viewer (no-jsdom
   convention) — pure ordering contract is tested; runbook checkpoint 25 is the backstop.
+
+## 2026-08-07 — CD-011 · return-to-level is a pure proportional assist over the rate-command model
+
+The roll axis is a RATE command (`forces.ts`: `pCmd = roll * rollRateMaxRadS * authority`) with a
+self-centring stick, so releasing the keys HOLDS the current bank — on a keyboard a steep bank is
+unrecoverable-feeling. The KeyL leveling assist (issue #5a) does NOT snap the attitude; it engages
+a pure proportional controller (`game/leveling.ts`) that commands a roll/pitch RATE proportional to
+the current bank/pitch error each physics tick. Because the command shrinks as the error shrinks,
+the existing rate damping makes the aeroplane EASE to level over about two seconds rather than
+teleporting there (owner decision). The controller is a pure, Cesium-free function so
+`leveling.test.ts` drives it through the REAL `stepAircraft` and proves a 45° bank decays to near
+zero while the same scenario left alone holds its bank (broken-arm).
+
+The loop disengages when the aircraft is genuinely SETTLED — bank inside tolerance AND body roll/
+pitch rate small — not on attitude alone: attitude alone disengages at the zero-crossing of the
+natural overshoot while the aircraft is still rolling through level, leaving a residual bank. A
+~4 s timeout is the safety net, and any manual roll/pitch input cancels the assist immediately.
+Chosen over a fresh coefficient-based autopilot because it reuses the one rate-command model the
+whole sim already flies (no invented Cl_p/Cl_delta), which is the same reasoning as B-007.
+
+## 2026-08-07 — CD-012 · re-sync refuses honestly rather than synthesizing a position
+
+KeyR (issue #5b) re-runs the takeover against the flown ICAO's CURRENT live contact so the player
+can jump back to where the genuine aeroplane actually is now. The live contact lives in the store
+(updated by the poller), not in the flight loop, so the decision is made in `FlightSession` and only
+a rebuilt spawn crosses into `loop.resync()`. If the genuine aircraft is stale, off the feed or
+otherwise ineligible, re-sync REFUSES and says so briefly (mission-terminal, em-dash discipline) —
+it does NOT invent or extrapolate a position (owner decision; honesty rule, spec §4). The refusal
+reuses the takeover's own `checkEligibility` gate and its `MAX_SEEN_POS_S` freshness rule via the
+pure `takeover/resync.ts`, so re-sync can never accept a contact the initial takeover would have
+rejected, and the message is the gate's own honest reason string. `loop.resync()` re-creates the
+control sampler at the new spawn's trim and re-bases the frame clock the same way resume()/stop()
+do — the rebuild gap is dead time, not flying time.
