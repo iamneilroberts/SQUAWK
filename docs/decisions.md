@@ -532,3 +532,22 @@ Neither `globe/basemap.ts` nor `globe/labelLayers.ts` nor `globe/OverlayLayers.t
 test — all three need a live `Viewer`. Everything they *decide* (URLs, the attribution string,
 which airports are visible, the data file's schema) is in `mapSources.ts` and `data/airports.ts`,
 which have 22 tests between them. The rest is covered by the acceptance walkthrough.
+
+## 2026-08-07 — Cockpit dashboard known limitations (final whole-branch review triage)
+
+Final review (opus, suites/build verified live: frontend 619, backend 22) approved with a
+fix wave applied: places-layer buried under CHART toggle (dep-array + ordering contract
+test), PAUSED strip swallowing the armed-resume click, radar face now shows `FEED <n> NM`
+when the dialed scope range exceeds the feed's polling radius, CD-009 rationale corrected.
+Consciously deferred, not defects:
+
+- **ASI face is fixed 40–180 kt** — geometrically wrong for a 737/fighter; derive per
+  class when a second class lands (blocks nothing today, C172S only).
+- **No test pins the L/R bank label sign**; SLIP β null case renders a trailing space —
+  cosmetic/coverage gaps.
+- **SLIP_BALL_SIGN handedness** is provable only in flight — acceptance checkpoint 17
+  ("step on the ball").
+- **Ghost vs military radar blips** differ only by opacity, which compounds with the
+  offline dim — revisit if it misleads.
+- **OverlayLayers dep-array wiring** can only be proven with a live Viewer (no-jsdom
+  convention) — pure ordering contract is tested; runbook checkpoint 25 is the backstop.
