@@ -11,17 +11,25 @@
  * `DashboardStrip` owns the hooks, `DashboardStripBody` owns every element.
  */
 import { useEffect, useState } from "react";
+import type { Contact, FeedStatus } from "../data/types";
 import type { HudSnapshot } from "../hud/snapshot";
 import type { ClassParams } from "../sim/types";
 import { loadC172 } from "../sim/params";
+import { useStore } from "../state/store";
 import PanelFrame from "./PanelFrame";
 import SixPack from "./SixPack";
+import RadarScope from "./RadarScope";
+import { DEFAULT_RANGE_NM } from "./radarMath";
 import WeatherPanel from "./WeatherPanel";
 import AtcPanel from "./AtcPanel";
 import ControlsHelp from "./ControlsHelp";
 
 export type PanelId = "gauges" | "radar" | "weather" | "atc" | "help";
-export type StripState = { open: boolean; collapsed: Record<PanelId, boolean> };
+export type StripState = {
+  open: boolean;
+  collapsed: Record<PanelId, boolean>;
+  scopeRangeNm: number;
+};
 
 export const PANEL_IDS: readonly PanelId[] = ["gauges", "radar", "weather", "atc", "help"];
 
@@ -30,7 +38,12 @@ export function defaultStripState(): StripState {
   return {
     open: true,
     collapsed: { gauges: false, radar: false, weather: false, atc: false, help: true },
+    scopeRangeNm: DEFAULT_RANGE_NM,
   };
+}
+
+export function setScopeRange(s: StripState, nm: number): StripState {
+  return { ...s, scopeRangeNm: nm };
 }
 
 export function togglePanel(s: StripState, id: PanelId): StripState {
@@ -59,12 +72,19 @@ export function stripKeyAction(
   return null;
 }
 
-export function DashboardStripBody({ state, snapshot, params, onTogglePanel, onToggleStrip }: {
+export function DashboardStripBody({
+  state, snapshot, params, contacts, feedStatus, ghostHex,
+  onTogglePanel, onToggleStrip, onRangeChange,
+}: {
   state: StripState;
   snapshot: HudSnapshot | null;
   params: ClassParams;
+  contacts: Map<string, Contact>;
+  feedStatus: FeedStatus;
+  ghostHex: string | null;
   onTogglePanel(id: PanelId): void;
   onToggleStrip(): void;
+  onRangeChange(nm: number): void;
 }) {
   if (!state.open) {
     return (
@@ -81,6 +101,18 @@ export function DashboardStripBody({ state, snapshot, params, onTogglePanel, onT
       <PanelFrame title="INSTRUMENTS" collapsed={state.collapsed.gauges}
         onToggle={() => onTogglePanel("gauges")}>
         <SixPack snapshot={snapshot} params={params} />
+      </PanelFrame>
+
+      <PanelFrame title="RADAR" collapsed={state.collapsed.radar}
+        onToggle={() => onTogglePanel("radar")}>
+        <RadarScope
+          snapshot={snapshot}
+          contacts={contacts}
+          feedStatus={feedStatus}
+          ghostHex={ghostHex}
+          scopeRangeNm={state.scopeRangeNm}
+          onRangeChange={onRangeChange}
+        />
       </PanelFrame>
 
       <PanelFrame title="WEATHER" collapsed={state.collapsed.weather}
@@ -107,6 +139,9 @@ export function DashboardStripBody({ state, snapshot, params, onTogglePanel, onT
 
 export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | null }) {
   const [state, setState] = useState<StripState>(defaultStripState);
+  const contacts = useStore((s) => s.contacts);
+  const feedStatus = useStore((s) => s.feedStatus);
+  const origin = useStore((s) => s.origin);
   const params = loadC172();
 
   useEffect(() => {
@@ -124,8 +159,12 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
       state={state}
       snapshot={snapshot}
       params={params}
+      contacts={contacts}
+      feedStatus={feedStatus}
+      ghostHex={origin?.hex ?? null}
       onTogglePanel={(id) => setState((s) => togglePanel(s, id))}
       onToggleStrip={() => setState(toggleStrip)}
+      onRangeChange={(nm) => setState((s) => setScopeRange(s, nm))}
     />
   );
 }

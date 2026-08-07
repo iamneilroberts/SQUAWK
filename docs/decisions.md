@@ -468,3 +468,18 @@ first" case originally projected both contacts to the identical screen point via
 dedicated test, further down the same file) drop the far tag before ordering could be observed.
 Fixed by giving the two contacts distinct screen positions in that one test; the implementation
 in `trafficProjection.ts` is unchanged from the brief.
+
+## 2026-08-07 — CD-008 · The radar scope is SVG, not canvas
+
+Both were on the table (spec §3 says "2D canvas or SVG"). SVG wins on three counts and loses on
+none that matter at this scale: the component stays a pure function of its props, so the
+element-tree walker tests it with no jsdom and no mocked 2D context; there is no imperative draw
+loop, no `devicePixelRatio` handling and no resize observer to leak under StrictMode; and it is
+the same idiom as `SixPack`, so `dashboard/` has one way of drawing an instrument rather than two.
+The load is at most `MAX_BLIPS` (60) rectangles updated at ~10 Hz, which is not a DOM problem.
+
+Two smaller calls recorded with it. **A contact with no `alt_geom` still gets a blip** — a PPI
+plot needs latitude and longitude, which the feed gave us, unlike the globe billboards which need
+a 3D position and correctly skip it. **The scope caps at 60 nearest blips**, so a 250 NM sweep
+over a busy area degrades by dropping the far edge rather than by turning into a smear; the cap is
+on nearest-first order, not on Map iteration order, so what is dropped is predictable.

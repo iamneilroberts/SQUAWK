@@ -3,6 +3,7 @@ import {
   PANEL_IDS, defaultStripState, togglePanel, toggleStrip, stripKeyAction, DashboardStripBody,
 } from "./DashboardStrip";
 import { loadC172 } from "../sim/params";
+import { DEFAULT_RANGE_NM } from "./radarMath";
 
 const P = loadC172();
 
@@ -21,8 +22,8 @@ function collectText(node: unknown, out: string[] = []): string[] {
 const body = (state = defaultStripState()) =>
   collectText(
     DashboardStripBody({
-      state, snapshot: null, params: P,
-      onTogglePanel: () => {}, onToggleStrip: () => {},
+      state, snapshot: null, params: P, contacts: new Map(), feedStatus: "live", ghostHex: null,
+      onTogglePanel: () => {}, onToggleStrip: () => {}, onRangeChange: () => {},
     }),
   ).join(" ");
 
@@ -106,5 +107,25 @@ describe("DashboardStripBody", () => {
     const text = body(toggleStrip(defaultStripState()));
     expect(text).toContain("COCKPIT");
     expect(text).not.toContain("INSTRUMENTS");
+  });
+});
+
+describe("the radar panel joins the strip", () => {
+  it("titles it, between the instruments and the placeholders", () => {
+    const text = body();
+    expect(text).toContain("RADAR");
+    expect(text.indexOf("INSTRUMENTS")).toBeLessThan(text.indexOf("RADAR"));
+    expect(text.indexOf("RADAR")).toBeLessThan(text.indexOf("WEATHER"));
+  });
+
+  it("collapses on its own like every other panel", () => {
+    const text = body(togglePanel(defaultStripState(), "radar"));
+    expect(text).toContain("RADAR");
+    expect(text).not.toContain("NM");
+  });
+
+  it("starts on the 40 NM range", () => {
+    expect(DEFAULT_RANGE_NM).toBe(40);
+    expect(defaultStripState().scopeRangeNm).toBe(40);
   });
 });

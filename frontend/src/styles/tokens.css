@@ -475,3 +475,28 @@ body {
   font-size: 11px;
   pointer-events: auto;
 }
+
+/* ---- radar scope: PPI, own ship centred, heading up ---- */
+.radar { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.radar-face { width: 168px; height: 168px; }
+.radar-dim { opacity: 0.45; }
+.radar-ring { fill: none; stroke: var(--grid); stroke-width: 1; }
+.radar-ring-label {
+  fill: var(--text);
+  opacity: 0.55;
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.radar-blip { fill: var(--cyan); }
+.radar-blip-mil { fill: var(--amber); }
+.radar-blip-ghost { fill: var(--amber); opacity: 0.45; }
+.radar-own { fill: none; stroke: var(--amber); stroke-width: 1.5; }
+.radar-footer { display: flex; gap: 8px; font-size: 9px; letter-spacing: 0.06em; }
+.radar-heading { color: var(--cyan); }
+.radar-status { color: var(--amber); }
+.radar-ranges { display: flex; align-items: center; gap: 3px; }
+.radar-range-unit { color: var(--text); opacity: 0.6; font-size: 9px; }
+.status-chip-button-active {
+  background: rgba(95, 215, 224, 0.2);
+  border-color: var(--cyan);
+}
