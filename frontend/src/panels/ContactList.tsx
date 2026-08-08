@@ -31,6 +31,19 @@ export function formatGs(c: Contact): string {
   return c.gs === null ? "—" : `${c.gs} KT`;
 }
 
+/**
+ * The prompt shown where the TAKE CONTROLS button will appear, so it's obvious a contact must
+ * be picked first — the flow is not discoverable on touch, where nothing else says "tap a plane"
+ * (issue: mobile take-controls discoverability). Null once one is selected (the button replaces
+ * it) or when the list is empty (the NO CONTACTS line already explains the blank). Wording is
+ * device-neutral — "select" covers both a tap and a click.
+ */
+export function selectionHint(selectedHex: string | null, rowCount: number): string | null {
+  if (selectedHex !== null) return null;
+  if (rowCount === 0) return null;
+  return "SELECT A CONTACT TO TAKE CONTROLS";
+}
+
 export default function ContactList() {
   const contacts = useStore((s) => s.contacts);
   const selectedHex = useStore((s) => s.selectedHex);
@@ -40,6 +53,7 @@ export default function ContactList() {
   const rows = sortContacts(Array.from(contacts.values()));
   const selected = selectedHex === null ? null : contacts.get(selectedHex) ?? null;
   const eligibility = checkEligibility(selected);
+  const hint = selectionHint(selectedHex, rows.length);
 
   return (
     <div className="panel flex h-full flex-col">
@@ -68,7 +82,7 @@ export default function ContactList() {
         )}
       </div>
 
-      {selectedHex !== null && (
+      {selectedHex !== null ? (
         <div className="p-2">
           <button
             disabled={!eligibility.eligible}
@@ -86,7 +100,11 @@ export default function ContactList() {
           </button>
           {!eligibility.eligible && <div className="label takeover-reason">{eligibility.reason}</div>}
         </div>
-      )}
+      ) : hint !== null ? (
+        <div className="p-2">
+          <div className="label contact-select-hint">{hint}</div>
+        </div>
+      ) : null}
     </div>
   );
 }

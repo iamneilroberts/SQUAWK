@@ -1003,3 +1003,13 @@ First of four sequential mobile sub-features (spec `docs/superpowers/specs/2026-
 - **Touch targets (spec §2.2):** existing tappable chips/buttons/rows (`.status-chip-button`, `.control-button(-disabled)`, `.dash-panel-header`, `.contact-row`) get `min-height: 44px` + horizontal padding inside the media query — transparent padding grows the hit area while the 1px border, no-radius, no-shadow LORAN look is preserved. No NEW controls (those are sub-feature 2).
 - **Viewport meta:** `frontend/index.html` now `width=device-width, initial-scale=1, viewport-fit=cover`; safe-area insets (`env(safe-area-inset-*)`) padded on the status bar and cockpit sheet so `viewport-fit=cover` doesn't hide content behind notches. Nothing app-store-y added.
 - **Verification:** `npx vitest run` 806 passed (baseline 794, +12 new: viewport helpers, RotateCard, contactsChipLabel, mobile fold); `npx tsc --noEmit` clean; `npm run build` succeeds. The actual mobile RENDERING (drawer slide, rotate card, stacked sheet, 44 px targets, safe-area) is CSS/DOM that the no-jsdom pure tests can't cover — needs a real browser/devtools device-emulation pass to confirm by eye.
+
+## 2026-08-07 — #13 · Contact-select discoverability hint (mobile)
+
+The take-controls flow (tap/click a contact row → TAKE CONTROLS button appears) was not
+discoverable on touch — nothing prompted the player to select a contact first. Added a pure
+`selectionHint(selectedHex, rowCount)` that returns "SELECT A CONTACT TO TAKE CONTROLS" only
+when the list is non-empty and nothing is selected; it renders in the same bottom slot the
+TAKE CONTROLS button occupies, so selecting a row swaps the hint for the button. Wording is
+device-neutral ("select" = tap or click), so it helps desktop too and needs no mobile branch.
+No data change; honest-data untouched.

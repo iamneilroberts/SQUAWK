@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sortContacts, formatAlt, formatGs } from "./ContactList";
+import { sortContacts, formatAlt, formatGs, selectionHint } from "./ContactList";
 import type { Contact } from "../data/types";
 
 const contact = (overrides: Partial<Contact> = {}): Contact => ({
@@ -39,5 +39,17 @@ describe("formatGs", () => {
   });
   it("renders an em-dash when unknown", () => {
     expect(formatGs(contact({ gs: null }))).toBe("—");
+  });
+});
+
+describe("selectionHint", () => {
+  it("prompts to select when contacts exist but none is chosen (the discoverability fix)", () => {
+    expect(selectionHint(null, 5)).toBe("SELECT A CONTACT TO TAKE CONTROLS");
+  });
+  it("shows no hint once a contact is selected — the TAKE CONTROLS button replaces it", () => {
+    expect(selectionHint("abc123", 5)).toBeNull();
+  });
+  it("shows no hint when the list is empty — the NO CONTACTS line already explains the blank", () => {
+    expect(selectionHint(null, 0)).toBeNull();
   });
 });

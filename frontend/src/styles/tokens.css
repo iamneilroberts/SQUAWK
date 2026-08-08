@@ -274,6 +274,7 @@ body {
 }
 .control-button:hover { background: rgba(95, 215, 224, 0.12); }
 .takeover-reason { color: var(--amber); padding-top: 4px; }
+.contact-select-hint { color: var(--cyan); text-align: center; opacity: 0.75; }
 
 /* ---- handoff card ---- */
 .handoff-card {
