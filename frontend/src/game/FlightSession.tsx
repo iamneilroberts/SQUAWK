@@ -147,7 +147,7 @@ export default function FlightSession() {
           setCountdown(null);
           flightStarted = true;
 
-          const host = createCesiumFlightHost(bundle.viewer);
+          const host = createCesiumFlightHost(bundle.viewer, params.id);
           hostRef.current = host;
           const loop = createFlightLoop({
             host,
@@ -244,6 +244,62 @@ export default function FlightSession() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [mode]);
+
+  // ---- KeyE toggles the exterior chase/orbit camera (issue #4) ----
+  // View-only, off by default: the toggle LOGIC lives in the host (cesiumFlightHost), so a future
+  // mobile control can drive the same host.toggleExterior() without this keyboard plumbing. Never
+  // touches ControlVector or the sim — it only swaps which camera the render loop drives.
+  useEffect(() => {
+    if (mode !== "FLYING") return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== "KeyE" || e.ctrlKey || e.metaKey || e.altKey) return;
+      hostRef.current?.toggleExterior();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mode]);
+
+  // ---- exterior view: drag to orbit, wheel to zoom (issue #4) ----
+  // Only active while the exterior view is on; the host ignores the deltas otherwise. Uses plain
+  // mouse drag (no pointer lock — this is an orbit, not a first-person swivel), so it never fights
+  // the hold-Q cockpit look. Cesium's own camera inputs stay disabled during flight, so the wheel
+  // is ours to consume for zoom.
+  useEffect(() => {
+    if (mode !== "FLYING" || !bundle) return;
+    const canvas = bundle.viewer.scene.canvas;
+    let dragging = false;
+
+    const onMouseDown = () => {
+      if (!hostRef.current?.isExteriorActive()) return;
+      dragging = true;
+      hostRef.current.setOrbiting(true);
+    };
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragging) return;
+      hostRef.current?.applyOrbitDrag(e.movementX, e.movementY);
+    };
+    const onMouseUp = () => {
+      if (!dragging) return;
+      dragging = false;
+      hostRef.current?.setOrbiting(false); // begins the ease-back to the chase framing
+    };
+    const onWheel = (e: WheelEvent) => {
+      if (!hostRef.current?.isExteriorActive()) return;
+      e.preventDefault(); // don't scroll the page; this is a camera zoom
+      hostRef.current.applyOrbitZoom(e.deltaY);
+    };
+
+    canvas.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      canvas.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      canvas.removeEventListener("wheel", onWheel);
+    };
+  }, [mode, bundle]);
 
   // ---- hold Q = mouse free-look (issue #9) ----
   // FlightSession owns the canvas + DOM, so the pointer-lock / mousemove plumbing lives here; the

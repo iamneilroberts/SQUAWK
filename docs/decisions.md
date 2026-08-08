@@ -1013,3 +1013,45 @@ when the list is non-empty and nothing is selected; it renders in the same botto
 TAKE CONTROLS button occupies, so selecting a row swaps the hint for the button. Wording is
 device-neutral ("select" = tap or click), so it helps desktop too and needs no mobile branch.
 No data change; honest-data untouched.
+
+## 2026-08-07 — #4 + #15 · Exterior chase/orbit camera + hand-built low-poly aircraft models
+
+Owner-locked design (issue #4 + #15 pinned comments): an exterior view = chase + orbit, and
+hand-built low-poly per-class models. Camera-only, no physics coupling; off by default (a takeover
+still starts in the cockpit FPV view).
+
+- **Render mechanism (models):** procedural Cesium `PolylineCollection` **wireframe**, not glTF and
+  not a shaded `Primitive`. Zero new dependency, zero licensing risk, and it is the cleanest fit for
+  the LORAN flat/line visual language (1px cyan/amber lines, no shading to tune). The pure geometry
+  generator (`globe/aircraftGeometry.ts`) turns one dimension record into body-frame line segments;
+  the render layer (`globe/aircraftModel.ts`) rotates those endpoints into ECEF each frame with the
+  aircraft's attitude quaternion (the same `qRotate` path the cockpit camera uses). `sim/` stays
+  Cesium-free.
+- **Per-class dimensions (data, not branches):** `globe/aircraftModelDims.ts` — a `Record` keyed by
+  the class id (`c172s` / `b738` / `f5e`), exactly like `sim/params.ts::loadClassById` +
+  `resolveClass`. No `if (class === …)`. Numbers are honest real-airframe proportions rounded to the
+  metre (C172S 8.3 m/11.0 m straight wing; 737-800 39.5 m/35.8 m, 25° sweep; F-5E 14.7 m/8.1 m,
+  24° sweep, low aspect). Exact wing fore-aft placement, fuselage slimness and the fin are **visual
+  tuning knobs to adjust by eye in the browser**, not source-verified aero figures.
+- **Toggle key:** **KeyE** ("exterior / chase camera"), verified free in the KEYMAP (added to
+  `input/controls.ts` KEYMAP + `ControlsHelp` KEY_LABELS). Handled as a chrome key in
+  `FlightSession` like KeyR/KeyC — not in `GAME_KEY_CODES` (those are held flight controls). The
+  toggle + orbit LOGIC lives in the host (`cesiumFlightHost`), so a future mobile control can drive
+  the same `host.toggleExterior()` / `applyOrbitDrag` / `applyOrbitZoom` with no rework (UI-agnostic).
+- **Chase / orbit math:** pure + unit-tested (`globe/chaseCamera.ts`). The chase frame follows the
+  aircraft's HEADING only (not roll/pitch) so aerobatics don't tumble the camera. Default = behind +
+  12° above, distance = 4 × model length (clamped 10–400 m). Drag orbits (yaw wraps, pitch clamps
+  −20°..+80°); wheel zooms (multiplicative, clamped). On release the yaw/pitch **ease back to the
+  chase framing** while the **zoomed distance persists** (a deliberate framing choice, owner-tunable).
+  Damping rate, sensitivities and default framing are all owner-tunable constants.
+- **Ghost styling:** the live-feed ghost gets the SAME per-class model (`globe/ghostModel.ts`,
+  synced from `ContactLayer`), oriented from the real ADS-B **track** held level (ADS-B has no
+  attitude, so none is invented). It is drawn in **cyan @ 0.55 alpha** (`GHOST_MODEL_STYLE`) —
+  deliberately NOT the SIM **amber** (`SIM_MODEL_STYLE`), so the real aircraft stays unmistakable
+  from the player's synthetic one. The player model shows only in the exterior view.
+- **Honesty:** the models render real sim/feed pose; no feed data is synthesized. SIM banner, amber
+  accent and `SIM-<hex>` are untouched. The exterior view never reads or writes ControlVector or the
+  sim state.
+- **Not unit-tested (browser-verified):** the Cesium primitive wiring and the actual on-screen
+  silhouette + camera feel. The pure parts (class→dims, geometry, chase/orbit math) are unit-tested
+  broken-arm; proportions and camera distance/damping still need a real browser to confirm by eye.

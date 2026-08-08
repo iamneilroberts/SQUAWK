@@ -9,6 +9,7 @@ import type { Label } from "cesium";
 import { useStore } from "../state/store";
 import { syncBillboards } from "./contactBillboards";
 import { syncGhostLabel } from "./ghost";
+import { syncGhostModel, type GhostModelRef } from "./ghostModel";
 import { useViewer } from "./viewerContext";
 
 const BROWSE_HEIGHT_M = 250_000;
@@ -22,6 +23,7 @@ export default function ContactLayer() {
   const origin = useStore((s) => s.origin);
   const feedStatus = useStore((s) => s.feedStatus);
   const ghostLabelRef = useRef<{ label: Label | null }>({ label: null });
+  const ghostModelRef = useRef<GhostModelRef>({ model: null, classId: null });
 
   // Camera waits for the real home from /api/config — never flies to an invented default.
   // Deps key on bundle?.viewer, not bundle itself: the viewer reference is stable for the
@@ -46,7 +48,21 @@ export default function ContactLayer() {
       origin ? contacts.get(origin.hex) : undefined,
       feedStatus,
     );
+    // The live-feed ghost gets the same per-class low-poly model (issue #15), in its distinct
+    // non-SIM cyan styling so it stays unmistakable from the player's amber SIM aircraft. It is
+    // oriented from the real ADS-B track, level — no attitude is faked from data that lacks it.
+    syncGhostModel(bundle.viewer, ghostModelRef.current, origin, contacts.get(origin?.hex ?? ""));
   }, [bundle, contacts, selectedHex, origin, feedStatus]);
+
+  // Destroy the ghost model when the layer unmounts (viewer teardown).
+  useEffect(() => {
+    const ref = ghostModelRef.current;
+    return () => {
+      ref.model?.destroy();
+      ref.model = null;
+      ref.classId = null;
+    };
+  }, []);
 
   return null;
 }
