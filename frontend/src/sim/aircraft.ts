@@ -36,6 +36,7 @@ export function refreshDerived(
     gLimited: f.gLimited,
     stalled: f.stalled,
     machNumber: f.machNumber,
+    gearPosition: state.gearPosition,
   };
 }
 
@@ -72,6 +73,9 @@ export function stepAircraft(
     gLimited: f.gLimited,
     stalled: f.stalled,
     machNumber: f.machNumber,
+    // Task 1 places the field only — the eased approach to ControlVector.gearDown over
+    // GEAR_TRANSITION_S lands in a later task; for now the position simply carries forward.
+    gearPosition: state.gearPosition,
   };
   return advanced;
 }

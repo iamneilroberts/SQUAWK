@@ -14,7 +14,7 @@ function state(o: Partial<SimState> = {}): SimState {
     rates: { x: 0, y: 0, z: 0 },
     timeS: 0,
     altitudeM: 1000, tasMs: ktToMs(100), iasMs: ktToMs(95), aoaRad: 0, sideslipRad: 0,
-    verticalSpeedMs: 0, loadFactor: 1, gLimited: false, stalled: false, machNumber: 0,
+    verticalSpeedMs: 0, loadFactor: 1, gLimited: false, stalled: false, machNumber: 0, gearPosition: 0,
     ...o,
   };
 }

@@ -12,6 +12,7 @@
     "stallAlphaRad": 0.2618,
     "postStallDecayRad": 0.2,
     "cd0": 0.035,
+    "gearDragCd0": 0,
     "oswaldE": 0.7,
     "cyBeta": -0.31
   },
@@ -42,7 +43,8 @@
     "gLimitPos": 3.8,
     "gLimitNeg": -1.52,
     "serviceCeilingM": 4267,
-    "mmo": 0.45
+    "mmo": 0.45,
+    "vleIasMs": 83.85
   },
   "flaps": [
     { "label": "0", "dCL0": 0.0, "dStallAlphaRad": 0.0, "dCD0": 0.0 },
@@ -62,6 +64,7 @@
     "stallAlphaRad": "TUNING KNOB (stall speeds) — 15.0 deg, NACA 2412 critical AoA. Implies CLmax_clean = 0.25 + 4.9*0.2618 = 1.533, inside the sourced 1.47-1.58 range, and Vs1 = 48.1 KCAS against the POH's 48. Verified by envelope.test.ts.",
     "postStallDecayRad": "TUNING KNOB — 0.20 rad (11.5 deg) fade width from CLmax toward flat-plate lift past the break. Gives the soft mushy stall the 172 is known for (about 15% CL lost in the first 2 deg past the break); smaller is a sharper CL cliff. Does NOT move CLmax.",
     "cd0": "TUNING KNOB (cruise + top speed) — raised from the JSBSim book value 0.032 to 0.035. Measured by envelope.test.ts: 75% rated power at 8000 ft settles at 123.4 kt TAS (POH 122-124, band 117-127) and sea-level full power tops out at 128.1 kt TAS (POH Vh 126, band 118-134). Real CD0 is unpublished.",
+    "gearDragCd0": "0 — the 172 has fixed gear; its drag is already inside the sourced cd0 (0.035). Present so the field is required data everywhere, per GR-003, not a per-class branch.",
     "oswaldE": "TUNING KNOB — 0.70, derived from a published C172 model (CD0=0.0329, K=0.0599).",
     "cyBeta": "textbook light-single side-force slope; makes a slip cost energy",
     "rollRateMaxRadS": "40 deg/s — middle of the research doc's 30-45 deg/s light-GA estimate",
@@ -83,6 +86,7 @@
     "gear": "fixed — the 172 has no retractable gear; the HUD reads FIXED and G is inert",
     "afterburnerFactor": "1.0 — the IO-360 has no afterburner. Required in every params file so a jet class can ship a real dry→wet factor without a per-class branch; 1.0 leaves thrustNewtons unchanged.",
     "mmo": "0.45 — a value the C172 never reaches (Vh 126 kt TAS at SL is M0.19; at the 14000 ft ceiling still under M0.25). Present only so the Mach annunciator is data everywhere, per spec §2.3; not a real placard limit.",
+    "vleIasMs": "83.85 m/s — set equal to vneIasMs, so IAS can never exceed it (structurally unreachable even before the retractable-only GEAR O'SPD gate excludes fixed gear entirely, GR-004).",
     "display": "ASI face 40–180 kt is the existing C172 gauge range (Vs0 40.4 to Vne 163 with headroom); attitudeStyle \"line\" keeps the minimalist horizon. Jets override both."
   }
 }

@@ -15,7 +15,7 @@ const P = loadC172();
 const CLEAN = P.flaps[0];
 const FULL = P.flaps[3];
 
-const CONTROLS: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle: 0.75, flapDetent: 0, trim: 0, afterburner: false };
+const CONTROLS: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle: 0.75, flapDetent: 0, trim: 0, gearDown: false, afterburner: false };
 
 /** Velocity vector for a flight path `fpaDeg` above the horizon, tracking north. */
 function velocityAlong(positionEcef: Vec3, tasMs: number, fpaDeg: number): Vec3 {
@@ -38,7 +38,7 @@ function stateAt(altM: number, tasMs: number, pitchDeg = 0, fpaDeg = pitchDeg): 
     timeS: 0,
     altitudeM: altM,
     tasMs, iasMs: 0, aoaRad: 0, sideslipRad: 0, verticalSpeedMs: 0,
-    loadFactor: 1, gLimited: false, stalled: false, machNumber: 0,
+    loadFactor: 1, gLimited: false, stalled: false, machNumber: 0, gearPosition: 0,
   };
 }
 

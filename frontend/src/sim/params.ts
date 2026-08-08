@@ -116,6 +116,9 @@ export function validateClassParams(raw: unknown): ClassParams {
       stallAlphaRad: positive(aero, "stallAlphaRad", "params.aero"),
       postStallDecayRad: positive(aero, "postStallDecayRad", "params.aero"),
       cd0: positive(aero, "cd0", "params.aero"),
+      // num(), not positive(): the C172 ships gearDragCd0 = 0 (fixed-gear drag is already in
+      // cd0), and positive() would reject that zero.
+      gearDragCd0: num(aero, "gearDragCd0", "params.aero"),
       oswaldE: positive(aero, "oswaldE", "params.aero"),
       cyBeta: num(aero, "cyBeta", "params.aero"),
     },
@@ -147,6 +150,7 @@ export function validateClassParams(raw: unknown): ClassParams {
       gLimitNeg: num(limits, "gLimitNeg", "params.limits"),
       serviceCeilingM: positive(limits, "serviceCeilingM", "params.limits"),
       mmo: positive(limits, "mmo", "params.limits"),
+      vleIasMs: positive(limits, "vleIasMs", "params.limits"),
     },
     flaps: o.flaps.map(flapDetent),
     gear,

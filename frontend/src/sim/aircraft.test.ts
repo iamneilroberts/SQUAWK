@@ -24,7 +24,7 @@ const P = loadC172();
 const LAT = degToRad(30.6944);
 const LON = degToRad(-88.0399);
 
-const CONTROLS: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle: 0.75, flapDetent: 0, trim: 0, afterburner: false };
+const CONTROLS: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle: 0.75, flapDetent: 0, trim: 0, gearDown: false, afterburner: false };
 
 function levelState(altM: number, tasMs: number): SimState {
   const position = geodeticToEcef(LAT, LON, altM);
@@ -36,7 +36,7 @@ function levelState(altM: number, tasMs: number): SimState {
     rates: { x: 0, y: 0, z: 0 },
     timeS: 0,
     altitudeM: altM, tasMs, iasMs: 0, aoaRad: 0, sideslipRad: 0,
-    verticalSpeedMs: 0, loadFactor: 1, gLimited: false, stalled: false, machNumber: 0,
+    verticalSpeedMs: 0, loadFactor: 1, gLimited: false, stalled: false, machNumber: 0, gearPosition: 0,
   };
   return refreshDerived(state, CONTROLS, P);
 }

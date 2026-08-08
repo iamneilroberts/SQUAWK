@@ -62,7 +62,7 @@ function stepAxis(current: number, target: number, dtS: number): number {
 }
 
 /** Cold start: centred stick, idle, flaps up, neutral trim. */
-const COLD: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle: 0, flapDetent: 0, trim: 0, afterburner: false };
+const COLD: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle: 0, flapDetent: 0, trim: 0, gearDown: false, afterburner: false };
 
 /**
  * `initial` is how the takeover hands over a TRIMMED, POWERED aircraft: buildSpawnState
@@ -84,6 +84,8 @@ export function createControlSampler(params: ClassParams, initial: ControlVector
   let prevFlapUp = false;
   let afterburner = initial.afterburner;
   let prevBurner = false;
+  // Task 4 builds the edge-trigger on top of this; for now the sampler just carries it through.
+  let gearDown = initial.gearDown;
 
   return {
     sample(held, dtS) {
@@ -114,7 +116,7 @@ export function createControlSampler(params: ClassParams, initial: ControlVector
       if (burnerKey && !prevBurner) afterburner = !afterburner;
       prevBurner = burnerKey;
 
-      return { pitch, roll, yaw, throttle, flapDetent, trim, afterburner };
+      return { pitch, roll, yaw, throttle, flapDetent, trim, gearDown, afterburner };
     },
     reset() {
       pitch = initial.pitch; roll = initial.roll; yaw = initial.yaw;

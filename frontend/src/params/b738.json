@@ -12,6 +12,7 @@
     "stallAlphaRad": 0.28,
     "postStallDecayRad": 0.18,
     "cd0": 0.02,
+    "gearDragCd0": 0.018,
     "oswaldE": 0.8,
     "cyBeta": -0.9
   },
@@ -42,7 +43,8 @@
     "gLimitPos": 2.5,
     "gLimitNeg": -1.0,
     "serviceCeilingM": 12497,
-    "mmo": 0.82
+    "mmo": 0.82,
+    "vleIasMs": 138.9
   },
   "flaps": [
     { "label": "0", "dCL0": 0.0, "dStallAlphaRad": 0.0, "dCD0": 0.0 },
@@ -67,6 +69,7 @@
     "stallAlphaRad": "TUNING KNOB — 16.0 deg (0.28 rad) clean critical AoA; CLmax_clean = 0.2 + 5.5*0.28 = 1.74, a reasonable clean swept-wing maximum.",
     "postStallDecayRad": "TUNING KNOB — 0.18 rad fade width past the break; a slightly sharper stall than the C172.",
     "cd0": "TUNING KNOB (cruise Mach + service ceiling) — 0.020 clean parasite drag for a modern transport (OpenAP 737 clean CD0 ~0.018-0.022). Tuned so 85% thrust trims level at M0.78 at FL350 (measured M0.78) and the FL410 service ceiling still just climbs.",
+    "gearDragCd0": "TUNING KNOB — 0.018, mid of the spec's ~0.015-0.02 range for a 737-class gear/doors. Pinned by the Task 3 broken-arm test: a measurable max-level-speed drop with gear down.",
     "oswaldE": "TUNING KNOB — 0.80, typical transport span efficiency.",
     "cyBeta": "TUNING KNOB — -0.9/rad transport side-force slope (large fin), so a slip bleeds energy.",
     "rollRateMaxRadS": "TUNING KNOB (spec §3 large roll inertia) — 15 deg/s, deliberately low for the heavy-jet feel vs the C172's 40 deg/s.",
@@ -84,6 +87,7 @@
     "limits.vnoIasMs": "320 KIAS = 164.6 m/s, a display caution reference below Vmo.",
     "limits.vfeIasMs": "~250 KIAS = 128.6 m/s flap placard (most-restrictive detent); display only.",
     "mmo": "0.82 — 737-800 Mmo (spec §3 ~0.82).",
+    "vleIasMs": "270 KIAS = 138.9 m/s — 737-800 Vle/Vlo placard (spec target ~270 kt).",
     "gLimits": "+2.5 / -1.0, transport-category clean flight-envelope limits.",
     "serviceCeilingM": "41000 ft = 12497 m, 737-800 certified ceiling. Reached in-model via the shared turbofan thrust lapse (forces.ts, corner FL380 pinned by this target): full-throttle best climb there measures ~190 fpm (barely climbing), a real ceiling.",
     "flaps": "737 detents 0/1/2/5/10/15/25/30/40. dCL0/dStallAlpha/dCD0 are TUNING KNOBS giving monotonically falling stall speeds and rising drag across the schedule.",

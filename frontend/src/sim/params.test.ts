@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { validateClassParams, loadC172, loadB738, loadF5e } from "./params";
-import { msToKt } from "./units";
+import { msToKt, ktToMs } from "./units";
 import c172Raw from "../params/c172.json";
 
 describe("loadC172", () => {
@@ -16,6 +16,8 @@ describe("loadC172", () => {
     expect(p.propulsion.lapseModel).toBe("piston");
     expect(p.propulsion.afterburnerFactor).toBe(1.0);
     expect(p.limits.mmo).toBeGreaterThan(0);
+    expect(p.aero.gearDragCd0).toBe(0);
+    expect(p.limits.vleIasMs).toBeGreaterThan(0);
     expect(p.display.asiMinKt).toBe(40);
     expect(p.display.asiMaxKt).toBe(180);
     expect(p.display.attitudeStyle).toBe("line");
@@ -46,6 +48,8 @@ describe("loadB738", () => {
     expect(p.display.asiMaxKt).toBe(400);
     expect(p.gear).toBe("retractable");
     expect(p.flaps.map((f) => f.label)).toEqual(["0", "1", "2", "5", "10", "15", "25", "30", "40"]);
+    expect(p.aero.gearDragCd0).toBeGreaterThan(0);
+    expect(p.limits.vleIasMs).toBeCloseTo(ktToMs(270), 0);
   });
   it("has an aspect ratio consistent with its span and area", () => {
     const p = loadB738();
@@ -72,6 +76,8 @@ describe("loadF5e", () => {
     expect(p.display.asiMinKt).toBe(80);
     expect(p.display.asiMaxKt).toBe(800);
     expect(p.gear).toBe("retractable");
+    expect(p.aero.gearDragCd0).toBeGreaterThan(0);
+    expect(p.limits.vleIasMs).toBeCloseTo(ktToMs(240), 0);
   });
   it("has an aspect ratio consistent with its span and area", () => {
     const p = loadF5e();
@@ -161,6 +167,28 @@ describe("validateClassParams", () => {
     const raw = JSON.parse(JSON.stringify(c172Raw)) as Record<string, unknown>;
     (raw.display as Record<string, unknown>).attitudeStyle = "sphere";
     expect(() => validateClassParams(raw)).toThrow(/attitudeStyle/);
+  });
+  it("rejects a missing aero.gearDragCd0 rather than defaulting", () => {
+    const p = loadC172();
+    const { gearDragCd0: _omitted, ...aero } = p.aero as unknown as Record<string, unknown>;
+    const bad = { ...(p as unknown as Record<string, unknown>), aero };
+    expect(() => validateClassParams(bad)).toThrow(/gearDragCd0/);
+  });
+  it("accepts gearDragCd0 = 0 without rejecting it as non-positive", () => {
+    const p = loadC172();
+    const bad = { ...(p as unknown as Record<string, unknown>), aero: { ...p.aero, gearDragCd0: 0 } };
+    expect(validateClassParams(bad).aero.gearDragCd0).toBe(0);
+  });
+  it("rejects a missing limits.vleIasMs rather than defaulting", () => {
+    const p = loadC172();
+    const { vleIasMs: _omitted, ...limits } = p.limits as unknown as Record<string, unknown>;
+    const bad = { ...(p as unknown as Record<string, unknown>), limits };
+    expect(() => validateClassParams(bad)).toThrow(/vleIasMs/);
+  });
+  it("rejects a non-positive limits.vleIasMs", () => {
+    const p = loadC172();
+    const bad = { ...(p as unknown as Record<string, unknown>), limits: { ...p.limits, vleIasMs: 0 } };
+    expect(() => validateClassParams(bad)).toThrow(/vleIasMs/);
   });
 });
 

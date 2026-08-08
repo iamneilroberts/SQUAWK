@@ -75,7 +75,7 @@ function levelState(params: ClassParams, altM: number, tasMs: number, controls: 
       rates: { x: 0, y: 0, z: 0 },
       timeS: 0,
       altitudeM: altM, tasMs, iasMs: 0, aoaRad: 0, sideslipRad: 0,
-      verticalSpeedMs: 0, loadFactor: 1, gLimited: false, stalled: false, machNumber: 0,
+      verticalSpeedMs: 0, loadFactor: 1, gLimited: false, stalled: false, machNumber: 0, gearPosition: 0,
     },
     controls,
     params,
@@ -106,7 +106,7 @@ describe("F5E envelope", () => {
     // The +7.33 g clamp only bites from a fast enough entry — at 15000 ft the wing cannot make
     // 7.33 g until the dynamic pressure is high enough; 550 kt TAS (well under Mmo, ~M0.86) gets
     // there with the burner lit. A slower 450 kt entry tops out around 5.5 g without reaching it.
-    const controls: ControlVector = { pitch: 1, roll: 0, yaw: 0, throttle: 1, flapDetent: 0, trim: 1, afterburner: true };
+    const controls: ControlVector = { pitch: 1, roll: 0, yaw: 0, throttle: 1, flapDetent: 0, trim: 1, gearDown: false, afterburner: true };
     let s = levelState(P, ftToM(15000), ktToMs(550), controls);
     let maxG = 0;
     let sawLimit = false;

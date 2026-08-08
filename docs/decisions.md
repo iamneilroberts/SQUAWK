@@ -764,3 +764,15 @@ instant a handoff card calls the aircraft "trimmed." Added a third clamp: TAS is
 for any subsonic spawn, and only bites a genuinely trans-Mmo jet spawn. Supersonic flight itself
 remains deferred to issue #2 (AF-005); this only stops the spawn from starting *already* past
 the cap the sim already enforces in flight.
+
+## 2026-08-07 — GR-001/GR-003/GR-004 · gear command/position split + drag/O'SPD data fields
+
+ControlVector.gearDown (commanded target, edge-toggled) and SimState.gearPosition (integrated
+0..1) are split fields, not one — the command is an input (testable independent of time), the
+position is state (testable independent of the keyboard). Two new required ClassParams fields
+land with no silent default: aero.gearDragCd0 (0 for the fixed-gear C172, whose drag is already
+in cd0) and limits.vleIasMs (m/s — see the plan's Signature Decision #1 for why this departs
+from the design spec's "vleKt" naming/unit: every sibling limits field is IAS in m/s per
+CLAUDE.md's SI-internal rule, so vleIasMs keeps the GEAR O'SPD gate a plain iasMs comparison).
+C172 ships vleIasMs = vneIasMs (structurally unreachable); b738 138.9 m/s (270 kt Vle/Vlo);
+f5e 123.5 m/s (240 kt gear limit, Phase B verification pending).

@@ -12,6 +12,7 @@
     "stallAlphaRad": 0.35,
     "postStallDecayRad": 0.25,
     "cd0": 0.02,
+    "gearDragCd0": 0.025,
     "oswaldE": 0.7,
     "cyBeta": -0.8
   },
@@ -42,7 +43,8 @@
     "gLimitPos": 7.33,
     "gLimitNeg": -3.0,
     "serviceCeilingM": 15700,
-    "mmo": 0.95
+    "mmo": 0.95,
+    "vleIasMs": 123.5
   },
   "flaps": [
     { "label": "0", "dCL0": 0.0, "dStallAlphaRad": 0.0, "dCD0": 0.0 },
@@ -61,6 +63,7 @@
     "stallAlphaRad": "TUNING KNOB — 20 deg (0.35 rad) clean critical AoA for a fighter wing.",
     "postStallDecayRad": "TUNING KNOB — 0.25 rad fade width past the break.",
     "cd0": "TUNING KNOB (climb) — 0.020 clean parasite drag; the subsonic value only (no wave drag; the sim never runs supersonic, spec §1/§7). Pinned with maxPowerW by the burner-climb test.",
+    "gearDragCd0": "TUNING KNOB — 0.025, a fighter gear/doors drag increment above the 737's (smaller aircraft, proportionally higher CD0 impact). Phase B source verification pending (CLAUDE.md). Pinned by the Task 3 broken-arm test.",
     "oswaldE": "TUNING KNOB — 0.70, lower span efficiency for a low-AR fighter wing.",
     "cyBeta": "TUNING KNOB — -0.8/rad side-force slope.",
     "rollRateMaxRadS": "TUNING KNOB — 3.5 rad/s (~200 deg/s), the nimble fighter roll rate (decisions B-007). Far above the 737's 15 deg/s.",
@@ -77,6 +80,7 @@
     "limits.vneIasMs": "TUNING KNOB — 360 m/s subsonic-capped operating IAS placard (display only; the sim caps at Mmo 0.95 before this IAS is reached). Spec §1/§7: the model has no wave drag so it never runs where a supersonic Vne would lie.",
     "limits.vnoIasMs": "TUNING KNOB — 320 m/s caution reference below vne (display only).",
     "limits.vfeIasMs": "TUNING KNOB — 130 m/s flap-extend placard (display only).",
+    "vleIasMs": "240 KIAS = 123.5 m/s — F-5E gear limit speed (spec target ~240 kt). Phase B source verification pending.",
     "gLimits": "+7.33 / -3.0 — F-5E design load factors (fighter clean-envelope limits).",
     "serviceCeilingM": "TUNING KNOB — ~51500 ft (15700 m). Above the shared turbofan corner (FL380) but not exercised by any envelope test (airborne-spawn sim; no ceiling-hang test). Phase B source verification pending (CLAUDE.md).",
     "mmo": "0.95 — capped subsonic (spec §7): the model has no wave-drag physics, so the Mach annunciator trips here. Supersonic + wave drag deferred to issue #2 (decisions AF-005).",

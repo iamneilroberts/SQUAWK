@@ -173,7 +173,7 @@ export function buildSpawnState(
       (alphaTrimRad - params.control.trimAlphaCenterRad) / params.control.trimAlphaRangeRad,
     ),
   );
-  const controls: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle, flapDetent: 0, trim, afterburner: false };
+  const controls: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle, flapDetent: 0, trim, gearDown: false, afterburner: false };
 
   // Placeholder derived readouts — refreshDerived below is the source of truth for these
   // (carried review note: computeForces reads density from state.altitudeM, so a hand-built
@@ -194,6 +194,7 @@ export function buildSpawnState(
     gLimited: false,
     stalled: false,
     machNumber: 0,
+    gearPosition: 0,
   };
 
   const state = refreshDerived(provisional, controls, params);

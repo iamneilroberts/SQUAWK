@@ -56,6 +56,12 @@ export type ClassParams = {
     postStallDecayRad: number;
     /** TUNING KNOB — parasite drag. See sources.tuning. */
     cd0: number;
+    /**
+     * Parasitic-drag CD0 increment from extended gear. 0 for a fixed-gear class — its drag is
+     * already folded into cd0, so this term must not double-count it (GR-003). Effective
+     * parasitic drag is cd0 + gearDragCd0 * gearPosition (sim/forces.ts computeForces).
+     */
+    gearDragCd0: number;
     /** TUNING KNOB — Oswald span efficiency. See sources.tuning. */
     oswaldE: number;
     /** Side-force slope per radian of sideslip (negative = restoring). */
@@ -107,6 +113,12 @@ export type ClassParams = {
     serviceCeilingM: number;
     /** Max operating Mach. The HUD trips a Mach-overspeed annunciator past this. */
     mmo: number;
+    /**
+     * Max gear-extended speed, IAS m/s — named like its siblings (vneIasMs/vnoIasMs/vfeIasMs),
+     * not the design spec's "vleKt": every other limits field is SI internally per CLAUDE.md, and
+     * this keeps the GEAR O'SPD gate a plain iasMs comparison with no unit conversion (GR-004).
+     */
+    vleIasMs: number;
   };
   flaps: FlapDetent[];
   gear: "fixed" | "retractable";
@@ -136,6 +148,12 @@ export type ControlVector = {
   trim: number;
   /** Dry (false) / wet (true) — the F-5E's burner toggle. Ignored where afterburnerFactor is 1. */
   afterburner: boolean;
+  /**
+   * Commanded gear target — true = down/extended. Edge-toggled by KeyG (input/controls.ts),
+   * ignored (pinned) when ClassParams.gear === "fixed". The integrated position is
+   * SimState.gearPosition, not this field (GR-001).
+   */
+  gearDown: boolean;
 };
 
 /** Everything the physics owns. Mutated in place by stepAircraft (via a fresh object). */
@@ -164,4 +182,10 @@ export type SimState = {
   stalled: boolean;
   /** Mach number = TAS / local speed of sound. HUD annunciator only; ASI face is unchanged. */
   machNumber: number;
+  /**
+   * 0 = fully retracted, 1 = fully extended. Eased toward ControlVector.gearDown over
+   * GEAR_TRANSITION_S seconds by stepAircraft (sim/aircraft.ts); pinned to 1 when
+   * ClassParams.gear === "fixed" (GR-001/GR-002/GR-005).
+   */
+  gearPosition: number;
 };
