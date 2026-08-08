@@ -800,3 +800,14 @@ comparison, no unit conversion — see the plan's Signature Decision #1 for why 
 formatGear grows a fourth label state, GEAR IN TRANSIT, for 0 < gearPosition < 1; ControlState
 threads gearPosition through so a retractable aircraft's readout tracks its real position
 instead of reading GEAR DOWN unconditionally (the bug this whole feature exists to fix).
+
+## 2026-08-07 — GR-006 · spawn gear state (the acceptance-flight bug fix)
+
+buildSpawnState now sets ControlVector.gearDown and SimState.gearPosition per class:
+retractable spawns gear-up (gearDown: false, gearPosition: 0) — the honest state for an
+airborne-cruise takeover — and fixed spawns gear-down/pinned (gearDown: true, gearPosition: 1).
+This is the actual fix for the bug that motivated this whole feature: before GR-001..GR-005
+existed, gear was a static "retractable" descriptor and formatGear read it as GEAR DOWN
+unconditionally, so a 737 or F-5E taken over at FL350 showed GEAR DOWN for the whole flight.
+Gated entirely on params.gear (data), not a class id — a fixed-gear class spawning "down" and a
+retractable class spawning "up" is one branch-free expression, not two class-specific paths.

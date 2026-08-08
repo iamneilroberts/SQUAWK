@@ -160,7 +160,9 @@ export function buildSpawnState(
 
   // ---- controls: the throttle that holds this speed, and the trim that holds this AoA ----
   const cl = liftCoefficient(alphaTrimRad, params, flap);
-  const gearPositionAtSpawn = 0; // placeholder — Task 6 sets this per GR-006 for every class
+  // GR-006: retractable spawns gear-up (the honest airborne-cruise state — this is the fix for
+  // the acceptance-flight bug where every jet read GEAR DOWN forever); fixed gear is pinned down.
+  const gearPositionAtSpawn = params.gear === "retractable" ? 0 : 1;
   const dragN = (dragCoefficient(cl, params, flap) + params.aero.gearDragCd0 * gearPositionAtSpawn) *
     qBar * params.wingAreaM2;
   const thrustCapacityN =
@@ -175,7 +177,11 @@ export function buildSpawnState(
       (alphaTrimRad - params.control.trimAlphaCenterRad) / params.control.trimAlphaRangeRad,
     ),
   );
-  const controls: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle, flapDetent: 0, trim, gearDown: false, afterburner: false };
+  const controls: ControlVector = {
+    pitch: 0, roll: 0, yaw: 0, throttle, flapDetent: 0, trim,
+    gearDown: params.gear === "retractable" ? false : true,
+    afterburner: false,
+  };
 
   // Placeholder derived readouts — refreshDerived below is the source of truth for these
   // (carried review note: computeForces reads density from state.altitudeM, so a hand-built
@@ -196,7 +202,7 @@ export function buildSpawnState(
     gLimited: false,
     stalled: false,
     machNumber: 0,
-    gearPosition: 0,
+    gearPosition: gearPositionAtSpawn,
   };
 
   const state = refreshDerived(provisional, controls, params);

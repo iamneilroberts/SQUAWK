@@ -213,3 +213,22 @@ describe("buildSpawnState — purity", () => {
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 });
+
+describe("buildSpawnState — gear (GR-006)", () => {
+  it("spawns a retractable class gear-up (fixes the acceptance-flight GEAR DOWN-at-cruise bug)", () => {
+    const b738 = loadB738();
+    const c: Contact = {
+      hex: "abc", flight: "T", t: "A320", lat: 30, lon: -88,
+      alt_geom: 35000, alt_baro: 35000, gs: 450, track: 90, baro_rate: 0,
+      military: false, seen_pos: 2,
+    };
+    const { state, controls } = buildSpawnState(c, b738, { terrainHeightM: null });
+    expect(controls.gearDown).toBe(false);
+    expect(state.gearPosition).toBe(0);
+  });
+  it("spawns a fixed-gear class pinned gear-down", () => {
+    const { state, controls } = buildSpawnState(ga(), P, { terrainHeightM: 20 });
+    expect(controls.gearDown).toBe(true);
+    expect(state.gearPosition).toBe(1);
+  });
+});
