@@ -389,3 +389,14 @@ interleave with 1–2 if early device tests show the viewer is unusable before t
 - **iOS Safari specifics** (permission UX, the OS "Motion & Orientation Access" toggle,
   landscape axis behavior) are stated from the platform contract, not confirmed on a
   current iOS build in this session.
+
+## Owner decisions (2026-08-07)
+
+Resolved by the owner during review of this draft:
+
+- **D1 — Phasing:** FOLD INTO PHASE E (no new Phase F). Mobile is polish-tier work sequenced within Phase E.
+- **D2 — HTTPS for tilt:** YES, contingent on effort — which is LOW. The public deploy (adsb.voygent.app) is already served over TLS by the reverse proxy, so `DeviceOrientationEvent` permission + events work there with no new code. Bare-metal LAN self-host over plain HTTP is the only gap: handle it with (a) a documented "enable TLS (Caddy/Traefik/Tailscale) for tilt" note in the README, and (b) the tilt toggle detecting an insecure context and self-disabling honestly with an on-screen reason. Do NOT block the touch baseline on any of this.
+- **D5 / best-experience:** Owner is "open to the best mobile experience practical." Interpretation: do not hand-roll a worse virtual stick purely to avoid a dependency — pick whatever gives the best practical touch UX. The ask-before-deps rule (CLAUDE.md #3) still stands, so if a small, well-maintained control library (e.g. nipplejs) clearly beats a hand-rolled stick, propose it explicitly for approval at plan time rather than adding it silently; if hand-rolled is genuinely as good, prefer zero-dep. Decide at plan time with a concrete comparison.
+- **D4 / D7 / D8 (portrait-vs-landscape, rudder-on-touch, target device/perf floor):** defer to plan time under the same "best practical experience" guidance; D8 perf floor still measurement-first (sub-feature 4).
+
+Status remains draft until the plan is written, but these answers unblock spec→plan.
