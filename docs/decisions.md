@@ -894,6 +894,32 @@ This is truthful but hurts flyability/HUD readability at night — it reinforces
 work and may want a future "minimum ambient / night-imagery" decision. No fake illumination was
 added to paper over it.
 
+## 2026-08-07 — #14 follow-up · Night-side ambient floor (playability, NOT data)
+
+Addresses the known limitation logged in the #14 entry above: with globe lighting on and Esri
+World Imagery having no night-lights layer, the night side rendered near-black — truthful but too
+dark to fly. `applyRealTimeLighting(viewer)` now also sets `scene.globe.vertexShadowDarkness = 0.55`.
+
+- **Why this knob.** Cesium's terrain lighting (GlobeFS.glsl) is
+  `diffuseIntensity = clamp(lambertDiffuse * lambertDiffuseMultiplier + vertexShadowDarkness, 0, 1)`.
+  On the night side `lambertDiffuse` is 0, so terrain brightness collapses to *exactly*
+  `vertexShadowDarkness` — this property IS the night-side ambient floor. It is the single cleanest
+  knob for the request. `lambertDiffuseMultiplier` was rejected: it scales the sun term, which is 0
+  at night, so it cannot lift the dark side at all. `atmosphereLightIntensity` /
+  `dynamicAtmosphereLighting` only affect the ground-atmosphere glow, not terrain imagery legibility,
+  and would muddy the day/night distinction. One boring knob beats three interacting ones.
+- **Why 0.55.** Cesium's default is 0.3; multiplied into the already-dark Esri imagery that reads
+  near-black. At 0.55 the night side is legible while the day side (diffuse clamps to 1.0) stays
+  clearly brighter, so the day / twilight / night gradient is compressed but still visibly present.
+  This is a by-eye playability value — the owner may want to retune it in a real browser (raise for
+  a brighter night, lower to hug reality). Verified in unit tests; the actual night appearance can
+  only be confirmed live.
+- **Honesty note (deliberate, not a bug or a data fake).** This is a RENDERING legibility aid, not
+  data. It changes only how the globe is drawn. Nothing about the feed, the aircraft, or the ghost
+  changes, and the HUD `SKY DAY/TWILIGHT/NIGHT` readout logic is untouched — it still reads NIGHT at
+  night (it IS night; we just don't render pitch-black). Owner request: easier to play vs strict
+  reality, while keeping the day/dusk/night distinction visible.
+
 ## 2026-08-07 — #10 · Weather panel (real METAR)
 
 The chrome-only WeatherPanel is replaced with a live nearest-station METAR, backend-proxied.

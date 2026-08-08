@@ -12,7 +12,9 @@ import { applyRealTimeLighting } from "./dayNightLighting";
 function fakeViewer() {
   const viewer = {
     scene: {
-      globe: { enableLighting: false, showGroundAtmosphere: false },
+      // vertexShadowDarkness starts at Cesium's default 0.3 (the "too dark at night" value the
+      // ambient floor must raise), so a no-op implementation fails the floor assertion below.
+      globe: { enableLighting: false, showGroundAtmosphere: false, vertexShadowDarkness: 0.3 },
       skyAtmosphere: { show: false },
     },
     clock: { clockStep: ClockStep.TICK_DEPENDENT, shouldAnimate: false },
@@ -27,6 +29,16 @@ describe("applyRealTimeLighting", () => {
     expect(viewer.scene.globe.enableLighting).toBe(true);
     expect(viewer.scene.skyAtmosphere.show).toBe(true);
     expect(viewer.scene.globe.showGroundAtmosphere).toBe(true);
+  });
+  it("raises the night-side ambient floor above Cesium's dark default so night terrain is legible", () => {
+    const viewer = fakeViewer();
+    applyRealTimeLighting(viewer);
+    // On the night side Cesium's terrain diffuse collapses to vertexShadowDarkness, so this IS the
+    // night brightness floor. It must be lifted above the 0.3 default (near-black over Esri imagery)
+    // yet stay below 1.0 so the day side is still clearly brighter (day/twilight/night stays visible).
+    expect(viewer.scene.globe.vertexShadowDarkness).toBe(0.55);
+    expect(viewer.scene.globe.vertexShadowDarkness).toBeGreaterThan(0.3);
+    expect(viewer.scene.globe.vertexShadowDarkness).toBeLessThan(1);
   });
   it("drives the clock from the real system clock, advancing live", () => {
     const viewer = fakeViewer();
