@@ -22,13 +22,40 @@ describe("modelDimsForClass", () => {
     expect(() => modelDimsForClass("a380")).toThrow(/unknown class id/);
   });
 
-  it("every dimension is a finite positive number, sweep is non-negative", () => {
+  it("every dimension is a finite positive number, sweep is non-negative, placement is signed", () => {
+    // wingSweepRad / wingXFrac are non-negative fractions; wingZFrac is a SIGNED placement
+    // (negative = high wing); engine is a nested object validated separately below.
+    const signed = new Set(["wingZFrac"]);
+    const nonNeg = new Set(["wingSweepRad", "wingXFrac"]);
     for (const dims of Object.values(MODEL_DIMS)) {
       for (const [k, v] of Object.entries(dims)) {
+        if (k === "engine") continue;
         expect(Number.isFinite(v), `${k} finite`).toBe(true);
-        if (k === "wingSweepRad" || k === "wingXFrac") expect(v).toBeGreaterThanOrEqual(0);
+        if (signed.has(k)) continue; // any finite sign allowed
+        if (nonNeg.has(k)) expect(v).toBeGreaterThanOrEqual(0);
         else expect(v, `${k} positive`).toBeGreaterThan(0);
       }
+    }
+  });
+
+  it("wing taper is a fraction in (0,1]; only the airliner carries engine nacelles", () => {
+    for (const dims of Object.values(MODEL_DIMS)) {
+      expect(dims.wingTipChordFrac).toBeGreaterThan(0);
+      expect(dims.wingTipChordFrac).toBeLessThanOrEqual(1);
+    }
+    // Nacelles are DATA (present only where a class has them), not a per-class code branch.
+    expect(MODEL_DIMS.c172s.engine).toBeUndefined();
+    expect(MODEL_DIMS.f5e.engine).toBeUndefined();
+    const e = MODEL_DIMS.b738.engine;
+    expect(e).toBeDefined();
+    if (e) {
+      expect(e.spanFracs).toHaveLength(e.count);
+      expect(e.lengthM).toBeGreaterThan(0);
+      expect(e.radiusM).toBeGreaterThan(0);
+      // Symmetric span stations keep the airframe left/right symmetric.
+      expect([...e.spanFracs].sort((a, b) => a - b)).toEqual(
+        [...e.spanFracs].map((f) => -f).sort((a, b) => a - b),
+      );
     }
   });
 

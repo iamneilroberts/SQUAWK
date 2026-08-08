@@ -45,7 +45,9 @@ function prism(loop: Vec3[], offset: Vec3): Triangle[] {
 /**
  * A horizontal lifting surface (wing or tailplane), one thin slab spanning tip to tip and
  * symmetric about the centreline. `rootLeX` is the leading-edge X at the centreline; each tip is
- * swept aft by tan(sweep)*semispan. Constant chord — this is a silhouette, not an aerofoil.
+ * swept aft by tan(sweep)*semispan. `zCentre` places the slab vertically (0 = centreline, negative
+ * = high, positive = low). `tipChordFrac` tapers the tip: tip chord = chord*tipChordFrac (1 = a
+ * constant-chord slab). The leading-edge sweep is unchanged; only the trailing edge moves in.
  */
 function horizontalSurface(
   rootLeX: number,
@@ -53,20 +55,62 @@ function horizontalSurface(
   chord: number,
   sweepRad: number,
   thickness: number,
+  zCentre: number,
+  tipChordFrac: number,
 ): Triangle[] {
   const semi = span / 2;
   const tipLeX = rootLeX - Math.tan(sweepRad) * semi;
+  const tipChord = chord * tipChordFrac;
   const h = thickness / 2;
-  // Planform loop at the lower face (z = +h; +Z is down), ordered CCW seen from above (-Z).
+  const lo = zCentre + h; // lower face (+Z is down)
+  // Planform loop at the lower face, ordered CCW seen from above (-Z).
   const loop: Vec3[] = [
-    { x: rootLeX, y: 0, z: h }, // root leading edge (forward, centre)
-    { x: tipLeX, y: semi, z: h }, // right tip leading edge
-    { x: tipLeX - chord, y: semi, z: h }, // right tip trailing edge
-    { x: rootLeX - chord, y: 0, z: h }, // root trailing edge (aft, centre)
-    { x: tipLeX - chord, y: -semi, z: h }, // left tip trailing edge
-    { x: tipLeX, y: -semi, z: h }, // left tip leading edge
+    { x: rootLeX, y: 0, z: lo }, // root leading edge (forward, centre)
+    { x: tipLeX, y: semi, z: lo }, // right tip leading edge
+    { x: tipLeX - tipChord, y: semi, z: lo }, // right tip trailing edge
+    { x: rootLeX - chord, y: 0, z: lo }, // root trailing edge (aft, centre)
+    { x: tipLeX - tipChord, y: -semi, z: lo }, // left tip trailing edge
+    { x: tipLeX, y: -semi, z: lo }, // left tip leading edge
   ];
-  return prism(loop, { x: 0, y: 0, z: -thickness }); // extrude up to z = -h
+  return prism(loop, { x: 0, y: 0, z: -thickness }); // extrude up to z = zCentre - h
+}
+
+/**
+ * A small closed square-section box (a podded engine nacelle), centred at (cx, cy, cz) with a
+ * square cross-section of half-extent `radius` and running `lengthM` fore-aft along X. Same ring
+ * order as the fuselage, so every face winds outward (pinned by the positive-signed-volume test).
+ */
+function boxPrism(cx: number, cy: number, cz: number, radius: number, lengthM: number): Triangle[] {
+  const xr = cx - lengthM / 2; // rear face; extrude forward (+X) to the front face
+  const loop: Vec3[] = [
+    { x: xr, y: cy + radius, z: cz - radius },
+    { x: xr, y: cy - radius, z: cz - radius },
+    { x: xr, y: cy - radius, z: cz + radius },
+    { x: xr, y: cy + radius, z: cz + radius },
+  ];
+  return prism(loop, { x: lengthM, y: 0, z: 0 });
+}
+
+/**
+ * Underwing engine nacelles, one closed box per `dims.engine.spanFracs` entry. No engine field →
+ * no nacelles (data, not a class branch). Each nacelle is slung under (below = +Z) and ahead of
+ * the wing leading edge at its span station.
+ */
+function nacelles(dims: ModelDims): Triangle[] {
+  const e = dims.engine;
+  if (!e) return [];
+  const semi = dims.wingSpanM / 2;
+  const wingRootLeX = dims.lengthM / 2 - dims.wingXFrac * dims.lengthM;
+  const wingCentreZ = dims.wingZFrac * dims.fuselageRadiusM;
+  const tris: Triangle[] = [];
+  for (const frac of e.spanFracs) {
+    const y = frac * semi;
+    const leX = wingRootLeX - Math.tan(dims.wingSweepRad) * Math.abs(y);
+    const cx = leX + e.lengthM * 0.25; // straddles the LE, mostly ahead
+    const cz = wingCentreZ + e.radiusM + 0.2; // slung below the wing
+    tris.push(...boxPrism(cx, y, cz, e.radiusM, e.lengthM));
+  }
+  return tris;
 }
 
 /** The vertical fin: a thin triangular slab in the X-Z plane, extruded ±thickness/2 in Y. */
@@ -124,11 +168,22 @@ export function buildAirframe(dims: ModelDims): AirframeGeometry {
   const tailRootLeX = -dims.lengthM / 2 + dims.tailChordM * 1.15;
   const wingThk = Math.max(dims.wingChordM * 0.09, 0.06);
   const tailThk = Math.max(dims.tailChordM * 0.12, 0.05);
+  const wingZ = dims.wingZFrac * dims.fuselageRadiusM;
   const triangles: Triangle[] = [
     ...fuselage(dims),
-    ...horizontalSurface(wingRootLeX, dims.wingSpanM, dims.wingChordM, dims.wingSweepRad, wingThk),
-    ...horizontalSurface(tailRootLeX, dims.tailSpanM, dims.tailChordM, 0, tailThk),
+    ...horizontalSurface(
+      wingRootLeX,
+      dims.wingSpanM,
+      dims.wingChordM,
+      dims.wingSweepRad,
+      wingThk,
+      wingZ,
+      dims.wingTipChordFrac,
+    ),
+    // Tailplane stays on the centreline and constant-chord (tipChordFrac = 1).
+    ...horizontalSurface(tailRootLeX, dims.tailSpanM, dims.tailChordM, 0, tailThk, 0, 1),
     ...verticalFin(dims),
+    ...nacelles(dims),
   ];
   return { triangles };
 }

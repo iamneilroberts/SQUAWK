@@ -21,6 +21,29 @@ export type ModelDims = {
   wingChordM: number;
   /** Wing leading-edge position from the nose, as a fraction of lengthM (0 = nose, 1 = tail). */
   wingXFrac: number;
+  /**
+   * Wing VERTICAL placement, as a fraction of fuselageRadiusM: negative = high (on top of the
+   * fuselage, up is -Z), positive = low (under the belly). The single biggest type cue —
+   * C172 high, 737 low, F-5 low/mid.
+   */
+  wingZFrac: number;
+  /** Wing taper: tip chord ÷ root chord. 1 = constant chord; < 1 = tapered/trapezoidal. */
+  wingTipChordFrac: number;
+  /**
+   * Optional underwing engine nacelles (the 737's clearest signature). ABSENT means no nacelle —
+   * this is DATA, not a per-class code branch: c172s and f5e simply omit the field.
+   */
+  engine?: {
+    /** Number of nacelles (documents intent; equals spanFracs.length). */
+    count: number;
+    /** Y position of each nacelle as a SIGNED fraction of the wing semi-span. Keep the list
+     *  symmetric (e.g. [-0.35, 0.35]) so the airframe stays left/right symmetric. */
+    spanFracs: number[];
+    /** Nacelle length (fore-aft), metres. */
+    lengthM: number;
+    /** Nacelle radius (half-width and half-height of its square section), metres. */
+    radiusM: number;
+  };
   /** Horizontal tailplane span (tip to tip). */
   tailSpanM: number;
   /** Tailplane chord. */
@@ -42,6 +65,8 @@ export const MODEL_DIMS: Readonly<Record<string, ModelDims>> = {
     wingSweepRad: 0,
     wingChordM: 1.5,
     wingXFrac: 0.32,
+    wingZFrac: -1.0, // high wing, on top of the cabin
+    wingTipChordFrac: 0.95, // near-constant chord
     tailSpanM: 3.4,
     tailChordM: 1.1,
     finHeightM: 1.7,
@@ -53,6 +78,9 @@ export const MODEL_DIMS: Readonly<Record<string, ModelDims>> = {
     wingSweepRad: (25 * Math.PI) / 180,
     wingChordM: 6.0,
     wingXFrac: 0.42,
+    wingZFrac: 0.9, // low wing, under the belly
+    wingTipChordFrac: 0.35, // strongly tapered airliner wing
+    engine: { count: 2, spanFracs: [-0.35, 0.35], lengthM: 4.3, radiusM: 1.0 }, // two podded nacelles
     tailSpanM: 13.7,
     tailChordM: 3.5,
     finHeightM: 7.0,
@@ -64,6 +92,8 @@ export const MODEL_DIMS: Readonly<Record<string, ModelDims>> = {
     wingSweepRad: (24 * Math.PI) / 180,
     wingChordM: 3.4,
     wingXFrac: 0.5,
+    wingZFrac: 0.3, // low/mid wing
+    wingTipChordFrac: 0.4, // low-aspect trapezoidal wing
     tailSpanM: 5.1,
     tailChordM: 1.8,
     finHeightM: 2.3,

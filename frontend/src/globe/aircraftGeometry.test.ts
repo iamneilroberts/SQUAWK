@@ -106,4 +106,49 @@ describe("buildAirframe (solid low-poly mesh)", () => {
     };
     expect(span("b738")).toBeGreaterThan(span("c172s"));
   });
+
+  // The wingtip vertices belong only to the main wing (no other part reaches ±wingSpanM/2), so
+  // their Z tells us where the wing sits vertically — the single biggest type cue.
+  const wingtipZs = (id: string): number[] => {
+    const pts = allPoints(id);
+    const maxY = Math.max(...pts.map((p) => p.y));
+    return pts.filter((p) => Math.abs(p.y - maxY) < 1e-6).map((p) => p.z);
+  };
+
+  it("places the C172 wing HIGH — every wingtip vertex is above the centreline (z < 0 is up)", () => {
+    // Broken-arm: with the wing on the centreline (old behaviour) the tip slab straddles z=0, so
+    // some tip z would be >= 0. A true high wing has all tip vertices above (negative z).
+    for (const z of wingtipZs("c172s")) expect(z).toBeLessThan(0);
+  });
+
+  it("places the 737 wing LOW — every wingtip vertex is below the centreline (z > 0 is down)", () => {
+    for (const z of wingtipZs("b738")) expect(z).toBeGreaterThan(0);
+  });
+
+  it("hangs two underwing nacelles well below the 737 belly, and none on the C172 / F-5", () => {
+    // The nacelles are the only structure that dips below the fuselage belly (z = +fuselageRadius).
+    // Broken-arm: no nacelle → maxZ == fuselageRadius exactly, so this fails.
+    const maxZ = (id: string) => Math.max(...allPoints(id).map((p) => p.z));
+    expect(maxZ("b738")).toBeGreaterThan(MODEL_DIMS.b738.fuselageRadiusM * 1.2);
+    expect(maxZ("c172s")).toBeLessThanOrEqual(MODEL_DIMS.c172s.fuselageRadiusM + 1e-6);
+    expect(maxZ("f5e")).toBeLessThanOrEqual(MODEL_DIMS.f5e.fuselageRadiusM + 1e-6);
+    // The nacelle lives in the DATA, not a class branch.
+    expect(MODEL_DIMS.b738.engine).toBeDefined();
+    expect(MODEL_DIMS.c172s.engine).toBeUndefined();
+    expect(MODEL_DIMS.f5e.engine).toBeUndefined();
+  });
+
+  it("tapers the F-5 wing — tip chord is well under the root chord; the C172 stays near-constant", () => {
+    // Tip chord = fore-aft extent of the vertices at the wingtip (wing-only at ±wingSpanM/2).
+    const tipChord = (id: string) => {
+      const pts = allPoints(id);
+      const maxY = Math.max(...pts.map((p) => p.y));
+      const tip = pts.filter((p) => Math.abs(p.y - maxY) < 1e-6).map((p) => p.x);
+      return Math.max(...tip) - Math.min(...tip);
+    };
+    // Broken-arm: constant chord (old behaviour) makes tip chord == wingChordM, so this fails.
+    expect(tipChord("f5e")).toBeLessThan(MODEL_DIMS.f5e.wingChordM * 0.9);
+    expect(tipChord("f5e") / MODEL_DIMS.f5e.wingChordM).toBeCloseTo(0.4, 2);
+    expect(tipChord("c172s") / MODEL_DIMS.c172s.wingChordM).toBeCloseTo(0.95, 2);
+  });
 });

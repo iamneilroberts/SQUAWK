@@ -1307,3 +1307,23 @@ REUSES the existing `showWeather` glass toggle (off by default); a fresh frame r
 offline/stale/coarse state reads amber and says NO RADAR FEED (distinct from ADS-B's TRAFFIC
 FROZEN). **Cannot verify without a browser:** the on-canvas overlay pixels rendering/aligning over
 live imagery — the warp math and offline states are unit-tested; the canvas glue is build-verified.
+
+## 2026-08-08 — MODEL-003 · Route B procedural silhouettes over glTF; per-type wing placement, nacelles, taper (issue #15)
+
+The three exterior-cam airframes (C172 / 737 / F-5) read as "one blob" because the low-poly mesh
+put every wing on the fuselage centreline, gave no engines, and used constant-chord wings. Chose
+**Route B (procedural, data-driven geometry) over glTF assets**: the render layer flat-tints the
+whole airframe a single amber (player) / cyan (ghost), which DISCARDS any glTF texture, so an
+imported model would contribute only silhouette — exactly what we get here with zero external
+assets, licenses, or new deps, and the mesh stays pure/Cesium-free/watertight/unit-testable.
+Added three DATA fields to `ModelDims` (never a `if (classId===)` branch): `wingZFrac` (signed
+fraction of fuselageRadius — C172 high `-1.0`, 737 low `+0.9`, F-5 low/mid `+0.3`; the biggest type
+cue), optional `engine {count, spanFracs, lengthM, radiusM}` (two podded underwing nacelles slung
+below+ahead of the 737 wing — ABSENT on c172s/f5e means no nacelle, data not branch), and
+`wingTipChordFrac` wing taper (C172 `0.95` near-constant, 737 `0.35`, F-5 `0.4` trapezoidal). Each
+nacelle is a closed square-section box wound outward like the fuselage; the tailplane stays on the
+centreline and constant-chord. **Cannot verify without a browser (no X server):** the geometry
+INVARIANTS (watertight, positive signed volume / outward winding, per-feature broken-arm tests)
+are unit-tested and green; the actual on-screen LOOK is owner-eyeballed on deploy (exterior cam,
+press E). The SIM machinery and the amber/cyan single-instance ghost tint are geometry-independent
+and untouched.
