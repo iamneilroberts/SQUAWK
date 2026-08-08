@@ -10,9 +10,15 @@ import { useViewport } from "./layout/useViewport";
 import { isNarrowViewport, shouldShowRotateCard } from "./layout/viewport";
 import { isImmersiveActive } from "./layout/immersive";
 import { useStore } from "./state/store";
+import { useUrlTakeover } from "./takeover/useUrlTakeover";
 
 export default function App() {
   const mode = useStore((s) => s.mode);
+  // Deep-link auto-takeover (?takeover=<hex>): fires the real ContactList take-control path once
+  // the target lands on the feed and is eligible; returns an honest fallback message otherwise.
+  // No `?takeover` param → the hook returns null and does nothing, so desktop behaviour is
+  // byte-identical to before.
+  const takeoverMessage = useUrlTakeover();
   const immersive = useStore((s) => s.immersive);
   const chromeVisible = useStore((s) => s.chromeVisible);
   // Bridged up from ViewerHost's bundle, not zustand: StatusBar is a flex sibling of
@@ -50,6 +56,9 @@ export default function App() {
           )}
           {showRotate && !rotateDismissed && (
             <RotateCard onDismiss={() => setRotateDismissed(true)} />
+          )}
+          {takeoverMessage !== null && mode === "BROWSE" && (
+            <div className="takeover-banner">{takeoverMessage}</div>
           )}
         </div>
         {mode === "BROWSE" && !narrow && (

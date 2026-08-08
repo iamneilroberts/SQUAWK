@@ -249,6 +249,24 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
+/* Deep-link takeover (?takeover=<hex>): honest fallback banner when the target could not be
+   taken over — not on the feed, or ineligible. Amber like the other warnings; a backing panel,
+   1px border, no shadow, uppercase mono — the LORAN mission-terminal register. */
+.takeover-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  padding: 4px 10px;
+  border: 1px solid var(--amber);
+  background: rgba(5, 7, 10, 0.72);
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
 .hud-attribution {
   position: absolute;
   bottom: 6px;

@@ -1128,3 +1128,48 @@ in FlightSession. On a phone the flight UI is the minimal immersive path only (I
 top status bar + minimal transparent touch controls + auto-hide) — no multi-panel dashboard, no
 COCKPIT chip. Desktop non-immersive flight is unchanged. The forthcoming unified-glass per-class
 dashboard is likewise a desktop-only feature.
+## 2026-08-08 — deep-link auto-takeover (`?takeover=<hex>`)
+
+LORAN needs to deep-link a user straight into flying a selected aircraft. Fixed protocol
+string (the LORAN side is being built to match): `https://adsb.voygent.app/?takeover=<hex>`
+where `<hex>` is the lowercase ICAO 24-bit hex of an aircraft currently on the live feed. On
+load the app auto-selects that contact and takes control of it — no manual select+click.
+
+- **Split pure vs wiring.** `takeover/urlTakeover.ts` is the pure, unit-tested decision layer:
+  `parseTakeoverHex(search)` (normalize/validate to `^[0-9a-f]{6}$` → lowercase hex | null),
+  `evaluateTakeover(contact, eligibility)` (absent | ineligible+reason | take), and
+  `takeoverFallbackMessage(...)` (the honest not-in-feed vs ineligible text). The browser
+  wiring is `takeover/useUrlTakeover.ts` (a hook) — DOM/history/store/subscription — and is
+  browser-verified, not jsdom-tested (repo has no jsdom; §8 style).
+- **Reuses the ONE take-control path, does not fork it.** On the poll where the target hex
+  appears AND passes `checkEligibility`, the hook drives the SAME store actions as the
+  ContactList TAKE CONTROLS button: `select(hex)` → `setOrigin({hex, snapshot: {...contact}})`
+  (snapshot frozen NOW, since the next `applyFetch` nulls `selectedHex` the instant the contact
+  leaves the feed — spec §4) → `fire("TAKE_CONTROLS")`. Eligibility is the unchanged physical
+  gate; no takeover-specific eligibility.
+- **Feed-wait + timeout.** The target may take a poll cycle or two to appear, so the hook
+  subscribes to the store and re-checks every `applyFetch`. `TAKEOVER_TIMEOUT_MS = 18000` (~a
+  couple of 5 s poll cycles plus slack). Absent/ineligible → keep waiting (a taxiing plane may
+  take off) until the window closes.
+- **Honest fallback, never synthesized (ground rule #1).** If the hex never appears, or is
+  present-but-ineligible when the window closes, we fall back to BROWSE (no takeover) with the
+  contact selected if present, and show an amber LORAN-style banner (`.takeover-banner`:
+  near-black translucent, 1px amber border, uppercase mono) naming why —
+  `TAKEOVER TARGET <HEX> NOT IN FEED` or `TAKEOVER TARGET <HEX> INELIGIBLE — <REASON>`. We NEVER
+  fabricate a contact to force a takeover; the only synthesized object remains the player SIM,
+  produced solely by this real eligible path.
+- **Fires ONCE.** A `done` latch (set BEFORE the store mutations, which re-enter the
+  subscription synchronously) plus unsubscribe guarantee single-fire across re-renders and
+  later polls. The auto-take is also gated to `mode === "BROWSE"` so it never hijacks a user who
+  already moved on.
+- **Clears the URL after handling.** On reaching a terminal state (takeover fired OR fallback
+  shown) the hook removes only the `takeover` param via `history.replaceState`, preserving any
+  other params — so a manual reload does not silently re-take-over. The hex is captured in a
+  closure before clearing, so clearing cannot disrupt an in-flight decision.
+- **No-param behaviour unchanged.** With no `?takeover`, `parseTakeoverHex` returns null and the
+  hook does nothing (returns null, mounts no subscription/timer) — desktop and normal load are
+  byte-identical to before. No new dependencies.
+- **Cannot verify without a browser:** the real LORAN→adsb-game deep-link round-trip (a live
+  URL landing a real eligible feed contact into flight, the fallback banner on a bad/absent hex,
+  and the URL-param clear) needs a browser. All decision logic is pure/unit-tested (15 new
+  tests); the App/effect wiring is build- and typecheck-verified.
