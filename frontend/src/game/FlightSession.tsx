@@ -463,9 +463,11 @@ export default function FlightSession() {
             faded={faded}
             attitudeStyle={originParams?.display.attitudeStyle ?? "line"}
           />
-          {/* The cockpit strip is hidden entirely in immersive flight (it overlaps the touch
-              buttons); it returns on PAUSED/ENDED and in non-immersive flight. */}
-          {!immersiveActive && <DashboardStrip snapshot={snapshot} />}
+          {/* The cockpit dashboard is DESKTOP-ONLY. On mobile (narrow) it never renders at all —
+              phones get the minimal immersive flying view (top status bar + minimal touch
+              controls + auto-hide), no multi-panel dashboard clutter (owner directive). It also
+              stays hidden in immersive mode, and returns on desktop non-immersive flight. */}
+          {!immersiveActive && !narrow && <DashboardStrip snapshot={snapshot} />}
         </>
       )}
       {/* ENDED is deliberately excluded: the end card owns the screen and the mouse is handed

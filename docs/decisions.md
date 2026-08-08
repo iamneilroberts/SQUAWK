@@ -1118,3 +1118,13 @@ Owner follow-up: in immersive mobile flight the essential instruments (alt/speed
 - **The bar STAYS visible — it is essential instrumentation, NOT chrome.** Unlike the attribution (which keeps its video-player auto-hide via `.hud-immersive.hud-faded .hud-attribution`), the bar is deliberately excluded from the fade set, so alt/speed/heading remain readable while flying. Warnings (OVERSPEED etc.) still surface in the bar (safety). Locked by a test asserting `imm-bar` is still rendered when `faded: true`.
 - **Replaced (not added to) the old immersive CSS.** Removed the now-dead `.hud-immersive .hud-left/.hud-right/.hud-bottom` reposition rules and the multi-selector cluster fade; replaced with `.imm-bar*` styling (LORAN: near-black rgba(5,7,10,0.72) translucent, cyan values, amber SIM/warnings, monospace uppercase labels, 1px border, no radius, no shadow, dense spacing) + attribution-only fade. `attitudeStyle` threaded `FlightSession → Hud → bar` from the already-computed `originParams` (falls back to `"line"`).
 - **Cannot verify without a device:** on-phone legibility and whether all 7 fields + the mini ADI + SIM block fit one line without wrapping on a real phone width, the mini-ADI size (32px — may want bigger/smaller by eye), and the bar height/opacity. All logic (field selection, formatting, geometry reuse, immersive gating, stays-visible) is pure/unit-tested; the pixel layout is browser-build-verified only and needs a real phone.
+
+## 2026-08-08 — #13 · Dashboard is desktop-only (no dashboard on mobile)
+
+Owner directive: "Don't bother to render dashboards on mobile. Mobile should focus on the
+immersive experience, minimal clutter on the flying view." The cockpit DashboardStrip now
+renders only on a WIDE (non-narrow) viewport: `{!immersiveActive && !narrow && <DashboardStrip/>}`
+in FlightSession. On a phone the flight UI is the minimal immersive path only (ImmersiveHudBar
+top status bar + minimal transparent touch controls + auto-hide) — no multi-panel dashboard, no
+COCKPIT chip. Desktop non-immersive flight is unchanged. The forthcoming unified-glass per-class
+dashboard is likewise a desktop-only feature.
