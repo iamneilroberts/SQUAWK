@@ -776,3 +776,17 @@ from the design spec's "vleKt" naming/unit: every sibling limits field is IAS in
 CLAUDE.md's SI-internal rule, so vleIasMs keeps the GEAR O'SPD gate a plain iasMs comparison).
 C172 ships vleIasMs = vneIasMs (structurally unreachable); b738 138.9 m/s (270 kt Vle/Vlo);
 f5e 123.5 m/s (240 kt gear limit, Phase B verification pending).
+
+## 2026-08-07 — GR-002/GR-005 · shared gear transition constant + fixed-gear pin
+
+GEAR_TRANSITION_S = 10 s lives in sim/forces.ts as a documented TUNING KNOB, same placement
+pattern as TURBOFAN_CORNER_M (decisions AF-002): one shared curve for every retractable class
+in v1, not a per-class field, because no envelope test yet needs a different time. The pure
+advanceGearPosition(current, gearDown, gear, dt) integrator is called from sim/aircraft.ts's
+stepAircraft — the sim's actual per-tick SimState advance — rather than from game/flightLoop.ts
+as the design spec's architecture table literally states; see the implementation plan's
+Signature Decision #2 for why (SimState integration belongs in one place, alongside every other
+derived/integrated field, and this keeps the integrator unit-testable without a FlightHost).
+Fixed-gear classes are pinned at gearPosition = 1 unconditionally (GR-005) — no transition ever
+runs for the C172, and KeyG's inertness (Task 4) is a second, independent enforcement of the
+same rule at the input layer.

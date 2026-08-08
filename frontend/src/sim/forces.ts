@@ -159,6 +159,29 @@ export function controlAuthority(qBarPa: number, params: ClassParams): number {
   return Math.min(1, Math.max(0, qBarPa / params.control.refDynamicPressurePa));
 }
 
+/**
+ * Retractable gear travels between fully up (0) and fully down (1) over one shared transition
+ * time — data-independent of class (GR-002): a per-class transition time would add a required
+ * ClassParams field for one cosmetic-plus-drag knob, and no class in this sim needs a different
+ * one yet (revisit if an envelope test demands it). Fixed-gear classes are pinned at 1 (GR-005):
+ * gear never retracts, KeyG is inert (input/controls.ts), and this function never eases for them.
+ */
+export const GEAR_TRANSITION_S = 10;
+
+export function advanceGearPosition(
+  current: number,
+  gearDown: boolean,
+  gear: "fixed" | "retractable",
+  dt: number,
+): number {
+  if (gear === "fixed") return 1;
+  const target = gearDown ? 1 : 0;
+  const step = dt / GEAR_TRANSITION_S;
+  if (target > current) return Math.min(target, current + step);
+  if (target < current) return Math.max(target, current - step);
+  return current;
+}
+
 export function computeForces(
   state: SimState,
   controls: ControlVector,

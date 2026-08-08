@@ -10,7 +10,7 @@
  * Euler does, and it is four lines a DBA can read. Documented in decisions.md B-007.
  */
 import type { ClassParams, ControlVector, SimState } from "./types";
-import { computeForces } from "./forces";
+import { computeForces, advanceGearPosition } from "./forces";
 import { ecefToGeodetic, geodeticSurfaceNormal } from "./geo";
 import { qIntegrate } from "./quat";
 import { FIXED_DT } from "./integrator";
@@ -57,6 +57,7 @@ export function stepAircraft(
   const attitude = qIntegrate(state.attitude, rates, dt);
 
   const geo = ecefToGeodetic(position);
+  const gearPosition = advanceGearPosition(state.gearPosition, controls.gearDown, params.gear, dt);
   const advanced: SimState = {
     position,
     velocity,
@@ -73,9 +74,7 @@ export function stepAircraft(
     gLimited: f.gLimited,
     stalled: f.stalled,
     machNumber: f.machNumber,
-    // Task 1 places the field only — the eased approach to ControlVector.gearDown over
-    // GEAR_TRANSITION_S lands in a later task; for now the position simply carries forward.
-    gearPosition: state.gearPosition,
+    gearPosition,
   };
   return advanced;
 }
