@@ -22,6 +22,9 @@ export default function App() {
   const narrow = isNarrowViewport(width);
   const showRotate = shouldShowRotateCard(width, height, mode);
   const [contactsOpen, setContactsOpen] = useState(false);
+  // The rotate hint is dismissible so a player can fly in portrait to see how it looks (owner
+  // request); once dismissed it stays gone for the session.
+  const [rotateDismissed, setRotateDismissed] = useState(false);
   const browseDrawer = narrow && mode === "BROWSE";
 
   return (
@@ -38,7 +41,9 @@ export default function App() {
               <ContactList />
             </div>
           )}
-          {showRotate && <RotateCard />}
+          {showRotate && !rotateDismissed && (
+            <RotateCard onDismiss={() => setRotateDismissed(true)} />
+          )}
         </div>
         {mode === "BROWSE" && !narrow && (
           <div className="w-80 flex-none">

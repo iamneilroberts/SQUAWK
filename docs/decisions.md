@@ -1086,3 +1086,10 @@ Second of four sequential mobile sub-features (spec §3 + §6). After this the g
 - **Honesty + SIM (spec §4) untouched:** touch is input to the player's SIM aircraft only; no feed data touched. SIM banner/amber/`SIM-<hex>`/ghost unmistakable. LORAN language for all affordances (1px borders, monospace, amber/cyan, translucent, no radius>2px except the round stick/knob instrument faces, no shadow, no ripples). Pointer Events + `touch-action: none` on every interactive surface.
 - **Verification:** `npx vitest run` **860 passed** (baseline 836, +24: 14 `analog` pure, 7 `controls` analog-override, 3 `flightLoop` analog-seam); `npx tsc --noEmit` clean; `npm run build` succeeds.
 - **Not verifiable without a real phone (owner tuning by eye):** stick sensitivity/deadzone/pitch-invert, throttle drag feel, `TAP_HOLD_MS` latency, button-row layout/crowding (8 buttons) and reachability, safe-area behaviour, whether `touch-action: none` fully suppresses browser gestures on iOS/Android. The pure mapping + seam are unit-tested broken-arm; the on-glass FEEL is not.
+
+## 2026-08-07 — #13 · Flight-view declutter + portrait viewable
+
+Owner feedback while flying on mobile: "minimal tools obscuring the view" + "allow portrait to see how it looks".
+- **Cesium InfoBox/selectionIndicator disabled** (`ViewerHost` Viewer options `infoBox:false, selectionIndicator:false`). Tapping the globe was popping Esri World Imagery's tile-metadata card ("Vivid · OBJECTID · Shape · SOURCE…") over the flight view. Contact picking is our own LEFT_CLICK→store.select handler, so nothing depends on Cesium's default selection UI.
+- **Rotate card dismissible** so the player can fly in portrait and judge it: `RotateCard` gains an optional `onDismiss` + a pointer-events:auto "DISMISS · FLY IN PORTRAIT" button (the card/backdrop stay pointer-events:none otherwise); App holds a session `rotateDismissed` flag. Landscape-first stays the default hint; portrait is now openly viewable, not blocked.
+- Full portrait HUD reflow (readouts overlap in portrait, sub-feature 1 deferred it) is still open — pending owner's look at the dismissed-card portrait view.

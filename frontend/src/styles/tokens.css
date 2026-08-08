@@ -685,6 +685,9 @@ body {
   letter-spacing: 0.04em;
   margin-top: 8px;
 }
+/* The card/backdrop are pointer-events:none (non-blocking); this button re-enables them so the
+   player can dismiss the hint and fly in portrait. */
+.rotate-card-dismiss { pointer-events: auto; margin-top: 12px; }
 
 /* ---- touch flight controls (mobile sub-feature 2, spec §3). Rendered only on a narrow/touch
    viewport while FLYING (FlightSession gates it in JS), so no media query is needed. LORAN

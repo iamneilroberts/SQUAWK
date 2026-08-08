@@ -35,4 +35,7 @@ describe("RotateCard", () => {
   it("uses the LORAN panel chrome (bracket corners), not app-store chrome", () => {
     expect(collectClasses(RotateCard())).toContain("panel rotate-card");
   });
+  it("offers a dismiss affordance so the player can fly in portrait to see how it looks", () => {
+    expect(collectText(RotateCard()).join(" ")).toMatch(/DISMISS/);
+  });
 });

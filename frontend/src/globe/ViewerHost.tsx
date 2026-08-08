@@ -70,6 +70,12 @@ export default function ViewerHost({ children, onTerrainNoteChange }: ViewerHost
       navigationHelpButton: false,
       sceneModePicker: false,
       fullscreenButton: false,
+      // No Cesium InfoBox / green selection halo: tapping the globe was popping Esri World
+      // Imagery's tile-metadata card ("Vivid · OBJECTID · Shape · SOURCE…") over the flight
+      // view. This is a flight sim, not a GIS inspector — contact picking is our own handler
+      // (LEFT_CLICK → store.select), so nothing here depends on Cesium's default selection UI.
+      infoBox: false,
+      selectionIndicator: false,
       // A sim is the documented anti-case for requestRenderMode (research notes §5).
       requestRenderMode: false,
     });
