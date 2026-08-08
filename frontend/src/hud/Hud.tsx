@@ -12,8 +12,8 @@
 import type { HudSnapshot } from "./snapshot";
 import {
   formatAirtime, formatAltFt, formatAoaDeg, formatClass, formatClearanceFt, formatFlaps,
-  formatG, formatGear, formatHeadingDeg, formatIasKt, formatSimRate, formatTasKt,
-  formatThrottlePct, formatVsiFpm, warningsFor,
+  formatG, formatGear, formatHeadingDeg, formatIasKt, formatLightPhase, formatSimRate,
+  formatTasKt, formatThrottlePct, formatVsiFpm, warningsFor,
 } from "./format";
 
 function Readout({ label, value, unit }: { label: string; value: string; unit?: string }) {
@@ -70,6 +70,7 @@ export default function Hud({
         <span>THR {formatThrottlePct(snapshot.throttle)}</span>
         <span>{formatFlaps(snapshot.flapLabel)}</span>
         <span>{formatGear(snapshot.gear, snapshot.gearPosition)}</span>
+        <span>{formatLightPhase(snapshot.lightPhase)}</span>
       </div>
 
       {warnings.length > 0 && (

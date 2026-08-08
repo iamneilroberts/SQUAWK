@@ -26,6 +26,7 @@ import {
   Viewer,
 } from "cesium";
 import { startPolling, useStore } from "../state/store";
+import { applyRealTimeLighting } from "./dayNightLighting";
 import { attachTerrain, createSceneHeightSampler } from "./terrainProvider";
 import { ViewerContext, type ViewerBundle } from "./viewerContext";
 
@@ -72,6 +73,10 @@ export default function ViewerHost({ children, onTerrainNoteChange }: ViewerHost
       // A sim is the documented anti-case for requestRenderMode (research notes §5).
       requestRenderMode: false,
     });
+    // Time-aware lighting (issue #14): Cesium's built-in sun/atmosphere, driven by the real
+    // wall clock so day/dusk/night are truthful for the actual time and position.
+    applyRealTimeLighting(viewer);
+
     const billboards = viewer.scene.primitives.add(new BillboardCollection());
     const labels = viewer.scene.primitives.add(new LabelCollection());
     const byHex = new Map<string, Billboard>();

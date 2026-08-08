@@ -16,6 +16,7 @@ const snap = (o: Partial<HudSnapshot> = {}): HudSnapshot => ({
   terrainUnverified: false, simRate: 1, airtimeS: 0, classLabel: "C172S",
   callsign: "SIM-A1B2C3", modelNote: "C172 MODEL THIS BUILD",
   machNumber: 0, machOverspeed: false, gearPosition: 1, gearOverspeed: false,
+  lightPhase: "day",
   ...o,
 });
 

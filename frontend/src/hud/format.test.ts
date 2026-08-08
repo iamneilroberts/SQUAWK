@@ -3,7 +3,8 @@ import {
   EM_DASH, TERRAIN_WARNING_FT, SIM_RATE_WARNING,
   formatIasKt, formatTasKt, formatAltFt, formatVsiFpm, formatHeadingDeg, formatAoaDeg,
   formatG, formatThrottlePct, formatTrim, formatFlaps, formatGear, formatClearanceFt,
-  formatAirtime, formatSimRate, formatCallsign, formatClass, warningsFor, gearOverspeedFor,
+  formatAirtime, formatSimRate, formatCallsign, formatClass, formatLightPhase,
+  warningsFor, gearOverspeedFor,
 } from "./format";
 import { ktToMs, ftToM, fpmToMs, degToRad } from "../sim/units";
 import type { HudSnapshot } from "./snapshot";
@@ -19,6 +20,7 @@ const snap = (o: Partial<HudSnapshot> = {}): HudSnapshot => ({
   simRate: 1, airtimeS: 0, classLabel: "C172S", callsign: "SIM-A1B2C3",
   modelNote: "C172 MODEL THIS BUILD",
   machNumber: 0, machOverspeed: false, gearPosition: 1, gearOverspeed: false,
+  lightPhase: "day",
   ...o,
 });
 
@@ -198,5 +200,16 @@ describe("gearOverspeedFor (GR-004 gate)", () => {
   });
   it("does not trip below vle even with gear extended — catches a dropped IAS clause", () => {
     expect(gearOverspeedFor("retractable", 1, VLE - 1, VLE)).toBe(false);
+  });
+});
+
+describe("formatLightPhase", () => {
+  it("labels each phase for the HUD", () => {
+    expect(formatLightPhase("day")).toBe("SKY DAY");
+    expect(formatLightPhase("civil-twilight")).toBe("SKY TWILIGHT");
+    expect(formatLightPhase("night")).toBe("SKY NIGHT");
+  });
+  it("em-dashes an unknown phase rather than inventing one", () => {
+    expect(formatLightPhase(null)).toBe(EM_DASH);
   });
 });

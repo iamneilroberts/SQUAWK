@@ -27,6 +27,7 @@ import { classifyEnd, readImpact } from "./classify";
 import { createRateMeter } from "./simRate";
 import { levelingCommand, isLevel, C172_LEVELING, MAX_LEVELING_S } from "./leveling";
 import { gearOverspeedFor } from "../hud/format";
+import { classifyLightPhase, solarElevationDeg } from "../world/dayNight";
 
 export const SNAPSHOT_INTERVAL_S = 0.1;
 
@@ -91,6 +92,8 @@ export function createFlightLoop(deps: FlightLoopDeps) {
   function publish() {
     const hpr = hprFromQuat(state.attitude, state.position);
     const geo = ecefToGeodetic(state.position);
+    const latDeg = radToDeg(geo.latRad);
+    const lonDeg = radToDeg(geo.lonRad);
 
     onSnapshot({
       iasMs: state.iasMs,
@@ -103,8 +106,8 @@ export function createFlightLoop(deps: FlightLoopDeps) {
       // Rate of TURN, not body yaw rate, and signed positive-right — see sim/quat.ts.
       turnRateRadS: turnRateRadS(state.attitude, state.position, state.rates),
       sideslipRad: state.sideslipRad,
-      latDeg: radToDeg(geo.latRad),
-      lonDeg: radToDeg(geo.lonRad),
+      latDeg,
+      lonDeg,
       aoaRad: state.aoaRad,
       loadFactor: state.loadFactor,
       throttle: controls.throttle,
@@ -125,6 +128,8 @@ export function createFlightLoop(deps: FlightLoopDeps) {
       classLabel: params.label,
       callsign,
       modelNote: params.modelNote,
+      // Real time + real position → the honest current light phase (issue #14).
+      lightPhase: classifyLightPhase(solarElevationDeg(new Date(), latDeg, lonDeg)),
     });
   }
 

@@ -859,3 +859,37 @@ cost almost no new surface.
   `useState` (navRangeNm), same reset-on-QUIT lifecycle as the radar range (CD-006).
 - Tests: navMath.test.ts (17), NavMap.test.tsx (12), plus 4 in DashboardStrip.test.tsx —
   no-jsdom `collectText`/`collectProp` element-tree style. 722 → 755 green.
+
+## 2026-08-07 — #14 · Time-aware lighting (day / dusk / night)
+
+Cesium's built-in sun/atmosphere model, driven by the REAL wall clock — not a scrubbable
+time-of-day selector. `globe/dayNightLighting.ts::applyRealTimeLighting(viewer)` sets
+`scene.globe.enableLighting = true`, `showGroundAtmosphere = true`, `skyAtmosphere.show = true`,
+and points the viewer clock at real time via `clock.clockStep = ClockStep.SYSTEM_CLOCK` +
+`shouldAnimate = true`. SYSTEM_CLOCK reads the actual system time on every tick (requestRenderMode
+is off, so ticks run continuously), so the terminator, dawn/dusk gradients and night side are
+truthful for the aircraft's actual position and the actual time — the honest default that matches
+the live-ADS-B ethos. No new dependency (Cesium's sun model is built in). Wired once in
+ViewerHost right after the Viewer is constructed, so it applies in both BROWSE and flight.
+
+The testable decision logic is kept Cesium-free in `world/dayNight.ts` (so `sim/`-style unit
+tests and the game/HUD layers can use it without importing the renderer): `solarElevationDeg(date,
+lat, lon)` is the standard low-precision NOAA solar-position algorithm (arcminute accuracy — far
+finer than a phase needs), and `classifyLightPhase(elevationDeg)` returns `day | civil-twilight |
+night` at the civil-twilight convention (sun 0 … −6°). It lives in `world/` (not `globe/`) because
+it is pure geodesy/time domain logic consumed by both `game/flightLoop.ts` and `hud/format.ts`,
+and `globe/` is the Cesium layer.
+
+The phase is surfaced in the HUD (`SKY DAY` / `SKY TWILIGHT` / `SKY NIGHT`, bottom row) so the
+feature is legible and unit-verifiable without a browser: flightLoop computes
+`classifyLightPhase(solarElevationDeg(new Date(), lat, lon))` into the snapshot each publish, and
+`formatLightPhase` maps it to a label via a `Record<LightPhase,string>` lookup (data, not a
+branch). Civil twilight reads "TWILIGHT" rather than "DUSK" because a single elevation sample
+cannot honestly tell dawn from dusk — labelling it "DUSK" at dawn would be a false readout, which
+the honest-data rule forbids for the player's own instruments too.
+
+Known limitation (owner input welcome, NOT fixed here — out of scope for #14): the Esri World
+Imagery basemap has no night-lights layer, so with lighting on the night side renders very dark.
+This is truthful but hurts flyability/HUD readability at night — it reinforces the #6 HUD-scrim
+work and may want a future "minimum ambient / night-imagery" decision. No fake illumination was
+added to paper over it.

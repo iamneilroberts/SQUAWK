@@ -63,6 +63,7 @@ const snap = (o: Partial<HudSnapshot> = {}): HudSnapshot => ({
   simRate: 1, airtimeS: 65, classLabel: "C172S", callsign: "SIM-A1B2C3",
   modelNote: "C172 MODEL THIS BUILD",
   machNumber: 0, machOverspeed: false, gearPosition: 1, gearOverspeed: false,
+  lightPhase: "day",
   ...o,
 });
 
@@ -92,6 +93,12 @@ describe("Hud", () => {
     expect(text).toContain("FLAPS 10");
     expect(text).toContain("GEAR FIXED");
     expect(text).toContain("01:05"); // airtime
+  });
+  it("shows the current sky light phase, tracking the time-aware lighting (issue #14)", () => {
+    expect(collectText(Hud({ snapshot: snap({ lightPhase: "night" }), attribution: "" })).join(" "))
+      .toContain("SKY NIGHT");
+    expect(collectText(Hud({ snapshot: snap({ lightPhase: "civil-twilight" }), attribution: "" })).join(" "))
+      .toContain("SKY TWILIGHT");
   });
   it("shows the required attribution line", () => {
     const text = collectText(

@@ -4,6 +4,8 @@
  * times a second (spec §3). This is a plain observable snapshot instead, shaped for
  * useSyncExternalStore: `get()` returns a stable reference until `set()` replaces it.
  */
+import type { LightPhase } from "../world/dayNight";
+
 export type HudSnapshot = {
   iasMs: number;
   tasMs: number;
@@ -56,6 +58,12 @@ export type HudSnapshot = {
   classLabel: string;
   callsign: string;
   modelNote: string;
+  /**
+   * Day / civil-twilight / night for the own-ship position at the real current time (issue #14).
+   * Computed from the sun's elevation in world/dayNight.ts; the scene lighting tracks the same
+   * real clock, so this readout and the sky always agree.
+   */
+  lightPhase: LightPhase;
 };
 
 export function createSnapshotStore() {

@@ -4,6 +4,7 @@
  * rule applies to the player's own instruments too.
  */
 import type { HudSnapshot } from "./snapshot";
+import type { LightPhase } from "../world/dayNight";
 import { msToKt, mToFt, msToFpm, radToDeg } from "../sim/units";
 
 export const EM_DASH = "—";
@@ -103,6 +104,20 @@ export function formatSimRate(rate: number): string | null {
 
 export function formatCallsign(hex: string): string {
   return `SIM-${hex.toUpperCase()}`;
+}
+
+/**
+ * The current sky light phase, uppercase for the HUD (issue #14). "TWILIGHT" covers both dawn
+ * and dusk — civil twilight is the same sun-below-the-horizon band either way, and the readout
+ * does not claim to know which. A lookup, not a branch, so a new phase is one row here.
+ */
+const LIGHT_PHASE_LABELS: Record<LightPhase, string> = {
+  day: "DAY",
+  "civil-twilight": "TWILIGHT",
+  night: "NIGHT",
+};
+export function formatLightPhase(phase: LightPhase | null): string {
+  return phase === null ? EM_DASH : `SKY ${LIGHT_PHASE_LABELS[phase]}`;
 }
 
 /** Aircraft class beside the callsign (parent spec §9). Em-dash when it is not known. */
