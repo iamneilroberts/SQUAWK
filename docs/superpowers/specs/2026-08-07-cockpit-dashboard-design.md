@@ -7,11 +7,11 @@
 
 | # | Decision |
 |---|---|
-| D-1 | **Bottom cockpit strip**, collapsible: six-pack left, radar center, weather/ATC right, controls-help toggle at the edge. Each panel individually collapsible; whole strip toggles. |
+| D-1 | **Bottom cockpit strip**, collapsible: six-pack left, radar center, weather right, controls-help toggle at the edge. Each panel individually collapsible; whole strip toggles. _(Update 2026-08-07, #12: the ATC panel was removed — no honest live ATC source exists — so weather now sits alone on the right.)_ |
 | D-2 | **Analog six-pack**, SVG in LORAN line style (1px strokes, cyan/amber on near-black): ASI, artificial horizon, altimeter, turn coordinator, heading (DG), VSI. Driven by the real ~10 Hz HUD snapshot. |
 | D-3 | **Windscreen traffic is real and interactive**: any live contact inside the FPV frustum gets a compact screen-anchored indicator (callsign/type/alt); click → LORAN-style detail card (feed fields + `/api/type/{hex}` enrichment). No synthesis — indicators exist only for contacts on the live feed. |
 | D-4 | **Radar scope renders real contacts** (they're already in the store): PPI-style range rings, selectable range (10/40/80/150/250 NM buttons), own-ship centered, heading-up. Blips = live contacts only; feed OFFLINE → scope shows explicit OFFLINE state, blips freeze/dim per the browse stale policy. |
-| D-5 | **Weather + ATC panels are chrome-only**: full LORAN panel framing with explicit `NO FEED · FUTURE INTEGRATION` empty states (weather radar feed from LORAN, ATC transcript feed — future). Nothing fake ever renders. |
+| D-5 | **Weather panel is chrome-only**: full LORAN panel framing with an explicit `NO FEED · FUTURE INTEGRATION` empty state (weather radar feed from LORAN — future). Nothing fake ever renders. _(Update 2026-08-07, #12: the parallel ATC placeholder was removed — research found no honest live ATC source: LiveATC ToU forbids third-party product use, SDR covers only local airspace, STT WER 15–30% garbles callsigns. Weather feed integration is still tracked (#10).)_ |
 | D-6 | **Controls help**: collapsible keymap panel generated from the real `KEYMAP` constant (single source of truth — no hand-copied key list). |
 
 ## 2. Honest-data notes (binding)

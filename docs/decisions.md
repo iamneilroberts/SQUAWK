@@ -811,3 +811,15 @@ existed, gear was a static "retractable" descriptor and formatGear read it as GE
 unconditionally, so a 737 or F-5E taken over at FL350 showed GEAR DOWN for the whole flight.
 Gated entirely on params.gear (data), not a class id — a fixed-gear class spawning "down" and a
 retractable class spawning "up" is one branch-free expression, not two class-specific paths.
+
+## 2026-08-07 — #12 · ATC panel removed (no honest live source)
+
+The chrome-only ATC placeholder (DashboardStrip's "atc" panel + AtcPanel.tsx) is deleted, not
+populated. Research verdict on issue #12: there is no honest live ATC feed we can use —
+LiveATC's ToU forbids third-party product use, an SDR only covers local airspace, and
+speech-to-text on ATC audio runs 15–30% WER (it garbles the callsigns that would be the point).
+Rather than keep a permanent NO-FEED panel for a feed that can never honestly arrive, the panel
+is removed: PanelId drops "atc", PANEL_IDS/defaultStripState drop it, the ATC PanelFrame and
+AtcPanel.tsx are gone, and the strip reflows to weather-alone on the right. Weather (#10) stays —
+it has a real free source (aviationweather.gov METAR) and is the next feature. Spec D-1/D-5
+annotated; 4 ATC-panel tests removed (726 → 722 green).

@@ -1,6 +1,7 @@
 /*
- * The bottom cockpit strip (spec D-1): six-pack left, radar centre (Task 4), weather/ATC right,
+ * The bottom cockpit strip (spec D-1): six-pack left, radar centre (Task 4), weather right,
  * controls help at the edge. Every panel folds on its own; KeyC folds the lot.
+ * (ATC panel removed per #12 — no honest live ATC source exists.)
  *
  * Collapse state is LOCAL React state, on purpose (decisions.md CD-006): it is read by nothing
  * outside this subtree, it changes at human cadence, and the store's job is session state, not
@@ -24,17 +25,16 @@ import ControlState from "./ControlState";
 import RadarScope from "./RadarScope";
 import { DEFAULT_RANGE_NM } from "./radarMath";
 import WeatherPanel from "./WeatherPanel";
-import AtcPanel from "./AtcPanel";
 import ControlsHelp from "./ControlsHelp";
 
-export type PanelId = "gauges" | "radar" | "weather" | "atc" | "help";
+export type PanelId = "gauges" | "radar" | "weather" | "help";
 export type StripState = {
   open: boolean;
   collapsed: Record<PanelId, boolean>;
   scopeRangeNm: number;
 };
 
-export const PANEL_IDS: readonly PanelId[] = ["gauges", "radar", "weather", "atc", "help"];
+export const PANEL_IDS: readonly PanelId[] = ["gauges", "radar", "weather", "help"];
 
 /**
  * Which modes have a cockpit. FLYING, PAUSED and ENDED do; BROWSE and COUNTDOWN do not.
@@ -52,7 +52,7 @@ export function stripMountedForMode(mode: Mode): boolean {
 export function defaultStripState(): StripState {
   return {
     open: true,
-    collapsed: { gauges: false, radar: false, weather: false, atc: false, help: true },
+    collapsed: { gauges: false, radar: false, weather: false, help: true },
     scopeRangeNm: DEFAULT_RANGE_NM,
   };
 }
@@ -136,11 +136,6 @@ export function DashboardStripBody({
       <PanelFrame title="WEATHER" collapsed={state.collapsed.weather}
         onToggle={() => onTogglePanel("weather")}>
         <WeatherPanel />
-      </PanelFrame>
-
-      <PanelFrame title="ATC" collapsed={state.collapsed.atc}
-        onToggle={() => onTogglePanel("atc")}>
-        <AtcPanel />
       </PanelFrame>
 
       <PanelFrame title="CONTROLS" collapsed={state.collapsed.help}

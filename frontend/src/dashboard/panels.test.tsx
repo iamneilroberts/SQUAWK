@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import WeatherPanel, { NO_FEED } from "./WeatherPanel";
-import AtcPanel from "./AtcPanel";
 import PanelFrame from "./PanelFrame";
 
 function collectText(node: unknown, out: string[] = []): string[] {
@@ -16,7 +15,6 @@ function collectText(node: unknown, out: string[] = []): string[] {
 }
 
 const weather = () => collectText(WeatherPanel()).join(" ");
-const atc = () => collectText(AtcPanel()).join(" ");
 
 describe("the weather panel is chrome only", () => {
   it("states the empty condition literally", () => {
@@ -29,24 +27,6 @@ describe("the weather panel is chrome only", () => {
   });
   it("contains no digits AT ALL — a placeholder number is a fake reading", () => {
     expect(weather()).not.toMatch(/\d/);
-  });
-});
-
-describe("the ATC panel is chrome only", () => {
-  it("states the empty condition literally", () => {
-    expect(atc()).toContain(NO_FEED);
-  });
-  it("names the feed that is planned", () => {
-    expect(atc()).toMatch(/PLANNED/);
-    expect(atc()).toMatch(/TRANSCRIPT/);
-  });
-  it("contains no digits AT ALL — no sample frequency, no sample squawk", () => {
-    expect(atc()).not.toMatch(/\d/);
-  });
-  it("contains no sample transmission text", () => {
-    for (const forbidden of [/CLEARED/i, /ROGER/i, /SQUAWK/i, /WILCO/i]) {
-      expect(atc()).not.toMatch(forbidden);
-    }
   });
 });
 

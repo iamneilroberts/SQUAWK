@@ -47,7 +47,7 @@ describe("strip state", () => {
     const s = togglePanel(defaultStripState(), "weather");
     expect(s.collapsed.weather).toBe(true);
     expect(s.collapsed.gauges).toBe(false);
-    expect(s.collapsed.atc).toBe(false);
+    expect(s.collapsed.radar).toBe(false);
   });
 
   it("does not mutate the state it was given", () => {
@@ -59,9 +59,9 @@ describe("strip state", () => {
   });
 
   it("toggles the whole strip without disturbing the per-panel flags", () => {
-    const s = toggleStrip(togglePanel(defaultStripState(), "atc"));
+    const s = toggleStrip(togglePanel(defaultStripState(), "weather"));
     expect(s.open).toBe(false);
-    expect(s.collapsed.atc).toBe(true);
+    expect(s.collapsed.weather).toBe(true);
   });
 });
 
@@ -91,7 +91,7 @@ describe("strip keys", () => {
 describe("DashboardStripBody", () => {
   it("titles every panel it is showing", () => {
     const text = body();
-    for (const title of ["INSTRUMENTS", "WEATHER", "ATC", "CONTROLS"]) {
+    for (const title of ["INSTRUMENTS", "WEATHER", "CONTROLS"]) {
       expect(text).toContain(title);
     }
   });
@@ -99,10 +99,10 @@ describe("DashboardStripBody", () => {
   it("keeps a collapsed panel's frame and title but drops its contents", () => {
     const text = body(togglePanel(defaultStripState(), "weather"));
     expect(text).toContain("WEATHER");
-    // Assert on the WEATHER panel's own line: NO_FEED is shared with AtcPanel, which is still
-    // open, so asserting on that string would pass or fail for the wrong reason.
+    // With ATC removed (#12), the weather panel is the only NO_FEED source, so collapsing it
+    // drops both its note and the NO_FEED line entirely — nothing else renders them.
     expect(text).not.toContain("WEATHER RADAR MOSAIC");
-    expect(text).toContain("NO FEED · FUTURE INTEGRATION"); // still there — from the ATC panel
+    expect(text).not.toContain("NO FEED · FUTURE INTEGRATION");
   });
 
   it("shows only the restore affordance when the whole strip is closed", () => {
