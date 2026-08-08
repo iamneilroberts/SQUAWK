@@ -7,7 +7,7 @@
  * either on a defined terrain sample or with collision DISARMED and TERRAIN UNVERIFIED on
  * the HUD. It never enters pretending the ground is known.
  */
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useStore } from "../state/store";
 import type { GameEvent } from "./machine";
 import { useViewer } from "../globe/viewerContext";
@@ -25,6 +25,10 @@ import { createCountdownTimer } from "./countdownTimer";
 import { hudSnapshot } from "../hud/snapshot";
 import { formatCallsign } from "../hud/format";
 import Hud from "../hud/Hud";
+import TouchControls from "../input/TouchControls";
+import type { AnalogAxes } from "../input/analog";
+import { useViewport } from "../layout/useViewport";
+import { isNarrowViewport } from "../layout/viewport";
 import DashboardStrip, { stripMountedForMode } from "../dashboard/DashboardStrip";
 import TrafficOverlay from "../globe/TrafficOverlay";
 import TrafficDetailCard from "../dashboard/TrafficDetailCard";
@@ -54,6 +58,12 @@ export default function FlightSession() {
   /** Brief honest message when a re-sync is refused; "" when there is nothing to say. */
   const [resyncNote, setResyncNote] = useState("");
 
+  // Touch analog axes (mobile sub-feature 2, Option B). A single mutable object the flight loop
+  // reads once per tick via the `analog` provider; the touch stick/throttle write into it. Stays
+  // `{}` (every axis undefined -> no override) on desktop, where TouchControls never mounts, so the
+  // keyboard/sprung path is byte-identical there.
+  const touchAxesRef = useRef<AnalogAxes>({});
+
   const loopRef = useRef<ReturnType<typeof createFlightLoop> | null>(null);
   const hostRef = useRef<ReturnType<typeof createCesiumFlightHost> | null>(null);
   const keyboardRef = useRef<ReturnType<typeof createKeyboard> | null>(null);
@@ -61,6 +71,25 @@ export default function FlightSession() {
   const resyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const snapshot = useSyncExternalStore(hudSnapshot.subscribe, hudSnapshot.get, hudSnapshot.get);
+
+  // Touch controls render only on a narrow/touch viewport (spec §3); desktop is unaffected.
+  const { width } = useViewport();
+  const narrow = isNarrowViewport(width);
+
+  // Option B writers: the stick drives pitch/roll while touched and lets go on release (undefined
+  // -> the sampler springs the axes back to centre); the slider sets throttle absolutely (a lever,
+  // so it persists once grabbed). Stable identities so TouchControls does not churn.
+  const onStick = useCallback((roll: number, pitch: number) => {
+    touchAxesRef.current.roll = roll;
+    touchAxesRef.current.pitch = pitch;
+  }, []);
+  const onStickRelease = useCallback(() => {
+    touchAxesRef.current.roll = undefined;
+    touchAxesRef.current.pitch = undefined;
+  }, []);
+  const onThrottle = useCallback((t: number) => {
+    touchAxesRef.current.throttle = t;
+  }, []);
 
   /** Tear down every mutable thing a flight owns. Safe to call more than once. */
   function teardown() {
@@ -71,6 +100,7 @@ export default function FlightSession() {
     keyboardRef.current = null;
     terrainRef.current = null;
     hudSnapshot.set(null);
+    touchAxesRef.current = {};
     if (resyncTimerRef.current) {
       clearTimeout(resyncTimerRef.current);
       resyncTimerRef.current = null;
@@ -155,6 +185,8 @@ export default function FlightSession() {
             terrain,
             spawn: built,
             heldKeys: keyboard.held,
+            // Live view of the touch analog axes (Option B); `{}` on desktop -> no override.
+            analog: () => touchAxesRef.current,
             callsign: formatCallsign(contact.hex),
             onSnapshot: (s) => hudSnapshot.set(s),
             onEnd: (stats) => {
@@ -430,6 +462,15 @@ export default function FlightSession() {
             <TrafficDetailCard hex={trafficHex} onClose={() => setTrafficHex(null)} />
           )}
         </>
+      )}
+      {mode === "FLYING" && narrow && (
+        <TouchControls
+          onStick={onStick}
+          onStickRelease={onStickRelease}
+          onThrottle={onThrottle}
+          initialThrottle={snapshot?.throttle ?? 0}
+          gearFixed={(snapshot?.gear ?? "fixed") === "fixed"}
+        />
       )}
       {mode === "FLYING" && resyncNote !== "" && (
         <div className="resync-note">{resyncNote}</div>

@@ -22,6 +22,7 @@ import { ecefToGeodetic } from "../sim/geo";
 import { hprFromQuat, turnRateRadS } from "../sim/quat";
 import { radToDeg } from "../sim/units";
 import { createControlSampler } from "../input/controls";
+import type { AnalogAxes } from "../input/analog";
 import { createStatsAccumulator } from "./stats";
 import { classifyEnd, readImpact } from "./classify";
 import { createRateMeter } from "./simRate";
@@ -54,13 +55,20 @@ export type FlightLoopDeps = {
   spawn: SpawnResult;
   /** Live view of the held keys — the loop samples it, it does not own it. */
   heldKeys: ReadonlySet<string>;
+  /**
+   * Optional live view of the analog touch/tilt axes (Option B seam, spec §6), sampled once per
+   * tick like heldKeys. Absent on desktop: with no provider the sampler runs the keyboard path
+   * unchanged. An axis it returns `undefined` for is not driven and stays on the sprung keyboard
+   * path; a number overrides that axis directly.
+   */
+  analog?: () => AnalogAxes | undefined;
   callsign: string;
   onSnapshot(s: HudSnapshot): void;
   onEnd(stats: FlightStats): void;
 };
 
 export function createFlightLoop(deps: FlightLoopDeps) {
-  const { host, params, terrain, spawn, heldKeys, callsign, onSnapshot, onEnd } = deps;
+  const { host, params, terrain, spawn, heldKeys, analog, callsign, onSnapshot, onEnd } = deps;
 
   // The spawn's trimmed throttle and trim ARE the sampler's starting position — otherwise
   // the player inherits an idle, untrimmed aeroplane a second after the handoff card
@@ -145,7 +153,8 @@ export function createFlightLoop(deps: FlightLoopDeps) {
 
   function stepOnce() {
     if (ended) return;
-    controls = sampler.sample(heldKeys, FIXED_DT);
+    const analogAxes = analog?.();
+    controls = sampler.sample(heldKeys, FIXED_DT, analogAxes);
 
     // ---- return-to-level assist (issue #5a) ----
     const levelKey = heldKeys.has("KeyL");
@@ -155,9 +164,18 @@ export function createFlightLoop(deps: FlightLoopDeps) {
     }
     prevLevelKey = levelKey;
     if (leveling) {
+      // Grabbing the virtual stick cancels the assist the same way an arrow key does — a
+      // deflection past a small threshold counts as the player taking the controls back. The
+      // `analogAxes !== undefined` guard keeps the keyboard/desktop path byte-identical (this
+      // extra term is unreachable with no analog provider).
+      const STICK_CANCEL = 0.2;
+      const analogManual =
+        analogAxes !== undefined &&
+        ((analogAxes.roll !== undefined && Math.abs(analogAxes.roll) > STICK_CANCEL) ||
+          (analogAxes.pitch !== undefined && Math.abs(analogAxes.pitch) > STICK_CANCEL));
       const manualInput =
         heldKeys.has("ArrowLeft") || heldKeys.has("ArrowRight") ||
-        heldKeys.has("ArrowUp") || heldKeys.has("ArrowDown");
+        heldKeys.has("ArrowUp") || heldKeys.has("ArrowDown") || analogManual;
       if (manualInput) {
         // The player took the controls back — hand them straight back, no fight.
         leveling = false;

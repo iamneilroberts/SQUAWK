@@ -177,6 +177,77 @@ describe("afterburner toggle", () => {
   });
 });
 
+describe("analog override (Option B seam)", () => {
+  it("an analog axis OVERRIDES the sprung value directly — 0.5 means 0.5, not a ramped value", () => {
+    const s = createControlSampler(P);
+    // One tick with the stick pushed to 0.5: the spring would only have ramped a few % from
+    // centre in a single tick, so a returned 0.5 can only come from the override.
+    const c = s.sample(new Set(), DT, { pitch: 0.5, roll: -0.3 });
+    expect(c.pitch).toBeCloseTo(0.5, 9);
+    expect(c.roll).toBeCloseTo(-0.3, 9);
+  });
+
+  it("an axis the provider does NOT drive still springs from the keyboard", () => {
+    const s = createControlSampler(P);
+    // Analog drives roll only; ArrowDown is held so pitch must ramp up from the keyboard.
+    let c = s.sample(new Set(["ArrowDown"]), DT, { roll: 0.4 });
+    expect(c.roll).toBeCloseTo(0.4, 9); // overridden
+    expect(c.pitch).toBeGreaterThan(0); // keyboard-sprung
+    expect(c.pitch).toBeLessThan(0.5); // ramping in, not snapped
+    // Keep holding: pitch keeps ramping toward full while roll stays pinned by analog.
+    for (let i = 0; i < 120; i++) c = s.sample(new Set(["ArrowDown"]), DT, { roll: 0.4 });
+    expect(c.pitch).toBeCloseTo(1, 6);
+    expect(c.roll).toBeCloseTo(0.4, 9);
+  });
+
+  it("clamps analog axes to their control range", () => {
+    const s = createControlSampler(P);
+    const c = s.sample(new Set(), DT, { pitch: 5, roll: -5, yaw: 9, throttle: 4 });
+    expect(c.pitch).toBe(1);
+    expect(c.roll).toBe(-1);
+    expect(c.yaw).toBe(1);
+    expect(c.throttle).toBe(1);
+  });
+
+  it("throttle analog is ABSOLUTE — it sets the lever, overriding the keyboard ramp", () => {
+    const s = createControlSampler(P);
+    hold(s, ["KeyW"], 60); // walk the keyboard throttle up first
+    const c = s.sample(new Set(), DT, { throttle: 0.2 });
+    expect(c.throttle).toBeCloseTo(0.2, 9);
+  });
+
+  it("releasing an analog axis (undefined) springs it back to centre from where it was left", () => {
+    const s = createControlSampler(P);
+    s.sample(new Set(), DT, { pitch: 0.8 }); // stick held forward-back to 0.8
+    // Provider lets go (pitch undefined): the keyboard spring eases it toward centre.
+    const first = s.sample(new Set(), DT);
+    expect(first.pitch).toBeLessThan(0.8);
+    expect(first.pitch).toBeGreaterThan(0);
+    for (let i = 0; i < 120; i++) s.sample(new Set(), DT);
+    expect(s.sample(new Set(), DT).pitch).toBeCloseTo(0, 6);
+  });
+
+  it("an empty analog object leaves the keyboard path byte-identical to no analog at all", () => {
+    const a = createControlSampler(P);
+    const b = createControlSampler(P);
+    for (let i = 0; i < 30; i++) {
+      const withEmpty = a.sample(new Set(["ArrowDown", "KeyD", "KeyW"]), DT, {});
+      const without = b.sample(new Set(["ArrowDown", "KeyD", "KeyW"]), DT);
+      expect(withEmpty).toEqual(without);
+    }
+  });
+
+  it("a discrete key still edge-triggers normally while analog drives the continuous axes", () => {
+    // Proves Option A (synthesized KeyF press) and Option B (analog stick) coexist: the flap
+    // detent steps exactly once per press even though pitch/roll are being driven by analog.
+    const s = createControlSampler(P);
+    expect(s.sample(new Set(["KeyF"]), DT, { pitch: 0.5, roll: 0.5 }).flapDetent).toBe(1);
+    expect(s.sample(new Set(["KeyF"]), DT, { pitch: 0.5, roll: 0.5 }).flapDetent).toBe(1); // held: no re-step
+    s.sample(new Set(), DT, { pitch: 0.5 }); // release
+    expect(s.sample(new Set(["KeyF"]), DT, { pitch: 0.5 }).flapDetent).toBe(2); // next press: one more
+  });
+});
+
 describe("gear toggle", () => {
   it("KeyG toggles gearDown edge-triggered — one flip per press (retractable class)", () => {
     const s = createControlSampler(loadB738());

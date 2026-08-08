@@ -10,6 +10,7 @@
  *    sampler keeps its own memory of the previous tick's keys.
  */
 import type { ClassParams, ControlVector } from "../sim/types";
+import type { AnalogAxes } from "./analog";
 
 /** Documented for the README and the HUD help line; the sampler reads the codes directly. */
 export const KEYMAP: Readonly<Record<string, string>> = {
@@ -72,7 +73,7 @@ const COLD: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle: 0, flapDetent
  * handoff card's promise is a lie.
  */
 export function createControlSampler(params: ClassParams, initial: ControlVector = COLD): {
-  sample(held: ReadonlySet<string>, dtS: number): ControlVector;
+  sample(held: ReadonlySet<string>, dtS: number, analog?: AnalogAxes): ControlVector;
   reset(): void;
 } {
   let pitch = initial.pitch;
@@ -89,7 +90,7 @@ export function createControlSampler(params: ClassParams, initial: ControlVector
   let prevGear = false;
 
   return {
-    sample(held, dtS) {
+    sample(held, dtS, analog) {
       const axis = (neg: string, pos: string) => (held.has(pos) ? 1 : 0) - (held.has(neg) ? 1 : 0);
 
       // ArrowDown = stick back = nose up, so ArrowDown is the positive direction.
@@ -101,6 +102,20 @@ export function createControlSampler(params: ClassParams, initial: ControlVector
         (held.has("KeyW") || held.has("Equal") || held.has("NumpadAdd") ? 1 : 0) -
         (held.has("KeyS") || held.has("Minus") || held.has("NumpadSubtract") ? 1 : 0);
       throttle = clamp(throttle + throttleDir * THROTTLE_RATE_PER_S * dtS, 0, 1);
+
+      // Analog override (Option B, spec §6): an axis the optional analog provider drives
+      // (touch stick / throttle slider, later tilt) replaces the sprung/lever value DIRECTLY,
+      // bypassing the spring for that axis only. Any axis it leaves `undefined` keeps the
+      // keyboard behaviour computed above — so the keyboard path is untouched when `analog`
+      // is absent or empty. Assigning into the closure vars means that when the provider lets
+      // go of an axis, it springs back to centre from where the analog left it (return-to-
+      // centre on stick release is the keyboard spring, reused).
+      if (analog) {
+        if (analog.pitch !== undefined) pitch = clamp(analog.pitch, -1, 1);
+        if (analog.roll !== undefined) roll = clamp(analog.roll, -1, 1);
+        if (analog.yaw !== undefined) yaw = clamp(analog.yaw, -1, 1);
+        if (analog.throttle !== undefined) throttle = clamp(analog.throttle, 0, 1);
+      }
 
       const trimDir = (held.has("Period") ? 1 : 0) - (held.has("Comma") ? 1 : 0);
       trim = clamp(trim + trimDir * TRIM_RATE_PER_S * dtS, -1, 1);

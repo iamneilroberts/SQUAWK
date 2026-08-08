@@ -60,6 +60,7 @@ const bankDegOf = (loop: { getState(): { attitude: any; position: any } }): numb
 function makeLoop(overrides: {
   groundHeight?: number | undefined;
   held?: Set<string>;
+  analog?: () => import("../input/analog").AnalogAxes | undefined;
   contact?: Contact;
   spawn?: SpawnResult;
 } = {}) {
@@ -75,6 +76,7 @@ function makeLoop(overrides: {
     terrain,
     spawn,
     heldKeys: overrides.held ?? new Set<string>(),
+    analog: overrides.analog,
     callsign: "SIM-A1B2C3",
     onSnapshot: (s) => snaps.push(s),
     onEnd: (s) => ends.push(s),
@@ -452,6 +454,48 @@ describe("flight loop re-sync (issue #5b)", () => {
     host.frame(500000 + 1000 / 60);
     expect(loop.getState().timeS).toBeCloseTo(FIXED_DT, 9);
     loop.stop();
+  });
+});
+
+describe("flight loop analog input seam (mobile sub-feature 2, Option B)", () => {
+  it("an analog throttle target drives the lever absolutely through the loop", () => {
+    // The spawn hands over a trimmed, non-idle throttle; an analog throttle of 0.15 must
+    // OVERRIDE it (absolute lever), which only the Option B seam can do.
+    const { loop, host, snaps, spawn } = makeLoop({ analog: () => ({ throttle: 0.15 }) });
+    expect(spawn.controls.throttle).toBeGreaterThan(0.15); // precondition: spawn is more open
+    loop.start();
+    host.frame(1000);
+    host.frame(1200);
+    expect(snaps[snaps.length - 1].throttle).toBeCloseTo(0.15, 6);
+    loop.stop();
+  });
+
+  it("grabbing the virtual stick cancels the return-to-level assist", () => {
+    // KeyL engages leveling; an analog roll deflection past the threshold must cancel it, the
+    // same way an arrow key does — otherwise the stick would feel dead on a phone under assist.
+    const bits = makeLoop({
+      spawn: bankedSpawn(45),
+      held: new Set(["KeyL"]),
+      analog: () => ({ roll: 0.5 }),
+    });
+    bits.loop.start();
+    bits.host.frame(0);
+    bits.host.frame(1000 / 60);
+    expect(bits.loop.isLeveling()).toBe(false);
+    bits.loop.stop();
+  });
+
+  it("a below-threshold analog deflection does NOT cancel leveling", () => {
+    const bits = makeLoop({
+      spawn: bankedSpawn(45),
+      held: new Set(["KeyL"]),
+      analog: () => ({ roll: 0.05 }),
+    });
+    bits.loop.start();
+    bits.host.frame(0);
+    bits.host.frame(1000 / 60);
+    expect(bits.loop.isLeveling()).toBe(true);
+    bits.loop.stop();
   });
 });
 
