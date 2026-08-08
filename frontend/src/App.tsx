@@ -8,10 +8,13 @@ import StatusBar from "./panels/StatusBar";
 import RotateCard from "./layout/RotateCard";
 import { useViewport } from "./layout/useViewport";
 import { isNarrowViewport, shouldShowRotateCard } from "./layout/viewport";
+import { isImmersiveActive } from "./layout/immersive";
 import { useStore } from "./state/store";
 
 export default function App() {
   const mode = useStore((s) => s.mode);
+  const immersive = useStore((s) => s.immersive);
+  const chromeVisible = useStore((s) => s.chromeVisible);
   // Bridged up from ViewerHost's bundle, not zustand: StatusBar is a flex sibling of
   // ViewerHost here, not a Provider descendant, so it can't read viewerContext directly.
   const [terrainNote, setTerrainNote] = useState<string | null>(null);
@@ -26,6 +29,10 @@ export default function App() {
   // request); once dismissed it stays gone for the session.
   const [rotateDismissed, setRotateDismissed] = useState(false);
   const browseDrawer = narrow && mode === "BROWSE";
+  // Mobile immersive/fullscreen flight (#13): collapse the StatusBar to feed-status + attribution,
+  // and fade it with the informational chrome while the video-player auto-hide is active.
+  const immersiveActive = isImmersiveActive(immersive, narrow, mode);
+  const statusFaded = immersiveActive && !chromeVisible;
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -58,6 +65,8 @@ export default function App() {
             ? { open: contactsOpen, onToggle: () => setContactsOpen((o) => !o) }
             : undefined
         }
+        immersive={immersiveActive}
+        faded={statusFaded}
       />
     </div>
   );

@@ -29,16 +29,26 @@ function Readout({ label, value, unit }: { label: string; value: string; unit?: 
 export default function Hud({
   snapshot,
   attribution,
+  immersive = false,
+  faded = false,
 }: {
   snapshot: HudSnapshot | null;
   attribution: string;
+  /** Mobile immersive/fullscreen flight (#13): repositions the readout clusters clear of the
+   *  touch zones (stick bottom-left, throttle right edge, button row bottom-centre). */
+  immersive?: boolean;
+  /** Video-player auto-hide: fade the informational overlays to opacity 0. Warnings are NEVER
+   *  faded (safety) and the flight controls are a separate layer, so both stay visible. */
+  faded?: boolean;
 }) {
   if (snapshot === null) return null;
   const warnings = warningsFor(snapshot);
   const simRate = formatSimRate(snapshot.simRate);
+  const rootClass =
+    "hud-root" + (immersive ? " hud-immersive" : "") + (faded ? " hud-faded" : "");
 
   return (
-    <div className="hud-root">
+    <div className={rootClass}>
       <div className="hud-banner">
         <span className="hud-sim-badge">SIM</span>
         <span>{formatClass(snapshot.classLabel)}</span>

@@ -23,12 +23,14 @@ import { createFlightLoop } from "./flightLoop";
 import { preloadTerrain } from "../globe/terrainPreload";
 import { createCountdownTimer } from "./countdownTimer";
 import { hudSnapshot } from "../hud/snapshot";
-import { formatCallsign } from "../hud/format";
+import { formatCallsign, warningsFor } from "../hud/format";
 import Hud from "../hud/Hud";
 import TouchControls from "../input/TouchControls";
 import type { AnalogAxes } from "../input/analog";
 import { useViewport } from "../layout/useViewport";
 import { isNarrowViewport } from "../layout/viewport";
+import { isImmersiveActive } from "../layout/immersive";
+import ImmersiveControl from "../layout/ImmersiveControl";
 import DashboardStrip, { stripMountedForMode } from "../dashboard/DashboardStrip";
 import TrafficOverlay from "../globe/TrafficOverlay";
 import TrafficDetailCard from "../dashboard/TrafficDetailCard";
@@ -47,6 +49,8 @@ export default function FlightSession() {
   const endStats = useStore((s) => s.endStats);
   const basemap = useStore((s) => s.basemap);
   const labelsOn = useStore((s) => s.labelsOn);
+  const immersive = useStore((s) => s.immersive);
+  const chromeVisible = useStore((s) => s.chromeVisible);
 
   const [spawn, setSpawn] = useState<SpawnResult | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -435,6 +439,13 @@ export default function FlightSession() {
   const originResolution = origin ? resolveClass(origin.snapshot) : null;
   const originParams = originResolution ? loadClassById(originResolution.classId) : null;
 
+  // Mobile immersive/fullscreen flight (#13). immersiveActive gates every declutter; `faded` is the
+  // video-player auto-hide of the informational overlays. warningActive keeps a live annunciator
+  // visible through the fade (safety) — same warningsFor the HUD renders, so they never disagree.
+  const immersiveActive = isImmersiveActive(immersive, narrow, mode);
+  const faded = immersiveActive && !chromeVisible;
+  const warningActive = snapshot ? warningsFor(snapshot).length > 0 : false;
+
   return (
     <>
       {mode === "COUNTDOWN" && origin && (
@@ -448,8 +459,12 @@ export default function FlightSession() {
             attribution={attributionFor({
               basemap, labelsOn, terrainNote: bundle?.terrainNote ?? null,
             })}
+            immersive={immersiveActive}
+            faded={faded}
           />
-          <DashboardStrip snapshot={snapshot} />
+          {/* The cockpit strip is hidden entirely in immersive flight (it overlaps the touch
+              buttons); it returns on PAUSED/ENDED and in non-immersive flight. */}
+          {!immersiveActive && <DashboardStrip snapshot={snapshot} />}
         </>
       )}
       {/* ENDED is deliberately excluded: the end card owns the screen and the mouse is handed
@@ -464,13 +479,16 @@ export default function FlightSession() {
         </>
       )}
       {mode === "FLYING" && narrow && (
-        <TouchControls
-          onStick={onStick}
-          onStickRelease={onStickRelease}
-          onThrottle={onThrottle}
-          initialThrottle={snapshot?.throttle ?? 0}
-          gearFixed={(snapshot?.gear ?? "fixed") === "fixed"}
-        />
+        <>
+          <TouchControls
+            onStick={onStick}
+            onStickRelease={onStickRelease}
+            onThrottle={onThrottle}
+            initialThrottle={snapshot?.throttle ?? 0}
+            gearFixed={(snapshot?.gear ?? "fixed") === "fixed"}
+          />
+          <ImmersiveControl warningActive={warningActive} />
+        </>
       )}
       {mode === "FLYING" && resyncNote !== "" && (
         <div className="resync-note">{resyncNote}</div>

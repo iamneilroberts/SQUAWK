@@ -56,6 +56,28 @@ export function contactsChipLabel(count: number): string {
   return `CONTACTS [${count}]`;
 }
 
+/**
+ * Which StatusBar regions render (#13 immersive mode). In immersive/fullscreen flight the bar
+ * collapses to the two things the honesty + attribution rules forbid dropping — the honest
+ * feed-status chip (which also names the live traffic source) and the imagery/terrain attribution
+ * line — and hides the browse chrome (contacts, radius, basemap, labels, clock, terrain-tier
+ * chip). Normal mode (desktop, browse, non-immersive mobile flight) shows everything, exactly as
+ * before, so desktop is unchanged.
+ */
+export function statusBarRegions(immersive: boolean): {
+  feedStatus: boolean;
+  attribution: boolean;
+  browseControls: boolean;
+  clock: boolean;
+} {
+  return {
+    feedStatus: true,
+    attribution: true,
+    browseControls: !immersive,
+    clock: !immersive,
+  };
+}
+
 type StatusBarProps = {
   /** Bridged down from App.tsx, which gets it from ViewerHost — not zustand (see App.tsx). */
   terrainNote: string | null;
@@ -65,9 +87,20 @@ type StatusBarProps = {
    * was — so desktop renders exactly as before.
    */
   contactsChip?: { open: boolean; onToggle: () => void };
+  /**
+   * True in mobile immersive/fullscreen flight: the bar collapses to feed-status + attribution
+   * (see statusBarRegions). Absent/false everywhere else, so desktop and browse are unchanged.
+   */
+  immersive?: boolean;
+  /**
+   * True while the video-player auto-hide has faded the informational chrome (immersive + idle).
+   * The bar transitions to opacity 0 but stays in the DOM and reappears on tap — attribution is
+   * faded, never removed (CLAUDE.md data-sources legal safeguard).
+   */
+  faded?: boolean;
 };
 
-export default function StatusBar({ terrainNote, contactsChip }: StatusBarProps) {
+export default function StatusBar({ terrainNote, contactsChip, immersive = false, faded = false }: StatusBarProps) {
   const feedStatus = useStore((s) => s.feedStatus);
   const feedSource = useStore((s) => s.feedSource);
   const contactCount = useStore((s) => s.contacts.size);
@@ -85,43 +118,54 @@ export default function StatusBar({ terrainNote, contactsChip }: StatusBarProps)
   }, []);
 
   const chipClass = feedStatus === "live" ? "status-chip-live" : "status-chip-warn";
+  const regions = statusBarRegions(immersive);
+  const className =
+    "status-bar" +
+    (immersive ? " status-bar-immersive" : "") +
+    (faded ? " status-bar-faded" : "");
 
   return (
-    <div className="status-bar">
+    <div className={className}>
       <span className={chipClass}>{feedChipLabel(feedStatus, feedSource)}</span>
       {feedStatus === "offline" && <span className="status-chip-warn">FEEDS UNREACHABLE</span>}
-      {terrainNote !== null && <span className={terrainChipClass(terrainNote)}>{terrainNote}</span>}
-      {contactsChip ? (
-        <button
-          type="button"
-          className={contactsChip.open ? "status-chip-button status-chip-button-active" : "status-chip-button"}
-          aria-expanded={contactsChip.open}
-          onClick={contactsChip.onToggle}
-        >
-          {contactsChipLabel(contactCount)}
-        </button>
-      ) : (
-        <span>CONTACTS {contactCount}</span>
+      {regions.browseControls && terrainNote !== null && (
+        <span className={terrainChipClass(terrainNote)}>{terrainNote}</span>
       )}
-      <button
-        type="button"
-        className="status-chip-button"
-        onClick={() => setRadiusNm(nextRadius(radiusNm))}
-      >
-        {radiusChipLabel(radiusNm)}
-      </button>
-      <button type="button" className="status-chip-button"
-        onClick={() => setBasemap(nextBasemap(basemap))}>
-        {basemapChipLabel(basemap)}
-      </button>
-      <button
-        type="button"
-        className={labelsOn ? "status-chip-button status-chip-button-active" : "status-chip-button"}
-        onClick={() => setLabelsOn(!labelsOn)}
-      >
-        {labelsChipLabel(labelsOn)}
-      </button>
-      <span>{formatUtcClock(now)}</span>
+      {regions.browseControls && (
+        <>
+          {contactsChip ? (
+            <button
+              type="button"
+              className={contactsChip.open ? "status-chip-button status-chip-button-active" : "status-chip-button"}
+              aria-expanded={contactsChip.open}
+              onClick={contactsChip.onToggle}
+            >
+              {contactsChipLabel(contactCount)}
+            </button>
+          ) : (
+            <span>CONTACTS {contactCount}</span>
+          )}
+          <button
+            type="button"
+            className="status-chip-button"
+            onClick={() => setRadiusNm(nextRadius(radiusNm))}
+          >
+            {radiusChipLabel(radiusNm)}
+          </button>
+          <button type="button" className="status-chip-button"
+            onClick={() => setBasemap(nextBasemap(basemap))}>
+            {basemapChipLabel(basemap)}
+          </button>
+          <button
+            type="button"
+            className={labelsOn ? "status-chip-button status-chip-button-active" : "status-chip-button"}
+            onClick={() => setLabelsOn(!labelsOn)}
+          >
+            {labelsChipLabel(labelsOn)}
+          </button>
+        </>
+      )}
+      {regions.clock && <span>{formatUtcClock(now)}</span>}
       <span className="flex-1" />
       <span>{attributionFor({ basemap, labelsOn, terrainNote })}</span>
     </div>

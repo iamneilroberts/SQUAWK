@@ -45,7 +45,7 @@ function DiscreteButton({
 }) {
   return (
     <button
-      className={disabled ? "control-button-disabled touch-btn" : "control-button touch-btn"}
+      className={disabled ? "touch-btn touch-btn-ghost touch-btn-ghost-disabled" : "touch-btn touch-btn-ghost"}
       disabled={disabled}
       onPointerDown={(e) => {
         if (disabled) return;
@@ -68,7 +68,7 @@ function HoldButton({ label, code }: { label: string; code: string }) {
   };
   return (
     <button
-      className="control-button touch-btn"
+      className="touch-btn touch-btn-ghost"
       onPointerDown={(e) => {
         e.preventDefault();
         (e.target as Element).setPointerCapture?.(e.pointerId);
@@ -205,15 +205,15 @@ export default function TouchControls({
     <div className="touch-controls">
       <VirtualStick onStick={onStick} onRelease={onStickRelease} />
       <ThrottleSlider initial={initialThrottle} onThrottle={onThrottle} />
+      {/* Minimal transparent control set (owner refinement, #13): just gear, flaps and trim —
+          rudder, afterburner, level-assist and pause were dropped from the mobile UI. Trim is a
+          hold (a lever that ramps while held, matching Comma/Period on the keyboard). */}
       <div className="touch-buttons">
-        <HoldButton label="◄ RUD" code="KeyA" />
-        <HoldButton label="RUD ►" code="KeyD" />
+        <DiscreteButton label="GEAR" code="KeyG" disabled={gearFixed} />
         <DiscreteButton label="FLP−" code="KeyV" />
         <DiscreteButton label="FLP+" code="KeyF" />
-        <DiscreteButton label="GEAR" code="KeyG" disabled={gearFixed} />
-        <DiscreteButton label="AB" code="KeyB" />
-        <DiscreteButton label="LVL" code="KeyL" />
-        <DiscreteButton label="⏸" code="Escape" />
+        <HoldButton label="TRM▼" code="Comma" />
+        <HoldButton label="TRM▲" code="Period" />
       </div>
     </div>
   );

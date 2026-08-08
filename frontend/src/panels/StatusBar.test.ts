@@ -1,8 +1,26 @@
 import { describe, it, expect } from "vitest";
 import {
   formatUtcClock, feedChipLabel, terrainChipClass, nextRadius, radiusChipLabel,
-  basemapChipLabel, labelsChipLabel, nextBasemap, contactsChipLabel,
+  basemapChipLabel, labelsChipLabel, nextBasemap, contactsChipLabel, statusBarRegions,
 } from "./StatusBar";
+
+describe("statusBarRegions (immersive collapse)", () => {
+  it("keeps feed-status and attribution in every mode (honesty + attribution rules)", () => {
+    expect(statusBarRegions(false).feedStatus).toBe(true);
+    expect(statusBarRegions(false).attribution).toBe(true);
+    expect(statusBarRegions(true).feedStatus).toBe(true);
+    expect(statusBarRegions(true).attribution).toBe(true);
+  });
+  it("shows the browse controls and clock in normal mode (desktop unchanged)", () => {
+    expect(statusBarRegions(false).browseControls).toBe(true);
+    expect(statusBarRegions(false).clock).toBe(true);
+  });
+  it("hides the browse controls and clock in immersive mode", () => {
+    // Broken arm: leaving browseControls true in immersive would keep RADIUS/MAP/LABELS chrome.
+    expect(statusBarRegions(true).browseControls).toBe(false);
+    expect(statusBarRegions(true).clock).toBe(false);
+  });
+});
 
 describe("formatUtcClock", () => {
   it("renders HH:MM:SSZ from a UTC instant", () => {

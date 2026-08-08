@@ -23,10 +23,24 @@ type State = {
    */
   basemap: BasemapKind;
   labelsOn: boolean;
+  /**
+   * Mobile immersive/fullscreen flight requested (#13). A view preference like basemap/labels,
+   * held here for the same reason: StatusBar (a flex sibling of the viewer) and FlightSession both
+   * need it and have no other shared channel. Inert unless narrow + FLYING (isImmersiveActive).
+   */
+  immersive: boolean;
+  /**
+   * Whether the informational overlays are currently shown, driven by the video-player auto-hide
+   * in immersive flight (overlaysVisible). Default true; only ImmersiveControl flips it, and only
+   * while immersive is active. Attribution is faded via this flag, never removed from the DOM.
+   */
+  chromeVisible: boolean;
   setHome(h: { lat: number; lon: number }): void;
   setRadiusNm(n: number): void;
   setBasemap(k: BasemapKind): void;
   setLabelsOn(on: boolean): void;
+  setImmersive(on: boolean): void;
+  setChromeVisible(on: boolean): void;
   applyFetch(r: { contacts: Contact[]; source: string; fetched_at: number }): void;
   markFetchFailed(): void;
   select(hex: string | null): void;
@@ -70,6 +84,8 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   radiusNm: 80,
   basemap: "SAT",
   labelsOn: false,
+  immersive: false,
+  chromeVisible: true,
   mode: "BROWSE",
   origin: null,
   endStats: null,
@@ -88,6 +104,15 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
 
   setLabelsOn(on) {
     set({ labelsOn: on });
+  },
+
+  setImmersive(on) {
+    // Leaving immersive restores the informational overlays so nothing is left faded off-screen.
+    set(on ? { immersive: true } : { immersive: false, chromeVisible: true });
+  },
+
+  setChromeVisible(on) {
+    set({ chromeVisible: on });
   },
 
   applyFetch(r) {

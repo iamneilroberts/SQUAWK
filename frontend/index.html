@@ -3,6 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- PWA / standalone: iPhone Safari cannot true-fullscreen a canvas, so "Add to Home Screen"
+         + these tags give the only chromeless view iOS offers a web app (#13 immersive follow-up). -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ADSB-GAME" />
+    <meta name="theme-color" content="#05070a" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <title>ADSB-GAME</title>
   </head>
   <body>
