@@ -179,7 +179,7 @@ export function buildSpawnState(
   );
   const controls: ControlVector = {
     pitch: 0, roll: 0, yaw: 0, throttle, flapDetent: 0, trim,
-    gearDown: params.gear === "retractable" ? false : true,
+    gearDown: params.gear === "fixed",
     afterburner: false,
   };
 

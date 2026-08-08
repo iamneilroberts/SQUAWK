@@ -111,6 +111,19 @@ export function formatClass(label: string | null): string {
 }
 
 /**
+ * GR-004: the GEAR O'SPD gate. Pure so it is unit-testable without spinning up flightLoop —
+ * trips only for a retractable class, with the gear off the fully-up stop, above vle.
+ */
+export function gearOverspeedFor(
+  gear: "fixed" | "retractable",
+  gearPositionUnit: number,
+  iasMs: number,
+  vleIasMs: number,
+): boolean {
+  return gear === "retractable" && gearPositionUnit > 0 && iasMs > vleIasMs;
+}
+
+/**
  * Warnings, most urgent first. TERRAIN (you are close to the ground) and TERRAIN UNVERIFIED
  * (we do not know where the ground is) are deliberately different messages — and proximity
  * is never claimed when clearance is unknown.

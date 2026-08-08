@@ -3,7 +3,7 @@ import {
   EM_DASH, TERRAIN_WARNING_FT, SIM_RATE_WARNING,
   formatIasKt, formatTasKt, formatAltFt, formatVsiFpm, formatHeadingDeg, formatAoaDeg,
   formatG, formatThrottlePct, formatTrim, formatFlaps, formatGear, formatClearanceFt,
-  formatAirtime, formatSimRate, formatCallsign, formatClass, warningsFor,
+  formatAirtime, formatSimRate, formatCallsign, formatClass, warningsFor, gearOverspeedFor,
 } from "./format";
 import { ktToMs, ftToM, fpmToMs, degToRad } from "../sim/units";
 import type { HudSnapshot } from "./snapshot";
@@ -181,5 +181,22 @@ describe("warningsFor", () => {
     expect(warningsFor(snap({ gearOverspeed: true }))).toContain("GEAR O'SPD");
     expect(warningsFor(snap({ overspeed: true }))).toContain("OVERSPEED");
     expect(warningsFor(snap({ overspeed: true }))).not.toContain("GEAR O'SPD");
+  });
+});
+
+describe("gearOverspeedFor (GR-004 gate)", () => {
+  const VLE = 100;
+
+  it("trips for retractable gear, extended, above vle", () => {
+    expect(gearOverspeedFor("retractable", 1, VLE + 1, VLE)).toBe(true);
+  });
+  it("never trips for fixed gear, even extended and fast — catches a dropped gear-type clause", () => {
+    expect(gearOverspeedFor("fixed", 1, VLE + 1, VLE)).toBe(false);
+  });
+  it("does not trip when the gear is up — catches a dropped gearPosition clause", () => {
+    expect(gearOverspeedFor("retractable", 0, VLE + 1, VLE)).toBe(false);
+  });
+  it("does not trip below vle even with gear extended — catches a dropped IAS clause", () => {
+    expect(gearOverspeedFor("retractable", 1, VLE - 1, VLE)).toBe(false);
   });
 });

@@ -26,6 +26,7 @@ import { createStatsAccumulator } from "./stats";
 import { classifyEnd, readImpact } from "./classify";
 import { createRateMeter } from "./simRate";
 import { levelingCommand, isLevel, C172_LEVELING, MAX_LEVELING_S } from "./leveling";
+import { gearOverspeedFor } from "../hud/format";
 
 export const SNAPSHOT_INTERVAL_S = 0.1;
 
@@ -115,8 +116,7 @@ export function createFlightLoop(deps: FlightLoopDeps) {
       overspeed: state.iasMs > params.limits.vneIasMs,
       machNumber: state.machNumber,
       machOverspeed: state.machNumber > params.limits.mmo,
-      gearOverspeed:
-        params.gear === "retractable" && state.gearPosition > 0 && state.iasMs > params.limits.vleIasMs,
+      gearOverspeed: gearOverspeedFor(params.gear, state.gearPosition, state.iasMs, params.limits.vleIasMs),
       gLimited: state.gLimited,
       terrainClearanceM,
       terrainUnverified: terrain.unverified,
