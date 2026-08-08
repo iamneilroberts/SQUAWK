@@ -1,7 +1,7 @@
 /*
  * The live-feed ghost's low-poly model (issue #15). The ghost is the REAL aircraft, still on the
  * feed after takeover (ghost.ts). It already shows a dimmed chevron + honest staleness label; this
- * adds the same per-class wireframe the player flies, in the distinct NON-SIM cyan styling
+ * adds the same per-class solid low-poly model the player flies, in the distinct NON-SIM cyan styling
  * (GHOST_MODEL_STYLE) so the real aircraft can never be mistaken for the player's amber SIM one.
  *
  * Orientation is taken from the real ADS-B TRACK, held level (no pitch/roll) — ADS-B carries no

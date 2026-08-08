@@ -1173,3 +1173,52 @@ load the app auto-selects that contact and takes control of it — no manual sel
   URL landing a real eligible feed contact into flight, the fallback banner on a bad/absent hex,
   and the URL-param clear) needs a browser. All decision logic is pure/unit-tested (15 new
   tests); the App/effect wiring is build- and typecheck-verified.
+
+## 2026-08-08 — #15 · Exterior/chase aircraft model: wireframe -> solid flat-shaded low-poly
+
+Owner directive ("the chase-cam wireframe is OK, but can we do better visually?" -> chosen: solid
+flat-shaded low-poly FIRST; real glTF is a LATER pass, explicitly NOT now). The player (exterior
+view only) and the ghost (always) now render as a solid shaded aeroplane instead of an amber/cyan
+outline. Supersedes the 2026-08-07 #4+#15 "render mechanism = PolylineCollection wireframe" call;
+everything else in that entry (per-class dims, chase/orbit math, ghost styling intent, KeyE toggle,
+honesty) is unchanged.
+
+- **Triangle-mesh generator (pure, data-not-branches):** `globe/aircraftGeometry.ts` now emits a
+  small CLOSED low-poly `Triangle[]` from the SAME `ModelDims` record — no `if (class===…)`. Shapes:
+  fuselage = square-section box tapered to a nose point and a tail point; wing + tailplane = one thin
+  extruded slab each (constant-chord planform, tips swept aft by `tan(sweep)·semispan`, so the C172's
+  straight wing vs the jets' swept wing is geometric, not a flag); fin = a thin triangular slab. A
+  generic `prism(loop, offset)` builds the lifting surfaces/fin; the fuselage has its own nose/tail
+  caps. ~64 triangles per aircraft — deliberately low-poly and legible. `sim/` stays Cesium-free.
+- **Winding is load-bearing and unit-proven.** Flat shading only reads if every face normal points
+  OUT, so the mesh is wound counter-clockwise-from-outside and is watertight. Broken-arm tests
+  (`aircraftGeometry.test.ts`, 9 tests): bounding box pins length/span/fin to dims; mirror-Y pins
+  symmetry; **manifold-closed** (every directed edge matched by its reverse exactly once) pins a
+  hole-free, consistently-wound surface; **positive signed volume** (divergence theorem, checked for
+  all three classes) pins OUTWARD orientation — reverse the winding and it goes negative (this
+  actually caught my first, globally-inward convention). Swept-vs-straight tip and size-ordering
+  pinned too. The class→dims map stays data (`aircraftModelDims.test.ts`, unchanged).
+- **Cesium primitive/appearance chosen: `Primitive` + `GeometryInstance` + `PerInstanceColorAppearance`
+  ({flat:false, closed:true}), NOT lines and NOT glTF.** Rationale: it is the cleanest zero-dependency
+  way to draw a filled, lit solid. The body-frame mesh is baked ONCE into flat-shaded geometry — each
+  triangle carries its own 3 vertices with the face normal (per-face duplication = faceted, no
+  smoothing) — and each frame only the Primitive's `modelMatrix` is set from position + attitude
+  (`Matrix4.fromTranslationQuaternionRotationScale`). This replaces the old per-frame per-segment
+  vertex rebuild: vertices never move, the GPU rotates the whole solid. `closed:true` back-face-culls
+  the watertight solid. Non-flat `PerInstanceColorAppearance` shades facets by normal from ONE base
+  colour, giving the "dark-metal" gradient for free.
+- **Player amber vs ghost cyan — still unmistakable.** `SIM_MODEL_STYLE` = solid amber `#ffb000`
+  (opaque); `GHOST_MODEL_STYLE` = cyan `#5fd7e0` @ 0.6 alpha (translucent). Same shading, different
+  base hue + opacity: the real aircraft can never be read as the player's SIM amber. SIM banner /
+  accent / `SIM-<hex>` untouched; the model renders only real sim/feed pose, no data synthesized;
+  exterior view is camera-only, never touches ControlVector or sim state.
+- **glTF-deferred seam:** `createAircraftModel` is now typed as one `AircraftModelProvider`
+  `(viewer, classId, style) => AircraftModel`. A future glTF model would build a Cesium `Model`,
+  implement the same `AircraftModel` interface (update/setVisible/destroy), and drop in with no change
+  to the host (`cesiumFlightHost.ts`) or ghost (`ghostModel.ts`), which both call through the
+  interface. NOT built now (owner-deferred).
+- **Not unit-tested (browser-verified, owner tuning by eye):** whether the shaded 3D solid actually
+  reads well on screen — facet/poly detail, the flat-shading lighting intensity/direction, the amber
+  "dark-metal" gradient and the ghost cyan translucency, and the thin-surface thicknesses (wing/tail
+  `chord·0.09/0.12`, fin `chord·0.12`) — needs a real browser and the owner's eye. The pure shape and
+  winding are proven; the LOOK is not. Tests 915 -> 917 (+2 net), tsc clean, build succeeds.
