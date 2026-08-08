@@ -27,7 +27,7 @@ export const KEYMAP: Readonly<Record<string, string>> = {
   NumpadSubtract: "throttle down",
   KeyF: "flaps down one detent",
   KeyV: "flaps up one detent",
-  KeyG: "gear (fixed on this aircraft)",
+  KeyG: "gear up/down",
   Comma: "trim nose down",
   Period: "trim nose up",
   KeyL: "return to level (assist)",
@@ -84,8 +84,8 @@ export function createControlSampler(params: ClassParams, initial: ControlVector
   let prevFlapUp = false;
   let afterburner = initial.afterburner;
   let prevBurner = false;
-  // Task 4 builds the edge-trigger on top of this; for now the sampler just carries it through.
   let gearDown = initial.gearDown;
+  let prevGear = false;
 
   return {
     sample(held, dtS) {
@@ -116,6 +116,10 @@ export function createControlSampler(params: ClassParams, initial: ControlVector
       if (burnerKey && !prevBurner) afterburner = !afterburner;
       prevBurner = burnerKey;
 
+      const gearKey = held.has("KeyG");
+      if (gearKey && !prevGear && params.gear === "retractable") gearDown = !gearDown;
+      prevGear = gearKey;
+
       return { pitch, roll, yaw, throttle, flapDetent, trim, gearDown, afterburner };
     },
     reset() {
@@ -123,6 +127,7 @@ export function createControlSampler(params: ClassParams, initial: ControlVector
       throttle = initial.throttle; trim = initial.trim; flapDetent = initial.flapDetent;
       prevFlapDown = false; prevFlapUp = false;
       afterburner = initial.afterburner; prevBurner = false;
+      gearDown = initial.gearDown; prevGear = false;
     },
   };
 }

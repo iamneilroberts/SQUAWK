@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createControlSampler, KEYMAP } from "./controls";
-import { loadC172 } from "../sim/params";
+import { loadC172, loadB738 } from "../sim/params";
 
 const P = loadC172();
 const DT = 1 / 60;
@@ -174,5 +174,22 @@ describe("afterburner toggle", () => {
     expect(s.sample(new Set(["KeyB"]), 1 / 60).afterburner).toBe(true);   // held: no re-flip
     expect(s.sample(new Set(), 1 / 60).afterburner).toBe(true);           // released: stays on
     expect(s.sample(new Set(["KeyB"]), 1 / 60).afterburner).toBe(false);  // next press: on→off
+  });
+});
+
+describe("gear toggle", () => {
+  it("KeyG toggles gearDown edge-triggered — one flip per press (retractable class)", () => {
+    const s = createControlSampler(loadB738());
+    expect(s.sample(new Set(), 1 / 60).gearDown).toBe(false);
+    expect(s.sample(new Set(["KeyG"]), 1 / 60).gearDown).toBe(true);   // edge: up→down
+    expect(s.sample(new Set(["KeyG"]), 1 / 60).gearDown).toBe(true);   // held: no re-flip
+    expect(s.sample(new Set(), 1 / 60).gearDown).toBe(true);           // released: stays down
+    expect(s.sample(new Set(["KeyG"]), 1 / 60).gearDown).toBe(false);  // next press: down→up
+  });
+  it("KeyG is inert for a fixed-gear class (GR-005)", () => {
+    const s = createControlSampler(loadC172());
+    expect(s.sample(new Set(["KeyG"]), 1 / 60).gearDown).toBe(false);
+    expect(s.sample(new Set(["KeyG"]), 1 / 60).gearDown).toBe(false);
+    expect(s.sample(new Set(), 1 / 60).gearDown).toBe(false);
   });
 });
