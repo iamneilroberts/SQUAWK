@@ -147,4 +147,46 @@ describe("Hud", () => {
     expect(text).toContain("DARK GRAY CANVAS");
     expect(text).not.toContain("IMAGERY © ESRI");
   });
+
+  // ---- Mobile immersive (#13 follow-up): the scattered corner clusters are replaced by ONE
+  // dense top bar. The desktop / non-immersive tree above must stay exactly as it is. ----
+  describe("immersive mobile flight", () => {
+    const has = (classes: string[], token: string) =>
+      classes.some((c) => c.split(/\s+/).includes(token));
+
+    it("replaces the scattered clusters with the single top bar", () => {
+      const classes = collectClasses(Hud({ snapshot: snap(), attribution: "", immersive: true }));
+      expect(has(classes, "imm-bar")).toBe(true); // the one bar is present
+      // Broken-arm: the old scattered clusters must be GONE in immersive, not merely repositioned.
+      expect(has(classes, "hud-left")).toBe(false);
+      expect(has(classes, "hud-right")).toBe(false);
+      expect(has(classes, "hud-heading")).toBe(false);
+    });
+
+    it("keeps those scattered clusters on desktop / non-immersive (unchanged)", () => {
+      const classes = collectClasses(Hud({ snapshot: snap(), attribution: "" }));
+      expect(has(classes, "hud-left")).toBe(true);
+      expect(has(classes, "hud-right")).toBe(true);
+      expect(has(classes, "imm-bar")).toBe(false);
+    });
+
+    it("still shows the flight data, SIM identity and attribution in the bar", () => {
+      const text = collectText(
+        Hud({ snapshot: snap(), attribution: "RE:EARTH TERRAIN", immersive: true }),
+      ).join(" ");
+      expect(text).toContain("3500"); // ALT
+      expect(text).toContain("105"); // IAS
+      expect(text).toContain("SIM-A1B2C3");
+      expect(text).toContain("RE:EARTH TERRAIN");
+    });
+
+    it("keeps the top bar visible even when the chrome is faded (essential instrumentation)", () => {
+      // Broken-arm: the bar must NOT drop out of the DOM when faded — you have to read alt/speed
+      // while flying. The fade is CSS on the attribution only; the bar is still rendered.
+      const classes = collectClasses(
+        Hud({ snapshot: snap(), attribution: "", immersive: true, faded: true }),
+      );
+      expect(has(classes, "imm-bar")).toBe(true);
+    });
+  });
 });

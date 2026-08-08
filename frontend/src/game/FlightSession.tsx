@@ -461,6 +461,7 @@ export default function FlightSession() {
             })}
             immersive={immersiveActive}
             faded={faded}
+            attitudeStyle={originParams?.display.attitudeStyle ?? "line"}
           />
           {/* The cockpit strip is hidden entirely in immersive flight (it overlaps the touch
               buttons); it returns on PAUSED/ENDED and in non-immersive flight. */}

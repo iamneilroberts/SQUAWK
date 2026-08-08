@@ -10,6 +10,8 @@
  * canvas, so the HUD supplies that positioning itself rather than relying on the parent.
  */
 import type { HudSnapshot } from "./snapshot";
+import type { AttitudeStyle } from "../sim/types";
+import ImmersiveHudBar from "./ImmersiveHudBar";
 import {
   formatAirtime, formatAltFt, formatAoaDeg, formatClass, formatClearanceFt, formatFlaps,
   formatG, formatGear, formatHeadingDeg, formatIasKt, formatLightPhase, formatSimRate,
@@ -31,21 +33,38 @@ export default function Hud({
   attribution,
   immersive = false,
   faded = false,
+  attitudeStyle = "line",
 }: {
   snapshot: HudSnapshot | null;
   attribution: string;
-  /** Mobile immersive/fullscreen flight (#13): repositions the readout clusters clear of the
-   *  touch zones (stick bottom-left, throttle right edge, button row bottom-centre). */
+  /** Mobile immersive/fullscreen flight (#13): replaces the scattered corner readout clusters with
+   *  a single dense top status bar (ImmersiveHudBar), clear of the touch zones. */
   immersive?: boolean;
   /** Video-player auto-hide: fade the informational overlays to opacity 0. Warnings are NEVER
-   *  faded (safety) and the flight controls are a separate layer, so both stay visible. */
+   *  faded (safety), the flight controls are a separate layer, and — in immersive mode — the top
+   *  status bar is essential instrumentation and is NOT in the fade set either. */
   faded?: boolean;
+  /** The flown class's attitude style, threaded through to the immersive bar's mini ADI so it
+   *  reuses the same six-pack geometry (line horizon vs filled ball). Ignored off immersive. */
+  attitudeStyle?: AttitudeStyle;
 }) {
   if (snapshot === null) return null;
   const warnings = warningsFor(snapshot);
   const simRate = formatSimRate(snapshot.simRate);
   const rootClass =
     "hud-root" + (immersive ? " hud-immersive" : "") + (faded ? " hud-faded" : "");
+
+  // Immersive mobile flight: ONE dense top bar carries the essential flight data + SIM identity +
+  // warnings and STAYS visible (it is not faded). Only the attribution keeps its auto-hide. The
+  // desktop / non-immersive tree below is untouched.
+  if (immersive) {
+    return (
+      <div className={rootClass}>
+        <ImmersiveHudBar snapshot={snapshot} attitudeStyle={attitudeStyle} />
+        <div className="hud-attribution">{attribution}</div>
+      </div>
+    );
+  }
 
   return (
     <div className={rootClass}>
