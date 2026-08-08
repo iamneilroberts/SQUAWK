@@ -980,37 +980,38 @@ body {
   max-width: calc(100vw - 96px);
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 3px 8px;
-  border: 1px solid rgba(95, 215, 224, 0.35);
-  background: rgba(5, 7, 10, 0.72);
+  gap: 7px;
+  padding: 2px 6px;
+  font-size: 11px;
+  border: 1px solid rgba(95, 215, 224, 0.3);
+  background: rgba(5, 7, 10, 0.66);
   overflow: hidden;
 }
 .imm-bar-sim {
   display: inline-flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 4px;
   flex: none;
   color: var(--amber);
-  padding-right: 8px;
-  border-right: 1px solid rgba(255, 176, 0, 0.4);
+  padding-right: 6px;
+  border-right: 1px solid rgba(255, 176, 0, 0.35);
 }
-.imm-bar-callsign { font-size: 12px; }
-.imm-bar-class { font-size: 10px; opacity: 0.8; }
-.imm-bar-adi { width: 32px; height: 32px; flex: none; }
+.imm-bar-callsign { font-size: 10px; }
+.imm-bar-class { font-size: 8px; opacity: 0.8; }
+.imm-bar-adi { width: 20px; height: 20px; flex: none; }
 .imm-adi-face { width: 100%; height: 100%; display: block; }
 .imm-bar-fields {
   display: flex;
   align-items: baseline;
-  flex-wrap: wrap;
-  gap: 3px 12px;
+  flex-wrap: nowrap;
+  gap: 0 9px;
   min-width: 0;
 }
-.imm-field { display: inline-flex; align-items: baseline; gap: 3px; }
-.imm-field-label { font-size: 9px; opacity: 0.6; }
-.imm-field-value { font-size: 15px; color: var(--cyan); }
-.imm-field-unit { font-size: 9px; opacity: 0.6; }
-.imm-bar-warnings { display: flex; align-items: center; gap: 6px; flex: none; margin-left: 2px; }
+.imm-field { display: inline-flex; align-items: baseline; gap: 2px; }
+.imm-field-label { font-size: 8px; opacity: 0.55; }
+.imm-field-value { font-size: 12px; color: var(--cyan); }
+.imm-field-unit { font-size: 8px; opacity: 0.55; }
+.imm-bar-warnings { display: flex; align-items: center; gap: 5px; flex: none; margin-left: 2px; }
 
 /* Only the attribution keeps the video-player auto-hide in immersive mode; the top bar and the
    warnings are essential and are intentionally NOT faded (instrumentation + safety). */

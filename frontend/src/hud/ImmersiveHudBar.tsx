@@ -22,7 +22,7 @@ import type { HudSnapshot } from "./snapshot";
 import type { AttitudeStyle } from "../sim/types";
 import AttitudeIndicator from "../dashboard/AttitudeIndicator";
 import {
-  formatAltFt, formatAoaDeg, formatClass, formatClearanceFt, formatG, formatHeadingDeg,
+  formatAltFt, formatClass, formatClearanceFt, formatHeadingDeg,
   formatIasKt, formatVsiFpm, warningsFor,
 } from "./format";
 
@@ -30,9 +30,10 @@ export type BarField = { label: string; value: string; unit?: string };
 
 /**
  * The dense field strip, in reading order. Pure and formatter-only, so it is unit-tested without a
- * renderer and can never disagree with the desktop HUD about what a number reads. AOA and G are
- * included last — they are the first candidates to drop by eye if the strip is too wide on a real
- * phone (owner tuning).
+ * renderer and can never disagree with the desktop HUD about what a number reads. Deliberately the
+ * five essential glance fields only — AOA and G were dropped from the mobile immersive bar (owner:
+ * "make it tiny, minimalist") so the strip stays a single short row on a phone. Those two remain on
+ * the desktop dashboard (HudDisplay) where there is room.
  */
 export function immersiveBarFields(snapshot: HudSnapshot): BarField[] {
   return [
@@ -41,8 +42,6 @@ export function immersiveBarFields(snapshot: HudSnapshot): BarField[] {
     { label: "HDG", value: formatHeadingDeg(snapshot.headingRad) },
     { label: "VSI", value: formatVsiFpm(snapshot.verticalSpeedMs), unit: "FPM" },
     { label: "AGL", value: formatClearanceFt(snapshot.terrainClearanceM), unit: "FT" },
-    { label: "AOA", value: formatAoaDeg(snapshot.aoaRad), unit: "°" },
-    { label: "G", value: formatG(snapshot.loadFactor) },
   ];
 }
 

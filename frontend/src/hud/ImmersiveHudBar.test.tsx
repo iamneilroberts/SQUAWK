@@ -56,8 +56,16 @@ describe("immersiveBarFields", () => {
     const fields = immersiveBarFields(snap());
     const byLabel = Object.fromEntries(fields.map((f) => [f.label, f.value]));
     expect(byLabel).toMatchObject({
-      ALT: "3500", IAS: "105", HDG: "270", VSI: "+500", AGL: "2000", AOA: "3.0", G: "+1.0",
+      ALT: "3500", IAS: "105", HDG: "270", VSI: "+500", AGL: "2000",
     });
+  });
+
+  it("stays minimalist on mobile — AOA and G are NOT in the bar (owner: tiny/minimalist)", () => {
+    // Broken-arm: if a future edit re-adds AOA/G the strip wraps to two rows on a phone again.
+    const labels = immersiveBarFields(snap()).map((f) => f.label);
+    expect(labels).toEqual(["ALT", "IAS", "HDG", "VSI", "AGL"]);
+    expect(labels).not.toContain("AOA");
+    expect(labels).not.toContain("G");
   });
 
   it("em-dashes an unknown value rather than inventing one (honest-data)", () => {
@@ -71,7 +79,7 @@ describe("immersiveBarFields", () => {
 describe("ImmersiveHudBar", () => {
   it("shows every essential readout in one strip", () => {
     const text = render(snap());
-    for (const v of ["3500", "105", "270", "+500", "2000", "3.0", "+1.0"]) {
+    for (const v of ["3500", "105", "270", "+500", "2000"]) {
       expect(text).toContain(v);
     }
   });
