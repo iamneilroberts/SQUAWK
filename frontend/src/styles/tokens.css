@@ -554,6 +554,52 @@ body {
 .radar-status { color: var(--amber); }
 .radar-ranges { display: flex; align-items: center; gap: 3px; }
 .radar-range-unit { color: var(--text); opacity: 0.6; font-size: 9px; }
+
+/* ---- nav map: geographic, own ship centred, NORTH UP (complements the radar PPI) ---- */
+.navmap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.navmap-face { width: 168px; height: 168px; }
+/* Only the traffic group takes the dim — the airports are bundled, not a feed, and stay honest. */
+.navmap-dim { opacity: 0.45; }
+.navmap-ring { fill: none; stroke: var(--grid); stroke-width: 1; }
+.navmap-ring-label {
+  fill: var(--text);
+  opacity: 0.55;
+  font-family: var(--mono);
+  font-size: 9px;
+}
+.navmap-north {
+  fill: var(--text);
+  opacity: 0.7;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+.navmap-coverage-note {
+  fill: var(--amber);
+  opacity: 0.85;
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.navmap-airport-mark { fill: var(--cyan); opacity: 0.7; }
+.navmap-airport-large .navmap-airport-mark { opacity: 1; }
+.navmap-airport-label {
+  fill: var(--text);
+  opacity: 0.7;
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+}
+.navmap-blip { fill: var(--cyan); }
+.navmap-blip-mil { fill: var(--amber); }
+.navmap-blip-ghost { fill: var(--amber); opacity: 0.45; }
+.navmap-own { fill: none; stroke: var(--amber); stroke-width: 1.5; }
+.navmap-footer { display: flex; gap: 8px; font-size: 9px; letter-spacing: 0.06em; }
+.navmap-heading { color: var(--cyan); }
+.navmap-status { color: var(--amber); }
+.navmap-ranges { display: flex; align-items: center; gap: 3px; }
+.navmap-range-unit { color: var(--text); opacity: 0.6; font-size: 9px; }
 .status-chip-button-active {
   background: rgba(95, 215, 224, 0.2);
   border-color: var(--cyan);

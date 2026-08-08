@@ -12,6 +12,8 @@
  * `DashboardStrip` owns the hooks, `DashboardStripBody` owns every element.
  */
 import { useEffect, useState } from "react";
+import type { Airport } from "../data/airports";
+import { loadAirports } from "../data/airports";
 import type { Contact, FeedStatus } from "../data/types";
 import type { HudSnapshot } from "../hud/snapshot";
 import type { ClassParams } from "../sim/types";
@@ -24,17 +26,20 @@ import SixPack from "./SixPack";
 import ControlState from "./ControlState";
 import RadarScope from "./RadarScope";
 import { DEFAULT_RANGE_NM } from "./radarMath";
+import NavMap from "./NavMap";
+import { DEFAULT_NAV_RANGE_NM } from "./navMath";
 import WeatherPanel from "./WeatherPanel";
 import ControlsHelp from "./ControlsHelp";
 
-export type PanelId = "gauges" | "radar" | "weather" | "help";
+export type PanelId = "gauges" | "radar" | "navmap" | "weather" | "help";
 export type StripState = {
   open: boolean;
   collapsed: Record<PanelId, boolean>;
   scopeRangeNm: number;
+  navRangeNm: number;
 };
 
-export const PANEL_IDS: readonly PanelId[] = ["gauges", "radar", "weather", "help"];
+export const PANEL_IDS: readonly PanelId[] = ["gauges", "radar", "navmap", "weather", "help"];
 
 /**
  * Which modes have a cockpit. FLYING, PAUSED and ENDED do; BROWSE and COUNTDOWN do not.
@@ -48,17 +53,22 @@ export function stripMountedForMode(mode: Mode): boolean {
   return mode === "FLYING" || mode === "PAUSED" || mode === "ENDED";
 }
 
-/** Instruments and the honest placeholders are up; the help panel starts folded. */
+/** Instruments, radar and weather are up; the nav map and the help panel start folded. */
 export function defaultStripState(): StripState {
   return {
     open: true,
-    collapsed: { gauges: false, radar: false, weather: false, help: true },
+    collapsed: { gauges: false, radar: false, navmap: true, weather: false, help: true },
     scopeRangeNm: DEFAULT_RANGE_NM,
+    navRangeNm: DEFAULT_NAV_RANGE_NM,
   };
 }
 
 export function setScopeRange(s: StripState, nm: number): StripState {
   return { ...s, scopeRangeNm: nm };
+}
+
+export function setNavRange(s: StripState, nm: number): StripState {
+  return { ...s, navRangeNm: nm };
 }
 
 export function togglePanel(s: StripState, id: PanelId): StripState {
@@ -88,8 +98,8 @@ export function stripKeyAction(
 }
 
 export function DashboardStripBody({
-  state, snapshot, params, contacts, feedStatus, ghostHex, feedRadiusNm,
-  onTogglePanel, onToggleStrip, onRangeChange,
+  state, snapshot, params, contacts, feedStatus, ghostHex, feedRadiusNm, airports,
+  onTogglePanel, onToggleStrip, onRangeChange, onNavRangeChange,
 }: {
   state: StripState;
   snapshot: HudSnapshot | null;
@@ -98,9 +108,11 @@ export function DashboardStripBody({
   feedStatus: FeedStatus;
   ghostHex: string | null;
   feedRadiusNm: number;
+  airports: Airport[];
   onTogglePanel(id: PanelId): void;
   onToggleStrip(): void;
   onRangeChange(nm: number): void;
+  onNavRangeChange(nm: number): void;
 }) {
   if (!state.open) {
     return (
@@ -130,6 +142,20 @@ export function DashboardStripBody({
           scopeRangeNm={state.scopeRangeNm}
           feedRadiusNm={feedRadiusNm}
           onRangeChange={onRangeChange}
+        />
+      </PanelFrame>
+
+      <PanelFrame title="NAVMAP" collapsed={state.collapsed.navmap}
+        onToggle={() => onTogglePanel("navmap")}>
+        <NavMap
+          snapshot={snapshot}
+          airports={airports}
+          contacts={contacts}
+          feedStatus={feedStatus}
+          ghostHex={ghostHex}
+          navRangeNm={state.navRangeNm}
+          feedRadiusNm={feedRadiusNm}
+          onRangeChange={onNavRangeChange}
         />
       </PanelFrame>
 
@@ -179,9 +205,11 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
       feedStatus={feedStatus}
       ghostHex={origin?.hex ?? null}
       feedRadiusNm={radiusNm}
+      airports={loadAirports()}
       onTogglePanel={(id) => setState((s) => togglePanel(s, id))}
       onToggleStrip={() => setState(toggleStrip)}
       onRangeChange={(nm) => setState((s) => setScopeRange(s, nm))}
+      onNavRangeChange={(nm) => setState((s) => setNavRange(s, nm))}
     />
   );
 }

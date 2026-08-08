@@ -823,3 +823,39 @@ is removed: PanelId drops "atc", PANEL_IDS/defaultStripState drop it, the ATC Pa
 AtcPanel.tsx are gone, and the strip reflows to weather-alone on the right. Weather (#10) stays —
 it has a real free source (aviationweather.gov METAR) and is the next feature. Spec D-1/D-5
 annotated; 4 ATC-panel tests removed (726 → 722 green).
+
+## 2026-08-07 — NM-001 · NAVMAP panel: a north-up geographic moving map, complement not merge (#11)
+
+The new NAVMAP strip panel COMPLEMENTS the radar rather than merging into it. The radar
+(RadarScope/radarMath) is a heading-up traffic PPI: own ship centred, range rings, live contacts
+only. NAVMAP (NavMap/navMath) is a NORTH-UP geographic map: own ship centred, range rings,
+contacts AND bundled airports. Merging would have forced one instrument to be both heading-up
+(what a PPI wants) and north-up-with-upright-labels (what a chart wants), and would have coupled
+the airport layer to the traffic feed's staleness. Two small panels, each honest about one job,
+is the boring-and-legible call. They share the tested `geoRange` math and NAVMAP reuses the
+radar's `blipsFor` (with the heading term zeroed) and `ringsFor`/`coverageNote`, so "complement"
+cost almost no new surface.
+
+- **Projection = azimuthal-equidistant, centred on own ship** (`navXY`): a feature's great-circle
+  range sets its radius, its bearing sets its angle. This is exactly `scopeXY` MINUS the
+  own-heading term — that missing term is what makes it north-up — and it reuses the same
+  `geoRange` haversine/bearing the radar and windscreen tags already use. Range/bearing are both
+  exact at these scales; no new geodesy, no map library.
+- **North-up, not track-up.** The distinguishing value over the heading-up radar is a stable
+  geographic frame you can read a chart against, and — decisively — north-up keeps the airport
+  LABELS upright without per-label counter-rotation. The own-ship chevron rotates to heading
+  instead of spinning the whole map (and its labels).
+- **No basemap imagery (v1).** CLAUDE.md rule 3 forbids adding a mapping library, and stitching
+  Esri tiles into a 2D canvas is a large surface that risks an implicit dependency. The panel is a
+  hand-rendered SVG graticule (same tech as the radar), airports/contacts plotted by the pure
+  projection helper. No package added.
+- **Airports are bundled, so only TRAFFIC freezes offline.** `navStatus` says
+  "FEED OFFLINE/STALE · TRAFFIC FROZEN" and the dim is applied to the traffic `<g>` alone; the
+  airport layer stays full-opacity because the OurAirports extract is not a feed and never goes
+  stale. This is the honest-data rule made specific to a two-source panel.
+- **Folded by default**, like the CONTROLS help panel — a secondary instrument the owner opens on
+  demand. (Also keeps the radar-collapse test's "no NM when radar folded" invariant intact,
+  surgically.) Range presets 10/25/50/100/200 NM, default 50; state lives in DashboardStrip's
+  `useState` (navRangeNm), same reset-on-QUIT lifecycle as the radar range (CD-006).
+- Tests: navMath.test.ts (17), NavMap.test.tsx (12), plus 4 in DashboardStrip.test.tsx —
+  no-jsdom `collectText`/`collectProp` element-tree style. 722 → 755 green.

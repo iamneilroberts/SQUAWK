@@ -5,6 +5,7 @@ import {
 } from "./DashboardStrip";
 import { loadC172 } from "../sim/params";
 import { DEFAULT_RANGE_NM } from "./radarMath";
+import { DEFAULT_NAV_RANGE_NM } from "./navMath";
 
 const P = loadC172();
 
@@ -24,8 +25,9 @@ const body = (state = defaultStripState()) =>
   collectText(
     DashboardStripBody({
       state, snapshot: null, params: P, contacts: new Map(), feedStatus: "live", ghostHex: null,
-      feedRadiusNm: 80,
+      feedRadiusNm: 80, airports: [],
       onTogglePanel: () => {}, onToggleStrip: () => {}, onRangeChange: () => {},
+      onNavRangeChange: () => {},
     }),
   ).join(" ");
 
@@ -129,6 +131,33 @@ describe("the radar panel joins the strip", () => {
   it("starts on the 40 NM range", () => {
     expect(DEFAULT_RANGE_NM).toBe(40);
     expect(defaultStripState().scopeRangeNm).toBe(40);
+  });
+});
+
+describe("the nav map joins the strip", () => {
+  it("titles it, between the radar and the weather", () => {
+    const text = body();
+    expect(text).toContain("NAVMAP");
+    expect(text.indexOf("RADAR")).toBeLessThan(text.indexOf("NAVMAP"));
+    expect(text.indexOf("NAVMAP")).toBeLessThan(text.indexOf("WEATHER"));
+  });
+
+  it("has its own collapse flag and folds closed by default (a secondary panel, like the help)", () => {
+    const s = defaultStripState();
+    expect(typeof s.collapsed.navmap).toBe("boolean");
+    expect(s.collapsed.navmap).toBe(true);
+  });
+
+  it("collapses on its own like every other panel", () => {
+    const s = togglePanel(defaultStripState(), "navmap");
+    expect(s.collapsed.navmap).toBe(false); // was folded, now open
+    expect(s.collapsed.radar).toBe(false);
+    expect(s.collapsed.weather).toBe(false);
+  });
+
+  it("starts on the 50 NM map range", () => {
+    expect(DEFAULT_NAV_RANGE_NM).toBe(50);
+    expect(defaultStripState().navRangeNm).toBe(50);
   });
 });
 
