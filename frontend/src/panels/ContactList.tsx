@@ -59,7 +59,7 @@ export default function ContactList() {
     <div className="panel flex h-full flex-col">
       <div className="label px-2 py-1">Contacts</div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {rows.length === 0 ? (
           <div className="label p-2">NO CONTACTS — {feedStatus.toUpperCase()}</div>
         ) : (

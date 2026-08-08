@@ -639,8 +639,14 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  max-height: 60vh;
+  /* Definite height (not just max-height): a percentage/`h-full` child can't resolve against a
+     parent that only has max-height, so ContactList grew to full content height and the drawer's
+     overflow:hidden clipped the TAKE CONTROLS button (and lower rows) off the bottom. A definite
+     60vh + column flow gives ContactList a bounded box, so its inner list scrolls and the button
+     stays pinned and reachable. */
+  height: 60vh;
   display: flex;
+  flex-direction: column;
   overflow: hidden;
   border-top: 1px solid var(--cyan);
   background: rgba(5, 7, 10, 0.94);

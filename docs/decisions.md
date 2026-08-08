@@ -1055,3 +1055,16 @@ still starts in the cockpit FPV view).
 - **Not unit-tested (browser-verified):** the Cesium primitive wiring and the actual on-screen
   silhouette + camera feel. The pure parts (class→dims, geometry, chase/orbit math) are unit-tested
   broken-arm; proportions and camera distance/damping still need a real browser to confirm by eye.
+
+## 2026-08-07 — #13 · Mobile select-a-plane fixes (drawer clip + rotate card)
+
+Two shipped-bug fixes to the mobile browse flow (reported: "can't select a plane on mobile"):
+- **Drawer clipped the TAKE CONTROLS button.** `.contact-drawer` had only `max-height:60vh`
+  (no definite height), so ContactList's `h-full` couldn't resolve and it grew to full content
+  height; `overflow:hidden` then clipped the bottom-pinned button (and lower rows). Fix: definite
+  `height:60vh` + `flex-direction:column` on the drawer, plus `min-h-0` on ContactList's scroll
+  list so it scrolls internally and the button stays pinned/reachable.
+- **Rotate card covered the browse list.** `shouldShowRotateCard` was `narrow && portrait`,
+  independent of mode, so it obscured the contact drawer in BROWSE-portrait (where you pick a
+  plane — a vertical list that reads fine in portrait). Fix: `shouldShowRotateCard(w,h,mode)` now
+  also requires `mode !== "BROWSE"`; only the flight display demands landscape.

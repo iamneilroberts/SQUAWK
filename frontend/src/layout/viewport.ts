@@ -13,6 +13,8 @@
  * axis is the flight axis, and a landscape phone is still "narrow" by this rule.
  */
 
+import type { Mode } from "../game/machine";
+
 /** Below this CSS-px width the layout reflows for mobile. At or above it, desktop is unchanged. */
 export const MOBILE_BREAKPOINT_PX = 1024;
 
@@ -27,10 +29,11 @@ export function isPortrait(width: number, height: number): boolean {
 }
 
 /**
- * The "ROTATE TO LANDSCAPE" card shows only when a NARROW device is held in PORTRAIT: a wide
- * desktop never sees it, and a phone already in landscape never sees it. It is deliberately
- * gated on narrowness too, so a tall thin desktop window isn't told to rotate its monitor.
+ * The "ROTATE TO LANDSCAPE" card shows only when a NARROW device is held in PORTRAIT *and the
+ * player is not in BROWSE*: a wide desktop never sees it, a phone already in landscape never
+ * sees it, and — critically — it never covers the browse contact list, where you pick a plane
+ * in portrait via the vertical drawer. It is the flight display that needs the wide screen.
  */
-export function shouldShowRotateCard(width: number, height: number): boolean {
-  return isNarrowViewport(width) && isPortrait(width, height);
+export function shouldShowRotateCard(width: number, height: number, mode: Mode): boolean {
+  return mode !== "BROWSE" && isNarrowViewport(width) && isPortrait(width, height);
 }

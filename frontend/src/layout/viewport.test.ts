@@ -32,14 +32,17 @@ describe("isPortrait", () => {
 });
 
 describe("shouldShowRotateCard", () => {
-  it("shows on a narrow device held in portrait", () => {
-    expect(shouldShowRotateCard(390, 844)).toBe(true);
+  it("shows on a narrow device held in portrait while flying", () => {
+    expect(shouldShowRotateCard(390, 844, "FLYING")).toBe(true);
+  });
+  it("never shows in BROWSE — you pick a contact there, and the drawer is a vertical list that reads fine in portrait", () => {
+    expect(shouldShowRotateCard(390, 844, "BROWSE")).toBe(false);
   });
   it("never shows on a phone already in landscape", () => {
-    expect(shouldShowRotateCard(844, 390)).toBe(false);
+    expect(shouldShowRotateCard(844, 390, "FLYING")).toBe(false);
   });
   it("never shows on a wide desktop, even a tall thin window", () => {
-    expect(shouldShowRotateCard(1920, 1080)).toBe(false);
-    expect(shouldShowRotateCard(1200, 1600)).toBe(false); // wide enough → not narrow → no card
+    expect(shouldShowRotateCard(1920, 1080, "FLYING")).toBe(false);
+    expect(shouldShowRotateCard(1200, 1600, "FLYING")).toBe(false); // wide enough → not narrow → no card
   });
 });

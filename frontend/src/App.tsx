@@ -20,7 +20,7 @@ export default function App() {
   // branch below falls back to the original desktop render — desktop is unchanged.
   const { width, height } = useViewport();
   const narrow = isNarrowViewport(width);
-  const showRotate = shouldShowRotateCard(width, height);
+  const showRotate = shouldShowRotateCard(width, height, mode);
   const [contactsOpen, setContactsOpen] = useState(false);
   const browseDrawer = narrow && mode === "BROWSE";
 
