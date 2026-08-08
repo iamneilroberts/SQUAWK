@@ -160,7 +160,9 @@ export function buildSpawnState(
 
   // ---- controls: the throttle that holds this speed, and the trim that holds this AoA ----
   const cl = liftCoefficient(alphaTrimRad, params, flap);
-  const dragN = dragCoefficient(cl, params, flap) * qBar * params.wingAreaM2;
+  const gearPositionAtSpawn = 0; // placeholder — Task 6 sets this per GR-006 for every class
+  const dragN = (dragCoefficient(cl, params, flap) + params.aero.gearDragCd0 * gearPositionAtSpawn) *
+    qBar * params.wingAreaM2;
   const thrustCapacityN =
     (params.propulsion.propEfficiency * params.propulsion.maxPowerW *
       POWER_LAPSE_MODELS[params.propulsion.lapseModel](altitudeM)) /

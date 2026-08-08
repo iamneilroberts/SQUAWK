@@ -4,11 +4,11 @@ import {
   thrustNewtons, controlAuthority, computeForces, turbofanPowerLapse, POWER_LAPSE_MODELS,
 } from "./forces";
 import type { ForceResult } from "./forces";
-import { loadC172 } from "./params";
+import { loadC172, loadB738 } from "./params";
 import { degToRad, ftToM } from "./units";
 import { quatFromHpr, qRotate, qRotateInverse } from "./quat";
 import { geodeticToEcef, geodeticSurfaceNormal } from "./geo";
-import { vScale, vSub } from "./vec3";
+import { vLength, vScale, vSub } from "./vec3";
 import type { ClassParams, SimState, ControlVector, Vec3 } from "./types";
 
 const P = loadC172();
@@ -219,5 +219,30 @@ describe("afterburner thrust", () => {
   it("defaults to dry when the flag is omitted", () => {
     const p = loadC172();
     expect(thrustNewtons(p, 1, 100, 0)).toBeCloseTo(thrustNewtons(p, 1, 100, 0, false), 6);
+  });
+});
+
+describe("gear drag", () => {
+  it("adds gearDragCd0 * gearPosition of parasitic drag for a retractable class (broken-arm)", () => {
+    const B738 = loadB738();
+    const controls: ControlVector = {
+      pitch: 0, roll: 0, yaw: 0, throttle: 0.5, flapDetent: 0, trim: 0,
+      gearDown: false, afterburner: false,
+    };
+    const alt = ftToM(10000);
+    const tas = 128; // ~250 kt TAS
+    const gearUp = computeForces({ ...stateAt(alt, tas), gearPosition: 0 }, controls, B738);
+    const gearDown = computeForces({ ...stateAt(alt, tas), gearPosition: 1 }, controls, B738);
+    // Same speed, altitude and AoA in both calls — the ONLY thing that can differ is the drag
+    // term gearDragCd0 * gearPosition adds. A real drag increase, not floating-point noise.
+    const forceDropN = vLength(vSub(gearUp.forceEcef, gearDown.forceEcef));
+    expect(forceDropN).toBeGreaterThan(1000);
+  });
+  it("C172 (gearDragCd0 = 0) sees no force change with gear position — no regression", () => {
+    const alt = ftToM(3000);
+    const tas = 50;
+    const gearUp = computeForces({ ...stateAt(alt, tas), gearPosition: 0 }, CONTROLS, P);
+    const gearDown = computeForces({ ...stateAt(alt, tas), gearPosition: 1 }, CONTROLS, P);
+    expect(vLength(vSub(gearUp.forceEcef, gearDown.forceEcef))).toBeCloseTo(0, 6);
   });
 });
