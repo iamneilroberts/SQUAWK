@@ -1010,3 +1010,102 @@ body {
    warnings are essential and are intentionally NOT faded (instrumentation + safety). */
 .hud-immersive .hud-attribution { transition: opacity 0.5s ease; }
 .hud-immersive.hud-faded .hud-attribution { opacity: 0; }
+
+/* ========================================================================
+ * Unified glass cockpit (desktop-only redesign). ONE panel: per-class primary
+ * (left), merged tactical map (right), control-state strip (bottom), weather /
+ * controls folds. LORAN vector language only — 1px borders, translucent
+ * near-black, amber/cyan, monospace, no radius, no shadow. The realistic
+ * dashboard ART is DEFERRED: the seam is `.glass-primary`'s `background`, set
+ * per-profile inline (transparent now) so the later art pass touches only that.
+ * ======================================================================== */
+.glass {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  max-width: 760px;
+}
+.glass-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--grid);
+  padding-bottom: 4px;
+}
+.glass-title { color: var(--text); opacity: 0.85; }
+.glass-header-actions { display: flex; gap: 4px; }
+.glass-main { display: flex; align-items: flex-start; gap: 12px; }
+.glass-primary {
+  /* `background` is set inline per profile (the deferred realistic-art seam). */
+  padding: 2px;
+  min-width: 300px;
+}
+.glass-tactical { display: flex; flex-direction: column; gap: 2px; }
+.glass-region-label { color: var(--text); opacity: 0.6; }
+.glass-control-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  border-top: 1px solid var(--grid);
+  padding-top: 5px;
+}
+.glass-control-strip .control-state { margin-top: 0; padding-top: 0; border-top: 0; }
+.glass-aux {
+  border-top: 1px solid var(--grid);
+  padding-top: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ---- EFIS PFD (b738 primary): attitude ball + speed/altitude tapes ---- */
+.efis { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.efis-top { display: flex; align-items: baseline; gap: 6px; }
+.efis-hdg-label { color: var(--text); opacity: 0.6; }
+.efis-hdg-value { color: var(--cyan); font-size: 14px; letter-spacing: 0.08em; }
+.efis-row { display: flex; align-items: center; gap: 6px; }
+.efis-tape { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.efis-tape-label { color: var(--text); opacity: 0.6; font-size: 9px; }
+.efis-tape-face { width: 46px; height: 124px; }
+.efis-tape-frame { fill: none; stroke: var(--grid); stroke-width: 1; }
+.efis-tape-tick { stroke: var(--grid); stroke-width: 1; }
+.efis-tape-num { fill: var(--text); opacity: 0.75; font-family: var(--mono); font-size: 8px; }
+.efis-tape-box { fill: rgba(5, 7, 10, 0.9); stroke: var(--cyan); stroke-width: 1; }
+.efis-tape-value { fill: var(--cyan); font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; }
+.efis-bug { }
+.efis-bug-limit { fill: var(--amber); }
+.efis-bug-flap { fill: var(--text); }
+.efis-adi-wrap { width: 120px; height: 120px; }
+.efis-adi { width: 120px; height: 120px; }
+.efis-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 12px;
+  justify-content: center;
+}
+.efis-strip-item { color: var(--text); opacity: 0.8; font-size: 10px; letter-spacing: 0.05em; }
+.efis-strip-value { color: var(--cyan); }
+.efis-nodata { color: var(--amber); opacity: 0.8; }
+
+/* ---- HUD (f5e primary): boresight, ladder, velocity vector, G/AOA/Mach ---- */
+.hud-display { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.hud-face { width: 300px; height: 232px; }
+.hud-line { stroke: var(--cyan); stroke-width: 1; opacity: 0.7; }
+.hud-num { fill: var(--cyan); font-family: var(--mono); font-size: 8px; opacity: 0.8; }
+.hud-caret { fill: var(--amber); }
+.hud-horizon { stroke: var(--cyan); stroke-width: 1.5; }
+.hud-ladder { stroke: var(--cyan); stroke-width: 1; opacity: 0.7; }
+.hud-boresight { fill: none; stroke: var(--amber); stroke-width: 1.5; }
+.hud-vv-ring { fill: none; stroke: var(--cyan); stroke-width: 1.5; }
+.hud-box-label { fill: var(--text); opacity: 0.6; font-family: var(--mono); font-size: 8px; }
+.hud-box-value { fill: var(--cyan); font-family: var(--mono); font-size: 12px; }
+.hud-readouts { display: flex; gap: 14px; align-items: baseline; }
+.hud-readout { display: inline-flex; align-items: baseline; gap: 4px; }
+.hud-readout-label { color: var(--text); opacity: 0.6; }
+.hud-readout-value { color: var(--cyan); font-size: 13px; letter-spacing: 0.05em; }
+.hud-readout-g { font-size: 15px; }
+.hud-ab-wet .hud-readout-value { color: var(--amber); }
+.hud-nodata { color: var(--amber); opacity: 0.8; }

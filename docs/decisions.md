@@ -1222,3 +1222,55 @@ honesty) is unchanged.
   "dark-metal" gradient and the ghost cyan translucency, and the thin-surface thicknesses (wing/tail
   `chord·0.09/0.12`, fin `chord·0.12`) — needs a real browser and the owner's eye. The pure shape and
   winding are proven; the LOOK is not. Tests 915 -> 917 (+2 net), tsc clean, build succeeds.
+## 2026-08-08 — Unified glass cockpit + per-class instrument profiles (desktop-only redesign)
+
+Replaced the desktop cockpit's five separate PanelFrames (INSTRUMENTS six-pack · RADAR ·
+NAVMAP · WEATHER · CONTROLS) with ONE "unified glass" panel: per-class PRIMARY instruments left,
+a merged TACTICAL map right, a control-state strip bottom, weather/controls behind folds. Owner
+chose layout C (unified glass) + basic per-class layouts now; the realistic/skeuomorphic
+dashboard ART is DEFERRED to a later pass — this build is the FUNCTIONAL vector layout in LORAN
+style.
+
+- **Class → dashboard-profile registry is DATA, not branches** (`dashboard/profiles.ts`, mirrors
+  `sim/params.ts::loadClassById`). `profileForClass(classId)` returns `{ classId, primary, background }`
+  by table lookup; a second data table in `UnifiedGlass.tsx` (`PRIMARY_COMPONENTS`) maps the
+  `primary` KIND → component. No `if (class === "...")` in any render path. Resolved through the
+  same `resolveClass(origin.snapshot).classId` + `loadClassById` path DashboardStrip already used.
+  Unknown class id throws (a missing profile is a bug, not data). Three profiles: c172s→sixpack,
+  b738→efis, f5e→hud.
+- **Per-class primaries.** c172s REUSES `SixPack.tsx` verbatim (analog six-pack, DG). b738 =
+  new `EfisDisplay.tsx`: REUSED `AttitudeIndicator` ball + new moving speed tape (Vfe/Vno/Vne
+  bugs) + altitude tape (flight levels) + heading + Mach + config strip. f5e = new
+  `HudDisplay.tsx`: boresight/gun cross, REUSED gaugeMath pitch/roll ladder, new velocity-vector
+  (flight-path marker), heading scale, prominent G/AOA/Mach, A/B DRY/WET annunciator. All three
+  share the `({snapshot, params})` signature and are hook-free (testable via collectText/collectProp,
+  no jsdom). New needle/tape/ladder math is pure and unit-tested in `dashboard/glassMath.ts`.
+- **Merged tactical map = NavMap.** The old RADAR (heading-up PPI) and NAVMAP (north-up
+  geographic) collapse to ONE geographic map. NavMap already renders the radar's traffic (it
+  calls `radarMath.blipsFor` via `navMath.navContacts`) plus airports, range rings, own-ship and
+  the range selector — so it IS the combined tactical picture. The redundant heading-up scope is
+  retired; `RadarScope.tsx`/`radarMath.ts` live on inside NavMap (RadarScope is now unused by the
+  dashboard but kept + still tested — flagged dead code, not deleted).
+- **Control-state strip** REUSES `ControlState.tsx` verbatim (THR/FLAPS/TRIM/GEAR) and appends
+  VSI + AGL from the same `hud/format` formatters (`formatVsiFpm`, `formatClearanceFt`).
+- **Realistic-art seam.** `DashboardProfile.background` is applied inline to `.glass-primary`
+  and is `"transparent"` for every profile now (LORAN vector language only). The later art pass
+  swaps a per-profile texture/gradient there and nowhere else — the functional layout is unchanged.
+- **Honesty preserved.** Real snapshot values only; unknown → em-dash (all new formatters
+  `dash()`-guarded); primaries show `— NO SIGNAL` when the snapshot is null. The F-5E A/B
+  annunciator is driven by a NEW optional `HudSnapshot.afterburner` (populated from the already-
+  modeled `ControlVector.afterburner` in `flightLoop.publish`); optional so no existing snapshot
+  fixture needed rework, and a null/absent value reads DRY (burner off), never a fabricated WET.
+  The airliner config strip shows THR% honestly (N1 is NOT modeled) — flagged for owner tuning.
+- **Desktop-only, mobile untouched.** DashboardStrip stays the entry component and keeps its
+  FlightSession gate `{!immersiveActive && !narrow && <DashboardStrip/>}`, the KeyC open/hide +
+  Slash help toggles, and `stripMountedForMode`. The mobile immersive path (top status bar +
+  touch controls + auto-hide) was not touched. No new dependencies.
+- **Tests.** DashboardStrip's old five-panel PANEL_IDS/collapse/scopeRange API and tests were
+  reworked to the new lifecycle; new tests cover the registry (data, no branch), each profile's
+  distinguishing element (six-pack ASI/DG · EFIS Mach+speed tape · HUD velocity-vector+G/AOA),
+  the merged tactical (traffic + own-ship + airport), and unknown→em-dash. 915 → 937 passing.
+- **Cannot verify without a browser:** the on-screen unified-glass LAYOUT (tape/ladder sizing,
+  the primary/tactical split, fold placement, per-class faces rendering correctly over live
+  flight) needs a browser. All selection + instrument math is pure/unit-tested; wiring is build-
+  and typecheck-verified.

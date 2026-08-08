@@ -54,6 +54,26 @@ export function formatThrottlePct(t: number | null): string {
   return dash(t) ? EM_DASH : `${Math.round(t * 100)}%`;
 }
 
+/** Mach number for the jet EFIS/HUD annunciator, two decimals. Unknown is an em-dash. */
+export function formatMach(n: number | null): string {
+  return dash(n) ? EM_DASH : n.toFixed(2);
+}
+
+/** Flight level (hundreds of feet, three digits) for the airliner altitude tape. */
+export function formatFlightLevel(m: number | null): string {
+  if (dash(m)) return EM_DASH;
+  return `FL${String(Math.round(mToFt(m) / 100)).padStart(3, "0")}`;
+}
+
+/**
+ * The F-5E's afterburner annunciator (spec §5, a plain dry/wet toggle — no FLCS path). WET is
+ * the abnormal/high-energy state the HUD draws in amber; DRY is nominal. Unknown is an em-dash.
+ */
+export function formatAfterburner(lit: boolean | null): string {
+  if (lit === null || lit === undefined) return `A/B ${EM_DASH}`;
+  return lit ? "A/B WET" : "A/B DRY";
+}
+
 /**
  * Elevator trim as a signed nose-up/down percentage of full authority. Trim is [-1, 1] with
  * positive = nose-up (Period key, spec KEYMAP); centre reads NEUTRAL rather than "0%".

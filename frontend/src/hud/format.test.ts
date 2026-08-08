@@ -4,6 +4,7 @@ import {
   formatIasKt, formatTasKt, formatAltFt, formatVsiFpm, formatHeadingDeg, formatAoaDeg,
   formatG, formatThrottlePct, formatTrim, formatFlaps, formatGear, formatClearanceFt,
   formatAirtime, formatSimRate, formatCallsign, formatClass, formatLightPhase,
+  formatMach, formatFlightLevel, formatAfterburner,
   warningsFor, gearOverspeedFor,
 } from "./format";
 import { ktToMs, ftToM, fpmToMs, degToRad } from "../sim/units";
@@ -211,5 +212,23 @@ describe("formatLightPhase", () => {
   });
   it("em-dashes an unknown phase rather than inventing one", () => {
     expect(formatLightPhase(null)).toBe(EM_DASH);
+  });
+});
+
+describe("jet EFIS/HUD formatters (unified glass)", () => {
+  it("formats Mach to two decimals, em-dash when unknown", () => {
+    expect(formatMach(0.78)).toBe("0.78");
+    expect(formatMach(0.8)).toBe("0.80");
+    expect(formatMach(null)).toBe(EM_DASH);
+  });
+  it("formats a flight level as three padded hundreds-of-feet, em-dash when unknown", () => {
+    expect(formatFlightLevel(ftToM(35000))).toBe("FL350");
+    expect(formatFlightLevel(ftToM(9000))).toBe("FL090");
+    expect(formatFlightLevel(null)).toBe(EM_DASH);
+  });
+  it("names the afterburner state, dry vs wet, em-dash when unknown", () => {
+    expect(formatAfterburner(false)).toBe("A/B DRY");
+    expect(formatAfterburner(true)).toBe("A/B WET");
+    expect(formatAfterburner(null)).toBe(`A/B ${EM_DASH}`);
   });
 });

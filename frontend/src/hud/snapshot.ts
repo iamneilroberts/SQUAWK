@@ -46,6 +46,13 @@ export type HudSnapshot = {
   machNumber: number;
   /** True when Mach has exceeded limits.mmo — trips the MMO annunciator. */
   machOverspeed: boolean;
+  /**
+   * Dry (false) / wet (true) afterburner, mirrors ControlVector.afterburner. Drives the F-5E
+   * HUD's A/B annunciator. Optional so pre-existing snapshot fixtures need no rework; the live
+   * flightLoop always populates it, and a null/absent value reads as DRY (burner off) — the
+   * honest default, never a fabricated WET. Meaningless for a class with afterburnerFactor 1.
+   */
+  afterburner?: boolean;
   /** True when retractable, gearPosition > 0, and IAS exceeds limits.vleIasMs (GR-004). */
   gearOverspeed: boolean;
   /** Height above the sampled ground, or null when the ground has never been sampled. */

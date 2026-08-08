@@ -1,88 +1,74 @@
 /*
- * The bottom cockpit strip (spec D-1): six-pack left, radar centre (Task 4), weather right,
- * controls help at the edge. Every panel folds on its own; KeyC folds the lot.
- * (ATC panel removed per #12 — no honest live ATC source exists.)
+ * The desktop cockpit dashboard (unified-glass redesign). It replaces the old five-panel strip
+ * (INSTRUMENTS / RADAR / NAVMAP / WEATHER / CONTROLS) with ONE glass panel — see UnifiedGlass.tsx
+ * for the layout. This module keeps only the strip LIFECYCLE: the mount rule, the KeyC open/hide
+ * and Slash help toggles, and the small pieces of furniture state (nav-map range, whether the
+ * weather / controls aux folds are open).
  *
- * Collapse state is LOCAL React state, on purpose (decisions.md CD-006): it is read by nothing
- * outside this subtree, it changes at human cadence, and the store's job is session state, not
- * furniture. It therefore survives PAUSE (the strip stays mounted) and resets on QUIT (the strip
- * unmounts with the flight) — which is the same "no residue" rule the rest of teardown follows.
+ * DESKTOP-ONLY: this component is gated in FlightSession by `!immersiveActive && !narrow`, so it
+ * never renders on a phone — the mobile immersive path (top status bar + touch controls) is
+ * untouched. `defaultStripState(narrow)` still starts folded on a narrow viewport purely for the
+ * back-compat of that flag; on desktop `narrow` is always false.
  *
- * The component is split in two so the rendering half can be tested without a renderer:
- * `DashboardStrip` owns the hooks, `DashboardStripBody` owns every element.
+ * Collapse/fold state is LOCAL React state on purpose (decisions.md CD-006): nothing outside this
+ * subtree reads it, it changes at human cadence, and unmounting on QUIT is the reset.
+ *
+ * Split in two so the rendering half is testable without a renderer: `DashboardStrip` owns the
+ * hooks, `UnifiedGlassBody` (UnifiedGlass.tsx) owns every element.
  */
 import { useEffect, useState } from "react";
-import type { Airport } from "../data/airports";
 import { loadAirports } from "../data/airports";
-import type { Contact, FeedStatus } from "../data/types";
 import type { HudSnapshot } from "../hud/snapshot";
-import type { ClassParams } from "../sim/types";
 import type { Mode } from "../game/machine";
 import { loadC172, loadClassById } from "../sim/params";
 import { resolveClass } from "../takeover/eligibility";
 import { useStore } from "../state/store";
 import { useViewport } from "../layout/useViewport";
 import { isNarrowViewport } from "../layout/viewport";
-import PanelFrame from "./PanelFrame";
-import SixPack from "./SixPack";
-import ControlState from "./ControlState";
-import RadarScope from "./RadarScope";
-import { DEFAULT_RANGE_NM } from "./radarMath";
-import NavMap from "./NavMap";
 import { DEFAULT_NAV_RANGE_NM } from "./navMath";
-import { WeatherPanelBody, useWeather, type WeatherState } from "./WeatherPanel";
-import ControlsHelp from "./ControlsHelp";
+import { useWeather } from "./WeatherPanel";
+import { UnifiedGlassBody } from "./UnifiedGlass";
 
-export type PanelId = "gauges" | "radar" | "navmap" | "weather" | "help";
 export type StripState = {
   open: boolean;
-  collapsed: Record<PanelId, boolean>;
-  scopeRangeNm: number;
   navRangeNm: number;
+  showWeather: boolean;
+  showHelp: boolean;
 };
 
-export const PANEL_IDS: readonly PanelId[] = ["gauges", "radar", "navmap", "weather", "help"];
-
 /**
- * Which modes have a cockpit. FLYING, PAUSED and ENDED do; BROWSE and COUNTDOWN do not.
- *
- * This is also the reset rule (decisions.md CD-006): collapse flags and the selected radar range
- * live in `useState` inside `DashboardStrip`, so leaving the mounted set discards them. Folding a
- * panel therefore survives a pause and the end card, and QUIT gives the next flight a fresh
- * cockpit — the same "no residue" rule `FlightSession.teardown()` follows for everything else.
+ * Which modes have a cockpit. FLYING, PAUSED and ENDED do; BROWSE and COUNTDOWN do not. This is
+ * also the reset rule (CD-006): the state below lives in useState inside DashboardStrip, so
+ * leaving the mounted set discards it, and QUIT gives the next flight a fresh cockpit.
  */
 export function stripMountedForMode(mode: Mode): boolean {
   return mode === "FLYING" || mode === "PAUSED" || mode === "ENDED";
 }
 
 /**
- * Instruments, radar and weather are up; the nav map and the help panel start folded.
- *
- * On a narrow viewport the whole strip starts FOLDED (`open: false`) so the small screen is
- * flying-first (spec §2.3); the `COCKPIT [C]` chip reopens it. This is the only mobile
- * difference — the per-panel collapse flags are identical, so an owner who opens the strip on
- * a phone sees the same panels as on desktop. Desktop passes `narrow = false` (the default),
- * so `defaultStripState()` is unchanged.
+ * The glass opens with the weather and controls folds CLOSED (flight-instruments-first). On a
+ * narrow viewport it starts folded shut (`open: false`) — but the dashboard is desktop-gated in
+ * FlightSession, so on the phone it never mounts at all; the flag is kept only for back-compat.
  */
 export function defaultStripState(narrow = false): StripState {
   return {
     open: !narrow,
-    collapsed: { gauges: false, radar: false, navmap: true, weather: false, help: true },
-    scopeRangeNm: DEFAULT_RANGE_NM,
     navRangeNm: DEFAULT_NAV_RANGE_NM,
+    showWeather: false,
+    showHelp: false,
   };
-}
-
-export function setScopeRange(s: StripState, nm: number): StripState {
-  return { ...s, scopeRangeNm: nm };
 }
 
 export function setNavRange(s: StripState, nm: number): StripState {
   return { ...s, navRangeNm: nm };
 }
 
-export function togglePanel(s: StripState, id: PanelId): StripState {
-  return { ...s, collapsed: { ...s.collapsed, [id]: !s.collapsed[id] } };
+export function toggleWeather(s: StripState): StripState {
+  return { ...s, showWeather: !s.showWeather };
+}
+
+export function toggleHelp(s: StripState): StripState {
+  return { ...s, showHelp: !s.showHelp };
 }
 
 export function toggleStrip(s: StripState): StripState {
@@ -90,12 +76,9 @@ export function toggleStrip(s: StripState): StripState {
 }
 
 /**
- * The only two keys this strip claims. Everything else belongs to the aeroplane.
- *
- * Ctrl/Cmd/Alt+<code> is an OS or browser shortcut sharing a `code` with one of ours
- * (Ctrl+C = copy, Cmd+C = copy, Ctrl+/ or Alt+/ in various browsers) — mirrors the same guard
- * in input/keyboard.ts's onKeyDown, so this listener doesn't hijack a shortcut anywhere on the
- * page just because the physical key matches.
+ * The only two keys this strip claims. Everything else belongs to the aeroplane. Ctrl/Cmd/Alt+
+ * <code> is an OS/browser shortcut sharing a `code` with ours — mirror input/keyboard.ts's guard
+ * so this listener never hijacks a page shortcut just because the physical key matches.
  */
 export function stripKeyAction(
   code: string,
@@ -107,96 +90,16 @@ export function stripKeyAction(
   return null;
 }
 
-export function DashboardStripBody({
-  state, snapshot, params, contacts, feedStatus, ghostHex, feedRadiusNm, airports, weather,
-  onTogglePanel, onToggleStrip, onRangeChange, onNavRangeChange,
-}: {
-  state: StripState;
-  snapshot: HudSnapshot | null;
-  params: ClassParams;
-  contacts: Map<string, Contact>;
-  feedStatus: FeedStatus;
-  ghostHex: string | null;
-  feedRadiusNm: number;
-  airports: Airport[];
-  weather: WeatherState;
-  onTogglePanel(id: PanelId): void;
-  onToggleStrip(): void;
-  onRangeChange(nm: number): void;
-  onNavRangeChange(nm: number): void;
-}) {
-  if (!state.open) {
-    return (
-      <div className="dash-strip dash-strip-closed">
-        <button type="button" className="status-chip-button" onClick={onToggleStrip}>
-          COCKPIT [C]
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="dash-strip">
-      <PanelFrame title="INSTRUMENTS" collapsed={state.collapsed.gauges}
-        onToggle={() => onTogglePanel("gauges")}>
-        <SixPack snapshot={snapshot} params={params} />
-        <ControlState snapshot={snapshot} />
-      </PanelFrame>
-
-      <PanelFrame title="RADAR" collapsed={state.collapsed.radar}
-        onToggle={() => onTogglePanel("radar")}>
-        <RadarScope
-          snapshot={snapshot}
-          contacts={contacts}
-          feedStatus={feedStatus}
-          ghostHex={ghostHex}
-          scopeRangeNm={state.scopeRangeNm}
-          feedRadiusNm={feedRadiusNm}
-          onRangeChange={onRangeChange}
-        />
-      </PanelFrame>
-
-      <PanelFrame title="NAVMAP" collapsed={state.collapsed.navmap}
-        onToggle={() => onTogglePanel("navmap")}>
-        <NavMap
-          snapshot={snapshot}
-          airports={airports}
-          contacts={contacts}
-          feedStatus={feedStatus}
-          ghostHex={ghostHex}
-          navRangeNm={state.navRangeNm}
-          feedRadiusNm={feedRadiusNm}
-          onRangeChange={onNavRangeChange}
-        />
-      </PanelFrame>
-
-      <PanelFrame title="WEATHER" collapsed={state.collapsed.weather}
-        onToggle={() => onTogglePanel("weather")}>
-        <WeatherPanelBody state={weather} />
-      </PanelFrame>
-
-      <PanelFrame title="CONTROLS" collapsed={state.collapsed.help}
-        onToggle={() => onTogglePanel("help")}>
-        <ControlsHelp />
-      </PanelFrame>
-
-      <button type="button" className="status-chip-button dash-strip-hide" onClick={onToggleStrip}>
-        HIDE [C]
-      </button>
-    </div>
-  );
-}
-
 export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | null }) {
-  // Narrow at mount → the strip starts folded (flying-first, spec §2.3). Read once for the
-  // initial state; we don't re-fold on later resize, which would fight a user who opened it.
+  // Narrow at mount → the glass starts folded (back-compat only; desktop-gated upstream). Read
+  // once for the initial state; we don't re-fold on later resize, which would fight the user.
   const narrow = isNarrowViewport(useViewport().width);
   const [state, setState] = useState<StripState>(() => defaultStripState(narrow));
   const contacts = useStore((s) => s.contacts);
   const feedStatus = useStore((s) => s.feedStatus);
   const origin = useStore((s) => s.origin);
   const radiusNm = useStore((s) => s.radiusNm);
-  // Gauges read the flown class's params (per-class ASI face, attitude style). Falls back to the
+  // The primary instruments read the flown class's params (per-class face). Falls back to the
   // C172 before an origin is set — the strip can mount a frame before a takeover exists.
   const params = origin ? loadClassById(resolveClass(origin.snapshot).classId) : loadC172();
   const weather = useWeather(snapshot);
@@ -205,15 +108,24 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
     const onKeyDown = (e: KeyboardEvent) => {
       const action = stripKeyAction(e.code, e);
       if (action === null) return;
-      setState((s) => (action === "strip" ? toggleStrip(s) : togglePanel(s, "help")));
+      setState((s) => (action === "strip" ? toggleStrip(s) : toggleHelp(s)));
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  if (!state.open) {
+    return (
+      <div className="dash-strip dash-strip-closed">
+        <button type="button" className="status-chip-button" onClick={() => setState(toggleStrip)}>
+          COCKPIT [C]
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <DashboardStripBody
-      state={state}
+    <UnifiedGlassBody
       snapshot={snapshot}
       params={params}
       contacts={contacts}
@@ -221,11 +133,14 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
       ghostHex={origin?.hex ?? null}
       feedRadiusNm={radiusNm}
       airports={loadAirports()}
+      navRangeNm={state.navRangeNm}
       weather={weather}
-      onTogglePanel={(id) => setState((s) => togglePanel(s, id))}
-      onToggleStrip={() => setState(toggleStrip)}
-      onRangeChange={(nm) => setState((s) => setScopeRange(s, nm))}
+      showWeather={state.showWeather}
+      showHelp={state.showHelp}
       onNavRangeChange={(nm) => setState((s) => setNavRange(s, nm))}
+      onToggleWeather={() => setState(toggleWeather)}
+      onToggleHelp={() => setState(toggleHelp)}
+      onToggleStrip={() => setState(toggleStrip)}
     />
   );
 }
