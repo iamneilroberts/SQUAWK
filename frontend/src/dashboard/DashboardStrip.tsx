@@ -28,7 +28,7 @@ import RadarScope from "./RadarScope";
 import { DEFAULT_RANGE_NM } from "./radarMath";
 import NavMap from "./NavMap";
 import { DEFAULT_NAV_RANGE_NM } from "./navMath";
-import WeatherPanel from "./WeatherPanel";
+import { WeatherPanelBody, useWeather, type WeatherState } from "./WeatherPanel";
 import ControlsHelp from "./ControlsHelp";
 
 export type PanelId = "gauges" | "radar" | "navmap" | "weather" | "help";
@@ -98,7 +98,7 @@ export function stripKeyAction(
 }
 
 export function DashboardStripBody({
-  state, snapshot, params, contacts, feedStatus, ghostHex, feedRadiusNm, airports,
+  state, snapshot, params, contacts, feedStatus, ghostHex, feedRadiusNm, airports, weather,
   onTogglePanel, onToggleStrip, onRangeChange, onNavRangeChange,
 }: {
   state: StripState;
@@ -109,6 +109,7 @@ export function DashboardStripBody({
   ghostHex: string | null;
   feedRadiusNm: number;
   airports: Airport[];
+  weather: WeatherState;
   onTogglePanel(id: PanelId): void;
   onToggleStrip(): void;
   onRangeChange(nm: number): void;
@@ -161,7 +162,7 @@ export function DashboardStripBody({
 
       <PanelFrame title="WEATHER" collapsed={state.collapsed.weather}
         onToggle={() => onTogglePanel("weather")}>
-        <WeatherPanel />
+        <WeatherPanelBody state={weather} />
       </PanelFrame>
 
       <PanelFrame title="CONTROLS" collapsed={state.collapsed.help}
@@ -185,6 +186,7 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
   // Gauges read the flown class's params (per-class ASI face, attitude style). Falls back to the
   // C172 before an origin is set — the strip can mount a frame before a takeover exists.
   const params = origin ? loadClassById(resolveClass(origin.snapshot).classId) : loadC172();
+  const weather = useWeather(snapshot);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -206,6 +208,7 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
       ghostHex={origin?.hex ?? null}
       feedRadiusNm={radiusNm}
       airports={loadAirports()}
+      weather={weather}
       onTogglePanel={(id) => setState((s) => togglePanel(s, id))}
       onToggleStrip={() => setState(toggleStrip)}
       onRangeChange={(nm) => setState((s) => setScopeRange(s, nm))}

@@ -1,4 +1,4 @@
-import type { Contact, TypeInfo } from "./types";
+import type { Contact, MetarResponse, TypeInfo } from "./types";
 
 export class FeedDownError extends Error {
   constructor(status: number) {
@@ -38,6 +38,20 @@ export async function fetchAdsb(
  */
 export async function fetchTypeInfo(hex: string): Promise<TypeInfo> {
   const res = await fetch(`/api/type/${hex}`);
+  if (!res.ok) throw new FeedDownError(res.status);
+  return res.json();
+}
+
+/**
+ * Current METAR for one ICAO station, proxied through the backend's /api/metar/{icao}. Two
+ * failure modes, not one, exactly like fetchTypeInfo: `!res.ok` means OUR backend didn't answer
+ * (thrown as FeedDownError → the panel's NO FEED state); a 200 with `available: false` means the
+ * backend answered but aviationweather.gov did not — distinct from `available: true` with
+ * `metar: null`, which is the station genuinely having no current report. The panel renders the
+ * difference; see WeatherPanel.
+ */
+export async function fetchMetar(icao: string): Promise<MetarResponse> {
+  const res = await fetch(`/api/metar/${icao}`);
   if (!res.ok) throw new FeedDownError(res.status);
   return res.json();
 }

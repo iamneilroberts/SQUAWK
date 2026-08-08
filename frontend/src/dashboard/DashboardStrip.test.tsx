@@ -25,7 +25,7 @@ const body = (state = defaultStripState()) =>
   collectText(
     DashboardStripBody({
       state, snapshot: null, params: P, contacts: new Map(), feedStatus: "live", ghostHex: null,
-      feedRadiusNm: 80, airports: [],
+      feedRadiusNm: 80, airports: [], weather: { kind: "no-position" },
       onTogglePanel: () => {}, onToggleStrip: () => {}, onRangeChange: () => {},
       onNavRangeChange: () => {},
     }),
@@ -99,12 +99,12 @@ describe("DashboardStripBody", () => {
   });
 
   it("keeps a collapsed panel's frame and title but drops its contents", () => {
+    // Open, the weather panel shows its empty-state line (no own position yet in this test);
+    // collapsed, the frame keeps only the WEATHER title and drops that body.
+    expect(body()).toContain("AWAITING OWN POSITION");
     const text = body(togglePanel(defaultStripState(), "weather"));
     expect(text).toContain("WEATHER");
-    // With ATC removed (#12), the weather panel is the only NO_FEED source, so collapsing it
-    // drops both its note and the NO_FEED line entirely — nothing else renders them.
-    expect(text).not.toContain("WEATHER RADAR MOSAIC");
-    expect(text).not.toContain("NO FEED · FUTURE INTEGRATION");
+    expect(text).not.toContain("AWAITING OWN POSITION");
   });
 
   it("shows only the restore affordance when the whole strip is closed", () => {

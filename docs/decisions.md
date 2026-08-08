@@ -893,3 +893,40 @@ Imagery basemap has no night-lights layer, so with lighting on the night side re
 This is truthful but hurts flyability/HUD readability at night — it reinforces the #6 HUD-scrim
 work and may want a future "minimum ambient / night-imagery" decision. No fake illumination was
 added to paper over it.
+
+## 2026-08-07 — #10 · Weather panel (real METAR)
+
+The chrome-only WeatherPanel is replaced with a live nearest-station METAR, backend-proxied.
+
+- **Source:** NOAA Aviation Weather Center JSON API (aviationweather.gov, keyless),
+  `?ids={ICAO}&format=json`. Backend-proxied at `/api/metar/{icao}`, mirroring the adsbdb
+  proxy exactly: httpx with a 12 s timeout, in-process dict cache, honest failure shaping. New
+  `METAR_BASE` setting (.env.example). One real call was made during development to confirm the
+  JSON shape; it is NOT baked into any test — every test stubs the upstream with MockTransport.
+- **Cache TTL 10 min.** METARs refresh ~hourly; 10 min spares the API a poll per browser tick
+  without ever misrepresenting age — the panel shows observation age from the report's `obsTime`,
+  not from when we fetched. Outages are never cached (an unreachable upstream must not pin
+  "no METAR" for 10 min), same rule as adsbdb.
+- **Station selection (pure, unit-tested).** `nearestIcaoStation` picks the nearest airport whose
+  ident is a four-letter ICAO code (in the OurAirports extract the four-letter ident IS the ICAO
+  code) from the aircraft's live position. Local idents like `5A8`/`AR-0744` are filtered out
+  rather than sent upstream to bounce back empty. Sampled off a 60 s timer from a position ref,
+  not recomputed on every ~10 Hz snapshot render; a METAR is fetched only on station change or
+  after an 8 min refresh window — modest polling.
+- **Altimeter units.** The API reports altimeter in hectopascals; US altimeters read inches of
+  mercury (the raw METAR's `A####` group). The backend converts hPa→inHg once (×0.0295299830714)
+  at the shaping edge — the only transform applied; every other field is passed through or nulled.
+- **Honest states (the whole point).** Three distinct empties, never collapsed and never faked:
+  `NO FEED · WEATHER OFFLINE` (our proxy unreachable, OR proxy up but aviationweather.gov down —
+  `available:false`, same fold as the traffic card's adsbdb-unreachable); `NO METAR` (station
+  answered but has no current report); `NO METAR STATION NEARBY / OUT OF COVERAGE` (no ICAO
+  station at all). Every missing field is an em-dash; variable wind is `VRB`, calm is `CALM`, a
+  null gust is absent — never a fabricated `0`. A test asserts every non-report state contains no
+  digit at all, so a hardcoded sample reading cannot sneak in. NOAA attribution is shown whenever
+  a report is on screen (data-sources table rule).
+- **Coverage note.** The design brief expected US-only coverage; a live check confirmed
+  aviationweather.gov also serves international stations (e.g. EGLL). The code does not rely on
+  either way — an empty upstream response renders as the honest `NO METAR` state regardless.
+  OWNER INPUT: no maximum-distance cap on the nearest station — over open ocean the nearest ICAO
+  field can be far, so the panel shows the station id and its range and lets the pilot judge;
+  add a cap later if that reads as misleading.

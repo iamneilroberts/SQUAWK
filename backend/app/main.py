@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Query
 from .config import load_settings
-from .feeds import adsb, adsbdb
+from .feeds import adsb, adsbdb, metar
 
 def create_app() -> FastAPI:
     app = FastAPI(title="adsb-game")
@@ -31,6 +31,10 @@ def create_app() -> FastAPI:
             "registration": data["registration"],
             "available": data["available"],
         }
+
+    @app.get("/api/metar/{icao}")
+    async def get_metar(icao: str):
+        return await metar.lookup(settings, icao)
 
     return app
 

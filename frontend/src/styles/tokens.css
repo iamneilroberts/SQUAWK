@@ -469,6 +469,23 @@ body {
   font-size: 9px;
   letter-spacing: 0.04em;
 }
+/* Weather panel: a real METAR (issue #10). Same label/value idiom as the traffic card - cyan
+   values, uppercase labels - so a reading here never looks unlike the rest of the console. */
+.metar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 170px;
+}
+.metar-row { display: flex; justify-content: space-between; gap: 12px; }
+.metar-value { color: var(--cyan); }
+.metar-attribution {
+  color: var(--text);
+  opacity: 0.6;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  padding-top: 4px;
+}
 .controls-help {
   display: grid;
   grid-template-columns: auto 1fr;

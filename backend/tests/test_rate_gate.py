@@ -12,6 +12,7 @@ def _settings(interval: float) -> Settings:
         feed_fallback="https://fallback.example/v2/lat/{lat}/lon/{lon}/dist/{radius}",
         feed_reserve="https://reserve.example/api/v2/lat/{lat}/lon/{lon}/dist/{radius}",
         adsbdb_base="https://adsbdb.example/v0",
+        metar_base="https://metar.example",
         feed_min_interval_s=interval,
         host="127.0.0.1", port=8010,
     )
@@ -62,6 +63,7 @@ async def test_malformed_template_fails_over(monkeypatch):
         feed_fallback="https://fallback.example/v2/lat/{lat}/lon/{lon}/dist/{radius}",
         feed_reserve="https://reserve.example/api/v2/lat/{lat}/lon/{lon}/dist/{radius}",
         adsbdb_base="https://adsbdb.example/v0",
+        metar_base="https://metar.example",
         feed_min_interval_s=0.0,
         host="127.0.0.1", port=8010,
     )
