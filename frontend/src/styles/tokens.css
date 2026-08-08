@@ -634,6 +634,12 @@ body {
 .navmap-footer { display: flex; gap: 8px; font-size: 9px; letter-spacing: 0.06em; }
 .navmap-heading { color: var(--cyan); }
 .navmap-status { color: var(--amber); }
+.navmap-status-wx { color: var(--cyan); }
+.navmap-attribution { color: var(--text); opacity: 0.55; font-size: 8px; }
+/* Precip-radar overlay canvas: under the airports/traffic marks, above the ring grid. The warp
+   leaves out-of-circle pixels transparent, so no extra clip mask is needed. */
+.navmap-wx { pointer-events: none; }
+.navmap-wx-canvas { display: block; }
 .navmap-ranges { display: flex; align-items: center; gap: 3px; }
 .navmap-range-unit { color: var(--text); opacity: 0.6; font-size: 9px; }
 .status-chip-button-active {

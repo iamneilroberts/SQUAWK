@@ -1274,3 +1274,36 @@ style.
   the primary/tactical split, fold placement, per-class faces rendering correctly over live
   flight) needs a browser. All selection + instrument math is pure/unit-tested; wiring is build-
   and typecheck-verified.
+
+## 2026-08-08 — WX-001 · Precip radar source is RainViewer, not Iowa-State NEXRAD (issue #17)
+
+The NavMap precipitation overlay uses **RainViewer's** public weather-maps API
+(`api.rainviewer.com/public/weather-maps.json` → keyless, global, CORS-open). LORAN's radar
+uses Iowa State's NEXRAD mosaic, which is **US-only** — wrong for a globe seeded from live
+ADS-B anywhere on Earth. RainViewer is global and keyless, so it is the honest fit. Radar only;
+no METAR-text panel here (that already exists as WeatherPanel). Only `radar.past` (observed)
+frames are used — `nowcast` (model forecast) is deliberately ignored so we never paint predicted
+precip as measured. Attribution `WEATHER © RAINVIEWER` shown only while the overlay is active.
+Verified browser-direct: both the manifest and the tiles return `access-control-allow-origin: *`,
+so tiles load crossOrigin='anonymous' (untainted canvas, real pixels readable) and NO backend
+proxy was needed — unlike the ADS-B/METAR feeds, which are proxied.
+
+## 2026-08-08 — WX-002 · Correct mercator→nav-polar reprojection, NOT a flat-paste (issue #17)
+
+The NavMap is a north-up, own-ship-centred, **linear-range NM polar** plot (`navMath.navXY`);
+RainViewer tiles are Web-Mercator raster and are not pixel-compatible with that face. The cheap
+"treat the tiles as locally planar and paste them under the rings" hack implies a precision the
+projection does not have at 50–200 NM ranges — a violation of the only-real-data ground rule in
+spirit (it would misplace precip against the airports/traffic it sits under). Chosen instead: a
+true per-pixel reprojection — for each output pixel inside `NAV_RADIUS_PX`, invert `navXY` to
+(range,bearing), run the spherical direct geodesic to a dest lat/lon, project that to a
+Web-Mercator world pixel, and sample a composited tile canvas. The warp leaves out-of-circle
+pixels transparent (its own clip). Pure math lives in `navWeatherMath.ts` (unit-tested,
+broken-arm style — a wrong warp fails the tests, not just a blank render); the impure canvas
+compositing/sampling is in `NavWeatherLayer.tsx`, behind the same test boundary as the Cesium
+code (build + live browser, not jsdom). Zoom is capped at `RADAR_MAX_Z=7` so a small range never
+upscales a coarse tile into false precision — the chip says COARSE when the cap bites. WX toggle
+REUSES the existing `showWeather` glass toggle (off by default); a fresh frame reads cyan, any
+offline/stale/coarse state reads amber and says NO RADAR FEED (distinct from ADS-B's TRAFFIC
+FROZEN). **Cannot verify without a browser:** the on-canvas overlay pixels rendering/aligning over
+live imagery — the warp math and offline states are unit-tested; the canvas glue is build-verified.

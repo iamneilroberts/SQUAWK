@@ -42,6 +42,7 @@ attitude as quaternion, `sim/` has **no Cesium imports** and is fully unit-testa
 | Esri World Imagery | satellite basemap | attribution required; no documented quota — degrade honestly if throttled |
 | Re:Earth Terrain | quantized-mesh terrain, **ellipsoidal** | keyless; attribution "Re:Earth Terrain · Mapterhorn (CC BY 4.0)"; best-effort — ion free tier is the fallback |
 | Overture Maps / OSM | buildings bubble (Phase D) | PMTiles preferred, Overpass fallback; attribution when active |
+| RainViewer | precip-radar overlay (NavMap WX) | keyless, global, CORS-open; browser-direct (no proxy); attribution "WEATHER © RAINVIEWER" when active; reprojected onto the NM-polar nav face, `radar.past` (observed) only |
 
 Same readsb gotchas as LORAN: `alt_geom` (WGS84) preferred, `alt_baro` may be the string
 `"ground"`, negative altitudes legitimate, `dbFlags & 1` = military, `seen_pos` up to ~50 s.

@@ -32,6 +32,7 @@ import ControlState from "./ControlState";
 import NavMap from "./NavMap";
 import ControlsHelp from "./ControlsHelp";
 import { WeatherPanelBody, type WeatherState } from "./WeatherPanel";
+import type { NavWeatherState } from "./navWeatherMath";
 
 /**
  * The render-side data table: a primary KIND resolves to its component. This is the second half
@@ -50,7 +51,7 @@ const PRIMARY_COMPONENTS: Record<
 
 export function UnifiedGlassBody({
   snapshot, params, contacts, feedStatus, ghostHex, feedRadiusNm, airports,
-  navRangeNm, weather, showWeather, showHelp,
+  navRangeNm, weather, navWeather, showWeather, showHelp,
   onNavRangeChange, onToggleWeather, onToggleHelp, onToggleStrip,
 }: {
   snapshot: HudSnapshot | null;
@@ -62,6 +63,7 @@ export function UnifiedGlassBody({
   airports: Airport[];
   navRangeNm: number;
   weather: WeatherState;
+  navWeather: NavWeatherState;
   showWeather: boolean;
   showHelp: boolean;
   onNavRangeChange(nm: number): void;
@@ -120,6 +122,8 @@ export function UnifiedGlassBody({
               navRangeNm={navRangeNm}
               feedRadiusNm={feedRadiusNm}
               onRangeChange={onNavRangeChange}
+              showRadar={showWeather}
+              navWeather={navWeather}
             />
           </div>
         </div>

@@ -6,6 +6,7 @@ import type { Airport } from "../data/airports";
 import type { Contact } from "../data/types";
 import type { HudSnapshot } from "../hud/snapshot";
 import type { WeatherState } from "./WeatherPanel";
+import type { NavWeatherState } from "./navWeatherMath";
 import { ktToMs, ftToM, degToRad } from "../sim/units";
 
 const snap = (o: Partial<HudSnapshot> = {}): HudSnapshot => ({
@@ -64,6 +65,7 @@ const body = (params: ClassParams, o: {
     airports: [ap()],
     navRangeNm: 50,
     weather: { kind: "no-position" } as WeatherState,
+    navWeather: { kind: "no-position" } as NavWeatherState,
     showWeather: o.showWeather ?? false,
     showHelp: o.showHelp ?? false,
     onNavRangeChange: () => {}, onToggleWeather: () => {}, onToggleHelp: () => {}, onToggleStrip: () => {},

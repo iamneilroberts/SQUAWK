@@ -20,12 +20,17 @@ import { coverageNote, ringsFor } from "./radarMath";
 import {
   NAV_RADIUS_PX, NAV_RANGE_PRESETS_NM, airportBlips, navContacts, navStatus,
 } from "./navMath";
+import { NavWeatherLayer } from "./NavWeatherLayer";
+import {
+  radarChipText, resolveZoom, RAINVIEWER_CREDIT, type NavWeatherState,
+} from "./navWeatherMath";
 
 const SIZE = NAV_RADIUS_PX * 2 + 16; // a little bezel outside the outer ring
 const C = SIZE / 2;
 
 export default function NavMap({
   snapshot, airports, contacts, feedStatus, ghostHex, navRangeNm, feedRadiusNm, onRangeChange,
+  showRadar = false, navWeather = { kind: "no-position" },
 }: {
   snapshot: HudSnapshot | null;
   airports: Airport[];
@@ -35,6 +40,8 @@ export default function NavMap({
   navRangeNm: number;
   feedRadiusNm: number;
   onRangeChange(nm: number): void;
+  showRadar?: boolean;
+  navWeather?: NavWeatherState;
 }) {
   const status = navStatus(feedStatus);
   const coverage = coverageNote(navRangeNm, feedRadiusNm);
@@ -42,6 +49,15 @@ export default function NavMap({
   const own = snapshot === null ? null : { latDeg: snapshot.latDeg, lonDeg: snapshot.lonDeg };
   const ports = own === null ? [] : airportBlips({ airports, own, navRangeNm });
   const blips = own === null ? [] : navContacts({ contacts, own, navRangeNm, ghostHex });
+
+  // WX precip overlay (issue #17): only ever drawn on the honest `ok` state; the chip states any
+  // non-`ok` state instead. `coarse` = the tile zoom was capped (small range), an upscale flag.
+  const radarCoarse = own === null ? false : resolveZoom(navRangeNm, own.latDeg, NAV_RADIUS_PX).capped;
+  const radarChip = showRadar ? radarChipText(navWeather, Date.now(), radarCoarse) : null;
+  const showRadarLayer = showRadar && own !== null && navWeather.kind === "ok";
+  // Nominal precip age reads cyan (live data); any warning (offline/stale/coarse) reads amber.
+  const radarNominal =
+    radarChip !== null && navWeather.kind === "ok" && !radarChip.includes("STALE") && !radarChip.includes("COARSE");
 
   return (
     <div className="navmap">
@@ -59,6 +75,25 @@ export default function NavMap({
 
         {/* North is fixed (north-up), so the N sits at the top of the face permanently. */}
         <text x={C} y={C - NAV_RADIUS_PX - 2} textAnchor="middle" className="navmap-north">N</text>
+
+        {/* Precip radar: UNDER airports/traffic, above the rings, clipped to the circle by the warp
+            itself (out-of-circle pixels are transparent). Only mounted on the honest `ok` state. */}
+        {showRadarLayer && navWeather.kind === "ok" && own !== null && (
+          <foreignObject
+            x={C - NAV_RADIUS_PX}
+            y={C - NAV_RADIUS_PX}
+            width={NAV_RADIUS_PX * 2}
+            height={NAV_RADIUS_PX * 2}
+            className="navmap-wx"
+          >
+            <NavWeatherLayer
+              own={own}
+              navRangeNm={navRangeNm}
+              host={navWeather.host}
+              frame={navWeather.frame}
+            />
+          </foreignObject>
+        )}
 
         {/* Airports: bundled, not a feed — drawn at full opacity even when the traffic is frozen. */}
         {ports.map((p) => (
@@ -104,6 +139,10 @@ export default function NavMap({
       <div className="navmap-footer">
         <span className="navmap-heading">HDG {formatHeadingDeg(snapshot?.headingRad ?? null)}</span>
         {status.text !== null && <span className="navmap-status">{status.text}</span>}
+        {radarChip !== null && (
+          <span className={radarNominal ? "navmap-status navmap-status-wx" : "navmap-status"}>{radarChip}</span>
+        )}
+        {showRadarLayer && <span className="navmap-attribution">{RAINVIEWER_CREDIT}</span>}
       </div>
 
       <div className="navmap-ranges">

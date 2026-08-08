@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import NavMap from "./NavMap";
 import { NAV_RANGE_PRESETS_NM } from "./navMath";
+import { NavWeatherLayer } from "./NavWeatherLayer";
+import type { NavWeatherState } from "./navWeatherMath";
 import type { Airport } from "../data/airports";
 import type { Contact } from "../data/types";
 import type { HudSnapshot } from "../hud/snapshot";
@@ -128,5 +130,70 @@ describe("NavMap", () => {
   it("says nothing about coverage when zoomed within the feed's polled radius", () => {
     const text = collectText(NavMap({ ...base, navRangeNm: 50, feedRadiusNm: 80 })).join(" ");
     expect(text).not.toContain("FEED 80 NM");
+  });
+});
+
+// Shallow element search that does NOT invoke function components (so hook-bearing children like
+// NavWeatherLayer are found by identity without being rendered outside React).
+function findByType(node: unknown, target: unknown, out: unknown[] = []): unknown[] {
+  if (node === null || typeof node !== "object") return out;
+  if (Array.isArray(node)) { for (const x of node) findByType(x, target, out); return out; }
+  const type = (node as { type?: unknown }).type;
+  const props = (node as { props?: { children?: unknown } }).props;
+  if (type === target) out.push(node);
+  if (props && "children" in props) findByType(props.children, target, out);
+  return out;
+}
+
+// Collect className props WITHOUT invoking function components (safe on an ok-state tree).
+function shallowClassNames(node: unknown, out: string[] = []): string[] {
+  if (node === null || typeof node !== "object") return out;
+  if (Array.isArray(node)) { for (const x of node) shallowClassNames(x, out); return out; }
+  const props = (node as { props?: { className?: unknown; children?: unknown } }).props;
+  if (props && typeof props.className === "string") out.push(props.className);
+  if (props && "children" in props) shallowClassNames(props.children, out);
+  return out;
+}
+
+describe("NavMap WX precip overlay (issue #17) — honest offline", () => {
+  const okFrame = { time: Math.floor(Date.now() / 1000) - 120, path: "/v2/radar/abc" };
+
+  it("draws NOTHING and says nothing when WX is off (overlay is off by default)", () => {
+    const rendered = NavMap({ ...base, showRadar: false, navWeather: { kind: "ok", host: "h", frame: okFrame } });
+    expect(findByType(rendered, NavWeatherLayer)).toEqual([]);
+    expect(collectText(rendered).join(" ")).not.toContain("NO RADAR FEED");
+  });
+
+  it("unreachable feed shows NO RADAR FEED and draws NO tile layer (no fake precip)", () => {
+    const state: NavWeatherState = { kind: "unreachable" };
+    const rendered = NavMap({ ...base, showRadar: true, navWeather: state });
+    expect(collectText(rendered).join(" ")).toContain("NO RADAR FEED");
+    // The load-bearing honesty check: a down feed renders no radar canvas at all.
+    expect(findByType(rendered, NavWeatherLayer)).toEqual([]);
+  });
+
+  it("uses wording DISTINCT from the ADS-B feed's TRAFFIC FROZEN", () => {
+    const rendered = NavMap({ ...base, showRadar: true, navWeather: { kind: "unreachable" } });
+    const text = collectText(rendered).join(" ");
+    expect(text).toContain("NO RADAR FEED");
+    expect(text).not.toContain("TRAFFIC FROZEN");
+  });
+
+  it("loading shows RADAR… and still draws no layer", () => {
+    const rendered = NavMap({ ...base, showRadar: true, navWeather: { kind: "loading" } });
+    expect(collectText(rendered).join(" ")).toContain("RADAR");
+    expect(findByType(rendered, NavWeatherLayer)).toEqual([]);
+  });
+
+  it("an ok frame mounts exactly one radar layer, under the airports, with attribution", () => {
+    const rendered = NavMap({ ...base, showRadar: true, navWeather: { kind: "ok", host: "https://t", frame: okFrame } });
+    expect(findByType(rendered, NavWeatherLayer)).toHaveLength(1);
+    // Attribution is shown only while the overlay is live (shallow read — never invokes the layer).
+    expect(shallowClassNames(rendered).join(" ")).toContain("navmap-attribution");
+  });
+
+  it("without a snapshot there is no position, so no layer even on an ok frame", () => {
+    const rendered = NavMap({ ...base, snapshot: null, showRadar: true, navWeather: { kind: "ok", host: "h", frame: okFrame } });
+    expect(findByType(rendered, NavWeatherLayer)).toEqual([]);
   });
 });

@@ -27,6 +27,7 @@ import { useViewport } from "../layout/useViewport";
 import { isNarrowViewport } from "../layout/viewport";
 import { DEFAULT_NAV_RANGE_NM } from "./navMath";
 import { useWeather } from "./WeatherPanel";
+import { useNavWeather } from "./NavWeatherLayer";
 import { UnifiedGlassBody } from "./UnifiedGlass";
 
 export type StripState = {
@@ -103,6 +104,8 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
   // C172 before an origin is set — the strip can mount a frame before a takeover exists.
   const params = origin ? loadClassById(resolveClass(origin.snapshot).classId) : loadC172();
   const weather = useWeather(snapshot);
+  // The WX toggle drives both the METAR fold and the precip-radar overlay; fetch only when on.
+  const navWeather = useNavWeather(snapshot, state.showWeather);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -135,6 +138,7 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
       airports={loadAirports()}
       navRangeNm={state.navRangeNm}
       weather={weather}
+      navWeather={navWeather}
       showWeather={state.showWeather}
       showHelp={state.showHelp}
       onNavRangeChange={(nm) => setState((s) => setNavRange(s, nm))}
