@@ -930,3 +930,33 @@ The chrome-only WeatherPanel is replaced with a live nearest-station METAR, back
   OWNER INPUT: no maximum-distance cap on the nearest station — over open ocean the nearest ICAO
   field can be far, so the panel shows the station id and its range and lets the pilot judge;
   add a cap later if that reads as misleading.
+
+## 2026-08-07 — #10 · Max-distance cap on the nearest METAR station
+
+Resolves the deferred OWNER INPUT item above. A far station's report is a less-accurate reading
+for the aircraft's position (open ocean / sparse regions can put the "nearest" ICAO field hundreds
+of NM away), so beyond a cap the panel now falls back to the existing honest
+`NO METAR STATION NEARBY / OUT OF COVERAGE` state rather than showing a distant report as if it
+were local.
+
+- **Cap: `MAX_STATION_NM = 50` NM**, a named constant next to `nearestIcaoStation` in
+  `frontend/src/data/metarStation.ts`. A METAR nominally represents conditions within ~5 statute
+  miles of the field, but in flight the aircraft covers ground fast and regional conditions stay
+  coherent over a wider area, so a modestly larger radius keeps the panel useful in moderately
+  sparse regions without misrepresenting a far report as local. 50 NM (upper end of the considered
+  ~30–50 NM range) favours keeping the panel populated; **owner-tunable** — lower it toward 30 NM
+  if a 50 NM report reads as too far to trust.
+- **Where:** the cap lives in the PURE, unit-tested helper — if the nearest ICAO station is farther
+  than the cap, `nearestIcaoStation` returns `null`, which the `useWeather` hook already maps to
+  the pre-existing `no-station` state. No new state, no new branch in the panel, no visual change.
+- **Tests (TDD, broken-arm):** `metarStation.test.ts` gains a station just INSIDE the cap (still
+  selected) and a station just BEYOND the cap (resolves to `null`/out-of-coverage); both placed via
+  the exact inverse of `rangeNm` along a meridian and guarded against the constant drifting. The
+  beyond-cap case failed before this change (the old helper returned the far station) and passes
+  after.
+- **Honesty:** this IMPROVES honesty — a distant, less-representative reading is never shown as
+  local; beyond the cap it's the explicit out-of-coverage empty. No synthesized data; unknown/absent
+  still renders em-dash.
+- **Scope:** frontend station-selection only. No backend change — the backend just proxies
+  `/api/metar/{icao}` for whatever ident the frontend chooses; capping which ident gets chosen is
+  entirely client-side.

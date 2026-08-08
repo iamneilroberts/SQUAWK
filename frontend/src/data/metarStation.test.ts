@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { isIcaoStation, nearestIcaoStation } from "./metarStation";
+import { isIcaoStation, nearestIcaoStation, MAX_STATION_NM } from "./metarStation";
 import { loadAirports, type Airport } from "./airports";
+import { rangeNm } from "../dashboard/geoRange";
+
+/** Latitude (deg) north of the equator whose great-circle range from (0,0) is `nm` — the exact
+ *  inverse of rangeNm along a meridian, used to place a station just inside / outside the cap. */
+const latAtNm = (nm: number) => (nm / 3440.065) * (180 / Math.PI);
 
 const ap = (o: Partial<Airport> = {}): Airport => ({
   ident: "KMOB", iata: "MOB", name: "Mobile Rgnl", latDeg: 30.69, lonDeg: -88.24,
@@ -44,6 +49,24 @@ describe("nearestIcaoStation", () => {
 
   it("returns null when there is no ICAO station at all — an honest no-station, not a bad pick", () => {
     expect(nearestIcaoStation(0, 0, [ap({ ident: "5A8" }), ap({ ident: "AR-0744" })])).toBeNull();
+  });
+
+  it("selects a station just INSIDE the max-distance cap", () => {
+    const lat = latAtNm(MAX_STATION_NM - 1); // ~1 NM inside the cap
+    expect(rangeNm(0, 0, lat, 0)).toBeLessThan(MAX_STATION_NM); // guard: placement really is inside
+    const airports = [ap({ ident: "KFAR", latDeg: lat, lonDeg: 0 })];
+    const near = nearestIcaoStation(0, 0, airports)!;
+    expect(near.airport.ident).toBe("KFAR");
+    expect(near.rangeNm).toBeLessThan(MAX_STATION_NM);
+  });
+
+  it("treats a station just BEYOND the max-distance cap as out of coverage (no-station)", () => {
+    const lat = latAtNm(MAX_STATION_NM + 1); // ~1 NM beyond the cap
+    expect(rangeNm(0, 0, lat, 0)).toBeGreaterThan(MAX_STATION_NM); // guard: placement really is beyond
+    const airports = [ap({ ident: "KFAR", latDeg: lat, lonDeg: 0 })];
+    // A far station is a less-accurate reading, so beyond the cap the honest answer is "no station",
+    // never a distant report shown as if it were local.
+    expect(nearestIcaoStation(0, 0, airports)).toBeNull();
   });
 
   it("finds a real nearby station in the bundled data from a known position", () => {
