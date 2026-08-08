@@ -35,6 +35,8 @@ export type HudSnapshot = {
   trim: number;
   flapLabel: string;
   gear: "fixed" | "retractable";
+  /** 0 (up) .. 1 (down); mirrors SimState.gearPosition. Always 1 for a fixed-gear class. */
+  gearPosition: number;
   stalled: boolean;
   overspeed: boolean;
   gLimited: boolean;
@@ -42,6 +44,8 @@ export type HudSnapshot = {
   machNumber: number;
   /** True when Mach has exceeded limits.mmo — trips the MMO annunciator. */
   machOverspeed: boolean;
+  /** True when retractable, gearPosition > 0, and IAS exceeds limits.vleIasMs (GR-004). */
+  gearOverspeed: boolean;
   /** Height above the sampled ground, or null when the ground has never been sampled. */
   terrainClearanceM: number | null;
   terrainUnverified: boolean;

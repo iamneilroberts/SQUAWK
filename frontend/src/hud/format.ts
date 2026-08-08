@@ -68,11 +68,20 @@ export function formatFlaps(label: string | null): string {
   return `FLAPS ${label ?? EM_DASH}`;
 }
 
-/** The 172's gear is fixed; the HUD says so rather than offering a control that does nothing. */
-export function formatGear(gear: "fixed" | "retractable" | null): string {
+/**
+ * The 172's gear is fixed; the HUD says so rather than offering a control that does nothing.
+ * A retractable class reads its integrated position: fully up/down, or IN TRANSIT between.
+ */
+export function formatGear(
+  gear: "fixed" | "retractable" | null,
+  gearPosition: number | null,
+): string {
   if (gear === "fixed") return "GEAR FIXED";
-  if (gear === "retractable") return "GEAR DOWN";
-  return `GEAR ${EM_DASH}`;
+  if (gear !== "retractable") return `GEAR ${EM_DASH}`;
+  if (gearPosition === null || !Number.isFinite(gearPosition)) return `GEAR ${EM_DASH}`;
+  if (gearPosition <= 0) return "GEAR UP";
+  if (gearPosition >= 1) return "GEAR DOWN";
+  return "GEAR IN TRANSIT";
 }
 
 export function formatClearanceFt(m: number | null): string {
@@ -111,6 +120,7 @@ export function warningsFor(s: HudSnapshot): string[] {
   if (s.stalled) out.push("STALL");
   if (s.overspeed) out.push("OVERSPEED");
   if (s.machOverspeed) out.push("MMO");
+  if (s.gearOverspeed) out.push("GEAR O'SPD");
   if (s.gLimited) out.push("G LIMIT");
   if (s.terrainUnverified) out.push("TERRAIN UNVERIFIED");
   else if (s.terrainClearanceM !== null && mToFt(s.terrainClearanceM) < TERRAIN_WARNING_FT) {

@@ -110,10 +110,13 @@ export function createFlightLoop(deps: FlightLoopDeps) {
       trim: controls.trim,
       flapLabel: params.flaps[controls.flapDetent].label,
       gear: params.gear,
+      gearPosition: state.gearPosition,
       stalled: state.stalled,
       overspeed: state.iasMs > params.limits.vneIasMs,
       machNumber: state.machNumber,
       machOverspeed: state.machNumber > params.limits.mmo,
+      gearOverspeed:
+        params.gear === "retractable" && state.gearPosition > 0 && state.iasMs > params.limits.vleIasMs,
       gLimited: state.gLimited,
       terrainClearanceM,
       terrainUnverified: terrain.unverified,

@@ -69,7 +69,7 @@ export default function Hud({
       <div className="hud-bottom">
         <span>THR {formatThrottlePct(snapshot.throttle)}</span>
         <span>{formatFlaps(snapshot.flapLabel)}</span>
-        <span>{formatGear(snapshot.gear)}</span>
+        <span>{formatGear(snapshot.gear, snapshot.gearPosition)}</span>
       </div>
 
       {warnings.length > 0 && (

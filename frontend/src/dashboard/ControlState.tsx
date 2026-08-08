@@ -15,13 +15,14 @@ export default function ControlState({ snapshot }: { snapshot: HudSnapshot | nul
   const trim = snapshot?.trim ?? null;
   const flapLabel = snapshot?.flapLabel ?? null;
   const gear = snapshot?.gear ?? null;
+  const gearPosition = snapshot?.gearPosition ?? null;
 
   return (
     <div className="control-state">
       <span className="control-state-item">{`THR ${formatThrottlePct(throttle)}`}</span>
       <span className="control-state-item">{formatFlaps(flapLabel)}</span>
       <span className="control-state-item">{`TRIM ${formatTrim(trim)}`}</span>
-      <span className="control-state-item">{formatGear(gear)}</span>
+      <span className="control-state-item">{formatGear(gear, gearPosition)}</span>
     </div>
   );
 }

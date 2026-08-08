@@ -18,7 +18,7 @@ const snap = (o: Partial<HudSnapshot> = {}): HudSnapshot => ({
   gLimited: false, terrainClearanceM: ftToM(2000), terrainUnverified: false,
   simRate: 1, airtimeS: 0, classLabel: "C172S", callsign: "SIM-A1B2C3",
   modelNote: "C172 MODEL THIS BUILD",
-  machNumber: 0, machOverspeed: false,
+  machNumber: 0, machOverspeed: false, gearPosition: 1, gearOverspeed: false,
   ...o,
 });
 
@@ -95,8 +95,14 @@ describe("the rest of the readouts", () => {
   it("flaps and gear read as the panel would", () => {
     expect(formatFlaps("20")).toBe("FLAPS 20");
     expect(formatFlaps(null)).toBe(`FLAPS ${EM_DASH}`);
-    expect(formatGear("fixed")).toBe("GEAR FIXED");
-    expect(formatGear("retractable")).toBe("GEAR DOWN");
+    expect(formatGear("fixed", 1)).toBe("GEAR FIXED");
+    expect(formatGear("retractable", 1)).toBe("GEAR DOWN");
+  });
+  it("reports GEAR UP, GEAR IN TRANSIT and an em-dash for the unknown case", () => {
+    expect(formatGear("retractable", 0)).toBe("GEAR UP");
+    expect(formatGear("retractable", 0.5)).toBe("GEAR IN TRANSIT");
+    expect(formatGear(null, null)).toBe(`GEAR ${EM_DASH}`);
+    expect(formatGear("retractable", null)).toBe(`GEAR ${EM_DASH}`);
   });
   it("trim reads as a signed nose-up/down percentage, neutral at centre (issue #7)", () => {
     expect(formatTrim(0)).toBe("NEUTRAL");
@@ -170,5 +176,10 @@ describe("warningsFor", () => {
     const w = warningsFor(snap({ stalled: true, gLimited: true, terrainClearanceM: 10 }));
     expect(w[0]).toBe("STALL");
     expect(w).toHaveLength(3);
+  });
+  it("reports a gear overspeed distinctly from IAS and Mach overspeed", () => {
+    expect(warningsFor(snap({ gearOverspeed: true }))).toContain("GEAR O'SPD");
+    expect(warningsFor(snap({ overspeed: true }))).toContain("OVERSPEED");
+    expect(warningsFor(snap({ overspeed: true }))).not.toContain("GEAR O'SPD");
   });
 });

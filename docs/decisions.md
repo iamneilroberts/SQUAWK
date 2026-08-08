@@ -790,3 +790,13 @@ derived/integrated field, and this keeps the integrator unit-testable without a 
 Fixed-gear classes are pinned at gearPosition = 1 unconditionally (GR-005) — no transition ever
 runs for the C172, and KeyG's inertness (Task 4) is a second, independent enforcement of the
 same rule at the input layer.
+
+## 2026-08-07 — GR-004 · GEAR O'SPD annunciator wired
+
+warningsFor pushes "GEAR O'SPD" (distinct from OVERSPEED/MMO) when the class is retractable,
+gearPosition > 0, and IAS exceeds limits.vleIasMs — computed once in game/flightLoop.ts's
+publish(), the same shape as the existing overspeed/machOverspeed lines (plain state.iasMs
+comparison, no unit conversion — see the plan's Signature Decision #1 for why vleIasMs is m/s).
+formatGear grows a fourth label state, GEAR IN TRANSIT, for 0 < gearPosition < 1; ControlState
+threads gearPosition through so a retractable aircraft's readout tracks its real position
+instead of reading GEAR DOWN unconditionally (the bug this whole feature exists to fix).

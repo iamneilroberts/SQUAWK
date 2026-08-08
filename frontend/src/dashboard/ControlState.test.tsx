@@ -23,7 +23,7 @@ const snap = (o: Partial<HudSnapshot> = {}): HudSnapshot => ({
   throttle: 0.6, trim: 0, flapLabel: "0", gear: "fixed", stalled: false, overspeed: false,
   gLimited: false, terrainClearanceM: ftToM(2000), terrainUnverified: false, simRate: 1,
   airtimeS: 0, classLabel: "C172S", callsign: "SIM-A1B2C3", modelNote: "C172 MODEL THIS BUILD",
-  machNumber: 0, machOverspeed: false,
+  machNumber: 0, machOverspeed: false, gearPosition: 1, gearOverspeed: false,
   ...o,
 });
 
@@ -37,12 +37,18 @@ describe("ControlState", () => {
     expect(text).toContain("TRIM NOSE UP 25%");
     expect(text).toContain("GEAR FIXED");
   });
-  it("shows GEAR DOWN for a retractable class and a nose-down trim signed as such", () => {
+  it("shows GEAR DOWN for a retractable class with gear extended", () => {
     const text = collectText(
-      ControlState({ snapshot: snap({ gear: "retractable", trim: -0.4 }) }),
+      ControlState({ snapshot: snap({ gear: "retractable", gearPosition: 1, trim: -0.4 }) }),
     ).join(" ");
     expect(text).toContain("GEAR DOWN");
     expect(text).toContain("TRIM NOSE DN 40%");
+  });
+  it("shows GEAR UP for a retractable class with gear retracted (the acceptance-flight bug fix)", () => {
+    const text = collectText(
+      ControlState({ snapshot: snap({ gear: "retractable", gearPosition: 0 }) }),
+    ).join(" ");
+    expect(text).toContain("GEAR UP");
   });
   it("em-dashes what it does not know rather than inventing a zero (honesty rule)", () => {
     const text = collectText(ControlState({ snapshot: null })).join(" ");

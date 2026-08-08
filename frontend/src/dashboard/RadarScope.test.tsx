@@ -12,7 +12,7 @@ const snap = (o: Partial<HudSnapshot> = {}): HudSnapshot => ({
   trim: 0, flapLabel: "0", gear: "fixed", stalled: false, overspeed: false, gLimited: false,
   terrainClearanceM: ftToM(2000), terrainUnverified: false, simRate: 1, airtimeS: 0,
   classLabel: "C172S", callsign: "SIM-A1B2C3", modelNote: "C172 MODEL THIS BUILD",
-  machNumber: 0, machOverspeed: false, ...o,
+  machNumber: 0, machOverspeed: false, gearPosition: 1, gearOverspeed: false, ...o,
 });
 
 const c = (o: Partial<Contact> = {}): Contact => ({
