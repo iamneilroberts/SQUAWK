@@ -45,6 +45,15 @@ describe("strip state", () => {
     for (const id of PANEL_IDS) expect(typeof s.collapsed[id]).toBe("boolean");
   });
 
+  it("starts FOLDED on a narrow viewport so the small screen is flying-first (mobile #13 §2.3)", () => {
+    const desktop = defaultStripState(false);
+    const mobile = defaultStripState(true);
+    expect(desktop.open).toBe(true); // desktop unchanged
+    expect(mobile.open).toBe(false); // phone starts folded, reopened by the COCKPIT chip
+    // Only the whole-strip fold differs — the per-panel layout is identical on both.
+    expect(mobile.collapsed).toEqual(desktop.collapsed);
+  });
+
   it("collapses exactly the panel named and leaves the others alone", () => {
     const s = togglePanel(defaultStripState(), "weather");
     expect(s.collapsed.weather).toBe(true);

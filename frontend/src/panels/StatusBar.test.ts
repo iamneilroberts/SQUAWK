@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   formatUtcClock, feedChipLabel, terrainChipClass, nextRadius, radiusChipLabel,
-  basemapChipLabel, labelsChipLabel, nextBasemap,
+  basemapChipLabel, labelsChipLabel, nextBasemap, contactsChipLabel,
 } from "./StatusBar";
 
 describe("formatUtcClock", () => {
@@ -67,5 +67,12 @@ describe("basemap and labels chips", () => {
   it("states the labels layer's actual state, both ways", () => {
     expect(labelsChipLabel(true)).toBe("LABELS ON");
     expect(labelsChipLabel(false)).toBe("LABELS OFF");
+  });
+});
+
+describe("contactsChipLabel", () => {
+  it("shows the live count in brackets for the mobile drawer toggle (#13 §2.1)", () => {
+    expect(contactsChipLabel(0)).toBe("CONTACTS [0]");
+    expect(contactsChipLabel(37)).toBe("CONTACTS [37]");
   });
 });

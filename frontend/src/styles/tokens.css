@@ -621,3 +621,111 @@ body {
   background: rgba(95, 215, 224, 0.2);
   border-color: var(--cyan);
 }
+
+/* ========================================================================
+ * Mobile responsive layer (issue #13, sub-feature 1: responsive layout).
+ * Everything desktop is ABOVE this line and untouched. The pieces below are
+ * either rendered only when JS decides the viewport is narrow (contact
+ * drawer, rotate card), or live inside the max-width media query so wide
+ * screens never see them. LORAN language holds: 1px borders, translucent
+ * near-black, amber/cyan, monospace, no radius, no shadow.
+ * ======================================================================== */
+
+/* ---- browse contact drawer: the w-80 sidebar becomes a bottom sheet on narrow screens.
+   Rendered by App only when narrow + BROWSE + open, so no media query is needed here. ---- */
+.contact-drawer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 60vh;
+  display: flex;
+  overflow: hidden;
+  border-top: 1px solid var(--cyan);
+  background: rgba(5, 7, 10, 0.94);
+  pointer-events: auto;
+  z-index: 20;
+}
+.contact-drawer > * { flex: 1 1 auto; min-height: 0; }
+
+/* ---- ROTATE TO LANDSCAPE card: non-blocking, over the still-rendering globe (spec §2.4).
+   Backdrop and card both keep pointer-events off so taps fall through underneath. ---- */
+.rotate-card-backdrop {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 30;
+}
+.rotate-card {
+  pointer-events: none;
+  max-width: 80%;
+  padding: 16px 20px;
+  text-align: center;
+}
+.rotate-card-title {
+  color: var(--amber);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 16px;
+}
+.rotate-card-note {
+  color: var(--text);
+  opacity: 0.8;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  margin-top: 8px;
+}
+
+@media (max-width: 1023px) {
+  /* Status bar carries the honest feed source + attribution: it WRAPS to more lines rather
+     than truncate either (spec §2.1, non-negotiable honesty). Safe-area pad for viewport-fit=cover. */
+  .status-bar {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    padding-bottom: max(4px, env(safe-area-inset-bottom));
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+
+  /* Touch targets: >=44x44 px hit area via padding, keeping the 1px-border ink (Apple HIG /
+     WCAG). No pills, no radius, no shadow — the LORAN look is preserved. */
+  .status-chip-button,
+  .control-button,
+  .control-button-disabled {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .control-button,
+  .control-button-disabled { width: auto; }
+  .dash-panel-header { min-height: 44px; }
+  .contact-row { min-height: 44px; padding: 8px; }
+
+  /* HUD shrinks to fit: readouts via a clamp() that tops out at the desktop size, gaps tighten.
+     The SIM banner, warnings, heading and attribution are never dropped (spec §2.2 / §4). */
+  .hud-readout-value { font-size: clamp(13px, 3.6vw, 18px); }
+  .hud-heading-value { font-size: clamp(15px, 4.4vw, 20px); }
+  .hud-readout { gap: 4px; padding: 1px 0; }
+  .hud-left { left: 8px; }
+  .hud-right { right: 8px; }
+  .hud-scrim { padding: 3px 6px; }
+  .hud-banner { gap: 8px; padding: 3px 8px; }
+  .hud-bottom { gap: 12px; bottom: 20px; }
+
+  /* Cockpit strip: when open on a narrow screen the panels STACK vertically as an overlay
+     sheet instead of a bottom strip (spec §2.3), preserving PanelFrame chrome. The container
+     stays pointer-events:none (the armed-resume click rule); the panels re-enable it. */
+  .dash-strip {
+    flex-direction: column;
+    align-items: stretch;
+    max-height: 78vh;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+  }
+  .dash-strip-closed { flex-direction: row; }
+  .dash-panel { width: 100%; }
+}

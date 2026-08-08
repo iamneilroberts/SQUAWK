@@ -51,12 +51,23 @@ export function labelsChipLabel(on: boolean): string {
   return on ? "LABELS ON" : "LABELS OFF";
 }
 
+/** Mobile contacts drawer toggle label — the live count in brackets (spec §2.1, `CONTACTS [n]`). */
+export function contactsChipLabel(count: number): string {
+  return `CONTACTS [${count}]`;
+}
+
 type StatusBarProps = {
   /** Bridged down from App.tsx, which gets it from ViewerHost — not zustand (see App.tsx). */
   terrainNote: string | null;
+  /**
+   * When present (narrow browse only), the CONTACTS readout becomes the drawer toggle. When
+   * absent (desktop, or any non-browse mode) the readout stays the plain count span it always
+   * was — so desktop renders exactly as before.
+   */
+  contactsChip?: { open: boolean; onToggle: () => void };
 };
 
-export default function StatusBar({ terrainNote }: StatusBarProps) {
+export default function StatusBar({ terrainNote, contactsChip }: StatusBarProps) {
   const feedStatus = useStore((s) => s.feedStatus);
   const feedSource = useStore((s) => s.feedSource);
   const contactCount = useStore((s) => s.contacts.size);
@@ -80,7 +91,18 @@ export default function StatusBar({ terrainNote }: StatusBarProps) {
       <span className={chipClass}>{feedChipLabel(feedStatus, feedSource)}</span>
       {feedStatus === "offline" && <span className="status-chip-warn">FEEDS UNREACHABLE</span>}
       {terrainNote !== null && <span className={terrainChipClass(terrainNote)}>{terrainNote}</span>}
-      <span>CONTACTS {contactCount}</span>
+      {contactsChip ? (
+        <button
+          type="button"
+          className={contactsChip.open ? "status-chip-button status-chip-button-active" : "status-chip-button"}
+          aria-expanded={contactsChip.open}
+          onClick={contactsChip.onToggle}
+        >
+          {contactsChipLabel(contactCount)}
+        </button>
+      ) : (
+        <span>CONTACTS {contactCount}</span>
+      )}
       <button
         type="button"
         className="status-chip-button"

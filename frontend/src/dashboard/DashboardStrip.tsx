@@ -21,6 +21,8 @@ import type { Mode } from "../game/machine";
 import { loadC172, loadClassById } from "../sim/params";
 import { resolveClass } from "../takeover/eligibility";
 import { useStore } from "../state/store";
+import { useViewport } from "../layout/useViewport";
+import { isNarrowViewport } from "../layout/viewport";
 import PanelFrame from "./PanelFrame";
 import SixPack from "./SixPack";
 import ControlState from "./ControlState";
@@ -53,10 +55,18 @@ export function stripMountedForMode(mode: Mode): boolean {
   return mode === "FLYING" || mode === "PAUSED" || mode === "ENDED";
 }
 
-/** Instruments, radar and weather are up; the nav map and the help panel start folded. */
-export function defaultStripState(): StripState {
+/**
+ * Instruments, radar and weather are up; the nav map and the help panel start folded.
+ *
+ * On a narrow viewport the whole strip starts FOLDED (`open: false`) so the small screen is
+ * flying-first (spec §2.3); the `COCKPIT [C]` chip reopens it. This is the only mobile
+ * difference — the per-panel collapse flags are identical, so an owner who opens the strip on
+ * a phone sees the same panels as on desktop. Desktop passes `narrow = false` (the default),
+ * so `defaultStripState()` is unchanged.
+ */
+export function defaultStripState(narrow = false): StripState {
   return {
-    open: true,
+    open: !narrow,
     collapsed: { gauges: false, radar: false, navmap: true, weather: false, help: true },
     scopeRangeNm: DEFAULT_RANGE_NM,
     navRangeNm: DEFAULT_NAV_RANGE_NM,
@@ -178,7 +188,10 @@ export function DashboardStripBody({
 }
 
 export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | null }) {
-  const [state, setState] = useState<StripState>(defaultStripState);
+  // Narrow at mount → the strip starts folded (flying-first, spec §2.3). Read once for the
+  // initial state; we don't re-fold on later resize, which would fight a user who opened it.
+  const narrow = isNarrowViewport(useViewport().width);
+  const [state, setState] = useState<StripState>(() => defaultStripState(narrow));
   const contacts = useStore((s) => s.contacts);
   const feedStatus = useStore((s) => s.feedStatus);
   const origin = useStore((s) => s.origin);
