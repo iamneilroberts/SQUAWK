@@ -24,12 +24,19 @@
  * one atlas entry, not one per billboard.
  */
 import { Billboard, BillboardCollection, Cartesian3, Color } from "cesium";
-import type { Contact } from "../data/types";
+import type { Contact, FeedStatus } from "../data/types";
 import { contactColor, contactRotationRad, makeChevronCanvas } from "./icons";
 import { contactHeightM } from "../data/contactGeo";
 
 /** Ghost billboards are dimmed, not hidden — the real aircraft is still real. */
 export const GHOST_ALPHA = 0.35;
+export const STALE_TRAFFIC_ALPHA = 0.3;
+export const STALE_GHOST_ALPHA = 0.18;
+
+export function contactAlpha(isGhost: boolean, feedStatus: FeedStatus): number {
+  if (feedStatus !== "live") return isGhost ? STALE_GHOST_ALPHA : STALE_TRAFFIC_ALPHA;
+  return isGhost ? GHOST_ALPHA : 1;
+}
 
 /**
  * Re-exported so the globe layer still has one import for everything billboard-shaped. It now
@@ -85,11 +92,12 @@ export function syncBillboards(
   byHex: Map<string, Billboard>,
   contacts: Map<string, Contact>,
   selectedHex: string | null,
-  opts: { ghostHex?: string | null } = {},
+  opts: { ghostHex?: string | null; feedStatus?: FeedStatus } = {},
 ): void {
   const drawable = renderableContacts(contacts);
   const { added, removed, kept } = diffContacts(new Set(byHex.keys()), drawable);
   const ghostHex = opts.ghostHex ?? null;
+  const feedStatus = opts.feedStatus ?? "live";
 
   for (const hex of removed) {
     const bb = byHex.get(hex);
@@ -103,7 +111,7 @@ export function syncBillboards(
       id: hex,
       position: Cartesian3.fromDegrees(c.lon, c.lat, contactHeightM(c)!),
       rotation: contactRotationRad(c.track),
-      color: hex === ghostHex ? Color.WHITE.withAlpha(GHOST_ALPHA) : Color.WHITE,
+      color: Color.WHITE.withAlpha(contactAlpha(hex === ghostHex, feedStatus)),
       scale: scaleFor(hex, selectedHex),
     });
     applyIcon(bb, c);
@@ -118,6 +126,6 @@ export function syncBillboards(
     applyIcon(bb, c); // cheap no-op unless the contact's color actually changed
     bb.scale = scaleFor(hex, selectedHex);
     // The origin aircraft keeps flying on the live feed, dimmed — it is still real.
-    bb.color = hex === ghostHex ? Color.WHITE.withAlpha(GHOST_ALPHA) : Color.WHITE;
+    bb.color = Color.WHITE.withAlpha(contactAlpha(hex === ghostHex, feedStatus));
   }
 }

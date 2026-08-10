@@ -193,7 +193,18 @@ const routerDependencies = {
       env.CSRF_SECRET,
     ),
   authorize: (_boundary, request, context, env) =>
-    authorizeSession(request, env.DB, Date.parse(context.serverTime), context.actor),
+    authorizeSession(
+      request,
+      env.DB,
+      Date.parse(context.serverTime),
+      context.actor,
+      async (userId) => {
+        await sendBrokerCommand(env.ADSB_BROKER, {
+          type: "lease-release-user",
+          userId,
+        });
+      },
+    ),
   resolveLimiter: resolveEndpointLimiter,
   admitRequest: async ({ kind, forceMode: deploymentMode, context, params }, env) => {
     if (deploymentMode === "KILL_SWITCH") {

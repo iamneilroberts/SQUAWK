@@ -1679,3 +1679,37 @@ no countdown can begin from a preview or uncommitted lease.
 Staging and production declare a separate twelve-per-minute mission limiter. No environment was
 deployed in this task; the D1 migration, `MISSION_SIGNING_SECRET`, and limiter must be present
 before a later release can enable these routes.
+
+## 2026-08-10 — CF-010 · A locked mission is the simulator boundary; live traffic is scenery only
+
+Task 10 preserves the existing `BROWSE → COUNTDOWN → FLYING → PAUSED/ENDED` state machine. The
+browser enters `COUNTDOWN` only through `startLockedMission` after `POST /api/missions` returns a
+committed lock. The session store retains that complete locked response and its immutable origin;
+`FlightSession`, the handoff card, and the cockpit use the frozen contact and Worker-returned
+aircraft parameters rather than the selected contact or a newly resolved local class. The shared
+spawn builder still applies the terrain preload and discloses every adjustment, and tests launch
+the C172S, B738, and F-5E through the same profile-driven fixed-step path.
+
+This boundary supersedes CD-012's arcade `R` re-sync. A later live ADS-B row can no longer replace
+the simulated position, controls, or integrator state. The real aircraft remains a cyan ghost and
+the remaining contacts remain non-solid scenery, but neither appears in the flight-loop dependency
+surface. Network loss leaves the local loop running; cached targets freeze and fade, then disappear
+at the existing expiry boundary. This is intentionally stricter than the old convenience shortcut:
+ranked mission truth cannot move after lock merely because a mutable feed row changed.
+
+The in-flight assist vocabulary is now `FULL | NAV | OFF`. Existing stored preferences map
+`none → OFF`, `low → NAV`, and `medium/high → FULL`, preserving FULL as the default without a risky
+pre-release D1 table rebuild. The prominent control is available during countdown, flight, and
+pause, while `highestUsed` only increases. FULL and NAV show a live bearing/distance cue, geodesic
+route, destination, and assigned-runway outline. FULL additionally draws a profile-defined
+approach corridor, glide gates, and flare cue. The three mission profiles are versioned at v2 and
+contain every geometry value; rendering has no class-specific branch.
+
+`GET /api/missions/:missionId/traffic` is authenticated, admitted against the exact active lease,
+and therefore renews that lease before asking the broker for one active-ghost-priority regional
+snapshot. One request refreshes both the selected ghost and nearby ambient traffic at the approved
+12-second cadence, avoiding a second upstream poll. It verifies the locked D1 mission belongs to
+the session. Explicit quit, local flight end, and best-effort `pagehide` call the idempotent release
+route; Durable Object expiry remains the correctness mechanism. A disabled or banned session also
+triggers `lease-release-user` during authorization, with expiry as fallback if the broker is down.
+No production or staging deployment occurred in this task.

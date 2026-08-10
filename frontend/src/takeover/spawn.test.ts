@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildSpawnState } from "./spawn";
-import { loadC172, loadB738, loadF5e } from "../sim/params";
+import { buildLockedMissionSpawn, buildSpawnState } from "./spawn";
+import { loadC172, loadB738, loadClassById, loadF5e } from "../sim/params";
 import { stallSpeedIasMs } from "../sim/forces";
 import { ecefToGeodetic } from "../sim/geo";
 import { hprFromQuat } from "../sim/quat";
@@ -16,6 +16,33 @@ const ga = (overrides: Partial<Contact> = {}): Contact => ({
   alt_geom: 3500, alt_baro: 3400, gs: 105, track: 270, baro_rate: 0,
   military: false, seen_pos: 2,
   ...overrides,
+});
+
+describe("buildLockedMissionSpawn — authoritative class/profile boundary", () => {
+  it.each([
+    ["c172s", { t: "C172", gs: 105, alt_geom: 3500 }],
+    ["b738", { t: "B738", gs: 450, alt_geom: 35000 }],
+    ["f5e", { t: "F5E", gs: 430, alt_geom: 18000 }],
+  ] as const)("starts the existing physics model for %s from its locked profile", (classId, fields) => {
+    const spawn = buildLockedMissionSpawn(
+      ga(fields),
+      classId,
+      loadClassById(classId),
+      { terrainHeightM: null },
+    );
+    expect(spawn.state.timeS).toBe(0);
+    expect(Number.isFinite(spawn.state.tasMs)).toBe(true);
+    expect(Number.isFinite(spawn.controls.throttle)).toBe(true);
+  });
+
+  it("fails closed when a response crosses class and aircraft parameters", () => {
+    expect(() => buildLockedMissionSpawn(
+      ga(),
+      "c172s",
+      loadB738(),
+      { terrainHeightM: null },
+    )).toThrow(/does not match/i);
+  });
 });
 
 describe("buildSpawnState — units and datum", () => {

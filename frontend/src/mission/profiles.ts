@@ -58,6 +58,17 @@ export function validateMissionProfile(value: unknown): MissionProfile {
   const rankingNames = ["lengthMarginWeight", "widthMarginWeight", "lightedBonus", "hardSurfaceBonus", "minutePenalty"] as const;
   if (Object.keys(profile.ranking ?? {}).sort().join(",") !== [...rankingNames].sort().join(",")) throw new Error("ranking fields are invalid");
   for (const label of rankingNames) assertFiniteNonNegative(profile.ranking[label], `ranking.${label}`);
+  const guidanceNames = [
+    "approachLengthNm", "corridorWidthFt", "gateSpacingNm", "glideSlopeDeg", "flareHeightFt",
+  ] as const;
+  if (Object.keys(profile.guidance ?? {}).sort().join(",") !== [...guidanceNames].sort().join(",")) {
+    throw new Error("guidance fields are invalid");
+  }
+  for (const label of guidanceNames) assertFinitePositive(profile.guidance[label], `guidance.${label}`);
+  if (profile.guidance.gateSpacingNm > profile.guidance.approachLengthNm) {
+    throw new Error("guidance gate spacing exceeds approach length");
+  }
+  if (profile.guidance.glideSlopeDeg >= 15) throw new Error("guidance glide slope is invalid");
   const landingNames = [
     "requireGearDown", "maxSinkRateFpm", "maxAbsBankDeg", "minPitchDeg", "maxPitchDeg",
     "minTouchdownSpeedKt", "maxTouchdownSpeedKt", "maxLoadFactor", "maxRolloutCrossTrackFt",

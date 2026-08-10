@@ -12,7 +12,7 @@
 - [x] Owner checkpoint A — Foundation approved 2026-08-10; live auth smoke test authorized
 - [x] Task 8 — Build public browse, the quick-start notice, and mission tray
 - [x] Task 9 — Add authoritative mission preparation, confirmation, and locking
-- [ ] Task 10 — Integrate locked missions, assists, ghost traffic, and the existing simulator
+- [x] Task 10 — Integrate locked missions, assists, ghost traffic, and the existing simulator
 - [ ] Task 11 — Implement runway landing evidence, safety gates, and scoring
 - [ ] Task 12 — Add debrief, profiles, and cached partitioned leaderboards
 - [ ] Task 13 — Add tutorial, coaching, installability, and offline result sync

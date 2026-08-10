@@ -13,7 +13,7 @@ export const GAME_KEY_CODES: ReadonlySet<string> = new Set([
   "KeyF", "KeyV", "KeyG", "KeyB",
   "Comma", "Period",
   // Return-to-level assist (issue #5a): the flight loop edge-detects it from the held set, the
-  // same way the sampler edge-detects the flap keys. KeyR (re-sync) is deliberately NOT here —
+  // same way the sampler edge-detects the flap keys. KeyR is deliberately NOT here —
   // it fires a one-shot React action in FlightSession, so it stays a chrome key like KeyC/Slash.
   "KeyL",
   // Free-look (issue #9): FlightSession watches KeyQ down/up to drive pointer lock and mouse

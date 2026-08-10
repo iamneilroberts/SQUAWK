@@ -37,7 +37,6 @@ export const KEYMAP: Readonly<Record<string, string>> = {
   Escape: "pause",
   // Cockpit chrome, not flight controls: the sampler matches on codes and never sees these.
   // They live here so ControlsHelp can render the keymap without a second, hand-copied list.
-  KeyR: "re-sync to real aircraft",
   KeyE: "exterior / chase camera",
   KeyC: "collapse / restore the cockpit strip",
   Slash: "controls help",

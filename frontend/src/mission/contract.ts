@@ -121,6 +121,8 @@ export type LockedMissionView = {
   contact: Contact;
   traffic: MissionTrafficProvenance;
   classId: AircraftClassId;
+  aircraftProfile: ClassParams;
+  missionProfile: MissionProfile;
   assignment: RunwayAssignment;
   versions: MissionVersionSet;
   assist: MissionAssistLevel;

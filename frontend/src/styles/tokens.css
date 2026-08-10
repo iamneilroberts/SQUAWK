@@ -463,6 +463,47 @@ body {
 .mission-alternative-active { border-left-color: var(--cyan); color: var(--cyan); background: rgba(95, 215, 224, 0.12); }
 .mission-take-controls { width: 100%; justify-content: center; margin-top: 12px; }
 .mission-auth-note { margin-top: 5px; text-align: center; color: var(--amber); }
+
+.assist-control {
+  position: absolute;
+  z-index: 32;
+  top: 4.5rem;
+  left: 0.75rem;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0.1rem 0.55rem;
+  align-items: baseline;
+  min-width: 9rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--cyan);
+  border-radius: 1px;
+  background: rgba(2, 8, 11, 0.88);
+  color: var(--cyan);
+  font-family: var(--mono);
+  letter-spacing: 0.08em;
+  text-align: left;
+}
+.assist-control strong { color: var(--amber); }
+.assist-control small { grid-column: 1 / -1; opacity: 0.72; }
+.assist-control-off { border-color: rgba(95, 215, 224, 0.5); }
+
+.mission-nav-cue {
+  position: absolute;
+  z-index: 31;
+  top: 4.5rem;
+  left: 11rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid rgba(95, 215, 224, 0.62);
+  background: rgba(2, 8, 11, 0.82);
+  color: var(--cyan);
+  font-family: var(--mono);
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+.mission-nav-cue strong { color: var(--amber); }
 .mission-reconfirm {
   margin-top: 12px;
   padding: 9px;

@@ -121,7 +121,7 @@ describe("createKeyboard", () => {
     expect(e.defaultPrevented).toBe(true);
     kb.dispose();
   });
-  it("does NOT capture KeyR — re-sync is a React-level chrome key, not a held control (issue #5b)", () => {
+  it("does NOT capture the retired KeyR live-traffic shortcut", () => {
     expect(GAME_KEY_CODES.has("KeyR")).toBe(false);
   });
   it("captures KeyQ and preventDefaults it — free-look holds it while pointer-locked (issue #9)", () => {

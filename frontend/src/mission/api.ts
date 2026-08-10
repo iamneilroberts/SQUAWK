@@ -60,3 +60,14 @@ export async function lockMission(
   );
   return data.mission;
 }
+
+export async function releaseMissionLease(
+  missionId: string,
+  idempotencyKey: string = crypto.randomUUID(),
+): Promise<void> {
+  await postAuthenticatedJson<{ released: boolean }>(
+    `/api/missions/${missionId}/release`,
+    {},
+    idempotencyKey,
+  );
+}

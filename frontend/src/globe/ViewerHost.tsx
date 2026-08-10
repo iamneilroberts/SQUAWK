@@ -26,6 +26,7 @@ import {
   Viewer,
 } from "cesium";
 import { startTrafficPolling, useStore } from "../state/store";
+import { hudSnapshot } from "../hud/snapshot";
 import { applyRealTimeLighting } from "./dayNightLighting";
 import { attachTerrain, createSceneHeightSampler } from "./terrainProvider";
 import { ViewerContext, type ViewerBundle } from "./viewerContext";
@@ -96,7 +97,12 @@ export default function ViewerHost({ children, onTerrainNoteChange }: ViewerHost
       useStore.getState().select(typeof hex === "string" && byHex.has(hex) ? hex : null);
     }, ScreenSpaceEventType.LEFT_CLICK);
 
-    const stopPolling = startTrafficPolling();
+    const stopPolling = startTrafficPolling({
+      activePosition: () => {
+        const snapshot = hudSnapshot.get();
+        return snapshot === null ? null : { lat: snapshot.latDeg, lon: snapshot.lonDeg };
+      },
+    });
 
     setBundle({
       viewer,

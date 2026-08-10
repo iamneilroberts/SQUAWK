@@ -65,6 +65,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
   const mode = useStore((s) => s.mode);
   const contacts = useStore((s) => s.contacts);
   const selectedHex = useStore((s) => s.selectedHex);
+  const lockedMission = useStore((s) => s.lockedMission);
   const feedStatus = useStore((s) => s.feedStatus);
   const providerAvailable = useStore((s) => s.providerAvailable);
   const [returnToken, setReturnToken] = useState(initialAuthToken);
@@ -226,7 +227,6 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
   }, [selectedHex]);
 
   const selectionLocked = missionCommit.status === "locking" ||
-    missionCommit.status === "locked" ||
     missionCommit.status === "reconfirm" ||
     (missionCommit.status === "error" && missionCommit.retry !== undefined);
 
@@ -250,6 +250,9 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
         assist: profile.defaultAssist,
       }, idempotencyKey);
       if (missionOperation.current !== operation) return;
+      if (!useStore.getState().startLockedMission(mission)) {
+        throw new Error("Locked mission could not enter countdown");
+      }
       setMissionCommit({ status: "locked", mission });
     } catch (error) {
       if (missionOperation.current !== operation) return;
@@ -262,6 +265,13 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
       });
     }
   }, [profile]);
+
+  useEffect(() => {
+    if (mode === "BROWSE" && lockedMission === null && missionCommit.status === "locked") {
+      missionOperation.current += 1;
+      setMissionCommit({ status: "idle" });
+    }
+  }, [lockedMission, missionCommit.status, mode]);
 
   const takeControls = useCallback(() => {
     if (briefing.state.status !== "ready") return;
@@ -334,7 +344,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
         <div className="relative flex-1">
           <ViewerHost onTerrainNoteChange={setTerrainNote}>
             <ContactLayer />
-            <OverlayLayers route={route} />
+            <OverlayLayers route={mode === "BROWSE" ? route : null} />
             <FlightSession />
           </ViewerHost>
           {mode === "BROWSE" && (

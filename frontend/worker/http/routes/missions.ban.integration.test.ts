@@ -36,14 +36,14 @@ function runtime(): Env {
   } as Env;
 }
 
-function dependencies(): RouterDependencies<Env> {
+function dependencies(onBlockedUser: (userId: string) => Promise<void>): RouterDependencies<Env> {
   return {
     uuid: () => "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     wallClock: () => new Date(NOW),
     monotonicNow: () => 1,
     digest: async () => "network-digest",
     authorize: (_boundary, request, context, runtimeEnv) =>
-      authorizeSession(request, runtimeEnv.DB, NOW, context.actor),
+      authorizeSession(request, runtimeEnv.DB, NOW, context.actor, onBlockedUser),
     verifyCsrf: async () => true,
     resolveLimiter: () => allowEndpointLimiter,
     admitRequest: async ({ forceMode }) => ({ allowed: true, mode: forceMode }),
@@ -88,7 +88,8 @@ beforeEach(async () => {
 describe("mission route bans", () => {
   it("rejects a valid stored session after its user is banned, before broker work", async () => {
     const broker = vi.fn();
-    const router = createRouter(createMissionRoutes({ broker }), dependencies());
+    const releaseUser = vi.fn(async () => undefined);
+    const router = createRouter(createMissionRoutes({ broker }), dependencies(releaseUser));
     const response = await router.fetch(
       new Request("https://fly.voygent.app/api/missions/prepare", {
         method: "POST",
@@ -107,5 +108,6 @@ describe("mission route bans", () => {
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toMatchObject({ code: "AUTH_REQUIRED" });
     expect(broker).not.toHaveBeenCalled();
+    expect(releaseUser).toHaveBeenCalledWith(USER_ID);
   });
 });

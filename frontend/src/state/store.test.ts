@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useStore } from "./store";
 import type { TrafficFetchResult } from "../data/api";
+import type { LockedMissionView } from "../mission/contract";
 
 const contact = (hex: string): any => ({
   hex, flight: null, t: null, lat: 30, lon: -88, alt_geom: 3500,
@@ -27,6 +28,14 @@ const trafficResult = (
   mode: "NORMAL",
   ...overrides,
 });
+
+const lockedMission = (assist: LockedMissionView["assist"] = "medium") => ({
+  schemaVersion: 1,
+  missionId: "00000000-0000-4000-8000-000000000001",
+  status: "locked",
+  contact: contact("abc123"),
+  assist,
+} as LockedMissionView);
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -132,7 +141,29 @@ describe("session state", () => {
     const s = useStore.getState();
     expect(s.mode).toBe("BROWSE");
     expect(s.origin).toBeNull();
+    expect(s.lockedMission).toBeNull();
+    expect(s.assist).toBeNull();
     expect(s.endStats).toBeNull();
+  });
+  it("starts countdown only from a committed mission and freezes that authority", () => {
+    useStore.getState().resetSession();
+    const mission = lockedMission();
+    expect(useStore.getState().startLockedMission(mission)).toBe(true);
+    expect(useStore.getState()).toMatchObject({
+      mode: "COUNTDOWN",
+      lockedMission: mission,
+      origin: { hex: "abc123" },
+      assist: { current: "FULL", highestUsed: "FULL" },
+    });
+    expect(useStore.getState().startLockedMission(mission)).toBe(false);
+  });
+  it("tracks highest assist monotonically for the locked flight", () => {
+    useStore.getState().resetSession();
+    useStore.getState().startLockedMission(lockedMission("none"));
+    useStore.getState().setAssistMode("NAV");
+    useStore.getState().setAssistMode("FULL");
+    useStore.getState().setAssistMode("OFF");
+    expect(useStore.getState().assist).toEqual({ current: "OFF", highestUsed: "FULL" });
   });
   it("holds the frozen origin snapshot independently of selectedHex", () => {
     const c = contact("abc123");
@@ -193,6 +224,8 @@ describe("session state", () => {
     const s = useStore.getState();
     expect(s.mode).toBe("BROWSE");
     expect(s.origin).toBeNull();
+    expect(s.lockedMission).toBeNull();
+    expect(s.assist).toBeNull();
     expect(s.endStats).toBeNull();
   });
   it("does not hold any sim state (60 Hz set() would re-render React)", () => {

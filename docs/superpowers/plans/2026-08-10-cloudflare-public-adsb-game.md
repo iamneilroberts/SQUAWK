@@ -617,23 +617,23 @@ mission and lease exist after retries; countdown starts only from a committed lo
 
 **Steps:**
 
-- [ ] Preserve the flight state machine for `COUNTDOWN/FLYING/PAUSED/ENDED`; keep
+- [x] Preserve the flight state machine for `COUNTDOWN/FLYING/PAUSED/ENDED`; keep
       briefing/auth as a separate UI state so selecting contacts does not pretend a sim
       has started.
-- [ ] Feed `FlightSession` only the locked mission snapshot/profile, not the currently
+- [x] Feed `FlightSession` only the locked mission snapshot/profile, not the currently
       mutable selected contact. Reuse `buildSpawnState`, terrain preload, class loaders,
       fixed-step loop, Cesium host, keyboard/touch controls, and honest adjustments.
-- [ ] Add `FULL | NAV | OFF` with FULL default, a prominent preflight/in-flight toggle,
+- [x] Add `FULL | NAV | OFF` with FULL default, a prominent preflight/in-flight toggle,
       and monotonic `highestAssistUsed`. Profile definitions drive overlays; no class
       branches.
-- [ ] Implement route/destination cue for FULL/NAV, assigned runway highlight for
+- [x] Implement route/destination cue for FULL/NAV, assigned runway highlight for
       FULL/NAV, and corridor/glide gates/flare cue for FULL only. OFF leaves physical
       airport/runway and instruments.
-- [ ] Poll locked aircraft ghost and ambient traffic at the 12-second active cadence;
+- [x] Poll locked aircraft ghost and ambient traffic at the 12-second active cadence;
       renew lease. Freeze/fade on loss/stale, and never apply traffic to physics/collision.
-- [ ] Release lease on finalization, explicit quit, admin termination, ban, or expiry.
+- [x] Release lease on finalization, explicit quit, admin termination, ban, or expiry.
       Browser unload is best-effort only; expiry is the correctness mechanism.
-- [ ] Test GA/airliner/fighter starts, reconstructed fields, highest-assist escalation,
+- [x] Test GA/airliner/fighter starts, reconstructed fields, highest-assist escalation,
       overlay matrix, ghost staleness, network loss, and local simulation continuity.
 
 **Acceptance:** All three classes fly the existing 60 Hz model from an authoritative

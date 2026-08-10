@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { fetchTraffic, fetchTypeInfo, FeedDownError } from "./api";
+import {
+  fetchActiveMissionTraffic,
+  fetchTraffic,
+  fetchTypeInfo,
+  FeedDownError,
+} from "./api";
 
 const okJson = (body: unknown) =>
   vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => body });
@@ -108,5 +113,39 @@ describe("fetchTraffic", () => {
       code: "RATE_LIMITED",
       retryAfterSeconds: 30,
     });
+  });
+});
+
+describe("fetchActiveMissionTraffic", () => {
+  it("uses the lease-renewing authenticated mission route", async () => {
+    const fetchMock = okJson({
+      ok: true,
+      code: "MISSION_TRAFFIC_UPDATED",
+      mode: "NORMAL",
+      data: {
+        contacts: [],
+        source: "fixture.test",
+        sourceTime: 1,
+        fetchedAt: 2,
+        cacheAgeSeconds: 0,
+        freshness: "FRESH",
+        providerAvailable: true,
+        regionKey: "r1:31:-87:100",
+        nextRefreshSeconds: 12,
+        cacheStatus: "HIT",
+        radiusNm: 80,
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(fetchActiveMissionTraffic(
+      "00000000-0000-4000-8000-000000000001",
+      31,
+      -87,
+      80,
+    )).resolves.toMatchObject({ mode: "NORMAL", nextRefreshSeconds: 12 });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/missions/00000000-0000-4000-8000-000000000001/traffic?lat=31&lon=-87&radius_nm=80",
+      { credentials: "same-origin" },
+    );
   });
 });

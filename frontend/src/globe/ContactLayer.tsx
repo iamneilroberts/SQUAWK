@@ -43,6 +43,7 @@ export default function ContactLayer() {
     if (!bundle) return;
     syncBillboards(bundle.billboards, bundle.byHex, contacts, selectedHex, {
       ghostHex: origin?.hex ?? null,
+      feedStatus,
     });
     syncGhostLabel(
       bundle.labels,

@@ -138,6 +138,8 @@ async function lockedView(options: {
     contact: options.document.contact,
     traffic: options.document.traffic,
     classId: options.document.classId,
+    aircraftProfile: options.document.aircraftProfile,
+    missionProfile: options.document.missionProfile,
     assignment: options.document.assignment,
     versions: options.document.versions,
     assist: options.document.assist,

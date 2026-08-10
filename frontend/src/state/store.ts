@@ -3,6 +3,7 @@ import type { StoreApi, UseBoundStore } from "zustand";
 import type { Contact, FeedStatus } from "../data/types";
 import {
   FeedDownError,
+  fetchActiveMissionTraffic,
   fetchConfig,
   fetchTraffic,
   type TrafficFetchResult,
@@ -20,6 +21,16 @@ import { nextMode } from "../game/machine";
 import type { GameEvent, Mode } from "../game/machine";
 import type { FlightStats } from "../game/stats";
 import type { BasemapKind } from "../globe/mapSources";
+import type { LockedMissionView } from "../mission/contract";
+import {
+  initialAssistState,
+  selectAssist,
+  type AssistState,
+} from "../mission/assistState";
+import {
+  assistModeFromPreference,
+  type AssistMode,
+} from "../mission/assists";
 
 export type PollingIdentity = "anonymous" | "signed";
 
@@ -82,6 +93,9 @@ type State = {
    * that, and must never be dead-reckoned forward.
    */
   origin: { hex: string; snapshot: Contact } | null;
+  /** The committed Worker response that is the sole authority for a running simulation. */
+  lockedMission: LockedMissionView | null;
+  assist: AssistState | null;
   endStats: FlightStats | null;
   /**
    * The ONLY thing that changes `mode`. Every transition goes through game/machine.ts's
@@ -91,6 +105,8 @@ type State = {
    */
   fire(event: GameEvent): void;
   setOrigin(o: { hex: string; snapshot: Contact } | null): void;
+  startLockedMission(mission: LockedMissionView): boolean;
+  setAssistMode(mode: AssistMode): void;
   setEndStats(s: FlightStats | null): void;
   /** Clears the session payload without touching the mode. */
   clearSession(): void;
@@ -124,6 +140,8 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   chromeVisible: true,
   mode: "BROWSE",
   origin: null,
+  lockedMission: null,
+  assist: null,
   endStats: null,
 
   setHome(h) {
@@ -238,17 +256,53 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
     set({ origin: o });
   },
 
+  startLockedMission(mission) {
+    const currentMode = get().mode;
+    const next = nextMode(currentMode, "TAKE_CONTROLS");
+    if (currentMode !== "BROWSE" || next !== "COUNTDOWN" || mission.status !== "locked") {
+      return false;
+    }
+    set({
+      mode: next,
+      lockedMission: mission,
+      origin: { hex: mission.contact.hex, snapshot: mission.contact },
+      assist: initialAssistState(assistModeFromPreference(mission.assist)),
+      endStats: null,
+      selectionLocked: false,
+    });
+    return true;
+  },
+
+  setAssistMode(mode) {
+    const current = get().assist;
+    if (current === null) return;
+    set({ assist: selectAssist(current, mode) });
+  },
+
   setEndStats(s) {
     set({ endStats: s });
   },
 
   clearSession() {
-    set({ origin: null, endStats: null });
+    set({
+      origin: null,
+      lockedMission: null,
+      assist: null,
+      endStats: null,
+      selectionLocked: false,
+    });
   },
 
   /** Hard reset: back to BROWSE with no residue (spec §6). */
   resetSession() {
-    set({ mode: "BROWSE", origin: null, endStats: null, selectionLocked: false });
+    set({
+      mode: "BROWSE",
+      origin: null,
+      lockedMission: null,
+      assist: null,
+      endStats: null,
+      selectionLocked: false,
+    });
   },
 }));
 
@@ -261,6 +315,7 @@ export type TrafficPollingOptions = {
   intervalMs?: number;
   identity?: () => PollingIdentity;
   visibility?: PollingVisibility;
+  activePosition?: () => { lat: number; lon: number } | null;
 };
 
 const alwaysVisible: PollingVisibility = {
@@ -347,6 +402,21 @@ export function startTrafficPolling(options: TrafficPollingOptions = {}): () => 
           })
         : (() => {
             const state = useStore.getState();
+            const active = state.mode === "COUNTDOWN" ||
+              state.mode === "FLYING" ||
+              state.mode === "PAUSED";
+            if (active && state.lockedMission !== null) {
+              const position = options.activePosition?.() ?? {
+                lat: state.lockedMission.contact.lat,
+                lon: state.lockedMission.contact.lon,
+              };
+              return fetchActiveMissionTraffic(
+                state.lockedMission.missionId,
+                position.lat,
+                position.lon,
+                state.radiusNm,
+              );
+            }
             const center = state.savedCenter ?? home;
             return fetchTraffic(center.lat, center.lon, state.radiusNm);
           })().then((r) => {

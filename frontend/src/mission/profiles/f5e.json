@@ -1,6 +1,6 @@
 {
   "classId": "f5e",
-  "profileVersion": "mission-f5e-2026-08-10-v1",
+  "profileVersion": "mission-f5e-2026-08-10-v2",
   "assignmentVersion": "assignment-2026-08-10-v1",
   "scoringVersion": "scoring-2026-08-10-v1",
   "reachability": {
@@ -26,6 +26,13 @@
     "lightedBonus": 5,
     "hardSurfaceBonus": 10,
     "minutePenalty": 0.15
+  },
+  "guidance": {
+    "approachLengthNm": 8,
+    "corridorWidthFt": 1100,
+    "gateSpacingNm": 1,
+    "glideSlopeDeg": 3,
+    "flareHeightFt": 30
   },
   "landing": {
     "requireGearDown": true,

@@ -194,6 +194,11 @@ describe("authoritative mission lock", () => {
     expect(replay.missionId).toBe(first.missionId);
     expect(first.status).toBe("locked");
     expect(first.assignment.airportIdent).toBe("TST");
+    expect(first.aircraftProfile.id).toBe("c172s");
+    expect(first.missionProfile.classId).toBe("c172s");
+    expect(first.traffic).toMatchObject({ source: "fixture", cacheStatus: "MISS" });
+    expect(first.reconstruction.state.timeS).toBe(0);
+    expect(Number.isFinite(first.reconstruction.controls.throttle)).toBe(true);
     await expect(
       runtime().TEST_DB.prepare("SELECT COUNT(*) AS count FROM missions").first<number>("count"),
     ).resolves.toBe(1);

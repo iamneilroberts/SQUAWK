@@ -12,10 +12,8 @@ import { useStore } from "../state/store";
 import type { GameEvent } from "./machine";
 import { useViewer } from "../globe/viewerContext";
 import { attributionFor } from "../globe/mapSources";
-import { loadClassById } from "../sim/params";
 import { resolveClass } from "../takeover/eligibility";
-import { buildSpawnState, type SpawnResult } from "../takeover/spawn";
-import { resyncDecision } from "../takeover/resync";
+import { buildLockedMissionSpawn, type SpawnResult } from "../takeover/spawn";
 import { createTerrainService, type TerrainService } from "../world/terrain";
 import { createKeyboard } from "../input/keyboard";
 import { createCesiumFlightHost } from "../globe/cesiumFlightHost";
@@ -38,6 +36,11 @@ import HandoffCard from "../panels/HandoffCard";
 import PauseOverlay from "../panels/PauseOverlay";
 import EndCard from "../panels/EndCard";
 import { degToRad, ktToMs } from "../sim/units";
+import { releaseMissionLease } from "../mission/api";
+import AssistControl from "../mission/AssistControl";
+import MissionNavCue from "../mission/MissionNavCue";
+import MissionRouteLayer from "../globe/MissionRouteLayer";
+import ApproachAssistLayer from "../globe/ApproachAssistLayer";
 
 const COUNTDOWN_FROM = 3;
 const PRELOAD_TIMEOUT_MS = 3000;
@@ -45,7 +48,8 @@ const PRELOAD_TIMEOUT_MS = 3000;
 export default function FlightSession() {
   const bundle = useViewer();
   const mode = useStore((s) => s.mode);
-  const origin = useStore((s) => s.origin);
+  const lockedMission = useStore((s) => s.lockedMission);
+  const assist = useStore((s) => s.assist);
   const endStats = useStore((s) => s.endStats);
   const basemap = useStore((s) => s.basemap);
   const labelsOn = useStore((s) => s.labelsOn);
@@ -59,8 +63,6 @@ export default function FlightSession() {
   const [resumeArmed, setResumeArmed] = useState(false);
   /** Hex of the windscreen tag the player clicked, or null when no detail card is open. */
   const [trafficHex, setTrafficHex] = useState<string | null>(null);
-  /** Brief honest message when a re-sync is refused; "" when there is nothing to say. */
-  const [resyncNote, setResyncNote] = useState("");
 
   // Touch analog axes (mobile sub-feature 2, Option B). A single mutable object the flight loop
   // reads once per tick via the `analog` provider; the touch stick/throttle write into it. Stays
@@ -72,7 +74,7 @@ export default function FlightSession() {
   const hostRef = useRef<ReturnType<typeof createCesiumFlightHost> | null>(null);
   const keyboardRef = useRef<ReturnType<typeof createKeyboard> | null>(null);
   const terrainRef = useRef<TerrainService | null>(null);
-  const resyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const releaseKeyRef = useRef<string | null>(null);
 
   const snapshot = useSyncExternalStore(hudSnapshot.subscribe, hudSnapshot.get, hudSnapshot.get);
 
@@ -105,16 +107,11 @@ export default function FlightSession() {
     terrainRef.current = null;
     hudSnapshot.set(null);
     touchAxesRef.current = {};
-    if (resyncTimerRef.current) {
-      clearTimeout(resyncTimerRef.current);
-      resyncTimerRef.current = null;
-    }
     setSpawn(null);
     setCountdown(null);
     setNote("");
     setResumeArmed(false);
     setTrafficHex(null);
-    setResyncNote("");
   }
 
   /**
@@ -122,14 +119,35 @@ export default function FlightSession() {
    * mode is refused rather than teleporting the app to BROWSE from somewhere it should not.
    */
   function leaveToBrowse(event: GameEvent) {
+    if (lockedMission !== null) {
+      const key = releaseKeyRef.current ?? crypto.randomUUID();
+      releaseKeyRef.current = key;
+      void releaseMissionLease(lockedMission.missionId, key).catch(() => undefined);
+    }
     useStore.getState().fire(event);
     teardown();
     useStore.getState().clearSession();
   }
 
+  useEffect(() => {
+    if (lockedMission === null) {
+      releaseKeyRef.current = null;
+      return;
+    }
+    releaseKeyRef.current = crypto.randomUUID();
+    const release = () => {
+      void releaseMissionLease(
+        lockedMission.missionId,
+        releaseKeyRef.current ?? crypto.randomUUID(),
+      ).catch(() => undefined);
+    };
+    window.addEventListener("pagehide", release);
+    return () => window.removeEventListener("pagehide", release);
+  }, [lockedMission]);
+
   // ---- COUNTDOWN: preload terrain, build the spawn, tick 3-2-1, then fly ----
   useEffect(() => {
-    if (mode !== "COUNTDOWN" || !bundle || !origin) return;
+    if (mode !== "COUNTDOWN" || !bundle || !lockedMission) return;
     let cancelled = false;
     // Hoisted to effect scope (not returned from the async IIFE below, which is discarded —
     // `void (async () => {...})()` never surfaces an inner `return` to React) so the effect's
@@ -144,15 +162,12 @@ export default function FlightSession() {
     // SAME one the flight loop reads from for the rest of the flight — it must not be
     // disposed then, only when this instance's own countdown never got to start one.
     let flightStarted = false;
-    const contact = origin.snapshot;
-    // The initial takeover gate has already established a supported class. Re-check at this
-    // boundary so corrupt/stale client state cannot silently substitute another flight model.
-    const resolution = resolveClass(contact);
-    if (!resolution.supported) {
-      setNote(resolution.reason);
+    const contact = lockedMission.contact;
+    const params = lockedMission.aircraftProfile;
+    if (params.id !== lockedMission.classId) {
+      setNote("LOCKED AIRCRAFT PROFILE DOES NOT MATCH THE MISSION CLASS");
       return;
     }
-    const params = loadClassById(resolution.classId);
     setNote("ACQUIRING TERRAIN…");
 
     void (async () => {
@@ -166,7 +181,12 @@ export default function FlightSession() {
       );
       if (cancelled) return;
 
-      const built = buildSpawnState(contact, params, { terrainHeightM: preload.terrainHeightM });
+      const built = buildLockedMissionSpawn(
+        contact,
+        lockedMission.classId,
+        params,
+        { terrainHeightM: preload.terrainHeightM },
+      );
       setSpawn(built);
       setNote(preload.verified ? "" : "TERRAIN UNVERIFIED — COLLISION DISARMED");
 
@@ -201,6 +221,9 @@ export default function FlightSession() {
               loopRef.current?.stop();
               useStore.getState().setEndStats(stats);
               useStore.getState().fire("IMPACT");
+              const key = releaseKeyRef.current ?? crypto.randomUUID();
+              releaseKeyRef.current = key;
+              void releaseMissionLease(lockedMission.missionId, key).catch(() => undefined);
             },
           });
           loopRef.current = loop;
@@ -225,7 +248,7 @@ export default function FlightSession() {
     // bundle OBJECT is rebuilt when terrainNote resolves (~1s in) but .viewer/.heightSampler
     // keep their identity for the whole mount, so depending on the whole object would re-fire
     // this mid-countdown for a field this effect never reads.
-  }, [mode, bundle?.viewer, bundle?.heightSampler, origin]);
+  }, [mode, bundle?.viewer, bundle?.heightSampler, lockedMission]);
 
   // ---- Esc pauses; visibilitychange auto-pauses (spec §5, §6) ----
   useEffect(() => {
@@ -251,40 +274,6 @@ export default function FlightSession() {
       window.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [mode]);
-
-  // ---- KeyR re-syncs to the real aircraft's CURRENT live position (issue #5b) ----
-  // The live contact lives in the store (updated by the poller), not in the flight loop, so the
-  // decision is made here and only a rebuilt spawn crosses into the loop. If the genuine aircraft
-  // is stale, off the feed or otherwise ineligible we REFUSE and say so — never a synthesized
-  // position (honesty rule). resyncDecision reuses the takeover's own eligibility + freshness gate.
-  useEffect(() => {
-    if (mode !== "FLYING") return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code !== "KeyR" || e.ctrlKey || e.metaKey || e.altKey) return;
-      const st = useStore.getState();
-      const flown = st.origin;
-      if (!flown || st.mode !== "FLYING") return;
-      // Re-sync keeps the class the player took over (resolved from the origin snapshot, not the
-      // live contact) so a jet re-syncs as a jet — the flight model must not flip mid-flight.
-      const resolution = resolveClass(flown.snapshot);
-      if (!resolution.supported) return;
-      const decision = resyncDecision(
-        st.contacts.get(flown.hex),
-        loadClassById(resolution.classId),
-        { terrainHeightM: null },
-      );
-      if (resyncTimerRef.current) clearTimeout(resyncTimerRef.current);
-      if (decision.ok) {
-        loopRef.current?.resync(decision.spawn);
-        setResyncNote("");
-      } else {
-        setResyncNote(`RE-SYNC REFUSED — ${decision.reason}`);
-        resyncTimerRef.current = setTimeout(() => setResyncNote(""), 4000);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
   }, [mode]);
 
   // ---- KeyE toggles the exterior chase/orbit camera (issue #4) ----
@@ -441,9 +430,8 @@ export default function FlightSession() {
 
   if (mode === "BROWSE") return null;
 
-  // The card uses the same supported-class resolution as the countdown model loader.
-  const originResolution = origin ? resolveClass(origin.snapshot) : null;
-  const originParams = originResolution?.supported ? loadClassById(originResolution.classId) : null;
+  const originResolution = lockedMission ? resolveClass(lockedMission.contact) : null;
+  const originParams = lockedMission?.aircraftProfile ?? null;
 
   // Mobile immersive/fullscreen flight (#13). immersiveActive gates every declutter; `faded` is the
   // video-player auto-hide of the informational overlays. warningActive keeps a live annunciator
@@ -454,8 +442,16 @@ export default function FlightSession() {
 
   return (
     <>
-      {mode === "COUNTDOWN" && origin && (
-        <HandoffCard contact={origin.snapshot} spawn={spawn} params={originParams}
+      {lockedMission !== null && assist !== null && mode !== "ENDED" && (
+        <>
+          <MissionRouteLayer mission={lockedMission} assist={assist.current} />
+          <ApproachAssistLayer mission={lockedMission} assist={assist.current} />
+          <MissionNavCue mission={lockedMission} assist={assist.current} />
+          <AssistControl />
+        </>
+      )}
+      {mode === "COUNTDOWN" && lockedMission && (
+        <HandoffCard contact={lockedMission.contact} spawn={spawn} params={originParams}
           matched={originResolution?.matched ?? false} countdown={countdown} note={note} />
       )}
       {stripMountedForMode(mode) && (
@@ -498,9 +494,6 @@ export default function FlightSession() {
           />
           <ImmersiveControl warningActive={warningActive} />
         </>
-      )}
-      {mode === "FLYING" && resyncNote !== "" && (
-        <div className="resync-note">{resyncNote}</div>
       )}
       {mode === "PAUSED" && (
         <PauseOverlay

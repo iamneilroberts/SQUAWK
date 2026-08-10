@@ -423,40 +423,6 @@ describe("the 10 Hz snapshot carries everything the cockpit instruments need", (
   });
 });
 
-describe("flight loop re-sync (issue #5b)", () => {
-  it("replaces the loop's state with a fresh spawn at the new contact position", () => {
-    const { loop, host } = makeLoop();
-    loop.start();
-    host.frame(1000);
-    host.frame(1100);
-    const before = ecefToGeodetic(loop.getState().position);
-    expect(radToDeg(before.latRad)).toBeCloseTo(30.69, 1);
-
-    // The genuine aircraft has moved on; re-sync jumps the sim to where it is now.
-    const newSpawn = buildSpawnState(ga({ lat: 32.0, lon: -85.0 }), P, { terrainHeightM: 100 });
-    loop.resync(newSpawn);
-
-    const after = ecefToGeodetic(loop.getState().position);
-    expect(radToDeg(after.latRad)).toBeCloseTo(32.0, 2);
-    expect(radToDeg(after.lonRad)).toBeCloseTo(-85.0, 2);
-  });
-
-  it("re-bases the clock on re-sync, so the next frame does not lurch through the gap", () => {
-    const { loop, host } = makeLoop();
-    loop.start();
-    host.frame(1000);
-    host.frame(1100);
-    const newSpawn = buildSpawnState(ga({ lat: 32.0, lon: -85.0 }), P, { terrainHeightM: 100 });
-    loop.resync(newSpawn);
-
-    host.frame(500000); // minutes later: this frame only re-establishes the clock
-    expect(loop.getState().timeS).toBe(0); // the new spawn's clock, not clamped physics
-    host.frame(500000 + 1000 / 60);
-    expect(loop.getState().timeS).toBeCloseTo(FIXED_DT, 9);
-    loop.stop();
-  });
-});
-
 describe("flight loop analog input seam (mobile sub-feature 2, Option B)", () => {
   it("an analog throttle target drives the lever absolutely through the loop", () => {
     // The spawn hands over a trimmed, non-idle throttle; an analog throttle of 0.15 must

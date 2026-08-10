@@ -51,6 +51,7 @@ export async function authorizeSession(
   db: D1Database,
   now: number,
   anonymousActor: RequestActor,
+  onBlockedUser?: (userId: string) => Promise<void>,
 ): Promise<RequestActor> {
   const rawToken = readSessionCookie(request.headers.get("cookie"));
   if (rawToken === null) return anonymousActor;
@@ -67,6 +68,9 @@ export async function authorizeSession(
     user.status === "disabled" ||
     (await hasActiveBanForIdentity(db, user.id, user.emailKey, now))
   ) {
+    if (user !== null && onBlockedUser !== undefined) {
+      await onBlockedUser(user.id).catch(() => undefined);
+    }
     return anonymousActor;
   }
   return {

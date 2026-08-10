@@ -92,6 +92,13 @@ export type MissionProfile = {
     hardSurfaceBonus: number;
     minutePenalty: number;
   };
+  guidance: {
+    approachLengthNm: number;
+    corridorWidthFt: number;
+    gateSpacingNm: number;
+    glideSlopeDeg: number;
+    flareHeightFt: number;
+  };
   landing: {
     requireGearDown: boolean;
     maxSinkRateFpm: number;

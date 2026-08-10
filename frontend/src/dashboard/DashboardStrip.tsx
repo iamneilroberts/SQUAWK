@@ -20,8 +20,7 @@ import { useEffect, useState } from "react";
 import { loadAirports } from "../data/airports";
 import type { HudSnapshot } from "../hud/snapshot";
 import type { Mode } from "../game/machine";
-import { loadC172, loadClassById } from "../sim/params";
-import { resolveClass } from "../takeover/eligibility";
+import { loadC172 } from "../sim/params";
 import { useStore } from "../state/store";
 import { useViewport } from "../layout/useViewport";
 import { isNarrowViewport } from "../layout/viewport";
@@ -99,11 +98,11 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
   const contacts = useStore((s) => s.contacts);
   const feedStatus = useStore((s) => s.feedStatus);
   const origin = useStore((s) => s.origin);
+  const lockedMission = useStore((s) => s.lockedMission);
   const radiusNm = useStore((s) => s.radiusNm);
   // The primary instruments read the flown class's params (per-class face). Falls back to the
   // C172 before an origin is set — the strip can mount a frame before a takeover exists.
-  const resolution = origin ? resolveClass(origin.snapshot) : null;
-  const params = resolution?.supported ? loadClassById(resolution.classId) : loadC172();
+  const params = lockedMission?.aircraftProfile ?? loadC172();
   const weather = useWeather(snapshot);
   // The WX toggle drives both the METAR fold and the precip-radar overlay; fetch only when on.
   const navWeather = useNavWeather(snapshot, state.showWeather);

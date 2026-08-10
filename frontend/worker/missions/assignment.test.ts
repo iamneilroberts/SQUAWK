@@ -40,7 +40,7 @@ describe("mission assignment in workerd", () => {
     expect(result).toMatchObject({
       assigned: true,
       datasetVersion: "parity-v1",
-      profileVersion: "mission-b738-2026-08-10-v1",
+      profileVersion: "mission-b738-2026-08-10-v2",
       assignmentVersion: "assignment-2026-08-10-v1",
       scoringVersion: "scoring-2026-08-10-v1",
       planningSpeedKt: 240,

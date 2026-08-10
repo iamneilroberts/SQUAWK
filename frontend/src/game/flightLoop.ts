@@ -73,10 +73,8 @@ export function createFlightLoop(deps: FlightLoopDeps) {
   // The spawn's trimmed throttle and trim ARE the sampler's starting position — otherwise
   // the player inherits an idle, untrimmed aeroplane a second after the handoff card
   // promised otherwise.
-  // sampler and accumulator are re-created on resync() (new starting trim, fresh clock), so they
-  // are `let`, not `const`.
-  let sampler = createControlSampler(params, spawn.controls);
-  let accumulator = createAccumulator();
+  const sampler = createControlSampler(params, spawn.controls);
+  const accumulator = createAccumulator();
   const rateMeter = createRateMeter(2);
   const stats = createStatsAccumulator(spawn.state);
 
@@ -264,26 +262,6 @@ export function createFlightLoop(deps: FlightLoopDeps) {
     },
     isLeveling() {
       return leveling;
-    },
-    /**
-     * Re-sync to the real aircraft (issue #5b): replace the sim state, controls and sampler
-     * starting position with a fresh spawn built from the CURRENT live contact, and re-base the
-     * clock the same way resume()/stop() do — the gap while the takeover is rebuilt is dead time,
-     * not flying time. FlightSession decides eligibility (takeover/resync.ts) and only calls this
-     * when the genuine contact is still fresh; a stale/offline contact is refused there, not here.
-     */
-    resync(newSpawn: SpawnResult) {
-      if (ended) return;
-      state = newSpawn.state;
-      controls = newSpawn.controls;
-      sampler = createControlSampler(params, newSpawn.controls);
-      accumulator = createAccumulator();
-      leveling = false;
-      levelingElapsedS = 0;
-      prevLevelKey = false;
-      lastWallMs = null;
-      sinceSnapshotS = SNAPSHOT_INTERVAL_S;
-      publish();
     },
     getState(): SimState {
       return state;

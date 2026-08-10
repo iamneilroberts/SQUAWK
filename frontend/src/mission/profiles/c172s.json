@@ -1,6 +1,6 @@
 {
   "classId": "c172s",
-  "profileVersion": "mission-c172s-2026-08-10-v1",
+  "profileVersion": "mission-c172s-2026-08-10-v2",
   "assignmentVersion": "assignment-2026-08-10-v1",
   "scoringVersion": "scoring-2026-08-10-v1",
   "reachability": {
@@ -26,6 +26,13 @@
     "lightedBonus": 5,
     "hardSurfaceBonus": 8,
     "minutePenalty": 0.35
+  },
+  "guidance": {
+    "approachLengthNm": 5,
+    "corridorWidthFt": 700,
+    "gateSpacingNm": 0.5,
+    "glideSlopeDeg": 3,
+    "flareHeightFt": 20
   },
   "landing": {
     "requireGearDown": true,

@@ -18,14 +18,20 @@ import {
 } from "../../durable/protocol";
 import { lockAuthoritativeMission } from "../../missions/lock";
 import { prepareAuthoritativeMission } from "../../missions/prepare";
+import { getMissionById } from "../../db/missions";
 import { ApiHttpError } from "../response";
 import { defineRoute, type RouteDefinition } from "../router";
-import { ValidationError } from "../validation";
+import {
+  clampRadiusNm,
+  validateCoordinates,
+  ValidationError,
+} from "../validation";
 
 const HEX = /^[0-9a-f]{6}$/i;
 const CHOICE_KEY = /^[A-Za-z0-9:_-]{5,160}$/;
 const VERSION = /^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$/;
 const TOKEN = /^[A-Za-z0-9._-]{32,32768}$/;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export type MissionRouteDependencies = {
   uuid: () => string;
@@ -48,6 +54,36 @@ function exactKeys(value: Record<string, unknown>, expected: readonly string[]):
   const actual = Object.keys(value).sort();
   const wanted = [...expected].sort();
   return actual.length === wanted.length && actual.every((key, index) => key === wanted[index]);
+}
+
+function activeTrafficQuery(request: Request) {
+  const search = new URL(request.url).searchParams;
+  const keys = [...new Set(search.keys())].sort();
+  const expected = ["lat", "lon", "radius_nm"];
+  if (
+    keys.length !== expected.length ||
+    !keys.every((key, index) => key === expected[index]) ||
+    expected.some((key) => search.getAll(key).length !== 1)
+  ) {
+    throw new ValidationError(400, "INVALID_REQUEST", "Active-flight traffic query is invalid");
+  }
+  const coordinates = validateCoordinates(search.get("lat"), search.get("lon"));
+  return {
+    latitude: coordinates.latitude,
+    longitude: coordinates.longitude,
+    radiusNm: clampRadiusNm(search.get("radius_nm")),
+  };
+}
+
+async function ownedLockedMission(db: D1Database, missionId: string, userId: string) {
+  if (!UUID.test(missionId)) {
+    throw new ApiHttpError(404, "NOT_FOUND", "Mission not found");
+  }
+  const mission = await getMissionById(db, missionId);
+  if (mission === null || mission.userId !== userId || mission.status !== "locked") {
+    throw new ApiHttpError(404, "NOT_FOUND", "Mission not found");
+  }
+  return mission;
 }
 
 function finite(value: unknown, min: number, max: number): value is number {
@@ -270,5 +306,97 @@ export function createMissionRoutes(
     },
   });
 
-  return [prepare, lock];
+  const traffic = defineRoute({
+    method: "GET",
+    path: "/api/missions/:missionId/traffic",
+    family: "mission-traffic",
+    boundary: "authenticated",
+    admission: "active-flight",
+    security: {
+      sameOrigin: "not-required",
+      csrf: "not-required",
+      idempotency: "not-required",
+      body: { kind: "none" },
+    },
+    limiter: { name: "missions", retryAfterSeconds: 5 },
+    validate: ({ request }) => activeTrafficQuery(request),
+    handler: async ({ context, params, validated, env }) => {
+      const runtime = env as Env;
+      const userId = authenticatedUserId(context);
+      const mission = await ownedLockedMission(runtime.DB, params.missionId ?? "", userId);
+      const query = validated as ReturnType<typeof activeTrafficQuery>;
+      let result;
+      try {
+        result = await dependencies.broker(runtime.ADSB_BROKER, {
+          type: "traffic",
+          forceMode: context.mode,
+          request: {
+            ...query,
+            audience: {
+              kind: "active-ghost",
+              userId,
+              missionId: mission.id,
+              selectedHex: mission.aircraftHex,
+            },
+          },
+        });
+      } catch (error) {
+        throw new ApiHttpError(
+          503,
+          "BROKER_UNAVAILABLE",
+          "Active-flight traffic is unavailable",
+          { cause: error },
+        );
+      }
+      if (result.type !== "traffic") {
+        throw new ApiHttpError(503, "BROKER_UNAVAILABLE", "Active-flight traffic response is invalid");
+      }
+      return { code: "MISSION_TRAFFIC_UPDATED" as const, data: result.traffic };
+    },
+  });
+
+  const release = defineRoute({
+    method: "POST",
+    path: "/api/missions/:missionId/release",
+    family: "mission-release",
+    boundary: "authenticated",
+    admission: "recovery",
+    security: {
+      sameOrigin: "required",
+      csrf: "required",
+      idempotency: "required",
+      body: { kind: "json", maxBytes: 64 },
+    },
+    limiter: { name: "missions", retryAfterSeconds: 5 },
+    validate: ({ body }) => {
+      if (!record(body) || Object.keys(body).length !== 0) {
+        throw new ValidationError(400, "INVALID_REQUEST", "Mission release request is invalid");
+      }
+      return body;
+    },
+    handler: async ({ context, params, env }) => {
+      const runtime = env as Env;
+      const userId = authenticatedUserId(context);
+      const mission = await ownedLockedMission(runtime.DB, params.missionId ?? "", userId);
+      let result;
+      try {
+        result = await dependencies.broker(runtime.ADSB_BROKER, {
+          type: "lease-release",
+          userId,
+          missionId: mission.id,
+        });
+      } catch (error) {
+        throw new ApiHttpError(503, "BROKER_UNAVAILABLE", "Flight lease release is unavailable", { cause: error });
+      }
+      if (result.type !== "lease" || (!result.allowed && result.reason !== "not-found")) {
+        throw new ApiHttpError(503, "BROKER_UNAVAILABLE", "Flight lease release was refused");
+      }
+      return {
+        code: "MISSION_LEASE_RELEASED" as const,
+        data: { released: true },
+      };
+    },
+  });
+
+  return [prepare, lock, traffic, release];
 }

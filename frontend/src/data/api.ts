@@ -80,6 +80,24 @@ export async function fetchTraffic(
   return { ...parsed.data, mode: parsed.mode };
 }
 
+export async function fetchActiveMissionTraffic(
+  missionId: string,
+  lat: number,
+  lon: number,
+  radiusNm: number,
+): Promise<TrafficFetchResult> {
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lon: String(lon),
+    radius_nm: String(radiusNm),
+  });
+  const res = await fetch(`/api/missions/${missionId}/traffic?${params}`, {
+    credentials: "same-origin",
+  });
+  const parsed = await readApiData<TrafficData>(res);
+  return { ...parsed.data, mode: parsed.mode };
+}
+
 /**
  * adsbdb enrichment for one contact. Two failure modes, not one: `!res.ok` means OUR backend
  * didn't answer (thrown as FeedDownError, same as the other endpoints); a 200 with

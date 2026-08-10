@@ -19,7 +19,9 @@ export default function ProfilePanel({
   const [handle, setHandle] = useState(profile.handle);
   const [lat, setLat] = useState(String(profile.center.lat));
   const [lon, setLon] = useState(String(profile.center.lon));
-  const [assist, setAssist] = useState(profile.defaultAssist);
+  const [assist, setAssist] = useState<SessionProfile["defaultAssist"]>(
+    profile.defaultAssist === "high" ? "medium" : profile.defaultAssist,
+  );
   const [coaching, setCoaching] = useState(profile.coachingEnabled);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -91,10 +93,9 @@ export default function ProfilePanel({
             value={assist}
             onChange={(event) => setAssist(event.target.value as SessionProfile["defaultAssist"])}
           >
-            <option value="none">NONE</option>
-            <option value="low">LOW</option>
-            <option value="medium">MEDIUM</option>
-            <option value="high">HIGH</option>
+            <option value="none">OFF</option>
+            <option value="low">NAV</option>
+            <option value="medium">FULL</option>
           </select>
           <label className="profile-checkbox label">
             <input type="checkbox" checked={coaching} onChange={(event) => setCoaching(event.target.checked)} />

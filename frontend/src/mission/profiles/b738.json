@@ -1,6 +1,6 @@
 {
   "classId": "b738",
-  "profileVersion": "mission-b738-2026-08-10-v1",
+  "profileVersion": "mission-b738-2026-08-10-v2",
   "assignmentVersion": "assignment-2026-08-10-v1",
   "scoringVersion": "scoring-2026-08-10-v1",
   "reachability": {
@@ -26,6 +26,13 @@
     "lightedBonus": 8,
     "hardSurfaceBonus": 10,
     "minutePenalty": 0.2
+  },
+  "guidance": {
+    "approachLengthNm": 10,
+    "corridorWidthFt": 1400,
+    "gateSpacingNm": 1,
+    "glideSlopeDeg": 3,
+    "flareHeightFt": 40
   },
   "landing": {
     "requireGearDown": true,

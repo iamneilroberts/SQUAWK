@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthClientError, postAuthenticatedJson } from "../auth/session";
 import type { MissionPreparationView } from "./contract";
-import { lockMission, prepareMission } from "./api";
+import { lockMission, prepareMission, releaseMissionLease } from "./api";
 
 vi.mock("../auth/session", () => ({
   AuthClientError: class AuthClientError extends Error {
@@ -79,6 +79,16 @@ describe("mission API client", () => {
       "/api/missions",
       expect.any(Object),
       "stable-retry-key",
+    );
+  });
+
+  it("reuses the supplied release key for explicit quit and pagehide retries", async () => {
+    vi.mocked(postAuthenticatedJson).mockResolvedValue({ released: true });
+    await releaseMissionLease(preparation.preparationId, "stable-release-key");
+    expect(postAuthenticatedJson).toHaveBeenCalledWith(
+      `/api/missions/${preparation.preparationId}/release`,
+      {},
+      "stable-release-key",
     );
   });
 });

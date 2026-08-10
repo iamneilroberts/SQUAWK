@@ -6,6 +6,7 @@ import type {
   MissionCommitState,
   ProvisionalBriefingState,
 } from "./briefingState";
+import { assistModeFromPreference } from "../mission/assists";
 
 const CLASS_LABELS: Record<AircraftClassId, string> = {
   c172s: "GENERAL AVIATION · C172S MODEL",
@@ -111,7 +112,7 @@ export default function MissionTray({
             <span>Runway</span><strong>{(authoritative?.selected ?? state.selected).runwayEndIdent} · {(authoritative?.selected ?? state.selected).runwayLengthFt.toFixed(0)} × {(authoritative?.selected ?? state.selected).runwayWidthFt.toFixed(0)} FT · {(authoritative?.selected ?? state.selected).runwaySurface}</strong>
             <span>Route</span><strong>{(authoritative?.selected ?? state.selected).distanceNm.toFixed(1)} NM · {(authoritative?.selected ?? state.selected).estimatedMinutes.toFixed(0)} MIN</strong>
             <span>Target</span><strong>0–100 AFTER SAFETY GATES</strong>
-            <span>Assists</span><strong>{profile?.defaultAssist.toUpperCase() ?? "FULL"}</strong>
+            <span>Assists</span><strong>{profile === null ? "FULL" : assistModeFromPreference(profile.defaultAssist)}</strong>
           </div>
 
           {(commitState.status === "idle" ||

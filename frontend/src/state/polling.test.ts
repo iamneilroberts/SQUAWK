@@ -5,8 +5,14 @@ import {
   useStore,
   type PollingVisibility,
 } from "./store";
-import { fetchConfig, fetchTraffic, type TrafficFetchResult } from "../data/api";
+import {
+  fetchActiveMissionTraffic,
+  fetchConfig,
+  fetchTraffic,
+  type TrafficFetchResult,
+} from "../data/api";
 import type { Contact } from "../data/types";
+import type { LockedMissionView } from "../mission/contract";
 
 vi.mock("../data/api", () => ({
   FeedDownError: class FeedDownError extends Error {
@@ -14,10 +20,12 @@ vi.mock("../data/api", () => ({
   },
   fetchConfig: vi.fn(),
   fetchTraffic: vi.fn(),
+  fetchActiveMissionTraffic: vi.fn(),
 }));
 
 const mockedFetchConfig = vi.mocked(fetchConfig);
 const mockedFetchTraffic = vi.mocked(fetchTraffic);
+const mockedFetchActiveMissionTraffic = vi.mocked(fetchActiveMissionTraffic);
 
 type FetchResult = TrafficFetchResult;
 
@@ -71,10 +79,20 @@ const trafficResult = (
   ...overrides,
 });
 
+const lockedMission = {
+  schemaVersion: 1,
+  missionId: "00000000-0000-4000-8000-000000000001",
+  status: "locked",
+  contact: contact("abc123"),
+  assist: "medium",
+} as LockedMissionView;
+
 beforeEach(() => {
   vi.useFakeTimers();
   mockedFetchConfig.mockReset();
   mockedFetchTraffic.mockReset();
+  mockedFetchActiveMissionTraffic.mockReset();
+  useStore.getState().resetSession();
   useStore.getState().applyFetch(trafficResult());
   useStore.getState().setSavedCenter(null);
   useStore.getState().setPollingIdentity("anonymous");
@@ -147,6 +165,42 @@ describe("startTrafficPolling radius", () => {
 
     stop();
     useStore.getState().setRadiusNm(80); // reset for other tests sharing the singleton store
+  });
+
+  it("uses the active mission endpoint, simulator position, and same bounded radius", async () => {
+    mockedFetchConfig.mockResolvedValue({ home: { lat: 1, lon: 2 } });
+    mockedFetchActiveMissionTraffic.mockResolvedValue(trafficResult());
+    useStore.getState().startLockedMission(lockedMission);
+
+    const stop = startTrafficPolling({
+      intervalMs: 1000,
+      activePosition: () => ({ lat: 31, lon: -87 }),
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(mockedFetchActiveMissionTraffic).toHaveBeenCalledWith(
+      lockedMission.missionId,
+      31,
+      -87,
+      80,
+    );
+    expect(mockedFetchTraffic).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("keeps the locked local simulation running when active traffic is unavailable", async () => {
+    mockedFetchConfig.mockResolvedValue({ home: { lat: 1, lon: 2 } });
+    mockedFetchActiveMissionTraffic.mockRejectedValue(new Error("network lost"));
+    useStore.getState().startLockedMission(lockedMission);
+    useStore.getState().fire("COUNTDOWN_DONE");
+
+    const stop = startTrafficPolling({ intervalMs: 1000 });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(useStore.getState().mode).toBe("FLYING");
+    expect(useStore.getState().lockedMission?.missionId).toBe(lockedMission.missionId);
+    expect(useStore.getState().feedStatus).toBe("stale");
+    stop();
   });
 
   it("uses the authenticated saved center once config establishes the fallback", async () => {

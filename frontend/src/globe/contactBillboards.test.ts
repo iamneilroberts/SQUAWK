@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { contactHeightM, diffContacts, renderableContacts } from "./contactBillboards";
+import {
+  contactAlpha,
+  contactHeightM,
+  diffContacts,
+  renderableContacts,
+} from "./contactBillboards";
 import { ftToM } from "../sim/units";
 import type { Contact } from "../data/types";
 
@@ -51,5 +56,14 @@ describe("renderableContacts", () => {
     const map = new Map([["a", contact("a")]]);
     expect(renderableContacts(map)).not.toBe(map);
     expect(map.size).toBe(1);
+  });
+});
+
+describe("traffic freshness presentation", () => {
+  it("fades frozen ambient traffic and fades the already-translucent ghost further", () => {
+    expect(contactAlpha(false, "live")).toBe(1);
+    expect(contactAlpha(true, "live")).toBe(0.35);
+    expect(contactAlpha(false, "stale")).toBe(0.3);
+    expect(contactAlpha(true, "offline")).toBe(0.18);
   });
 });

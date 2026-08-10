@@ -21,6 +21,7 @@ import { qRotate, quatFromHpr } from "../sim/quat";
 import { degToRad, fpmToMs, ftToM, ktToMs, msToKt, mToFt } from "../sim/units";
 import { vDot } from "../sim/vec3";
 import { refreshDerived } from "../sim/aircraft";
+import type { AircraftClassId } from "../mission/types";
 
 const G0 = 9.80665;
 /** Minimum clearance when a pressure altitude has to be clamped onto real terrain. */
@@ -35,6 +36,18 @@ export type SpawnResult = {
   adjustments: SpawnAdjustment[];
   altitudeSource: "alt_geom" | "alt_baro";
 };
+
+export function buildLockedMissionSpawn(
+  contact: Contact,
+  classId: AircraftClassId,
+  aircraftProfile: ClassParams,
+  opts: { terrainHeightM: number | null },
+): SpawnResult {
+  if (aircraftProfile.id !== classId) {
+    throw new TypeError("Locked aircraft profile does not match the mission class");
+  }
+  return buildSpawnState(contact, aircraftProfile, opts);
+}
 
 export function buildSpawnState(
   contact: Contact,
