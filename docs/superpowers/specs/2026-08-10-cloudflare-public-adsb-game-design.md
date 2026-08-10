@@ -29,6 +29,7 @@ anonymous live browse
 | Area | Decision |
 |---|---|
 | Public access | Browse anonymously; authentication begins at `TAKE CONTROLS` |
+| Main-page guidance | A prominent, dismissible `HOW TO FLY` quick-start notice explains select aircraft -> review route -> take controls -> follow guidance -> land; a persistent help control reopens it |
 | User location | Save a changeable home center in the user profile |
 | Cache behavior | The exact preference maps to a shared normalized geographic region; exact coordinates never create unbounded cache keys |
 | Briefing UI | Map-first mission tray, responsive as a bottom sheet on phones |
@@ -46,21 +47,24 @@ anonymous live browse
 
 1. The PWA opens at the saved home center for a returning user, or at a default discovery
    center for an anonymous visitor.
-2. The visitor pans, searches, filters, and selects live traffic without registering.
-3. A supported airborne aircraft opens the mission tray immediately. The browser uses the
+2. A prominent `HOW TO FLY` notice explains the complete mission loop on first arrival.
+   It is dismissible so it does not permanently cover the map, and a persistent help control
+   reopens it on desktop or mobile.
+3. The visitor pans, searches, filters, and selects live traffic without registering.
+4. A supported airborne aircraft opens the mission tray immediately. The browser uses the
    current traffic snapshot and versioned airport data to preview a destination, runway,
    route, estimated flight time, class, assist level, and scoring target.
-4. The player may choose another airport only from the class-, runway-, and 30-minute-
+5. The player may choose another airport only from the class-, runway-, and 30-minute-
    eligible alternatives.
-5. `TAKE CONTROLS` starts magic-link authentication. The link returns to the same briefing.
-6. Authentication delay may make the preview stale, so the Worker obtains fresh aircraft
+6. `TAKE CONTROLS` starts magic-link authentication. The link returns to the same briefing.
+7. Authentication delay may make the preview stale, so the Worker obtains fresh aircraft
    state and recomputes the mission. If the route changed, the new briefing must be shown
    and confirmed rather than silently substituted.
-7. Starting freezes the authoritative aircraft snapshot, destination, runway, assists,
+8. Starting freezes the authoritative aircraft snapshot, destination, runway, assists,
    aircraft-profile version, and scoring version in one mission record.
-8. The browser runs the physics. ADS-B refreshes only the real-aircraft ghost and ambient
+9. The browser runs the physics. ADS-B refreshes only the real-aircraft ghost and ambient
    traffic; neither can affect player physics.
-9. The landing passes or fails class-specific safety gates. A successful landing receives
+10. The landing passes or fails class-specific safety gates. A successful landing receives
    a 0–100 score and can be submitted to the matching class/assist leaderboard.
 
 ### 1.3 Installation and degraded access
