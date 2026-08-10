@@ -22,10 +22,17 @@ import {
   type SessionProfile,
 } from "./auth/session";
 import ProfilePanel from "./profile/ProfilePanel";
+import QuickStartNotice from "./briefing/QuickStartNotice";
+import { dismissQuickStart, shouldShowQuickStart } from "./briefing/quickStartState";
+import MissionTray from "./briefing/MissionTray";
+import { assignmentKey, useProvisionalBriefing } from "./briefing/briefingState";
 
 export default function App({ initialAuthToken = null }: { initialAuthToken?: string | null }) {
   const mode = useStore((s) => s.mode);
   const contacts = useStore((s) => s.contacts);
+  const selectedHex = useStore((s) => s.selectedHex);
+  const feedStatus = useStore((s) => s.feedStatus);
+  const providerAvailable = useStore((s) => s.providerAvailable);
   const [returnToken, setReturnToken] = useState(initialAuthToken);
   const [profile, setProfile] = useState<SessionProfile | null>(null);
   const [authStatus, setAuthStatus] = useState<"loading" | "anonymous" | "authenticated">("loading");
@@ -33,6 +40,10 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
   const [signInOpen, setSignInOpen] = useState(false);
   const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null);
   const [pendingBriefing, setPendingBriefing] = useState<ProvisionalBriefingReference | null>(null);
+  const [quickStartOpen, setQuickStartOpen] = useState(() =>
+    shouldShowQuickStart(typeof window === "undefined" ? null : window.localStorage));
+  const [contactFocusRequest, setContactFocusRequest] = useState(0);
+  const [preparationNotice, setPreparationNotice] = useState(false);
 
   const applyProfile = useCallback((nextProfile: SessionProfile) => {
     setProfile(nextProfile);
@@ -112,15 +123,33 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
 
   useEffect(() => {
     if (pendingBriefing === null || !contacts.has(pendingBriefing.aircraftHex)) return;
-    useStore.getState().select(pendingBriefing.aircraftHex);
-    setPendingBriefing(null);
-  }, [contacts, pendingBriefing]);
+    if (selectedHex !== pendingBriefing.aircraftHex) {
+      useStore.getState().select(pendingBriefing.aircraftHex);
+    }
+  }, [contacts, pendingBriefing, selectedHex]);
 
-  // Deep-link auto-takeover (?takeover=<hex>): fires the real ContactList take-control path once
-  // the target lands on the feed and is eligible; returns an honest fallback message otherwise.
-  // No `?takeover` param → the hook returns null and does nothing, so desktop behaviour is
-  // byte-identical to before.
-  const takeoverMessage = useUrlTakeover({ authStatus, onSignInRequired: requireSignIn });
+  const selectedContact = selectedHex === null ? null : contacts.get(selectedHex) ?? null;
+  const briefing = useProvisionalBriefing({
+    contact: selectedContact,
+    feedStatus,
+    providerAvailable,
+  });
+
+  useEffect(() => {
+    if (pendingBriefing === null || briefing.state.status === "idle" || briefing.state.status === "loading") return;
+    if (briefing.state.contact.hex !== pendingBriefing.aircraftHex) return;
+    if (briefing.state.status === "ready" && pendingBriefing.airportIcao && pendingBriefing.runwayIdent) {
+      const restored = [briefing.state.assignment.best, ...briefing.state.assignment.alternatives]
+        .find((choice) => choice.airportIdent === pendingBriefing.airportIcao &&
+          choice.runwayEndIdent === pendingBriefing.runwayIdent);
+      if (restored) briefing.selectAssignment(assignmentKey(restored));
+    }
+    setPendingBriefing(null);
+  }, [briefing, pendingBriefing]);
+
+  // A legacy ?takeover=<hex> link now opens the same provisional briefing as a map/list
+  // selection. It cannot bypass the mission overview, authentication, or later revalidation.
+  const takeoverMessage = useUrlTakeover();
   const immersive = useStore((s) => s.immersive);
   const chromeVisible = useStore((s) => s.chromeVisible);
   // Bridged up from ViewerHost's bundle, not zustand: StatusBar is a flex sibling of
@@ -142,20 +171,98 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
   const immersiveActive = isImmersiveActive(immersive, narrow, mode);
   const statusFaded = immersiveActive && !chromeVisible;
 
+  const focusContacts = useCallback(() => {
+    if (browseDrawer) setContactsOpen(true);
+    setContactFocusRequest((request) => request + 1);
+  }, [browseDrawer]);
+
+  const dismissGuide = useCallback(() => {
+    try {
+      dismissQuickStart(localStorage);
+    } catch {
+      // Dismiss for this render even when storage is unavailable.
+    }
+    setQuickStartOpen(false);
+  }, []);
+
+  const takeControls = useCallback(() => {
+    if (briefing.state.status !== "ready") return;
+    if (authStatus !== "authenticated") {
+      try {
+        saveProvisionalBriefing(sessionStorage, {
+          aircraftHex: briefing.state.contact.hex,
+          airportIcao: briefing.state.selected.airportIdent,
+          runwayIdent: briefing.state.selected.runwayEndIdent,
+        });
+      } catch {
+        // Authentication remains available without restorable provisional state.
+      }
+      setSignInOpen(true);
+      return;
+    }
+    setPreparationNotice(true);
+  }, [authStatus, briefing.state]);
+
+  const route = briefing.state.status === "ready"
+    ? { contact: briefing.state.contact, assignment: briefing.state.selected }
+    : null;
+
   return (
     <div className="flex h-full w-full flex-col">
       <div className="flex flex-1 overflow-hidden">
         <div className="relative flex-1">
           <ViewerHost onTerrainNoteChange={setTerrainNote}>
             <ContactLayer />
-            <OverlayLayers />
+            <OverlayLayers route={route} />
             <FlightSession />
           </ViewerHost>
+          {mode === "BROWSE" && (
+            <button
+              type="button"
+              className="status-chip-button quick-start-help"
+              onClick={() => {
+                useStore.getState().select(null);
+                setPreparationNotice(false);
+                setQuickStartOpen(true);
+              }}
+            >
+              How to fly
+            </button>
+          )}
+          {mode === "BROWSE" && quickStartOpen && selectedHex === null && (
+            <QuickStartNotice
+              onDismiss={dismissGuide}
+              onSelectPlane={() => {
+                dismissGuide();
+                focusContacts();
+              }}
+            />
+          )}
+          {mode === "BROWSE" && (
+            <MissionTray
+              state={briefing.state}
+              profile={profile}
+              onClose={() => {
+                useStore.getState().select(null);
+                setPreparationNotice(false);
+              }}
+              onSelectAssignment={(key) => {
+                briefing.selectAssignment(key);
+                setPreparationNotice(false);
+              }}
+              onTakeControls={takeControls}
+            />
+          )}
+          {preparationNotice && mode === "BROWSE" && (
+            <div className="takeover-banner" role="status">
+              MISSION CONFIRMATION AND SERVER LOCK CONTINUE IN TASK 9.
+            </div>
+          )}
           {browseDrawer && contactsOpen && (
             <div className="contact-drawer">
               <ContactList
-                authenticated={authStatus === "authenticated"}
-                onSignInRequired={requireSignIn}
+                focusRequest={contactFocusRequest}
+                onSelected={() => setContactsOpen(false)}
               />
             </div>
           )}
@@ -202,10 +309,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
         </div>
         {mode === "BROWSE" && !narrow && (
           <div className="w-80 flex-none">
-            <ContactList
-              authenticated={authStatus === "authenticated"}
-              onSignInRequired={requireSignIn}
-            />
+            <ContactList focusRequest={contactFocusRequest} />
           </div>
         )}
       </div>

@@ -74,12 +74,19 @@ body {
 /* ---- contact list rows: left-aligned identity, right-aligned numeric readout ---- */
 .contact-row {
   display: flex;
+  width: 100%;
   align-items: center;
   gap: 8px;
   padding: 4px 8px;
+  border: 0;
   border-bottom: 1px solid var(--grid);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
   cursor: pointer;
+  font-family: var(--mono);
   font-size: 12px;
+  text-align: left;
 }
 .contact-row:hover {
   background: rgba(95, 215, 224, 0.08);
@@ -102,6 +109,29 @@ body {
   flex: 1 1 0;
   text-align: right;
 }
+
+.contact-list-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--grid);
+}
+.contact-search,
+.contact-filter {
+  min-width: 0;
+  border: 1px solid var(--grid);
+  border-radius: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 10px var(--mono);
+  letter-spacing: 0.04em;
+}
+.contact-search { width: 100%; padding: 5px 6px; }
+.contact-filter { padding: 4px; }
+.contact-search:focus,
+.contact-filter:focus { outline: 1px solid var(--cyan); outline-offset: 1px; }
+.contact-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
 
 /* ---- disabled console control: inert, not a fake affordance ---- */
 .control-button-disabled {
@@ -324,8 +354,114 @@ body {
   border-radius: 0;
 }
 .control-button:hover { background: rgba(95, 215, 224, 0.12); }
+.control-button:focus-visible,
+.status-chip-button:focus-visible,
+.auth-close:focus-visible,
+.mission-alternative:focus-visible,
+.contact-row:focus-visible {
+  outline: 1px solid var(--amber);
+  outline-offset: 2px;
+}
 .takeover-reason { color: var(--amber); padding-top: 4px; }
 .contact-select-hint { color: var(--cyan); text-align: center; opacity: 0.75; }
+
+/* ---- public browse guide and provisional mission briefing (Task 8) ---- */
+.quick-start-help {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 32;
+}
+.quick-start {
+  position: absolute;
+  top: 48px;
+  left: 12px;
+  z-index: 25;
+  width: min(390px, calc(100% - 24px));
+  padding: 14px 16px;
+  pointer-events: auto;
+}
+.quick-start-heading,
+.mission-tray-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.quick-start-heading h1,
+.mission-tray-heading h2 { font-size: 15px; font-weight: 600; }
+.quick-start-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 14px 0 14px 22px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.quick-start-steps li::marker { color: var(--amber); }
+.quick-start-action { width: 100%; justify-content: center; }
+
+.mission-tray {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 24;
+  width: min(470px, calc(100% - 24px));
+  max-height: calc(100% - 64px);
+  overflow-y: auto;
+  padding: 12px 14px;
+  pointer-events: auto;
+}
+.mission-disclosure {
+  margin: 10px 0;
+  padding: 6px 8px;
+  border-left: 1px solid var(--amber);
+  color: var(--text);
+  font-size: 9px;
+  line-height: 1.45;
+  letter-spacing: 0.05em;
+}
+.mission-state {
+  padding: 16px 4px;
+  color: var(--cyan);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+.mission-state-warn { color: var(--amber); }
+.mission-state-note { margin-top: 8px; color: var(--text); font-size: 9px; line-height: 1.5; }
+.mission-grid {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 5px 12px;
+  font-size: 10px;
+}
+.mission-grid > span { color: var(--text); opacity: 0.65; text-transform: uppercase; }
+.mission-grid > strong { color: var(--cyan); font-weight: 400; overflow-wrap: anywhere; }
+.mission-section-label { margin: 12px 0 5px; color: var(--text); }
+.mission-alternative-list { display: flex; flex-direction: column; max-height: 150px; overflow-y: auto; }
+.mission-alternative {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 5px 6px;
+  border: 0;
+  border-bottom: 1px solid var(--grid);
+  border-left: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font: 9px var(--mono);
+  text-align: left;
+  cursor: pointer;
+}
+.mission-alternative:hover { background: rgba(95, 215, 224, 0.08); }
+.mission-alternative-active { border-left-color: var(--cyan); color: var(--cyan); background: rgba(95, 215, 224, 0.12); }
+.mission-take-controls { width: 100%; justify-content: center; margin-top: 12px; }
+.mission-auth-note { margin-top: 5px; text-align: center; color: var(--amber); }
 
 /* ---- handoff card ---- */
 .handoff-card {
@@ -880,6 +1016,26 @@ body {
   .control-button-disabled { width: auto; }
   .dash-panel-header { min-height: 44px; }
   .contact-row { min-height: 44px; padding: 8px; }
+  .contact-search,
+  .contact-filter { min-height: 38px; }
+
+  .quick-start-help {
+    top: max(8px, env(safe-area-inset-top));
+    left: max(8px, env(safe-area-inset-left));
+  }
+  .quick-start,
+  .mission-tray {
+    top: auto;
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+    bottom: max(70px, calc(env(safe-area-inset-bottom) + 62px));
+    width: auto;
+    max-height: min(66vh, calc(100% - 120px));
+  }
+  .quick-start { padding: 12px; }
+  .quick-start-steps { gap: 5px; margin-top: 10px; margin-bottom: 10px; }
+  .mission-tray { padding: 10px 11px; }
+  .mission-alternative { min-height: 44px; align-items: center; }
 
   /* HUD shrinks to fit: readouts via a clamp() that tops out at the desktop size, gaps tighten.
      The SIM banner, warnings, heading and attribution are never dropped (spec §2.2 / §4). */
@@ -903,6 +1059,18 @@ body {
   }
   .dash-strip-closed { flex-direction: row; }
   .dash-panel { width: 100%; }
+}
+
+@media (max-width: 380px) {
+  .contact-filters { grid-template-columns: 1fr; }
+  .mission-grid { grid-template-columns: 1fr; gap: 2px; }
+  .mission-grid > strong { margin-bottom: 4px; }
+  .mission-alternative { flex-direction: column; gap: 2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-start,
+  .mission-tray { scroll-behavior: auto; }
 }
 
 /* ================================================================================

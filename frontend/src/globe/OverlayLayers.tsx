@@ -10,6 +10,9 @@
 import { useEffect, useRef } from "react";
 import { Math as CesiumMath } from "cesium";
 import { useStore } from "../state/store";
+import type { Contact } from "../data/types";
+import type { RunwayAssignment } from "../mission/types";
+import RoutePreview from "../briefing/RoutePreview";
 import { useViewer } from "./viewerContext";
 import { applyBasemap, createBasemapRef, disposeBasemap } from "./basemap";
 import {
@@ -17,7 +20,11 @@ import {
 } from "./labelLayers";
 import { loadAirports, visibleAirports } from "../data/airports";
 
-export default function OverlayLayers() {
+export default function OverlayLayers({
+  route,
+}: {
+  route?: { contact: Contact; assignment: RunwayAssignment } | null;
+}) {
   const bundle = useViewer();
   const basemap = useStore((s) => s.basemap);
   const labelsOn = useStore((s) => s.labelsOn);
@@ -88,5 +95,5 @@ export default function OverlayLayers() {
     };
   }, [bundle?.viewer, bundle?.labels, labelsOn]);
 
-  return null;
+  return route ? <RoutePreview contact={route.contact} assignment={route.assignment} /> : null;
 }

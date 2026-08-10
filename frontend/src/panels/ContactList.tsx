@@ -1,13 +1,50 @@
 /*
  * Right-rail contact list: one row per live contact, sorted callsign-then-hex, synced
- * bidirectionally with the globe's selection via the shared store. Selecting a contact
- * reveals the TAKE CONTROLS button, enabled only when checkEligibility passes; when
- * disabled, its tooltip and the label beneath it name the failing gate.
+ * bidirectionally with the globe's selection via the shared store. Selecting a contact opens
+ * the map-first provisional MissionTray; authentication and controls live there, not in rows.
  */
+import { useEffect, useRef, useState } from "react";
 import { useStore } from "../state/store";
 import type { Contact } from "../data/types";
-import { checkEligibility } from "../takeover/eligibility";
-import { saveProvisionalBriefing } from "../auth/session";
+import { checkEligibility, resolveClass } from "../takeover/eligibility";
+
+export type ContactClassFilter = "all" | "c172s" | "b738" | "f5e" | "unsupported";
+export type ContactAltitudeFilter = "all" | "low" | "mid" | "high";
+export type ContactEligibilityFilter = "all" | "eligible" | "ineligible";
+
+export type ContactFilters = {
+  query: string;
+  classId: ContactClassFilter;
+  altitude: ContactAltitudeFilter;
+  eligibility: ContactEligibilityFilter;
+};
+
+function altitudeFt(contact: Contact): number | null {
+  return contact.alt_geom ?? (typeof contact.alt_baro === "number" ? contact.alt_baro : null);
+}
+
+export function filterContacts(contacts: Contact[], filters: ContactFilters): Contact[] {
+  const query = filters.query.trim().toLowerCase();
+  return contacts.filter((contact) => {
+    if (query !== "" && ![contact.flight, contact.hex, contact.t]
+      .some((value) => value?.toLowerCase().includes(query))) return false;
+
+    const resolved = resolveClass(contact);
+    if (filters.classId === "unsupported" && resolved.supported) return false;
+    if (filters.classId !== "all" && filters.classId !== "unsupported" &&
+        (!resolved.supported || resolved.classId !== filters.classId)) return false;
+
+    const altitude = altitudeFt(contact);
+    if (filters.altitude === "low" && (altitude === null || altitude >= 5_000)) return false;
+    if (filters.altitude === "mid" && (altitude === null || altitude < 5_000 || altitude >= 20_000)) return false;
+    if (filters.altitude === "high" && (altitude === null || altitude < 20_000)) return false;
+
+    const eligible = checkEligibility(contact).eligible;
+    if (filters.eligibility === "eligible" && !eligible) return false;
+    if (filters.eligibility === "ineligible" && eligible) return false;
+    return true;
+  });
+}
 
 /**
  * Sorts by `flight ?? ""` via `localeCompare`, hex as tiebreaker. Contacts with no
@@ -42,38 +79,102 @@ export function formatGs(c: Contact): string {
 export function selectionHint(selectedHex: string | null, rowCount: number): string | null {
   if (selectedHex !== null) return null;
   if (rowCount === 0) return null;
-  return "SELECT A CONTACT TO TAKE CONTROLS";
+  return "SELECT A CONTACT FOR MISSION BRIEFING";
 }
 
 export default function ContactList({
-  authenticated = false,
-  onSignInRequired,
+  focusRequest = 0,
+  onSelected,
 }: {
-  authenticated?: boolean;
-  onSignInRequired?: (aircraftHex: string) => void;
+  focusRequest?: number;
+  onSelected?: (aircraftHex: string) => void;
 }) {
   const contacts = useStore((s) => s.contacts);
   const selectedHex = useStore((s) => s.selectedHex);
   const feedStatus = useStore((s) => s.feedStatus);
   const select = useStore((s) => s.select);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const [filters, setFilters] = useState<ContactFilters>({
+    query: "",
+    classId: "all",
+    altitude: "all",
+    eligibility: "all",
+  });
 
-  const rows = sortContacts(Array.from(contacts.values()));
-  const selected = selectedHex === null ? null : contacts.get(selectedHex) ?? null;
-  const eligibility = checkEligibility(selected);
+  useEffect(() => {
+    if (focusRequest > 0) searchRef.current?.focus();
+  }, [focusRequest]);
+
+  const rows = sortContacts(filterContacts(Array.from(contacts.values()), filters));
   const hint = selectionHint(selectedHex, rows.length);
 
   return (
     <div className="panel flex h-full flex-col">
-      <div className="label px-2 py-1">Contacts</div>
+      <div className="contact-list-header">
+        <label className="label" htmlFor={`contact-search-${focusRequest}`}>Contacts · {rows.length}</label>
+        <input
+          ref={searchRef}
+          id={`contact-search-${focusRequest}`}
+          className="contact-search"
+          data-testid="contact-search"
+          type="search"
+          value={filters.query}
+          placeholder="CALLSIGN / HEX / TYPE"
+          aria-label="Search contacts by callsign, hex, or aircraft type"
+          onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))}
+        />
+        <div className="contact-filters">
+          <select
+            className="contact-filter"
+            aria-label="Filter contacts by aircraft class"
+            value={filters.classId}
+            onChange={(event) => setFilters((current) => ({ ...current, classId: event.target.value as ContactClassFilter }))}
+          >
+            <option value="all">ALL CLASSES</option>
+            <option value="c172s">GA</option>
+            <option value="b738">AIRLINER</option>
+            <option value="f5e">FIGHTER</option>
+            <option value="unsupported">UNSUPPORTED</option>
+          </select>
+          <select
+            className="contact-filter"
+            aria-label="Filter contacts by altitude"
+            value={filters.altitude}
+            onChange={(event) => setFilters((current) => ({ ...current, altitude: event.target.value as ContactAltitudeFilter }))}
+          >
+            <option value="all">ALL ALT</option>
+            <option value="low">&lt; 5K FT</option>
+            <option value="mid">5–20K FT</option>
+            <option value="high">20K+ FT</option>
+          </select>
+          <select
+            className="contact-filter"
+            aria-label="Filter contacts by mission eligibility"
+            value={filters.eligibility}
+            onChange={(event) => setFilters((current) => ({ ...current, eligibility: event.target.value as ContactEligibilityFilter }))}
+          >
+            <option value="all">ALL STATUS</option>
+            <option value="eligible">ELIGIBLE</option>
+            <option value="ineligible">INELIGIBLE</option>
+          </select>
+        </div>
+      </div>
 
       <div className="flex-1 overflow-y-auto min-h-0">
         {rows.length === 0 ? (
-          <div className="label p-2">NO CONTACTS — {feedStatus.toUpperCase()}</div>
+          <div className="label p-2">
+            {contacts.size === 0 ? `NO CONTACTS — ${feedStatus.toUpperCase()}` : "NO CONTACTS MATCH FILTERS"}
+          </div>
         ) : (
           rows.map((c) => (
-            <div
+            <button
+              type="button"
               key={c.hex}
-              onClick={() => select(c.hex)}
+              onClick={() => {
+                select(c.hex);
+                onSelected?.(c.hex);
+              }}
+              aria-pressed={c.hex === selectedHex}
               className={
                 "contact-row" +
                 (c.military ? " contact-row-military" : "") +
@@ -84,39 +185,12 @@ export default function ContactList({
               <span className="contact-cell-id">{c.t ?? "—"}</span>
               <span className="contact-cell-num">{formatAlt(c)}</span>
               <span className="contact-cell-num">{formatGs(c)}</span>
-            </div>
+            </button>
           ))
         )}
       </div>
 
-      {selectedHex !== null ? (
-        <div className="p-2">
-          <button
-            disabled={!eligibility.eligible}
-            title={eligibility.eligible ? "Take controls of this contact" : eligibility.reason}
-            className={eligibility.eligible ? "control-button w-full" : "control-button-disabled w-full"}
-            onClick={() => {
-              // Freeze the snapshot NOW: applyFetch nulls selectedHex the moment the
-              // contact leaves the feed, and the origin must survive that (spec §4).
-              if (!eligibility.eligible || selected === null) return;
-              if (!authenticated) {
-                try {
-                  saveProvisionalBriefing(sessionStorage, { aircraftHex: selected.hex });
-                } catch {
-                  // Sign-in can continue without restorable provisional state.
-                }
-                onSignInRequired?.(selected.hex);
-                return;
-              }
-              useStore.getState().setOrigin({ hex: selected.hex, snapshot: { ...selected } });
-              useStore.getState().fire("TAKE_CONTROLS");
-            }}
-          >
-            TAKE CONTROLS
-          </button>
-          {!eligibility.eligible && <div className="label takeover-reason">{eligibility.reason}</div>}
-        </div>
-      ) : hint !== null ? (
+      {hint !== null ? (
         <div className="p-2">
           <div className="label contact-select-hint">{hint}</div>
         </div>

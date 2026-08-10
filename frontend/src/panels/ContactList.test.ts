@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sortContacts, formatAlt, formatGs, selectionHint } from "./ContactList";
+import { filterContacts, sortContacts, formatAlt, formatGs, selectionHint } from "./ContactList";
 import type { Contact } from "../data/types";
 
 const contact = (overrides: Partial<Contact> = {}): Contact => ({
@@ -44,12 +44,40 @@ describe("formatGs", () => {
 
 describe("selectionHint", () => {
   it("prompts to select when contacts exist but none is chosen (the discoverability fix)", () => {
-    expect(selectionHint(null, 5)).toBe("SELECT A CONTACT TO TAKE CONTROLS");
+    expect(selectionHint(null, 5)).toBe("SELECT A CONTACT FOR MISSION BRIEFING");
   });
   it("shows no hint once a contact is selected — the TAKE CONTROLS button replaces it", () => {
     expect(selectionHint("abc123", 5)).toBeNull();
   });
   it("shows no hint when the list is empty — the NO CONTACTS line already explains the blank", () => {
     expect(selectionHint(null, 0)).toBeNull();
+  });
+});
+
+describe("filterContacts", () => {
+  const all = { query: "", classId: "all", altitude: "all", eligibility: "all" } as const;
+
+  it("searches callsign, hex, and type without changing contact truth", () => {
+    const contacts = [
+      contact({ hex: "a0b1c2", flight: "DAL123", t: "B738" }),
+      contact({ hex: "d0e1f2", flight: "N172", t: "C172" }),
+    ];
+    expect(filterContacts(contacts, { ...all, query: "dal" }).map((item) => item.hex)).toEqual(["a0b1c2"]);
+    expect(filterContacts(contacts, { ...all, query: "D0E1" }).map((item) => item.hex)).toEqual(["d0e1f2"]);
+    expect(filterContacts(contacts, { ...all, query: "b738" }).map((item) => item.hex)).toEqual(["a0b1c2"]);
+  });
+
+  it("combines class, altitude, and eligibility filters", () => {
+    const contacts = [
+      contact({ hex: "a0b1c2", t: "B738", alt_geom: 25_000 }),
+      contact({ hex: "d0e1f2", t: "C172", alt_geom: 3_000 }),
+      contact({ hex: "001122", t: "C130", alt_geom: 10_000 }),
+      contact({ hex: "334455", t: "C172", alt_geom: 3_000, seen_pos: 40 }),
+    ];
+    expect(filterContacts(contacts, { ...all, classId: "b738", altitude: "high", eligibility: "eligible" })
+      .map((item) => item.hex)).toEqual(["a0b1c2"]);
+    expect(filterContacts(contacts, { ...all, classId: "unsupported" }).map((item) => item.hex)).toEqual(["001122"]);
+    expect(filterContacts(contacts, { ...all, eligibility: "ineligible" }).map((item) => item.hex))
+      .toEqual(["001122", "334455"]);
   });
 });

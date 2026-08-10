@@ -19,6 +19,7 @@ export default function ContactLayer() {
   const contacts = useStore((s) => s.contacts);
   const selectedHex = useStore((s) => s.selectedHex);
   const home = useStore((s) => s.home);
+  const savedCenter = useStore((s) => s.savedCenter);
   const mode = useStore((s) => s.mode);
   const origin = useStore((s) => s.origin);
   const feedStatus = useStore((s) => s.feedStatus);
@@ -30,12 +31,13 @@ export default function ContactLayer() {
   // whole mount, but the bundle object is rebuilt when terrainNote resolves (~1s in), and
   // depending on the whole object would re-fire this and snap a mid-pan user back home.
   useEffect(() => {
-    if (!home || !bundle || mode !== "BROWSE") return;
+    const center = savedCenter ?? home;
+    if (!center || !bundle || mode !== "BROWSE") return;
     bundle.viewer.camera.setView({
-      destination: Cartesian3.fromDegrees(home.lon, home.lat, BROWSE_HEIGHT_M),
+      destination: Cartesian3.fromDegrees(center.lon, center.lat, BROWSE_HEIGHT_M),
       orientation: { heading: 0, pitch: -CesiumMath.PI_OVER_TWO, roll: 0 },
     });
-  }, [home, bundle?.viewer, mode]);
+  }, [home, savedCenter, bundle?.viewer, mode]);
 
   useEffect(() => {
     if (!bundle) return;

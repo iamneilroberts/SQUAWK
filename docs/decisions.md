@@ -1602,3 +1602,37 @@ verification authority.
 characters. It must be supplied through local secret state or Wrangler secret management and
 must never be committed. Same-origin enforcement, the custom request header, idempotency keys,
 the `__Host-adsb_session` cookie, and session revocation remain independent defense layers.
+
+## 2026-08-10 — CF-008 · Browse selection creates a provisional route, never an immediate flight
+
+The public browse page now explains the full mission loop before asking for identity. A prominent
+five-step `HOW TO FLY` panel appears on the first visit, can be dismissed under a versioned local
+key, and remains reachable from a persistent browse control. Its `SELECT A PLANE` action only
+opens and focuses the real contact list. It cannot select or invent an aircraft. Desktop keeps a
+compact map overlay; narrow screens use a safe-area-aware bottom sheet with 44-pixel controls,
+and the guide never mounts at the same time as a selected-aircraft mission tray.
+
+Contact rows are keyboard-operable buttons with callsign/hex/type search and independent class,
+altitude, and eligibility filters. Filtering never mutates the traffic map or claims new data.
+Anonymous sessions keep the configured discovery center, while a signed session moves both the
+traffic request and browse camera to the exact saved center returned by `GET /api/me`.
+
+Selecting a live contact now freezes one provisional ADS-B snapshot, resolves its supported
+class, loads only the intersecting immutable airport shards, and runs the same versioned pure
+assignment engine used by the Worker. The tray shows real identity and age, the explicit
+real-position-to-simulated-model disclosure, class, assigned airport/runway, distance, ETA,
+scoring target, assist preference, and every returned eligible alternative. Choosing an
+alternative is validated against that returned set and changes only the preview route. A Cesium
+geodesic and runway marker keep route geometry primary on the map.
+
+Unsupported type, stale position/feed, provider outage, no eligible runway, and airport-data
+failure are distinct refusal states; none exposes `TAKE CONTROLS`. A ready signed-out briefing
+saves only its bounded aircraft/airport/runway reference and opens the existing magic-link sheet.
+After return, that reference is restored only if the live aircraft and returned eligible choice
+still exist. A signed-in click enters the Task 9 preparation boundary and does not start the
+legacy simulator directly.
+
+The legacy `?takeover=<hex>` spelling remains accepted for compatibility, but its authority is
+reduced: it waits for and selects the real contact, then opens this same provisional briefing.
+Eligible and ineligible contacts use the same overview path, and no URL can bypass briefing,
+authentication, fresh revalidation, confirmation, or the future authoritative mission lock.
