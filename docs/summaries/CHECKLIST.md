@@ -11,7 +11,7 @@
 - [x] Task 7 — Implement magic-link identity, sessions, Turnstile, and preferences
 - [x] Owner checkpoint A — Foundation approved 2026-08-10; live auth smoke test authorized
 - [x] Task 8 — Build public browse, the quick-start notice, and mission tray
-- [ ] Task 9 — Add authoritative mission preparation, confirmation, and locking
+- [x] Task 9 — Add authoritative mission preparation, confirmation, and locking
 - [ ] Task 10 — Integrate locked missions, assists, ghost traffic, and the existing simulator
 - [ ] Task 11 — Implement runway landing evidence, safety gates, and scoring
 - [ ] Task 12 — Add debrief, profiles, and cached partitioned leaderboards

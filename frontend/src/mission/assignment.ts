@@ -10,6 +10,7 @@ import type {
 } from "./types";
 
 const BOUNDARY_EPSILON = 1e-9;
+const RUNWAY_END_IDENT = /^[A-Z0-9]{1,8}$/;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -25,7 +26,12 @@ function runwayIdent(runway: Runway): string {
 }
 
 function completeEnd(end: RunwayEnd | null): end is RunwayEnd & { ident: string; latDeg: number; lonDeg: number; headingDeg: number } {
-  return end !== null && end.ident !== null && end.latDeg !== null && end.lonDeg !== null && end.headingDeg !== null;
+  return end !== null &&
+    end.ident !== null &&
+    RUNWAY_END_IDENT.test(end.ident) &&
+    end.latDeg !== null &&
+    end.lonDeg !== null &&
+    end.headingDeg !== null;
 }
 
 function suitableRunway(runway: Runway, airport: MissionAirport, profile: MissionProfile): boolean {

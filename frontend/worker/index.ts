@@ -24,6 +24,7 @@ import { authorizeSession } from "./auth/sessions";
 import { readCsrfToken, verifyCsrfToken } from "./auth/csrf";
 import { createAuthRoutes } from "./http/routes/auth";
 import { createMeRoutes } from "./http/routes/me";
+import { createMissionRoutes } from "./http/routes/missions";
 
 const statusRoute = defineRoute({
   method: "GET",
@@ -167,6 +168,11 @@ export function resolveEndpointLimiter(name: string, env: Env) {
       ? allowEndpointLimiter
       : createCloudflareEndpointLimiter(env.TRAFFIC_REQUEST_RATE_LIMITER, 15);
   }
+  if (name === "missions") {
+    return env.APP_ENV === "local"
+      ? allowEndpointLimiter
+      : createCloudflareEndpointLimiter(env.MISSION_REQUEST_RATE_LIMITER, 5);
+  }
   return failClosedLimiter;
 }
 
@@ -243,6 +249,7 @@ const apiRouter = createRouter<Env>(
     trafficRoute,
     ...createAuthRoutes(),
     ...createMeRoutes(),
+    ...createMissionRoutes(),
     recoveryStatusRoute,
   ],
   routerDependencies,

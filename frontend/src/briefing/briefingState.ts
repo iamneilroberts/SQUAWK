@@ -2,13 +2,24 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Contact, FeedStatus } from "../data/types";
 import { loadAirportRegion, type AirportAssetSource } from "../mission/airportData";
 import { assignMission } from "../mission/assignment";
+import {
+  boundedMissionChoices,
+  missionChoiceKey,
+  missionPreviewIdentity,
+  type LockedMissionView,
+  type MissionPreparationView,
+  type PrepareMissionRequest,
+} from "../mission/contract";
+import {
+  missionSearchRadiusNm,
+  missionSnapshotFromContact,
+} from "../mission/planning";
 import { missionProfileForClass } from "../mission/profiles";
 import type {
   AircraftClassId,
   MissionAirport,
   MissionAssignmentResult,
   MissionProfile,
-  MissionStartSnapshot,
   RunwayAssignment,
 } from "../mission/types";
 import { checkEligibility, resolveClass } from "../takeover/eligibility";
@@ -39,29 +50,37 @@ export type ProvisionalBriefingState =
       selected: RunwayAssignment;
     };
 
+export type MissionCommitState =
+  | { status: "idle" }
+  | { status: "preparing" }
+  | {
+      status: "reconfirm";
+      provisional: RunwayAssignment;
+      preparation: MissionPreparationView;
+      idempotencyKey: string;
+    }
+  | {
+      status: "locking";
+      preparation: MissionPreparationView;
+      idempotencyKey: string;
+    }
+  | { status: "locked"; mission: LockedMissionView }
+  | {
+      status: "error";
+      message: string;
+      retry?: {
+        preparation: MissionPreparationView;
+        idempotencyKey: string;
+      };
+    };
+
 const browserAirportSource: AirportAssetSource = {
   fetch(path) {
     return fetch(path, { cache: "force-cache" });
   },
 };
 
-function numericBarometricAltitude(contact: Contact): number | null {
-  return typeof contact.alt_baro === "number" ? contact.alt_baro : null;
-}
-
-export function missionSnapshotFromContact(contact: Contact): MissionStartSnapshot {
-  const altitudeFt = contact.alt_geom ?? numericBarometricAltitude(contact);
-  if (altitudeFt === null || contact.gs === null || contact.track === null) {
-    throw new TypeError("eligible contact is missing mission snapshot fields");
-  }
-  return {
-    latDeg: contact.lat,
-    lonDeg: contact.lon,
-    altitudeFt,
-    groundSpeedKt: contact.gs,
-    trackDeg: contact.track,
-  };
-}
+export { missionSearchRadiusNm, missionSnapshotFromContact } from "../mission/planning";
 
 export function briefingPrelude(
   contact: Contact | null,
@@ -112,14 +131,6 @@ export function briefingPrelude(
   return { status: "loading", contact, classId: resolved.classId };
 }
 
-export function missionSearchRadiusNm(snapshot: MissionStartSnapshot, profile: MissionProfile): number {
-  const speedKt = Math.max(
-    profile.reachability.minPlanningSpeedKt,
-    Math.min(profile.reachability.maxPlanningSpeedKt, snapshot.groundSpeedKt),
-  );
-  return speedKt * profile.reachability.maxMinutes / 60;
-}
-
 export function assignContactMission(options: {
   contact: Contact;
   classId: AircraftClassId;
@@ -131,7 +142,7 @@ export function assignContactMission(options: {
     snapshot: missionSnapshotFromContact(options.contact),
     profile,
     datasetVersion: options.datasetVersion,
-    airports: options.airports,
+    airports: options.airports.filter((airport) => /^[A-Z0-9]{3,4}$/.test(airport.ident)),
   });
   if (!assignment.assigned) {
     return {
@@ -142,13 +153,19 @@ export function assignContactMission(options: {
       classId: options.classId,
     };
   }
+  const choices = boundedMissionChoices(assignment);
+  const boundedAssignment = {
+    ...assignment,
+    best: choices[0] ?? assignment.best,
+    alternatives: choices.slice(1),
+  };
   return {
     status: "ready",
     contact: options.contact,
     classId: options.classId,
     profile,
-    assignment,
-    selected: assignment.best,
+    assignment: boundedAssignment,
+    selected: boundedAssignment.best,
   };
 }
 
@@ -174,7 +191,22 @@ async function loadBriefing(
 }
 
 export function assignmentKey(assignment: RunwayAssignment): string {
-  return `${assignment.airportIdent}:${assignment.runwayId}:${assignment.runwayEndIdent}`;
+  return missionChoiceKey(assignment);
+}
+
+export function prepareRequestForBriefing(
+  state: Extract<ProvisionalBriefingState, { status: "ready" }>,
+): PrepareMissionRequest {
+  return {
+    aircraftHex: state.contact.hex,
+    position: { lat: state.contact.lat, lon: state.contact.lon },
+    preview: missionPreviewIdentity({
+      contact: state.contact,
+      classId: state.classId,
+      assignment: state.assignment,
+      selected: state.selected,
+    }),
+  };
 }
 
 export function selectBriefingAssignment(

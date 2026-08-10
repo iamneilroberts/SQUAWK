@@ -6,6 +6,7 @@ export type Env = WorkerEnv &
     HOME_LON?: string;
     DB: D1Database;
     CSRF_SECRET: string;
+    MISSION_SIGNING_SECRET: string;
     EMAIL_KEY_SECRET: string;
     TURNSTILE_SECRET: string;
     TURNSTILE_SITE_KEY?: string;
@@ -13,4 +14,5 @@ export type Env = WorkerEnv &
     PUBLIC_ORIGIN?: string;
     AUTH_REQUEST_RATE_LIMITER?: RateLimit;
     TRAFFIC_REQUEST_RATE_LIMITER?: RateLimit;
+    MISSION_REQUEST_RATE_LIMITER?: RateLimit;
   };

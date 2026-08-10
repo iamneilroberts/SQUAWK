@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ViewerHost from "./globe/ViewerHost";
 import ContactLayer from "./globe/ContactLayer";
 import OverlayLayers from "./globe/OverlayLayers";
@@ -14,6 +14,7 @@ import { useUrlTakeover } from "./takeover/useUrlTakeover";
 import AuthReturn from "./auth/AuthReturn";
 import SignInSheet from "./auth/SignInSheet";
 import {
+  AuthClientError,
   loadCurrentProfile,
   loadProvisionalBriefing,
   loadTurnstileSiteKey,
@@ -25,7 +26,40 @@ import ProfilePanel from "./profile/ProfilePanel";
 import QuickStartNotice from "./briefing/QuickStartNotice";
 import { dismissQuickStart, shouldShowQuickStart } from "./briefing/quickStartState";
 import MissionTray from "./briefing/MissionTray";
-import { assignmentKey, useProvisionalBriefing } from "./briefing/briefingState";
+import {
+  assignmentKey,
+  prepareRequestForBriefing,
+  useProvisionalBriefing,
+  type MissionCommitState,
+} from "./briefing/briefingState";
+import { lockMission, prepareMission } from "./mission/api";
+import { missionChoiceKey, type MissionPreparationView } from "./mission/contract";
+
+function missionErrorMessage(error: unknown): string {
+  if (!(error instanceof AuthClientError)) return "MISSION SERVICE UNAVAILABLE. TRY AGAIN.";
+  switch (error.code) {
+    case "MISSION_PREPARATION_EXPIRED":
+      return "THE FRESH CHECK EXPIRED. TAKE CONTROLS AGAIN.";
+    case "MISSION_AIRCRAFT_STALE":
+    case "MISSION_AIRCRAFT_UNAVAILABLE":
+      return "THE AIRCRAFT IS NO LONGER FRESH AND ELIGIBLE.";
+    case "MISSION_CAPACITY_UNAVAILABLE":
+      return "ACTIVE-FLIGHT CAPACITY IS FULL. TRY AGAIN SHORTLY.";
+    case "ADMISSION_DENIED":
+      return "NEW MISSIONS ARE TEMPORARILY PAUSED.";
+    default:
+      return "MISSION COULD NOT BE LOCKED. TRY AGAIN.";
+  }
+}
+
+function canRetryMissionLock(error: unknown): boolean {
+  return !(error instanceof AuthClientError) || ![
+    "MISSION_PREPARATION_EXPIRED",
+    "MISSION_PREPARATION_INVALID",
+    "MISSION_DESTINATION_INVALID",
+    "MISSION_IDEMPOTENCY_CONFLICT",
+  ].includes(error.code ?? "");
+}
 
 export default function App({ initialAuthToken = null }: { initialAuthToken?: string | null }) {
   const mode = useStore((s) => s.mode);
@@ -43,7 +77,8 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
   const [quickStartOpen, setQuickStartOpen] = useState(() =>
     shouldShowQuickStart(typeof window === "undefined" ? null : window.localStorage));
   const [contactFocusRequest, setContactFocusRequest] = useState(0);
-  const [preparationNotice, setPreparationNotice] = useState(false);
+  const [missionCommit, setMissionCommit] = useState<MissionCommitState>({ status: "idle" });
+  const missionOperation = useRef(0);
 
   const applyProfile = useCallback((nextProfile: SessionProfile) => {
     setProfile(nextProfile);
@@ -185,6 +220,49 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
     setQuickStartOpen(false);
   }, []);
 
+  useEffect(() => {
+    missionOperation.current += 1;
+    setMissionCommit({ status: "idle" });
+  }, [selectedHex]);
+
+  const selectionLocked = missionCommit.status === "locking" ||
+    missionCommit.status === "locked" ||
+    missionCommit.status === "reconfirm" ||
+    (missionCommit.status === "error" && missionCommit.retry !== undefined);
+
+  useEffect(() => {
+    useStore.getState().setSelectionLocked(selectionLocked);
+    return () => useStore.getState().setSelectionLocked(false);
+  }, [selectionLocked]);
+
+  const commitPreparation = useCallback(async (
+    preparation: MissionPreparationView,
+    idempotencyKey: string,
+    operation: number,
+  ) => {
+    if (profile === null) return;
+    if (missionOperation.current !== operation) return;
+    setMissionCommit({ status: "locking", preparation, idempotencyKey });
+    try {
+      const mission = await lockMission({
+        preparationToken: preparation.preparationToken,
+        choiceKey: missionChoiceKey(preparation.selected),
+        assist: profile.defaultAssist,
+      }, idempotencyKey);
+      if (missionOperation.current !== operation) return;
+      setMissionCommit({ status: "locked", mission });
+    } catch (error) {
+      if (missionOperation.current !== operation) return;
+      setMissionCommit({
+        status: "error",
+        message: missionErrorMessage(error),
+        ...(canRetryMissionLock(error)
+          ? { retry: { preparation, idempotencyKey } }
+          : {}),
+      });
+    }
+  }, [profile]);
+
   const takeControls = useCallback(() => {
     if (briefing.state.status !== "ready") return;
     if (authStatus !== "authenticated") {
@@ -200,12 +278,55 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
       setSignInOpen(true);
       return;
     }
-    setPreparationNotice(true);
-  }, [authStatus, briefing.state]);
+    if (missionCommit.status === "error" && missionCommit.retry !== undefined) {
+      const operation = missionOperation.current + 1;
+      missionOperation.current = operation;
+      void commitPreparation(
+        missionCommit.retry.preparation,
+        missionCommit.retry.idempotencyKey,
+        operation,
+      );
+      return;
+    }
+    const operation = missionOperation.current + 1;
+    missionOperation.current = operation;
+    setMissionCommit({ status: "preparing" });
+    void prepareMission(prepareRequestForBriefing(briefing.state))
+      .then((outcome) => {
+        if (missionOperation.current !== operation) return;
+        const idempotencyKey = crypto.randomUUID();
+        if (outcome.kind === "reconfirm") {
+          setMissionCommit({
+            status: "reconfirm",
+            provisional: briefing.state.status === "ready"
+              ? briefing.state.selected
+              : outcome.preparation.selected,
+            preparation: outcome.preparation,
+            idempotencyKey,
+          });
+          return;
+        }
+        return commitPreparation(outcome.preparation, idempotencyKey, operation);
+      })
+      .catch((error) => {
+        if (missionOperation.current !== operation) return;
+        setMissionCommit({ status: "error", message: missionErrorMessage(error) });
+      });
+  }, [authStatus, briefing.state, commitPreparation, missionCommit]);
 
-  const route = briefing.state.status === "ready"
-    ? { contact: briefing.state.contact, assignment: briefing.state.selected }
-    : null;
+  const authoritativePreparation = missionCommit.status === "reconfirm" ||
+    missionCommit.status === "locking"
+    ? missionCommit.preparation
+    : missionCommit.status === "error"
+      ? missionCommit.retry?.preparation ?? null
+      : null;
+  const route = missionCommit.status === "locked"
+    ? { contact: missionCommit.mission.contact, assignment: missionCommit.mission.assignment }
+    : authoritativePreparation !== null
+      ? { contact: authoritativePreparation.contact, assignment: authoritativePreparation.selected }
+      : briefing.state.status === "ready"
+        ? { contact: briefing.state.contact, assignment: briefing.state.selected }
+        : null;
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -221,10 +342,13 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
               type="button"
               className="status-chip-button quick-start-help"
               onClick={() => {
+                if (selectionLocked) return;
                 useStore.getState().select(null);
-                setPreparationNotice(false);
+                missionOperation.current += 1;
+                setMissionCommit({ status: "idle" });
                 setQuickStartOpen(true);
               }}
+              disabled={selectionLocked}
             >
               How to fly
             </button>
@@ -243,20 +367,42 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
               state={briefing.state}
               profile={profile}
               onClose={() => {
+                useStore.getState().setSelectionLocked(false);
                 useStore.getState().select(null);
-                setPreparationNotice(false);
+                missionOperation.current += 1;
+                setMissionCommit({ status: "idle" });
               }}
               onSelectAssignment={(key) => {
                 briefing.selectAssignment(key);
-                setPreparationNotice(false);
+                missionOperation.current += 1;
+                setMissionCommit({ status: "idle" });
               }}
               onTakeControls={takeControls}
+              commitState={missionCommit}
+              onConfirmMission={() => {
+                if (missionCommit.status === "reconfirm") {
+                  void commitPreparation(
+                    missionCommit.preparation,
+                    missionCommit.idempotencyKey,
+                    missionOperation.current,
+                  );
+                }
+              }}
+              onSelectReconfirmed={(key) => {
+                setMissionCommit((current) => {
+                  if (current.status !== "reconfirm") return current;
+                  const selected = current.preparation.eligibleChoices.find(
+                    (choice) => missionChoiceKey(choice) === key,
+                  );
+                  return selected === undefined
+                    ? current
+                    : {
+                        ...current,
+                        preparation: { ...current.preparation, selected },
+                      };
+                });
+              }}
             />
-          )}
-          {preparationNotice && mode === "BROWSE" && (
-            <div className="takeover-banner" role="status">
-              MISSION CONFIRMATION AND SERVER LOCK CONTINUE IN TASK 9.
-            </div>
           )}
           {browseDrawer && contactsOpen && (
             <div className="contact-drawer">

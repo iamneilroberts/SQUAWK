@@ -7,6 +7,7 @@ import {
   briefingPrelude,
   missionSearchRadiusNm,
   missionSnapshotFromContact,
+  prepareRequestForBriefing,
   selectBriefingAssignment,
 } from "./briefingState";
 import { missionProfileForClass } from "../mission/profiles";
@@ -81,5 +82,22 @@ describe("provisional mission assignment", () => {
     const snapshot = missionSnapshotFromContact(contact({ gs: 120 }));
     expect(snapshot).toEqual({ latDeg: 30, lonDeg: -88, altitudeFt: 3_500, groundSpeedKt: 120, trackDeg: 90 });
     expect(missionSearchRadiusNm(snapshot, missionProfileForClass("c172s"))).toBe(60);
+  });
+
+  it("builds a bounded provisional fingerprint for Worker revalidation", () => {
+    const state = assignContactMission({
+      contact: contact(),
+      classId: "c172s",
+      airports: Array.from({ length: 15 }, (_, index) =>
+        airport(`K${String(index).padStart(3, "0")}`, -87.8 + index * 0.01)),
+      datasetVersion: "fixture-v1",
+    });
+    expect(state.status).toBe("ready");
+    if (state.status !== "ready") return;
+    const request = prepareRequestForBriefing(state);
+    expect(request.aircraftHex).toBe("a0b1c2");
+    expect(request.preview.selectedChoiceKey).toBe(assignmentKey(state.selected));
+    expect(request.preview.eligibleChoiceKeys.length).toBeLessThanOrEqual(12);
+    expect(request.preview.eligibleChoiceKeys).toContain(request.preview.selectedChoiceKey);
   });
 });

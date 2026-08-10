@@ -459,9 +459,17 @@ body {
   cursor: pointer;
 }
 .mission-alternative:hover { background: rgba(95, 215, 224, 0.08); }
+.mission-alternative:disabled { cursor: not-allowed; opacity: 0.55; }
 .mission-alternative-active { border-left-color: var(--cyan); color: var(--cyan); background: rgba(95, 215, 224, 0.12); }
 .mission-take-controls { width: 100%; justify-content: center; margin-top: 12px; }
 .mission-auth-note { margin-top: 5px; text-align: center; color: var(--amber); }
+.mission-reconfirm {
+  margin-top: 12px;
+  padding: 9px;
+  border: 1px solid var(--amber);
+  background: rgba(255, 184, 77, 0.08);
+  color: var(--amber);
+}
 
 /* ---- handoff card ---- */
 .handoff-card {

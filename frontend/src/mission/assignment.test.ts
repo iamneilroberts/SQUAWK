@@ -107,6 +107,16 @@ describe("deterministic mission assignment", () => {
     expect(assign([airport("ONEEND", 20, { runways: [runway({ highEnd: null })] })]).assigned).toBe(false);
   });
 
+  it("rejects malformed runway-end identifiers before mission authorization", () => {
+    const result = assign([airport("BADEND", 20, {
+      runways: [runway({
+        lowEnd: { ident: "25.", latDeg: 0, lonDeg: 0, elevationFt: 10, headingDeg: 90, displacedThresholdFt: 0 },
+        highEnd: null,
+      })],
+    })]);
+    expect(result).toMatchObject({ assigned: false, reason: "NO_SUITABLE_RUNWAY" });
+  });
+
   it("crosses the antimeridian and remains deterministic under input shuffling", () => {
     const airports = [airport("ZZZZ", 40), airport("AAAA", 40), airport("MMMM", 45)];
     const forward = assign(airports);

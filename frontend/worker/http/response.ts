@@ -6,18 +6,20 @@ export class ApiHttpError<Code extends ApiErrorCode = ApiErrorCode> extends Erro
   readonly status: number;
   readonly code: Code;
   readonly retryAfterSeconds?: number;
+  readonly data?: unknown;
 
   constructor(
     status: number,
     code: Code,
     message: string,
-    options: { retryAfterSeconds?: number; cause?: unknown } = {},
+    options: { retryAfterSeconds?: number; cause?: unknown; data?: unknown } = {},
   ) {
     super(message, options.cause === undefined ? undefined : { cause: options.cause });
     this.name = "ApiHttpError";
     this.status = status;
     this.code = code;
     this.retryAfterSeconds = options.retryAfterSeconds;
+    this.data = options.data;
   }
 }
 

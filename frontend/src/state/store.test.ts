@@ -31,6 +31,8 @@ const trafficResult = (
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2030-08-10T12:00:00.000Z"));
+  useStore.getState().setSelectionLocked(false);
+  useStore.getState().select(null);
   useStore.getState().applyFetch(trafficResult());
 });
 
@@ -141,6 +143,22 @@ describe("session state", () => {
     // ...but the origin snapshot survives
     expect(useStore.getState().origin?.hex).toBe("abc123");
     expect(useStore.getState().origin?.snapshot.gs).toBe(120);
+  });
+
+  it("freezes the selected contact while an authoritative mission commit is unresolved", () => {
+    useStore.getState().applyFetch(trafficResult([contact("abc123")]));
+    useStore.getState().select("abc123");
+    useStore.getState().setSelectionLocked(true);
+    useStore.getState().select(null);
+    expect(useStore.getState().selectedHex).toBe("abc123");
+
+    useStore.getState().applyFetch(trafficResult([]));
+    expect(useStore.getState().selectedHex).toBe("abc123");
+    expect(useStore.getState().contacts.has("abc123")).toBe(true);
+
+    useStore.getState().setSelectionLocked(false);
+    useStore.getState().select(null);
+    expect(useStore.getState().selectedHex).toBeNull();
   });
   it("fire routes every transition through the machine", () => {
     useStore.getState().resetSession();

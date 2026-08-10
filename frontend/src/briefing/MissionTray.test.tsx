@@ -23,7 +23,7 @@ const contact: Contact = {
 };
 
 const airport: MissionAirport = {
-  ident: "KTEST", iata: null, name: "TEST FIELD", size: "small",
+  ident: "KTST", iata: null, name: "TEST FIELD", size: "small",
   latDeg: 30, lonDeg: -87.8, elevationFt: 100,
   runways: [{
     id: "09-27", lengthFt: 5_000, widthFt: 100, surface: "HARD", surfaceRaw: "ASP",
@@ -40,6 +40,9 @@ function render(state: ProvisionalBriefingState): string {
     onClose: vi.fn(),
     onSelectAssignment: vi.fn(),
     onTakeControls: vi.fn(),
+    commitState: { status: "idle" },
+    onConfirmMission: vi.fn(),
+    onSelectReconfirmed: vi.fn(),
   })).join(" ");
 }
 
@@ -49,7 +52,7 @@ describe("MissionTray", () => {
     const text = render(ready);
     expect(text).toContain("N123");
     expect(text).toContain("A0B1C2");
-    expect(text).toContain("KTEST");
+    expect(text).toContain("KTST");
     expect(text).toContain("Runway");
     expect(text).toContain("5000");
     expect(text).toContain("0–100 AFTER SAFETY GATES");

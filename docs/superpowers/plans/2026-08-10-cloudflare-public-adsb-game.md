@@ -583,20 +583,20 @@ alternative before any controls are taken.
 
 **Steps:**
 
-- [ ] Implement `POST /api/missions/prepare`: authenticate, ban/mode/rate check, fetch a
+- [x] Implement `POST /api/missions/prepare`: authenticate, ban/mode/rate check, fetch a
       fresh selected contact through the broker, recompute assignment, and return a
       short-lived signed preparation containing the authoritative eligible set/versions.
-- [ ] Compare the authoritative fingerprint with the provisional briefing. If aircraft,
+- [x] Compare the authoritative fingerprint with the provisional briefing. If aircraft,
       route, runway, or eligibility changed, return `MISSION_RECONFIRM_REQUIRED` and
       require an explicit second confirmation in the tray.
-- [ ] Implement idempotent `POST /api/missions`: validate the preparation and chosen
+- [x] Implement idempotent `POST /api/missions`: validate the preparation and chosen
       eligible alternative, acquire the user/global lease, then transactionally create
       one locked mission. Release the lease if D1 commit fails.
-- [ ] Freeze ADS-B start snapshot, reconstruction disclosure/adjustments, class/profile,
+- [x] Freeze ADS-B start snapshot, reconstruction disclosure/adjustments, class/profile,
       airport/runway geometry, all data/scoring/assist versions, chosen assist, and times.
-- [ ] Return a bounded signed mission receipt for offline result queuing. Do not embed
+- [x] Return a bounded signed mission receipt for offline result queuing. Do not embed
       secrets or raw identity.
-- [ ] Test replay, expired preparation, stale aircraft, altered destination, duplicate
+- [x] Test replay, expired preparation, stale aircraft, altered destination, duplicate
       idempotency key, D1 failure after lease, lease failure, read-only/kill mode, and ban.
 
 **Acceptance:** Authentication delay can never silently launch the old route. Exactly one

@@ -6,6 +6,7 @@ export const DATA_VERSIONS = {
   missionProfile: "2026-08-10-v1",
   assignment: "assignment-2026-08-10-v1",
   scoring: "scoring-2026-08-10-v1",
+  physics: "physics-2026-08-10-v1",
   assistDefinition: "v1",
   tutorial: "v1",
 } as const;

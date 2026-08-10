@@ -29,6 +29,7 @@ type State = {
   pollingIdentity: PollingIdentity;
   contacts: Map<string, Contact>;
   selectedHex: string | null;
+  selectionLocked: boolean;
   feedStatus: FeedStatus;
   feedSource: string | null;
   lastFetchAt: number | null;
@@ -69,6 +70,7 @@ type State = {
   applyFetch(r: TrafficFetchResult): void;
   markFetchFailed(): void;
   select(hex: string | null): void;
+  setSelectionLocked(locked: boolean): void;
   /**
    * Session mode. The ONLY session state zustand holds, along with origin and endStats:
    * sim state lives in a mutable ref because a 60 Hz set() would re-render React.
@@ -106,6 +108,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   pollingIdentity: "anonymous",
   contacts: new Map(),
   selectedHex: null,
+  selectionLocked: false,
   feedStatus: "offline",
   feedSource: null,
   lastFetchAt: null,
@@ -159,8 +162,13 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   applyFetch(r) {
     consecutiveFailures = 0;
     lastTrafficAppliedAtMs = Date.now();
+    const state = get();
     const contacts = new Map(r.contacts.map((c) => [c.hex, c]));
-    const selectedHex = get().selectedHex;
+    const selectedHex = state.selectedHex;
+    if (state.selectionLocked && selectedHex !== null && !contacts.has(selectedHex)) {
+      const frozen = state.contacts.get(selectedHex);
+      if (frozen !== undefined) contacts.set(selectedHex, frozen);
+    }
     set({
       contacts,
       feedStatus: r.freshness === "FRESH" ? "live" : r.freshness === "STALE" ? "stale" : "offline",
@@ -171,7 +179,9 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       regionKey: r.regionKey,
       nextRefreshSeconds: r.nextRefreshSeconds,
       systemMode: r.mode,
-      selectedHex: selectedHex !== null && contacts.has(selectedHex) ? selectedHex : null,
+      selectedHex: state.selectionLocked
+        ? selectedHex
+        : selectedHex !== null && contacts.has(selectedHex) ? selectedHex : null,
     });
   },
 
@@ -185,6 +195,16 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       ? null
       : state.cacheAgeSeconds + elapsedSeconds;
     if (totalCacheAgeSeconds !== null && totalCacheAgeSeconds >= TRAFFIC_EXPIRE_SECONDS) {
+      if (state.selectionLocked && state.selectedHex !== null) {
+        const frozen = state.contacts.get(state.selectedHex);
+        set({
+          contacts: frozen === undefined ? new Map() : new Map([[state.selectedHex, frozen]]),
+          feedStatus: "offline",
+          cacheAgeSeconds: totalCacheAgeSeconds,
+          providerAvailable: false,
+        });
+        return;
+      }
       set({
         contacts: new Map(),
         selectedHex: null,
@@ -202,7 +222,12 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   },
 
   select(hex) {
+    if (get().selectionLocked) return;
     set({ selectedHex: hex });
+  },
+
+  setSelectionLocked(locked) {
+    set({ selectionLocked: locked });
   },
 
   fire(event) {
@@ -223,7 +248,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
 
   /** Hard reset: back to BROWSE with no residue (spec §6). */
   resetSession() {
-    set({ mode: "BROWSE", origin: null, endStats: null });
+    set({ mode: "BROWSE", origin: null, endStats: null, selectionLocked: false });
   },
 }));
 

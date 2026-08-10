@@ -1636,3 +1636,46 @@ The legacy `?takeover=<hex>` spelling remains accepted for compatibility, but it
 reduced: it waits for and selects the real contact, then opens this same provisional briefing.
 Eligible and ineligible contacts use the same overview path, and no URL can bypass briefing,
 authentication, fresh revalidation, confirmation, or the future authoritative mission lock.
+
+## 2026-08-10 — CF-009 · Only a fresh signed preparation plus committed lease starts mission authority
+
+The browser's Task 8 route remains advisory. `POST /api/missions/prepare` now passes the normal
+authenticated session/ban, same-origin, CSRF, idempotency, per-user rate, and broker mode gates,
+then asks the broker for a fresh bounded region around the selected aircraft. The Worker finds
+that exact hex in the returned snapshot, reapplies physical and class eligibility, loads the
+pinned airport shards, and runs the shared deterministic assignment engine. Preparations expire
+after two minutes and are HMAC-signed with a dedicated `MISSION_SIGNING_SECRET`; they contain the
+fresh contact, class, at most twelve eligible runway choices, and every relevant data/rules
+version. The signing secret is a deployment release gate and is never committed.
+
+The comparison fingerprint covers aircraft hex/type/class, the selected route/runway, the
+ordered bounded eligible set, and every version. If any of those differ from the browser preview,
+the Worker returns `MISSION_RECONFIRM_REQUIRED` with the signed authoritative briefing. The tray
+requires a new explicit click and disables alternative changes while preparation or locking is
+in flight. A browser operation generation prevents a late prepare/lock response from reviving a
+route the player closed or changed. The moving contact's exact coordinates are deliberately not
+part of the comparison fingerprint: the fresh authoritative coordinates are always frozen at
+lock, while normal motion that leaves the eligible route unchanged does not force a second click.
+
+`POST /api/missions` verifies preparation signature, user, expiry, current versions, chosen
+eligible alternative, and assist level before requesting the existing one-user/global-cap lease.
+The preparation UUID is also the mission UUID, making a signed preparation single-use. Migration
+`0003_authoritative_missions.sql` adds a truthful three-or-four-character airport identifier and
+a unique `(user_id, idempotency key)` expression index over the bounded versioned snapshot. Thus
+retries of one request return the same locked row, preparation replay or changed idempotent input
+conflicts, and concurrent losers cannot create a second mission. Lease acquisition is itself
+idempotent for that mission; if D1 does not contain the matching committed row after an insert
+failure, the Worker releases the lease before returning failure.
+
+The committed snapshot freezes the complete fresh ADS-B contact and broker/cache provenance,
+reconstructed/default-state disclosure and values, aircraft class, full simulator aircraft
+parameters, full mission-assignment profile, selected airport/runway geometry, assist, all
+data/scoring/physics versions, preparation time, and lock time. Only after that insert succeeds
+does the Worker return `MISSION_LOCKED`, along with a bounded 24-hour signed receipt that contains
+no user identity or secret and can later authorize offline result reconciliation. Task 9 does not
+start the simulator: the tray names the committed lock and keeps the Task 10 handoff explicit, so
+no countdown can begin from a preview or uncommitted lease.
+
+Staging and production declare a separate twelve-per-minute mission limiter. No environment was
+deployed in this task; the D1 migration, `MISSION_SIGNING_SECRET`, and limiter must be present
+before a later release can enable these routes.

@@ -35,6 +35,13 @@ export const AUTH_EMAIL_RATE_WINDOW_MS = 60 * 60 * 1_000;
 export const AUTH_EMAIL_RATE_MAXIMUM = 3;
 export const DEFAULT_PROFILE_RADIUS_NM = 80;
 
+export const MISSION_CONTACT_SEARCH_RADIUS_NM = 25;
+export const MISSION_MAX_ELIGIBLE_CHOICES = 12;
+export const MISSION_PREPARATION_TTL_MS = 2 * 60 * 1_000;
+export const MISSION_RECEIPT_TTL_MS = 24 * 60 * 60 * 1_000;
+export const MISSION_PREPARE_BODY_MAX_BYTES = 4_096;
+export const MISSION_LOCK_BODY_MAX_BYTES = 20_000;
+
 // Owner-approved Task 4 contract: protect each flight present at the read-only
 // transition for the 30-minute mission reachability horizon at normal cadence.
 export const ACTIVE_FLIGHT_PROTECTION_WINDOW_SECONDS = 30 * 60;

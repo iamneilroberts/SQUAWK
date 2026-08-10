@@ -339,6 +339,7 @@ function expectedErrorResponse(context: RequestContext, error: ApiHttpError): Re
         ? {}
         : { retryAfterSeconds: error.retryAfterSeconds }),
     },
+    ...(error.data === undefined ? {} : { data: error.data }),
     headers,
   });
 }

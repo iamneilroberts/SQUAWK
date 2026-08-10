@@ -39,12 +39,14 @@ export type ProfilePatch = Partial<
 export class AuthClientError extends Error {
   readonly status: number;
   readonly code: string | null;
+  readonly data: unknown;
 
-  constructor(status: number, code: string | null) {
+  constructor(status: number, code: string | null, data?: unknown) {
     super("Authentication request failed");
     this.name = "AuthClientError";
     this.status = status;
     this.code = code;
+    this.data = data;
   }
 }
 
@@ -138,6 +140,7 @@ async function readData<T>(response: Response): Promise<T> {
     throw new AuthClientError(
       response.status,
       isRecord(body) && typeof body.code === "string" ? body.code : null,
+      isRecord(body) ? body.data : undefined,
     );
   }
   return body.data as T;
@@ -158,6 +161,25 @@ async function postJson<T>(
       "content-type": "application/json",
       "idempotency-key": idempotencyKey(),
       ...(includeCsrf ? { "x-csrf-token": csrfToken ?? "" } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  return readData<T>(response);
+}
+
+export async function postAuthenticatedJson<T>(
+  path: string,
+  body: unknown,
+  requestIdempotencyKey: string = idempotencyKey(),
+): Promise<T> {
+  if (csrfToken === null) throw new AuthClientError(403, "CSRF_INVALID");
+  const response = await fetch(path, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "content-type": "application/json",
+      "idempotency-key": requestIdempotencyKey,
+      "x-csrf-token": csrfToken,
     },
     body: JSON.stringify(body),
   });

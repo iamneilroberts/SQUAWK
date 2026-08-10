@@ -103,6 +103,10 @@ export type LockMissionInput = {
   assists: VersionedDocument;
 };
 
+export type CreateLockedMissionInput = CreateMissionInput & {
+  lockedAt: number;
+};
+
 export type FlightResult = {
   id: string;
   missionId: string;

@@ -10,6 +10,7 @@ import {
   serializeVersionedJson,
 } from "./client";
 import type {
+  CreateLockedMissionInput,
   CreateMissionInput,
   LockMissionInput,
   Mission,
@@ -23,7 +24,7 @@ const MISSION_STATUSES: readonly MissionStatus[] = [
   "abandoned",
 ];
 const AIRCRAFT_HEX = /^[0-9a-f]{6}$/;
-const AIRPORT_ICAO = /^[A-Z0-9]{4}$/;
+const AIRPORT_IDENT = /^[A-Z0-9]{3,4}$/;
 const RUNWAY = /^[A-Z0-9]{1,8}$/;
 const VERSION = /^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/;
 
@@ -34,6 +35,7 @@ type MissionRow = {
   aircraft_class: string;
   adsb_snapshot_json: string;
   airport_icao: string;
+  airport_ident: string | null;
   runway_ident: string;
   scoring_version: string;
   physics_version: string;
@@ -47,7 +49,7 @@ type MissionRow = {
 };
 
 const SELECT_MISSION = `SELECT id, user_id, aircraft_hex, aircraft_class,
-                               adsb_snapshot_json, airport_icao, runway_ident,
+                               adsb_snapshot_json, airport_icao, airport_ident, runway_ident,
                                scoring_version, physics_version, assists_json,
                                status, trace_pointer, trace_expires_at, created_at,
                                locked_at, finalized_at
@@ -60,7 +62,7 @@ function mapMission(row: MissionRow): Mission {
     aircraftHex: row.aircraft_hex,
     aircraftClass: row.aircraft_class,
     adsbSnapshotJson: row.adsb_snapshot_json,
-    airportIcao: row.airport_icao,
+    airportIcao: row.airport_ident ?? row.airport_icao,
     runwayIdent: row.runway_ident,
     scoringVersion: row.scoring_version,
     physicsVersion: row.physics_version,
@@ -99,11 +101,11 @@ export async function createMission(
     JSON_BYTE_LIMITS.adsbSnapshot,
   );
   const airportIcao = requireText(
-    "airport ICAO",
+    "airport identifier",
     input.airportIcao.toUpperCase(),
+    3,
     4,
-    4,
-    AIRPORT_ICAO,
+    AIRPORT_IDENT,
   );
   const runwayIdent = requireText(
     "runway identifier",
@@ -148,10 +150,10 @@ export async function createMission(
     .prepare(
       `INSERT INTO missions
          (id, user_id, aircraft_hex, aircraft_class, adsb_snapshot_json,
-          airport_icao, runway_ident, scoring_version, physics_version,
+          airport_icao, airport_ident, runway_ident, scoring_version, physics_version,
           assists_json, status, trace_pointer, trace_expires_at, created_at,
           locked_at, finalized_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, NULL, NULL)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, NULL, NULL)`,
     )
     .bind(
       id,
@@ -159,6 +161,7 @@ export async function createMission(
       aircraftHex,
       aircraftClass,
       snapshot,
+      airportIcao.length === 4 ? airportIcao : `0${airportIcao}`,
       airportIcao,
       runwayIdent,
       scoringVersion,
@@ -170,6 +173,97 @@ export async function createMission(
     )
     .run();
   return requireStored("mission", await getMissionById(db, id));
+}
+
+export async function createLockedMission(
+  db: D1Database,
+  input: CreateLockedMissionInput,
+): Promise<Mission> {
+  const id = requireUuid("mission id", input.id);
+  const userId = requireUuid("user id", input.userId);
+  const aircraftHex = requireText(
+    "aircraft hex",
+    input.aircraftHex.toLowerCase(),
+    6,
+    6,
+    AIRCRAFT_HEX,
+  );
+  const aircraftClass = requireText("aircraft class", input.aircraftClass, 1, 48);
+  const snapshot = serializeVersionedJson(
+    "ADS-B snapshot",
+    input.adsbSnapshot,
+    JSON_BYTE_LIMITS.adsbSnapshot,
+  );
+  const airportIdent = requireText(
+    "airport identifier",
+    input.airportIcao.toUpperCase(),
+    3,
+    4,
+    AIRPORT_IDENT,
+  );
+  const runwayIdent = requireText(
+    "runway identifier",
+    input.runwayIdent.toUpperCase(),
+    1,
+    8,
+    RUNWAY,
+  );
+  const scoringVersion = requireText("scoring version", input.scoringVersion, 1, 32, VERSION);
+  const physicsVersion = requireText("physics version", input.physicsVersion, 1, 32, VERSION);
+  const assists = serializeVersionedJson("assists", input.assists, JSON_BYTE_LIMITS.assists);
+  const createdAt = requireTimestamp("created at", input.createdAt);
+  const lockedAt = requireTimestamp("locked at", input.lockedAt);
+  if (lockedAt < createdAt) throw new RangeError("mission lock time is invalid");
+
+  const row = await db
+    .prepare(
+      `INSERT INTO missions
+         (id, user_id, aircraft_hex, aircraft_class, adsb_snapshot_json,
+          airport_icao, airport_ident, runway_ident, scoring_version,
+          physics_version, assists_json, status, trace_pointer,
+          trace_expires_at, created_at, locked_at, finalized_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'locked', NULL, NULL, ?, ?, NULL)
+       RETURNING id, user_id, aircraft_hex, aircraft_class, adsb_snapshot_json,
+                 airport_icao, airport_ident, runway_ident, scoring_version,
+                 physics_version, assists_json, status, trace_pointer,
+                 trace_expires_at, created_at, locked_at, finalized_at`,
+    )
+    .bind(
+      id,
+      userId,
+      aircraftHex,
+      aircraftClass,
+      snapshot,
+      airportIdent.length === 4 ? airportIdent : `0${airportIdent}`,
+      airportIdent,
+      runwayIdent,
+      scoringVersion,
+      physicsVersion,
+      assists,
+      createdAt,
+      lockedAt,
+    )
+    .first<MissionRow>();
+  return mapMission(requireStored("locked mission", row));
+}
+
+export async function getMissionByUserAndIdempotencyKey(
+  db: D1Database,
+  userId: string,
+  idempotencyKey: string,
+): Promise<Mission | null> {
+  const row = await db
+    .prepare(
+      `${SELECT_MISSION}
+        WHERE user_id = ?
+          AND json_extract(adsb_snapshot_json, '$.idempotencyKey') = ?`,
+    )
+    .bind(
+      requireUuid("user id", userId),
+      requireText("idempotency key", idempotencyKey, 8, 128),
+    )
+    .first<MissionRow>();
+  return row === null ? null : mapMission(row);
 }
 
 export async function getMissionById(

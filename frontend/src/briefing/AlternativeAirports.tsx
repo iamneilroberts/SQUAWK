@@ -5,10 +5,12 @@ export default function AlternativeAirports({
   choices,
   selected,
   onSelect,
+  disabled = false,
 }: {
   choices: readonly RunwayAssignment[];
   selected: RunwayAssignment;
   onSelect: (key: string) => void;
+  disabled?: boolean;
 }) {
   if (choices.length <= 1) return null;
   const selectedKey = assignmentKey(selected);
@@ -26,6 +28,7 @@ export default function AlternativeAirports({
               type="button"
               className={`mission-alternative${active ? " mission-alternative-active" : ""}`}
               aria-pressed={active}
+              disabled={disabled}
               onClick={() => onSelect(key)}
             >
               <span>{choice.airportIdent} · RWY {choice.runwayEndIdent}</span>

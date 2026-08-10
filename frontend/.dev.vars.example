@@ -3,5 +3,6 @@
 # TURNSTILE_SITE_KEY in wrangler.jsonc.
 EMAIL_KEY_SECRET=replace-with-at-least-32-random-characters
 CSRF_SECRET=replace-with-a-different-at-least-32-random-characters
+MISSION_SIGNING_SECRET=replace-with-another-at-least-32-random-characters
 TURNSTILE_SITE_KEY=1x00000000000000000000AA
 TURNSTILE_SECRET=1x0000000000000000000000000000000AA
