@@ -11,6 +11,12 @@
   "vars": {
     "APP_ENV": "local"
   },
+  "analytics_engine_datasets": [
+    {
+      "binding": "REQUEST_ANALYTICS",
+      "dataset": "voygent_adsb_game_requests_local"
+    }
+  ],
   "send_email": [
     {
       "name": "AUTH_EMAIL"
@@ -25,6 +31,12 @@
       "vars": {
         "APP_ENV": "staging"
       },
+      "analytics_engine_datasets": [
+        {
+          "binding": "REQUEST_ANALYTICS",
+          "dataset": "voygent_adsb_game_requests_staging"
+        }
+      ],
       "send_email": [
         {
           "name": "AUTH_EMAIL"
@@ -39,6 +51,12 @@
       "vars": {
         "APP_ENV": "production"
       },
+      "analytics_engine_datasets": [
+        {
+          "binding": "REQUEST_ANALYTICS",
+          "dataset": "voygent_adsb_game_requests_production"
+        }
+      ],
       "send_email": [
         {
           "name": "AUTH_EMAIL"

@@ -1,80 +1,50 @@
 import type { Env } from "./env";
+import {
+  allowEndpointLimiter,
+  createCloudflareEndpointLimiter,
+  createRouter,
+  defineRoute,
+  type RouterDependencies,
+} from "./http/router";
+import { sha256Digest } from "./telemetry/requestContext";
 
-type SystemMode = "NORMAL" | "READ_ONLY" | "KILL_SWITCH";
+const statusRoute = defineRoute({
+  method: "GET",
+  path: "/api/status",
+  family: "status",
+  boundary: "public",
+  security: {
+    sameOrigin: "not-required",
+    csrf: "not-required",
+    idempotency: "not-required",
+    body: { kind: "none" },
+  },
+  limiter: { name: "status", retryAfterSeconds: 1 },
+  handler: async () => ({ data: { status: "ok" } }),
+});
 
-interface ApiEnvelope<T, Code extends string> {
-  ok: boolean;
-  code: Code;
-  requestId: string;
-  serverTime: string;
-  mode: SystemMode;
-  data?: T;
-  error?: { message: string };
-}
+const failClosedLimiter = createCloudflareEndpointLimiter(undefined, 1);
 
-function envelope<T, Code extends string>(
-  body: Omit<ApiEnvelope<T, Code>, "requestId" | "serverTime" | "mode">,
-): ApiEnvelope<T, Code> {
-  return {
-    ...body,
-    requestId: crypto.randomUUID(),
-    serverTime: new Date().toISOString(),
-    mode: "NORMAL",
-  };
-}
+const routerDependencies = {
+  uuid: () => crypto.randomUUID(),
+  wallClock: () => new Date(),
+  monotonicNow: () => performance.now(),
+  digest: sha256Digest,
+  verifyCsrf: async () => false,
+  authorize: async (_boundary, _request, context) => context.actor,
+  resolveLimiter: (name) => (name === "status" ? allowEndpointLimiter : failClosedLimiter),
+  observe: (event) => console.error("worker_request_error", event),
+  resolveMode: () => "NORMAL" as const,
+} satisfies RouterDependencies<Env>;
 
-function json<T, Code extends string>(
-  body: ApiEnvelope<T, Code>,
-  status: number,
-  headers?: HeadersInit,
-): Response {
-  return Response.json(body, {
-    status,
-    headers: {
-      "cache-control": "no-store",
-      ...headers,
-    },
-  });
-}
+const apiRouter = createRouter<Env>([statusRoute], routerDependencies);
 
 const worker = {
   async fetch(request: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(request.url);
-
-    if (pathname === "/api/status") {
-      if (request.method !== "GET") {
-        return json(
-          envelope({
-            ok: false,
-            code: "METHOD_NOT_ALLOWED",
-            error: { message: "Method not allowed" },
-          }),
-          405,
-          { allow: "GET" },
-        );
-      }
-
-      return json(
-        envelope({
-          ok: true,
-          code: "OK",
-          data: { status: "ok" },
-        }),
-        200,
-      );
-    }
-
     if (pathname === "/api" || pathname.startsWith("/api/")) {
-      return json(
-        envelope({
-          ok: false,
-          code: "NOT_FOUND",
-          error: { message: "API route not found" },
-        }),
-        404,
-      );
+      return apiRouter.fetch(request, env);
     }
-
     return env.ASSETS.fetch(request);
   },
 } satisfies ExportedHandler<Env>;

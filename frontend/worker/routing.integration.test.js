@@ -15,6 +15,17 @@ afterAll(async () => {
   await server.close();
 });
 
+function expectSecurityHeaders(response, { hsts }) {
+  const csp = response.headers.get("content-security-policy") ?? "";
+  expect(csp).toContain("frame-ancestors 'none'");
+  expect(csp).toContain("worker-src 'self' blob:");
+  expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+  expect(response.headers.get("x-frame-options")).toBe("DENY");
+  expect(response.headers.get("referrer-policy")).toBe("strict-origin-when-cross-origin");
+  expect(response.headers.get("permissions-policy")).toContain("camera=()");
+  expect(response.headers.has("strict-transport-security")).toBe(hsts);
+}
+
 describe("Cloudflare application routing", () => {
   it("runs the Worker for the status route and exact API namespace root", async () => {
     const statusResponse = await server.fetch("/api/status");
@@ -22,6 +33,7 @@ describe("Cloudflare application routing", () => {
 
     expect(statusResponse.status).toBe(200);
     expect(statusResponse.headers.get("content-type")).toContain("application/json");
+    expectSecurityHeaders(statusResponse, { hsts: false });
     expect(statusBody).toMatchObject({
       ok: true,
       code: "OK",
@@ -32,6 +44,7 @@ describe("Cloudflare application routing", () => {
     const apiRootResponse = await server.fetch("/api");
     expect(apiRootResponse.status).toBe(404);
     expect(apiRootResponse.headers.get("content-type")).toContain("application/json");
+    expectSecurityHeaders(apiRootResponse, { hsts: false });
     expect(await apiRootResponse.text()).not.toContain("<!doctype html>");
   });
 
@@ -39,6 +52,7 @@ describe("Cloudflare application routing", () => {
     const routeResponse = await server.fetch("/flights/demo");
     expect(routeResponse.status).toBe(200);
     expect(routeResponse.headers.get("content-type")).toContain("text/html");
+    expectSecurityHeaders(routeResponse, { hsts: true });
     expect(await routeResponse.text()).toContain("<title>ADSB-GAME</title>");
 
     const indexHtml = await readFile("./dist/client/index.html", "utf8");
@@ -48,5 +62,6 @@ describe("Cloudflare application routing", () => {
     const assetResponse = await server.fetch(assetPath);
     expect(assetResponse.status).toBe(200);
     expect(assetResponse.headers.get("content-type")).toContain("javascript");
+    expectSecurityHeaders(assetResponse, { hsts: true });
   });
 });

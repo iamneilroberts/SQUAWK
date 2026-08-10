@@ -1376,3 +1376,47 @@ requires the 22.12 runtime floor. Lint starts with eight pre-existing hook warni
 simulator rewrites. The old Docker/nginx build expects `dist/index.html`, while the Cloudflare
 plugin correctly emits `dist/client`; Docker Compose is therefore explicitly unsupported on
 this migration branch until its Task 18 retirement rather than being advertised as green.
+
+## 2026-08-10 — CF-002 · One typed route table and correlation context for every dynamic request
+
+Every dynamic endpoint is registered through one explicit route table. A route must declare its
+HTTP method, path, family, trust boundary (`public`, `authenticated`, or `admin`), security
+requirements, limiter name, and retry interval; runtime registration checks preserve those
+requirements even if a caller casts around TypeScript. The common middleware order is context,
+same-origin, authorization, CSRF, idempotency, limiter, bounded body read, validation, handler,
+response, and telemetry. Cheap rejection therefore happens before body parsing, and no admitted
+request can bypass the same sequence.
+
+One `RequestContext` generates the request UUID and server timestamp exactly once and carries
+them, the route family, effective mode, boundary, and non-PII actor key into responses,
+observability, and telemetry. Anonymous keys hash only a coarse IPv4 `/24` or IPv6 `/64` network;
+authenticated keys use the opaque user ID. Full IPs, email addresses, credentials, cookies,
+tokens, complete ADS-B payloads, and result evidence never enter the context or Analytics Engine.
+Unexpected exceptions become a stable `INTERNAL_ERROR` envelope while only the bounded,
+allowlisted error type—not arbitrary exception text—reaches observability.
+
+JSON bodies are streamed with a 128 KiB default ceiling, which matches the approved maximum
+result submission size; individual routes may lower it. Coordinates reject non-finite values and
+out-of-range latitude/longitude. Radius validation preserves the existing accepted 10–250 NM
+range, with a separate explicit clamp for callers that intentionally want clamping rather than
+rejection.
+
+Endpoint limiting remains an injected adapter. Missing or failed Cloudflare RateLimit bindings
+fail closed, while the current read-only status route explicitly uses the allow adapter. No
+RateLimit namespace or exact counter is introduced here: Task 4 owns the Durable Object broker,
+global admission, exact daily counters, modes, and leases because the platform RateLimit API is
+PoP-local and eventually consistent. The coarse anonymous digest is intentionally unkeyed for
+now; revisit a Worker-secret keyed digest before production if offline enumeration resistance is
+required.
+
+Every admitted request attempts one scrubbed Analytics Engine datapoint, indexed only by the
+non-PII actor key and labeled with route family, status class, mode, and reserved dimensions.
+Telemetry writes are synchronous, caught, and unable to change request truth. Local, staging, and
+production repeat the non-inheritable `REQUEST_ANALYTICS` binding with distinct dataset names.
+
+Worker responses receive the Cesium-compatible CSP, frame denial, no-sniff, referrer, and
+permissions policies in code; dynamic HSTS is production-only. Static SPA and asset responses
+bypass Worker routing, so `public/_headers` applies the same policy at the asset boundary and may
+set HSTS unconditionally for the HTTPS-only deployment artifact. The CSP names only the current
+application, blob/data requirements, and the ArcGIS, Re:Earth, RainViewer, and Cesium hosts needed
+by the existing client rather than widening to arbitrary HTTPS origins.
