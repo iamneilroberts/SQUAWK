@@ -105,16 +105,24 @@
       ]
     },
     "production": {
+      "routes": [
+        {
+          "pattern": "fly.voygent.app",
+          "custom_domain": true
+        }
+      ],
       "vars": {
         "APP_ENV": "production",
         "FORCE_MODE": "NORMAL",
         "AUTH_FROM_EMAIL": "sign-in@fly.voygent.app",
-        "PUBLIC_ORIGIN": "https://fly.voygent.app"
+        "PUBLIC_ORIGIN": "https://fly.voygent.app",
+        "TURNSTILE_SITE_KEY": "0x4AAAAAAEMOZw8pOCVJtNPG"
       },
       "d1_databases": [
         {
           "binding": "DB",
           "database_name": "voygent-adsb-game-production",
+          "database_id": "b48f6528-99b2-42d2-abf7-33dc8846f3d5",
           "migrations_dir": "migrations"
         }
       ],

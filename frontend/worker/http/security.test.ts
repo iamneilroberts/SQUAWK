@@ -32,6 +32,7 @@ describe("request and response security", () => {
     const csp = production.get("content-security-policy") ?? "";
 
     expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'");
     expect(csp).toContain("worker-src 'self' blob:");
     expect(csp).toContain("services.arcgisonline.com");
     expect(csp).toContain("*.reearth.land");
