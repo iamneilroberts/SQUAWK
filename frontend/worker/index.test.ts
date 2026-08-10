@@ -1,4 +1,4 @@
-import { exports } from "cloudflare:workers";
+import { env as testEnv, exports } from "cloudflare:workers";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Env } from "./env";
@@ -19,6 +19,8 @@ function fakeEnv(
     env: {
       ASSETS: { fetch },
       APP_ENV: appEnv,
+      FORCE_MODE: "NORMAL",
+      ADSB_BROKER: (testEnv as WorkerEnv).ADSB_BROKER,
       REQUEST_ANALYTICS: { writeDataPoint },
     } as unknown as Env,
     fetch,
@@ -107,5 +109,33 @@ describe("Worker entry", () => {
 
     expect(response.status).toBe(405);
     expect(response.headers.get("allow")).toBe("GET");
+  });
+
+  it("fails closed without the broker while FORCE_MODE can still kill independently", async () => {
+    const missingBroker = fakeEnv().env as unknown as Record<string, unknown>;
+    delete missingBroker.ADSB_BROKER;
+    const unavailable = await worker.fetch(
+      new Request("https://fly.voygent.app/api/status"),
+      missingBroker as unknown as Env,
+    );
+    expect(unavailable.status).toBe(503);
+    await expect(unavailable.json()).resolves.toMatchObject({
+      code: "BROKER_UNAVAILABLE",
+      mode: "NORMAL",
+    });
+
+    const forcedEnv = {
+      ...missingBroker,
+      FORCE_MODE: "KILL_SWITCH",
+    } as unknown as Env;
+    const forced = await worker.fetch(
+      new Request("https://fly.voygent.app/api/status"),
+      forcedEnv,
+    );
+    expect(forced.status).toBe(503);
+    await expect(forced.json()).resolves.toMatchObject({
+      code: "ADMISSION_DENIED",
+      mode: "KILL_SWITCH",
+    });
   });
 });

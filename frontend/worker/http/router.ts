@@ -1,6 +1,10 @@
 import type { TrustBoundary } from "../../src/shared/api";
 import { API_SUCCESS_CODES, type ApiSuccessCode } from "../../src/shared/codes";
-import { isSystemMode, type SystemMode } from "../../src/shared/mode";
+import {
+  isSystemMode,
+  mostRestrictiveMode,
+  type SystemMode,
+} from "../../src/shared/mode";
 import { readIdempotencyKey } from "./idempotency";
 import { ApiHttpError, jsonEnvelope } from "./response";
 import { applySecurityHeaders, enforceSameOrigin, type AppEnvironment } from "./security";
@@ -20,6 +24,7 @@ export type PipelineStage =
   | "csrf"
   | "idempotency"
   | "limiter"
+  | "broker"
   | "body"
   | "validation"
   | "handler"
@@ -72,6 +77,8 @@ type RouteSecurity = {
     | { kind: "json"; maxBytes?: number };
 };
 
+export type RouteAdmission = "public-read" | "public-write" | "active-flight" | "recovery";
+
 export type RouteRequest = {
   request: Request;
   context: RequestContext;
@@ -93,6 +100,7 @@ export type RouteDefinition = {
   path: string;
   family: string;
   boundary: TrustBoundary;
+  admission: RouteAdmission;
   security: RouteSecurity;
   limiter: { name: string; retryAfterSeconds: number };
   validate?: (input: {
@@ -104,6 +112,19 @@ export type RouteDefinition = {
   handler: (input: RouteRequest) => RouteResult | Promise<RouteResult>;
 };
 
+export type BrokerAdmissionRequest = {
+  kind: Exclude<RouteAdmission, "recovery">;
+  forceMode: SystemMode;
+  request: Request;
+  context: RequestContext;
+  params: Record<string, string>;
+};
+
+export type BrokerAdmissionDecision = {
+  allowed: boolean;
+  mode: SystemMode;
+};
+
 export type RouterDependencies<Env extends RuntimeEnvironment> =
   RequestContextDependencies & {
     verifyCsrf: (request: Request, context: RequestContext) => boolean | Promise<boolean>;
@@ -113,6 +134,10 @@ export type RouterDependencies<Env extends RuntimeEnvironment> =
       context: RequestContext,
     ) => RequestActor | Promise<RequestActor>;
     resolveLimiter: (name: string, env: Env) => EndpointLimiter;
+    admitRequest: (
+      input: BrokerAdmissionRequest,
+      env: Env,
+    ) => BrokerAdmissionDecision | Promise<BrokerAdmissionDecision>;
     observe: (event: unknown) => void;
     resolveMode?: (env: Env) => SystemMode;
     onStage?: (stage: PipelineStage) => void;
@@ -121,6 +146,12 @@ export type RouterDependencies<Env extends RuntimeEnvironment> =
 const METHODS = new Set(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]);
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const REQUIRED_VALUES = new Set(["required", "not-required"]);
+const ADMISSION_VALUES = new Set<RouteAdmission>([
+  "public-read",
+  "public-write",
+  "active-flight",
+  "recovery",
+]);
 const PARAMETER_VALUE = /^[A-Za-z0-9_-]+$/;
 const ROUTE_NAME = /^[a-z][a-z0-9-]{0,63}$/;
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -206,6 +237,9 @@ export function defineRoute<T extends RouteDefinition>(route: T): T {
   }
   if (typeof route.family !== "string" || !ROUTE_NAME.test(route.family)) {
     throw new TypeError("Route family must be a non-empty stable name");
+  }
+  if (!ADMISSION_VALUES.has(route.admission)) {
+    throw new TypeError("Route admission is required");
   }
   validateSecurity(route);
   if (!isRecord(route.limiter)) throw new TypeError("Route limiter declaration is required");
@@ -505,6 +539,37 @@ export function createRouter<Env extends RuntimeEnvironment>(
           throw new ApiHttpError(429, "RATE_LIMITED", "Request rate limit exceeded", {
             retryAfterSeconds: route.limiter.retryAfterSeconds,
           });
+        }
+
+        dependencies.onStage?.("broker");
+        if (route.admission !== "recovery") {
+          const brokerDecision = await dependencies.admitRequest(
+            {
+              kind: route.admission,
+              forceMode: resolvedMode,
+              request,
+              context,
+              params,
+            },
+            env,
+          );
+          if (
+            typeof brokerDecision.allowed !== "boolean" ||
+            !isSystemMode(brokerDecision.mode)
+          ) {
+            throw new TypeError("Broker admission decision is invalid");
+          }
+          context = {
+            ...context,
+            mode: mostRestrictiveMode(resolvedMode, brokerDecision.mode),
+          };
+          if (!brokerDecision.allowed) {
+            throw new ApiHttpError(
+              503,
+              "ADMISSION_DENIED",
+              "Dynamic request admission denied",
+            );
+          }
         }
         admitted = true;
 

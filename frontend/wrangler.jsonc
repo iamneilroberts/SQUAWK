@@ -9,7 +9,22 @@
     "run_worker_first": ["/api", "/api/*", "/admin*"]
   },
   "vars": {
-    "APP_ENV": "local"
+    "APP_ENV": "local",
+    "FORCE_MODE": "NORMAL"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "ADSB_BROKER",
+        "class_name": "AdsbBroker"
+      }
+    ]
+  },
+  "exports": {
+    "AdsbBroker": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
   },
   "analytics_engine_datasets": [
     {
@@ -29,7 +44,16 @@
   "env": {
     "staging": {
       "vars": {
-        "APP_ENV": "staging"
+        "APP_ENV": "staging",
+        "FORCE_MODE": "NORMAL"
+      },
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "ADSB_BROKER",
+            "class_name": "AdsbBroker"
+          }
+        ]
       },
       "analytics_engine_datasets": [
         {
@@ -49,7 +73,16 @@
     },
     "production": {
       "vars": {
-        "APP_ENV": "production"
+        "APP_ENV": "production",
+        "FORCE_MODE": "NORMAL"
+      },
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "ADSB_BROKER",
+            "class_name": "AdsbBroker"
+          }
+        ]
       },
       "analytics_engine_datasets": [
         {

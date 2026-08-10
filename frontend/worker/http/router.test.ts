@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { Env } from "../env";
+import { ApiHttpError } from "./response";
 import {
   allowEndpointLimiter,
   createCloudflareEndpointLimiter,
@@ -39,6 +40,7 @@ function testDependencies(
     verifyCsrf: async () => true,
     authorize: async (_boundary, _request, context) => context.actor,
     resolveLimiter: () => allowEndpointLimiter,
+    admitRequest: async ({ forceMode }) => ({ allowed: true, mode: forceMode }),
     observe: vi.fn(),
     ...overrides,
   };
@@ -49,6 +51,7 @@ const statusRoute = defineRoute({
   path: "/api/status",
   family: "status",
   boundary: "public",
+  admission: "public-read",
   security: {
     sameOrigin: "not-required",
     csrf: "not-required",
@@ -128,6 +131,7 @@ describe("explicit dynamic router", () => {
   it("rejects casted, malformed, or under-protected route declarations", () => {
     const invalidRoutes = [
       { ...statusRoute, family: " " },
+      { ...statusRoute, admission: undefined },
       { ...statusRoute, limiter: { name: "", retryAfterSeconds: 1 } },
       {
         ...statusRoute,
@@ -208,6 +212,7 @@ describe("explicit dynamic router", () => {
       path: "/api/missions/:missionId/result",
       family: "mission-result",
       boundary: "authenticated",
+      admission: "public-write",
       security: {
         sameOrigin: "required",
         csrf: "required",
@@ -255,6 +260,7 @@ describe("explicit dynamic router", () => {
       "csrf",
       "idempotency",
       "limiter",
+      "broker",
       "body",
       "validation",
       "handler",
@@ -271,6 +277,7 @@ describe("explicit dynamic router", () => {
       path: "/api/test",
       family: "test",
       boundary: "authenticated",
+      admission: "public-write",
       security: {
         sameOrigin: "required",
         csrf: "required",
@@ -331,6 +338,7 @@ describe("explicit dynamic router", () => {
       path: "/api/test",
       family: "test",
       boundary: "authenticated",
+      admission: "public-write",
       security: {
         sameOrigin: "required",
         csrf: "required",
@@ -402,6 +410,54 @@ describe("explicit dynamic router", () => {
       code: "RATE_LIMITED",
       error: { retryAfterSeconds: 1 },
     });
+  });
+
+  it("fails public admission closed while an Access recovery route stays independent", async () => {
+    const admitRequest = vi.fn(async () => {
+      throw new ApiHttpError(503, "BROKER_UNAVAILABLE", "Broker unavailable");
+    });
+    const publicHandler = vi.fn(async () => ({ data: { status: "public" } }));
+    const recoveryHandler = vi.fn(async () => ({ data: { status: "recovery" } }));
+    const recoveryRoute = defineRoute({
+      ...statusRoute,
+      path: "/api/admin/recovery/status",
+      family: "admin-recovery",
+      boundary: "admin",
+      admission: "recovery",
+      handler: recoveryHandler,
+    });
+    const { env } = fakeEnv();
+    const router = createRouter(
+      [defineRoute({ ...statusRoute, handler: publicHandler }), recoveryRoute],
+      testDependencies({
+        admitRequest,
+        authorize: async (_boundary, _request, context) => ({
+          kind: "admin",
+          userId: "admin-1",
+          samplingKey: context.actor.samplingKey,
+        }),
+      }),
+    );
+
+    const denied = await router.fetch(
+      new Request("https://fly.voygent.app/api/status"),
+      env,
+    );
+    expect(denied.status).toBe(503);
+    await expect(denied.json()).resolves.toMatchObject({ code: "BROKER_UNAVAILABLE" });
+    expect(publicHandler).not.toHaveBeenCalled();
+
+    const recovery = await router.fetch(
+      new Request("https://fly.voygent.app/api/admin/recovery/status"),
+      env,
+    );
+    expect(recovery.status).toBe(200);
+    await expect(recovery.json()).resolves.toMatchObject({
+      mode: "NORMAL",
+      data: { status: "recovery" },
+    });
+    expect(recoveryHandler).toHaveBeenCalledOnce();
+    expect(admitRequest).toHaveBeenCalledOnce();
   });
 
   it("adapts Cloudflare RateLimit and fails closed on missing or failed bindings", async () => {

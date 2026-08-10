@@ -1420,3 +1420,46 @@ bypass Worker routing, so `public/_headers` applies the same policy at the asset
 set HSTS unconditionally for the HTTPS-only deployment artifact. The CSP names only the current
 application, blob/data requirements, and the ArcGIS, Re:Earth, RainViewer, and Cesium hosts needed
 by the existing client rather than widening to arbitrary HTTPS origins.
+
+## 2026-08-10 — CF-003 · One exact global broker for launch, with measured split triggers
+
+Launch uses one SQLite-backed `AdsbBroker` object derived only from the fixed internal name
+`global-v1`. Public requests cannot provide an object name. The object is the atom of coordination
+for exact UTC-day admission/provider counters, automatic and requested modes, alert-transition
+deduplication, compact health counters, and one-user/ten-global flight leases. Each command runs
+inside a Durable Object storage transaction; lease expiry also has an alarm and is rechecked on
+every command, so alarm retry or eviction cannot strand capacity.
+
+The request pipeline now places exact broker admission after the endpoint limiter and before body
+read, validation, or downstream work. Missing bindings, transport errors, malformed responses, and
+invalid persisted state fail public admission closed. The deployment `FORCE_MODE` is resolved
+before the broker call and can impose `KILL_SWITCH` without broker health. The
+`/api/admin/recovery/status` route is explicitly `admin`-boundary and broker-exempt, preserving the
+Access recovery seam; Task 14 supplies the production Access identity adapter and broader controls.
+
+The owner approved a protected reserve of 150 requests for each lease present when the counter
+enters the 90,000-request read-only band: 30 minutes at the approved 12-second active-flight
+cadence, capped at 1,500 for ten flights. Cached browsing may consume the rest of the final 10,000
+requests. Protected tokens are spent only after ordinary capacity is exhausted and unused tokens
+return immediately when their lease releases or expires. At 100,000 admitted requests the broker
+enters `KILL_SWITCH`; the client-side simulation/result queue remains available as designed.
+
+Wrangler declares the class with the current declarative `exports` lifecycle and SQLite storage,
+which supersedes the legacy ordered `migrations` array for new classes. The non-inheritable
+`ADSB_BROKER` binding is repeated for local, staging, and production, giving each Worker environment
+its own namespace.
+
+The global object is intentionally a small-launch control point, not a claim that singleton
+Durable Objects scale indefinitely. Trigger a split design review when any one condition holds:
+
+- broker-only p95 latency exceeds 100 ms or p99 exceeds 250 ms for 15 continuous minutes;
+- command volume exceeds 200 requests/second for five minutes, or overload/queue errors reach
+  0.1% of broker calls in a five-minute window;
+- global-object storage exceeds 100 MiB, grows toward 1 GiB within 30 days, or any regional cache
+  value reaches 1 MiB;
+- one broker incident causes broker-related failures in at least two geographic regions or more
+  than 5% of dynamic requests for five minutes.
+
+The first split moves normalized regional traffic bodies/coalescing into deterministic regional
+objects while retaining the small global admission/mode/lease object. The Worker-facing broker
+protocol remains stable. Task 4 records these triggers only; it does not implement sharding.
