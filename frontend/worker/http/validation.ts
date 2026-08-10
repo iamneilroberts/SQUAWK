@@ -1,8 +1,12 @@
 import { ApiHttpError } from "./response";
+import {
+  TRAFFIC_MAX_RADIUS_NM,
+  TRAFFIC_MIN_RADIUS_NM,
+} from "../../src/shared/limits";
 
 export const DEFAULT_MAX_JSON_BODY_BYTES = 128 * 1024;
-export const MIN_RADIUS_NM = 10;
-export const MAX_RADIUS_NM = 250;
+export const MIN_RADIUS_NM = TRAFFIC_MIN_RADIUS_NM;
+export const MAX_RADIUS_NM = TRAFFIC_MAX_RADIUS_NM;
 
 export class ValidationError extends ApiHttpError<
   "INVALID_REQUEST" | "REQUEST_TOO_LARGE"

@@ -1,8 +1,15 @@
 import { env as testEnv, exports } from "cloudflare:workers";
+import { runInDurableObject } from "cloudflare:test";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Env } from "./env";
 import worker from "./index";
+import {
+  AdsbBroker,
+  setBrokerTrafficProviderForTest,
+  type BrokerTrafficProvider,
+} from "./durable/AdsbBroker";
+import { brokerStub } from "./durable/protocol";
 
 function fakeEnv(
   assetBody = "<!doctype html><title>ADS-B Game</title>",
@@ -60,6 +67,85 @@ describe("Worker entry", () => {
     expect(response.status).toBe(200);
     expect(fetch).not.toHaveBeenCalled();
     expect(writeDataPoint).toHaveBeenCalledOnce();
+  });
+
+  it("serves config and anonymous fixture traffic through the Worker envelope", async () => {
+    const namespace = (testEnv as WorkerEnv).ADSB_BROKER as DurableObjectNamespace<AdsbBroker>;
+    const target = brokerStub(namespace) as DurableObjectStub<AdsbBroker>;
+    let calls = 0;
+    const provider: BrokerTrafficProvider = async (region, _settings, gate, nowMs) => {
+      await gate.beforeAttempt();
+      calls += 1;
+      return {
+        contacts: [{
+          hex: "abc123",
+          flight: "LOCAL1",
+          t: "C172",
+          lat: region.requestedCenter.lat,
+          lon: region.requestedCenter.lon,
+          alt_geom: 1_000,
+          alt_baro: 900,
+          gs: 100,
+          track: 90,
+          baro_rate: 0,
+          military: false,
+          seen_pos: 0,
+        }],
+        source: "fixture.test",
+        sourceTime: nowMs() / 1_000,
+        fetchedAt: nowMs() / 1_000,
+      };
+    };
+    await runInDurableObject<AdsbBroker, void>(target, (broker) => {
+      setBrokerTrafficProviderForTest(broker, provider, {
+        templates: ["https://fixture.test/{lat}/{lon}/{radius}"],
+        minimumIntervalMs: 0,
+        dailyLimit: 1_000,
+        maximumRadiusNm: 300,
+        timeoutMs: 12_000,
+        maximumResponseBytes: 1_048_576,
+      });
+    });
+    const { env, fetch } = fakeEnv();
+
+    const config = await worker.fetch(
+      new Request("https://fly.voygent.app/api/config"),
+      env,
+    );
+    await expect(config.json()).resolves.toMatchObject({
+      ok: true,
+      data: { home: { lat: 30.6944, lon: -88.0399 } },
+    });
+
+    const response = await worker.fetch(
+      new Request("https://fly.voygent.app/api/traffic?lat=30&lon=-88&radius_nm=80"),
+      env,
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: true,
+      code: "OK",
+      mode: "NORMAL",
+      data: {
+        contacts: [{ hex: "abc123" }],
+        source: "fixture.test",
+        freshness: "FRESH",
+        providerAvailable: true,
+        nextRefreshSeconds: 15,
+      },
+    });
+    expect(calls).toBe(1);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("strictly validates and clamps the traffic query before broker work", async () => {
+    const { env } = fakeEnv();
+    const invalid = await worker.fetch(
+      new Request("https://fly.voygent.app/api/traffic?lat=30&lon=-88&radius_nm=80&url=https://attacker.test"),
+      env,
+    );
+    expect(invalid.status).toBe(400);
+    await expect(invalid.json()).resolves.toMatchObject({ code: "INVALID_REQUEST" });
   });
 
   it("adds dynamic HSTS only in production", async () => {

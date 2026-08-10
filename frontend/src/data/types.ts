@@ -15,6 +15,23 @@ export type Contact = {
 
 export type FeedStatus = "live" | "stale" | "offline";
 
+export type TrafficFreshness = "FRESH" | "STALE" | "EXPIRED";
+export type TrafficCacheStatus = "MISS" | "HIT" | "COALESCED" | "STALE" | "EXPIRED";
+
+export type TrafficData = {
+  contacts: Contact[];
+  source: string | null;
+  sourceTime: number | null;
+  fetchedAt: number | null;
+  cacheAgeSeconds: number | null;
+  freshness: TrafficFreshness;
+  providerAvailable: boolean;
+  regionKey: string;
+  nextRefreshSeconds: number;
+  cacheStatus: TrafficCacheStatus;
+  radiusNm: number;
+};
+
 /** One reported cloud layer. `baseFt` is height above ground in feet, or null if not given. */
 export type MetarCloud = {
   cover: string | null;

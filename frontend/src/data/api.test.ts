@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { fetchTypeInfo, FeedDownError } from "./api";
+import { fetchTraffic, fetchTypeInfo, FeedDownError } from "./api";
 
 const okJson = (body: unknown) =>
   vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => body });
@@ -52,5 +52,61 @@ describe("fetchTypeInfo", () => {
   it("throws FeedDownError when the proxy answers badly", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 502 }));
     await expect(fetchTypeInfo("a1b2c3")).rejects.toBeInstanceOf(FeedDownError);
+  });
+});
+
+describe("fetchTraffic", () => {
+  it("uses only the Worker traffic route and unwraps its typed envelope", async () => {
+    const fetchMock = okJson({
+      ok: true,
+      code: "OK",
+      requestId: "00000000-0000-4000-8000-000000000001",
+      serverTime: "2026-08-10T12:00:00.000Z",
+      mode: "READ_ONLY",
+      data: {
+        contacts: [],
+        source: "fixture.test",
+        sourceTime: 1,
+        fetchedAt: 2,
+        cacheAgeSeconds: 3,
+        freshness: "STALE",
+        providerAvailable: false,
+        regionKey: "r1:30:-88:100",
+        nextRefreshSeconds: 30,
+        cacheStatus: "STALE",
+        radiusNm: 80,
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchTraffic(30, -88, 80)).resolves.toMatchObject({
+      mode: "READ_ONLY",
+      freshness: "STALE",
+      nextRefreshSeconds: 30,
+    });
+    expect(fetchMock).toHaveBeenCalledWith("/api/traffic?lat=30&lon=-88&radius_nm=80");
+  });
+
+  it("preserves stable error code and retry guidance", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            ok: false,
+            code: "RATE_LIMITED",
+            error: { message: "retry later", retryAfterSeconds: 30 },
+          }),
+          { status: 429, headers: { "content-type": "application/json" } },
+        ),
+      ),
+    );
+    const error = await fetchTraffic(30, -88, 80).catch((caught: unknown) => caught);
+    expect(error).toMatchObject({
+      name: "FeedDownError",
+      status: 429,
+      code: "RATE_LIMITED",
+      retryAfterSeconds: 30,
+    });
   });
 });

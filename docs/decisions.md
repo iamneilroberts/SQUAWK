@@ -1463,3 +1463,38 @@ Durable Objects scale indefinitely. Trigger a split design review when any one c
 The first split moves normalized regional traffic bodies/coalescing into deterministic regional
 objects while retaining the small global admission/mode/lease object. The Worker-facing broker
 protocol remains stable. Task 4 records these triggers only; it does not implement sharding.
+
+## 2026-08-10 — CF-004 · Normalize once, cache bounded regions, and require an explicit provider contract
+
+The TypeScript Worker now owns the legacy Python ADS-B normalization contract. Approved raw
+`airplanes.live` and `adsb.fi` fixtures are snapshot-compared field for field, including both
+`ac` and `aircraft` envelopes, numeric coercion, the exact `ground` altitude sentinel,
+`dbFlags`, position filtering, string trimming, and provider source time. Production traffic is
+therefore real provider data or absent; there is no demo fallback and stale data is never
+relabeled fresh.
+
+Traffic requests normalize to 0.25-degree regional cells and 25-NM provider-radius buckets.
+The provider query is padded to cover the requested circle, while each response is filtered back
+to the caller's requested center and radius. The global broker coalesces concurrent reads for the
+same region, serializes all provider attempts behind one persisted minimum-interval and daily-
+allowance gate, and stores at most 32 last-good regional bodies. Cache entries are fresh for eight
+seconds, explicitly stale after that, and expire at 120 seconds; failed refreshes use bounded
+15/30/60-second backoff. Both bodies and failure metadata survive object eviction and are removed
+by LRU/expiry processing.
+
+Provider work is ordered as active selected-aircraft ghost, multi-viewer signed region,
+anonymous shared region, then ambient in-flight traffic. Ambient work is shed first under
+contention. `READ_ONLY` and `KILL_SWITCH` browsing is cache-only, while an active ghost may still
+refresh through the protected-flight path. The client pauses while hidden, never overlaps calls,
+respects the larger of its cadence and the server hint, and uses 15-second anonymous, eight-second
+signed, 12-second active-flight, and 30/15-second conservation cadences. It also expires retained
+contacts locally if the Worker becomes unreachable past the 120-second truth window.
+
+Provider endpoints accept only configured HTTPS templates containing the known latitude,
+longitude, and radius placeholders; callers cannot supply upstream URLs or headers. Each attempt
+has a 12-second timeout and 1-MiB response cap. `UPSTREAM_MIN_INTERVAL`,
+`UPSTREAM_DAILY_LIMIT`, `UPSTREAM_MAX_RADIUS_NM`, and the primary provider template are required
+at runtime and intentionally remain absent from checked-in staging/production configuration.
+Likewise, `/api/traffic` uses the local-only limiter adapter and fails closed outside local mode
+until a real Cloudflare limiter is provisioned. Those are release gates, not guessed defaults:
+paid/provider resources and exact allowance values require the later owner checkpoint.

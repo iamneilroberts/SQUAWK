@@ -16,6 +16,18 @@ describe("broker protocol", () => {
         missionId: MISSION_ID,
       }),
     ).toMatchObject({ type: "admit", kind: "active-flight" });
+    expect(
+      parseBrokerCommand({
+        type: "traffic",
+        forceMode: "NORMAL",
+        request: {
+          latitude: 30,
+          longitude: -88,
+          radiusNm: 80,
+          audience: { kind: "anonymous" },
+        },
+      }),
+    ).toMatchObject({ type: "traffic", request: { audience: { kind: "anonymous" } } });
 
     for (const invalid of [
       null,
@@ -23,6 +35,16 @@ describe("broker protocol", () => {
       { type: "admit", kind: "public-read", forceMode: "NORMAL", objectName: "chosen" },
       { type: "status", forceMode: "WEAK_MODE" },
       { type: "lease-release-user", userId: "raw-email@example.com" },
+      {
+        type: "traffic",
+        forceMode: "NORMAL",
+        request: {
+          latitude: 30,
+          longitude: -88,
+          radiusNm: 80,
+          audience: { kind: "anonymous", callerUrl: "https://attacker.test" },
+        },
+      },
     ]) {
       expect(() => parseBrokerCommand(invalid)).toThrow("Invalid broker command");
     }

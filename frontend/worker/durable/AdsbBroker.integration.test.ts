@@ -9,9 +9,16 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   AdsbBroker,
+  brokerProviderQueueForTest,
+  brokerSignedViewerCountForTest,
   seedAdmittedRequestsForTest,
   setBrokerClockForTest,
+  setBrokerSleeperForTest,
+  setBrokerTrafficProviderForTest,
+  type BrokerTrafficProvider,
 } from "./AdsbBroker";
+import type { ProviderSettings } from "../adsb/provider";
+import type { TrafficAudience } from "../adsb/traffic";
 import { FakeClock } from "./clock";
 import {
   brokerStub,
@@ -32,6 +39,15 @@ const MISSION_IDS = Array.from(
 // Keep lease alarms in the future relative to the real workerd alarm manager;
 // broker time itself remains controlled by FakeClock.
 const START = Date.parse("2030-08-10T12:00:00.000Z");
+
+const TRAFFIC_SETTINGS: ProviderSettings = {
+  templates: ["https://fake-provider.test/{lat}/{lon}/{radius}"],
+  minimumIntervalMs: 0,
+  dailyLimit: 1_000,
+  maximumRadiusNm: 300,
+  timeoutMs: 12_000,
+  maximumResponseBytes: 1_048_576,
+};
 
 type TestEnvironment = Cloudflare.Env & {
   ADSB_BROKER: DurableObjectNamespace<AdsbBroker>;
@@ -57,6 +73,18 @@ async function seedCount(target: DurableObjectStub<AdsbBroker>, count: number) {
   });
 }
 
+async function setTrafficProvider(
+  target: DurableObjectStub<AdsbBroker>,
+  provider: BrokerTrafficProvider,
+  settings: ProviderSettings = TRAFFIC_SETTINGS,
+  sleeper?: (milliseconds: number) => Promise<void>,
+) {
+  await runInDurableObject<AdsbBroker, void>(target, (broker) => {
+    setBrokerTrafficProviderForTest(broker, provider, settings);
+    if (sleeper !== undefined) setBrokerSleeperForTest(broker, sleeper);
+  });
+}
+
 async function command<T extends BrokerCommand>(target: DurableObjectStub, value: T) {
   const namespace = testEnvironment().ADSB_BROKER;
   expect(target.id.equals(brokerStub(namespace).id)).toBe(true);
@@ -74,6 +102,28 @@ async function acquire(
     userId,
     missionId,
   }) as Promise<LeaseResult>;
+}
+
+function traffic(
+  target: DurableObjectStub,
+  latitude = 30,
+  longitude = -88,
+  audience: TrafficAudience = { kind: "anonymous" },
+  forceMode: "NORMAL" | "READ_ONLY" | "KILL_SWITCH" = "NORMAL",
+) {
+  return command(target, {
+    type: "traffic",
+    forceMode,
+    request: { latitude, longitude, radiusNm: 80, audience },
+  });
+}
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
 }
 
 beforeEach(async () => {
@@ -357,6 +407,313 @@ describe("AdsbBroker", () => {
       forceMode: "KILL_SWITCH",
     });
     expect(forced.status.effectiveMode).toBe("KILL_SWITCH");
+  });
+
+  it("coalesces one hundred simultaneous same-region reads to one provider fetch", async () => {
+    const target = stub();
+    const clock = new FakeClock(START);
+    await setClock(target, clock);
+    const release = deferred();
+    let providerCalls = 0;
+    const provider: BrokerTrafficProvider = async (region, _settings, gate, nowMs) => {
+      await gate.beforeAttempt();
+      providerCalls += 1;
+      await release.promise;
+      return {
+        contacts: [{
+          hex: "abc123",
+          flight: "TEST1",
+          t: "C172",
+          lat: region.providerCenter.lat,
+          lon: region.providerCenter.lon,
+          alt_geom: 1_000,
+          alt_baro: 900,
+          gs: 100,
+          track: 90,
+          baro_rate: 0,
+          military: false,
+          seen_pos: 0,
+        }],
+        source: "fake-provider.test",
+        sourceTime: nowMs() / 1_000,
+        fetchedAt: nowMs() / 1_000,
+      };
+    };
+    await setTrafficProvider(target, provider);
+
+    const requests = Array.from({ length: 100 }, () => traffic(target));
+    await expect.poll(() => providerCalls).toBe(1);
+    release.resolve();
+    const results = await Promise.all(requests);
+
+    expect(providerCalls).toBe(1);
+    expect(results.every((result) => result.type === "traffic")).toBe(true);
+    expect(
+      results.every((result) => result.type !== "traffic" || result.traffic.contacts.length === 1),
+    ).toBe(true);
+    const brokerStatus = await command(target, { type: "status", forceMode: "NORMAL" });
+    expect(brokerStatus.status).toMatchObject({ providerRequests: 1, health: { providerCalls: 1 } });
+  });
+
+  it("serializes distinct regions through the persisted global minimum interval", async () => {
+    const target = stub();
+    const clock = new FakeClock(START);
+    await setClock(target, clock);
+    const attemptTimes: number[] = [];
+    const provider: BrokerTrafficProvider = async (_region, _settings, gate, nowMs) => {
+      await gate.beforeAttempt();
+      attemptTimes.push(nowMs());
+      return {
+        contacts: [],
+        source: "fake-provider.test",
+        sourceTime: nowMs() / 1_000,
+        fetchedAt: nowMs() / 1_000,
+      };
+    };
+    await setTrafficProvider(
+      target,
+      provider,
+      { ...TRAFFIC_SETTINGS, minimumIntervalMs: 1_000 },
+      async (milliseconds) => {
+        clock.advance(milliseconds);
+      },
+    );
+
+    await Promise.all([
+      traffic(target, 30, -88),
+      traffic(target, 32, -88),
+      traffic(target, 34, -88),
+    ]);
+
+    expect(attemptTimes).toEqual([START, START + 1_000, START + 2_000]);
+    const brokerStatus = await command(target, { type: "status", forceMode: "NORMAL" });
+    expect(brokerStatus.status.providerRequests).toBe(3);
+  });
+
+  it("serves bounded stale data with backoff, persists it, then expires contacts", async () => {
+    const target = stub();
+    const clock = new FakeClock(START);
+    await setClock(target, clock);
+    let fail = false;
+    let providerCalls = 0;
+    const provider: BrokerTrafficProvider = async (region, _settings, gate, nowMs) => {
+      await gate.beforeAttempt();
+      providerCalls += 1;
+      if (fail) {
+        await gate.attemptFailed();
+        throw new Error("fake outage");
+      }
+      return {
+        contacts: [{
+          hex: "abc123",
+          flight: null,
+          t: null,
+          lat: region.requestedCenter.lat,
+          lon: region.requestedCenter.lon,
+          alt_geom: null,
+          alt_baro: "ground",
+          gs: null,
+          track: null,
+          baro_rate: null,
+          military: false,
+          seen_pos: 0,
+        }],
+        source: "fake-provider.test",
+        sourceTime: nowMs() / 1_000,
+        fetchedAt: nowMs() / 1_000,
+      };
+    };
+    await setTrafficProvider(target, provider);
+    await expect(traffic(target)).resolves.toMatchObject({
+      type: "traffic",
+      traffic: { freshness: "FRESH", providerAvailable: true, contacts: [{ hex: "abc123" }] },
+    });
+
+    clock.advance(9_000);
+    fail = true;
+    await expect(traffic(target)).resolves.toMatchObject({
+      type: "traffic",
+      traffic: { freshness: "STALE", providerAvailable: false, contacts: [{ hex: "abc123" }] },
+    });
+    expect(providerCalls).toBe(2);
+    await expect(traffic(target)).resolves.toMatchObject({
+      type: "traffic",
+      traffic: { freshness: "STALE", cacheStatus: "STALE" },
+    });
+    expect(providerCalls).toBe(2);
+
+    await evictDurableObject(target);
+    await setClock(target, clock);
+    await setTrafficProvider(target, provider);
+    await expect(traffic(target)).resolves.toMatchObject({
+      type: "traffic",
+      traffic: { freshness: "STALE", contacts: [{ hex: "abc123" }] },
+    });
+    expect(providerCalls).toBe(2);
+
+    clock.advance(112_000);
+    await expect(traffic(target)).resolves.toMatchObject({
+      type: "traffic",
+      traffic: { freshness: "EXPIRED", providerAvailable: false, contacts: [] },
+    });
+    expect(providerCalls).toBe(3);
+  });
+
+  it("bounds persisted regional cache entries and enforces the provider daily allowance", async () => {
+    const target = stub();
+    const clock = new FakeClock(START);
+    await setClock(target, clock);
+    let calls = 0;
+    const provider: BrokerTrafficProvider = async (_region, _settings, gate, nowMs) => {
+      await gate.beforeAttempt();
+      calls += 1;
+      return {
+        contacts: [],
+        source: "fake-provider.test",
+        sourceTime: nowMs() / 1_000,
+        fetchedAt: nowMs() / 1_000,
+      };
+    };
+    await setTrafficProvider(target, provider, { ...TRAFFIC_SETTINGS, dailyLimit: 40 });
+    for (let index = 0; index < 40; index += 1) {
+      await traffic(target, -80 + index * 4, -88);
+      clock.advance(1);
+    }
+    expect(calls).toBe(40);
+    await runInDurableObject<AdsbBroker, void>(target, async (_broker, state) => {
+      const index = await state.storage.get<{ entries: unknown[] }>("traffic-index:v1");
+      expect(index?.entries).toHaveLength(32);
+      const bodies = await state.storage.list({ prefix: "traffic-body:v1:" });
+      expect(bodies.size).toBe(32);
+    });
+
+    await expect(traffic(target, 85, -88)).resolves.toMatchObject({
+      type: "traffic",
+      traffic: { freshness: "EXPIRED", providerAvailable: false },
+    });
+    expect(calls).toBe(40);
+  });
+
+  it("records signed viewers even when the second viewer receives a cache hit", async () => {
+    const target = stub();
+    const clock = new FakeClock(START);
+    await setClock(target, clock);
+    const provider: BrokerTrafficProvider = async (_region, _settings, gate, nowMs) => {
+      await gate.beforeAttempt();
+      return {
+        contacts: [],
+        source: "fake-provider.test",
+        sourceTime: nowMs() / 1_000,
+        fetchedAt: nowMs() / 1_000,
+      };
+    };
+    await setTrafficProvider(target, provider);
+
+    await traffic(target, 30, -88, { kind: "signed", userId: USER_IDS[0]! });
+    await traffic(target, 30, -88, { kind: "signed", userId: USER_IDS[1]! });
+
+    await expect(
+      runInDurableObject<AdsbBroker, number>(target, (broker) =>
+        brokerSignedViewerCountForTest(broker),
+      ),
+    ).resolves.toBe(2);
+  });
+
+  it("serves cache-only browsing in read-only mode while active ghosts may refresh", async () => {
+    const target = stub();
+    const clock = new FakeClock(START);
+    await setClock(target, clock);
+    let calls = 0;
+    const provider: BrokerTrafficProvider = async (_region, _settings, gate, nowMs) => {
+      await gate.beforeAttempt();
+      calls += 1;
+      return {
+        contacts: [],
+        source: "fake-provider.test",
+        sourceTime: nowMs() / 1_000,
+        fetchedAt: nowMs() / 1_000,
+      };
+    };
+    await setTrafficProvider(target, provider);
+
+    await expect(
+      traffic(target, 30, -88, { kind: "anonymous" }, "READ_ONLY"),
+    ).resolves.toMatchObject({
+      type: "traffic",
+      traffic: { freshness: "EXPIRED", providerAvailable: false },
+      status: { effectiveMode: "READ_ONLY" },
+    });
+    expect(calls).toBe(0);
+
+    await expect(
+      traffic(
+        target,
+        30,
+        -88,
+        {
+          kind: "active-ghost",
+          userId: USER_IDS[0]!,
+          missionId: MISSION_IDS[0]!,
+          selectedHex: "abc123",
+        },
+        "READ_ONLY",
+      ),
+    ).resolves.toMatchObject({
+      type: "traffic",
+      traffic: { freshness: "FRESH", providerAvailable: true },
+    });
+    expect(calls).toBe(1);
+  });
+
+  it("runs queued active ghost work before anonymous and ambient work", async () => {
+    const target = stub();
+    const clock = new FakeClock(START);
+    await setClock(target, clock);
+    const firstRelease = deferred();
+    const order: string[] = [];
+    let first = true;
+    const provider: BrokerTrafficProvider = async (region, _settings, gate, nowMs) => {
+      await gate.beforeAttempt();
+      order.push(String(region.providerCenter.lat));
+      if (first) {
+        first = false;
+        await firstRelease.promise;
+      }
+      return {
+        contacts: [],
+        source: "fake-provider.test",
+        sourceTime: nowMs() / 1_000,
+        fetchedAt: nowMs() / 1_000,
+      };
+    };
+    await setTrafficProvider(target, provider);
+    const firstRequest = traffic(target, 10, -88);
+    await expect.poll(() => order).toEqual(["10"]);
+    const ambient = traffic(target, 20, -88, {
+      kind: "ambient",
+      userId: USER_IDS[0]!,
+      missionId: MISSION_IDS[0]!,
+    });
+    const anonymous = traffic(target, 30, -88);
+    const active = traffic(target, 40, -88, {
+      kind: "active-ghost",
+      userId: USER_IDS[1]!,
+      missionId: MISSION_IDS[1]!,
+      selectedHex: "abc123",
+    });
+    await expect.poll(() =>
+      runInDurableObject<AdsbBroker, number>(target, (broker) =>
+        brokerProviderQueueForTest(broker).length,
+      ),
+    ).toBe(2);
+    firstRelease.resolve();
+    const [, ambientResult] = await Promise.all([firstRequest, ambient, anonymous, active]);
+
+    expect(order).toEqual(["10", "40", "30"]);
+    expect(ambientResult).toMatchObject({
+      type: "traffic",
+      traffic: { freshness: "EXPIRED", providerAvailable: false },
+    });
   });
 
   it("rejects malformed or externally shaped requests without state detail", async () => {

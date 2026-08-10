@@ -1,27 +1,55 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useStore } from "./store";
+import type { TrafficFetchResult } from "../data/api";
 
 const contact = (hex: string): any => ({
   hex, flight: null, t: null, lat: 30, lon: -88, alt_geom: 3500,
   alt_baro: 3400, gs: 120, track: 90, baro_rate: 0, military: false, seen_pos: 1,
 });
 
-beforeEach(() => useStore.getState().applyFetch({ contacts: [], source: "t", fetched_at: 0 }));
+const trafficResult = (
+  contacts: any[] = [],
+  source = "t",
+  fetchedAt = 0,
+  overrides: Partial<TrafficFetchResult> = {},
+): TrafficFetchResult => ({
+  contacts,
+  source,
+  sourceTime: fetchedAt,
+  fetchedAt,
+  cacheAgeSeconds: 0,
+  freshness: "FRESH",
+  providerAvailable: true,
+  regionKey: "r1:30:-88:100",
+  nextRefreshSeconds: 15,
+  cacheStatus: "MISS",
+  radiusNm: 80,
+  mode: "NORMAL",
+  ...overrides,
+});
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2030-08-10T12:00:00.000Z"));
+  useStore.getState().applyFetch(trafficResult());
+});
+
+afterEach(() => vi.useRealTimers());
 
 describe("store", () => {
   it("applyFetch replaces the contact set and goes live", () => {
-    useStore.getState().applyFetch({ contacts: [contact("abc123")], source: "airplanes.live", fetched_at: 111 });
+    useStore.getState().applyFetch(trafficResult([contact("abc123")], "airplanes.live", 111));
     const s = useStore.getState();
     expect(s.contacts.get("abc123")).toBeTruthy();
     expect(s.feedStatus).toBe("live");
     expect(s.feedSource).toBe("airplanes.live");
   });
   it("selection survives a refresh while the contact exists, clears when it ages out", () => {
-    useStore.getState().applyFetch({ contacts: [contact("abc123")], source: "t", fetched_at: 1 });
+    useStore.getState().applyFetch(trafficResult([contact("abc123")], "t", 1));
     useStore.getState().select("abc123");
-    useStore.getState().applyFetch({ contacts: [contact("abc123")], source: "t", fetched_at: 2 });
+    useStore.getState().applyFetch(trafficResult([contact("abc123")], "t", 2));
     expect(useStore.getState().selectedHex).toBe("abc123");
-    useStore.getState().applyFetch({ contacts: [], source: "t", fetched_at: 3 });
+    useStore.getState().applyFetch(trafficResult([], "t", 3));
     expect(useStore.getState().selectedHex).toBeNull();
   });
   it("three consecutive failures = offline, one success recovers", () => {
@@ -29,8 +57,59 @@ describe("store", () => {
     s().markFetchFailed(); expect(s().feedStatus).toBe("stale");
     s().markFetchFailed(); s().markFetchFailed();
     expect(s().feedStatus).toBe("offline");
-    s().applyFetch({ contacts: [], source: "t", fetched_at: 9 });
+    s().applyFetch(trafficResult([], "t", 9));
     expect(s().feedStatus).toBe("live");
+  });
+  it("marks the provider unavailable and expires retained contacts after 120 seconds", () => {
+    useStore.getState().applyFetch(
+      trafficResult([contact("abc123")], "cache.test", 111, {
+        freshness: "STALE",
+        cacheAgeSeconds: 119,
+      }),
+    );
+    useStore.getState().select("abc123");
+    vi.advanceTimersByTime(2_000);
+    useStore.getState().markFetchFailed();
+
+    expect(useStore.getState()).toMatchObject({
+      feedStatus: "offline",
+      providerAvailable: false,
+      selectedHex: null,
+    });
+    expect(useStore.getState().contacts.size).toBe(0);
+    expect(useStore.getState().cacheAgeSeconds).toBe(121);
+  });
+  it("uses server freshness and cache metadata without relabeling stale data live", () => {
+    useStore.getState().applyFetch(
+      trafficResult([contact("abc123")], "cache.test", 111, {
+        freshness: "STALE",
+        providerAvailable: false,
+        cacheAgeSeconds: 20,
+        cacheStatus: "STALE",
+        nextRefreshSeconds: 30,
+      }),
+    );
+    expect(useStore.getState()).toMatchObject({
+      feedStatus: "stale",
+      feedSource: "cache.test",
+      providerAvailable: false,
+      cacheAgeSeconds: 20,
+      nextRefreshSeconds: 30,
+    });
+
+    useStore.getState().applyFetch(
+      trafficResult([], "t", 0, {
+        source: null,
+        sourceTime: null,
+        fetchedAt: null,
+        cacheAgeSeconds: null,
+        freshness: "EXPIRED",
+        providerAvailable: false,
+        cacheStatus: "EXPIRED",
+      }),
+    );
+    expect(useStore.getState().feedStatus).toBe("offline");
+    expect(useStore.getState().contacts.size).toBe(0);
   });
 });
 
@@ -57,7 +136,7 @@ describe("session state", () => {
     const c = contact("abc123");
     useStore.getState().setOrigin({ hex: "abc123", snapshot: c });
     // the contact ages out of the feed and the selection is nulled...
-    useStore.getState().applyFetch({ contacts: [], source: "t", fetched_at: 5 });
+    useStore.getState().applyFetch(trafficResult([], "t", 5));
     expect(useStore.getState().selectedHex).toBeNull();
     // ...but the origin snapshot survives
     expect(useStore.getState().origin?.hex).toBe("abc123");

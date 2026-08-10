@@ -5,6 +5,7 @@ import {
   type AdmissionResult,
   type BrokerCommand,
 } from "./durable/protocol";
+import type { TrafficRequest } from "./adsb/traffic";
 import {
   allowEndpointLimiter,
   createCloudflareEndpointLimiter,
@@ -13,6 +14,11 @@ import {
   type RouterDependencies,
 } from "./http/router";
 import { ApiHttpError } from "./http/response";
+import {
+  clampRadiusNm,
+  validateCoordinates,
+  ValidationError,
+} from "./http/validation";
 import { sha256Digest } from "./telemetry/requestContext";
 
 const statusRoute = defineRoute({
@@ -53,6 +59,90 @@ const recoveryStatusRoute = defineRoute({
   }),
 });
 
+function exactQuery(request: Request, expected: readonly string[]): URLSearchParams {
+  const search = new URL(request.url).searchParams;
+  const actual = [...new Set(search.keys())].sort();
+  const wanted = [...expected].sort();
+  if (
+    actual.length !== wanted.length ||
+    !actual.every((key, index) => key === wanted[index]) ||
+    expected.some((key) => search.getAll(key).length !== 1)
+  ) throw new ValidationError(400, "INVALID_REQUEST", "Traffic query is invalid");
+  return search;
+}
+
+const configRoute = defineRoute({
+  method: "GET",
+  path: "/api/config",
+  family: "config",
+  boundary: "public",
+  admission: "public-read",
+  security: {
+    sameOrigin: "not-required",
+    csrf: "not-required",
+    idempotency: "not-required",
+    body: { kind: "none" },
+  },
+  limiter: { name: "config", retryAfterSeconds: 1 },
+  handler: async ({ env }) => {
+    const runtime = env as Env;
+    const home = validateCoordinates(
+      runtime.HOME_LAT ?? "30.6944",
+      runtime.HOME_LON ?? "-88.0399",
+    );
+    return { data: { home: { lat: home.latitude, lon: home.longitude } } };
+  },
+});
+
+const trafficRoute = defineRoute({
+  method: "GET",
+  path: "/api/traffic",
+  family: "traffic",
+  boundary: "public",
+  admission: "public-read",
+  security: {
+    sameOrigin: "not-required",
+    csrf: "not-required",
+    idempotency: "not-required",
+    body: { kind: "none" },
+  },
+  limiter: { name: "traffic", retryAfterSeconds: 15 },
+  validate: ({ request }) => {
+    const search = exactQuery(request, ["lat", "lon", "radius_nm"]);
+    const coordinates = validateCoordinates(search.get("lat"), search.get("lon"));
+    return {
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+      radiusNm: clampRadiusNm(search.get("radius_nm")),
+    };
+  },
+  handler: async ({ context, validated, env }) => {
+    const query = validated as Omit<TrafficRequest, "audience">;
+    const request: TrafficRequest = {
+      ...query,
+      audience: context.actor.kind === "anonymous"
+        ? { kind: "anonymous" }
+        : { kind: "signed", userId: context.actor.userId },
+    };
+    try {
+      const result = await sendBrokerCommand((env as Env).ADSB_BROKER, {
+        type: "traffic",
+        forceMode: context.mode,
+        request,
+      });
+      if (result.type !== "traffic") throw new TypeError("Unexpected broker response");
+      return { data: result.traffic };
+    } catch (error) {
+      throw new ApiHttpError(
+        503,
+        "BROKER_UNAVAILABLE",
+        "Traffic broker is unavailable",
+        { cause: error },
+      );
+    }
+  },
+});
+
 const failClosedLimiter = createCloudflareEndpointLimiter(undefined, 1);
 
 function forceMode(env: Env): SystemMode {
@@ -67,8 +157,9 @@ const routerDependencies = {
   digest: sha256Digest,
   verifyCsrf: async () => false,
   authorize: async (_boundary, _request, context) => context.actor,
-  resolveLimiter: (name) =>
-    name === "status" || name === "admin-recovery"
+  resolveLimiter: (name, env) =>
+    name === "status" || name === "config" || name === "admin-recovery" ||
+    (name === "traffic" && env.APP_ENV === "local")
       ? allowEndpointLimiter
       : failClosedLimiter,
   admitRequest: async ({ kind, forceMode: deploymentMode, context, params }, env) => {
@@ -119,7 +210,7 @@ const routerDependencies = {
 } satisfies RouterDependencies<Env>;
 
 const apiRouter = createRouter<Env>(
-  [statusRoute, recoveryStatusRoute],
+  [statusRoute, configRoute, trafficRoute, recoveryStatusRoute],
   routerDependencies,
 );
 

@@ -1,7 +1,21 @@
 import { create } from "zustand";
 import type { StoreApi, UseBoundStore } from "zustand";
 import type { Contact, FeedStatus } from "../data/types";
-import { fetchAdsb, fetchConfig } from "../data/api";
+import {
+  FeedDownError,
+  fetchConfig,
+  fetchTraffic,
+  type TrafficFetchResult,
+} from "../data/api";
+import {
+  ACTIVE_FLIGHT_REFRESH_SECONDS,
+  ANONYMOUS_REFRESH_SECONDS,
+  CONSERVATION_ANONYMOUS_REFRESH_SECONDS,
+  CONSERVATION_SIGNED_BROWSE_REFRESH_SECONDS,
+  SIGNED_BROWSE_REFRESH_SECONDS,
+  TRAFFIC_EXPIRE_SECONDS,
+} from "../shared/limits";
+import type { SystemMode } from "../shared/mode";
 import { nextMode } from "../game/machine";
 import type { GameEvent, Mode } from "../game/machine";
 import type { FlightStats } from "../game/stats";
@@ -14,6 +28,11 @@ type State = {
   feedStatus: FeedStatus;
   feedSource: string | null;
   lastFetchAt: number | null;
+  cacheAgeSeconds: number | null;
+  providerAvailable: boolean;
+  regionKey: string | null;
+  nextRefreshSeconds: number;
+  systemMode: SystemMode;
   /** Fetch radius in nautical miles, cycled by the status-bar chip (StatusBar.tsx's nextRadius). */
   radiusNm: number;
   /**
@@ -41,7 +60,7 @@ type State = {
   setLabelsOn(on: boolean): void;
   setImmersive(on: boolean): void;
   setChromeVisible(on: boolean): void;
-  applyFetch(r: { contacts: Contact[]; source: string; fetched_at: number }): void;
+  applyFetch(r: TrafficFetchResult): void;
   markFetchFailed(): void;
   select(hex: string | null): void;
   /**
@@ -73,6 +92,7 @@ type State = {
 // Consecutive-failure count backing markFetchFailed's stale/offline threshold.
 // Kept outside the store since it's an implementation detail, not state consumers read.
 let consecutiveFailures = 0;
+let lastTrafficAppliedAtMs: number | null = null;
 
 export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, get) => ({
   home: null,
@@ -81,6 +101,11 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   feedStatus: "offline",
   feedSource: null,
   lastFetchAt: null,
+  cacheAgeSeconds: null,
+  providerAvailable: false,
+  regionKey: null,
+  nextRefreshSeconds: ANONYMOUS_REFRESH_SECONDS,
+  systemMode: "NORMAL",
   radiusNm: 80,
   basemap: "SAT",
   labelsOn: false,
@@ -117,20 +142,47 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
 
   applyFetch(r) {
     consecutiveFailures = 0;
+    lastTrafficAppliedAtMs = Date.now();
     const contacts = new Map(r.contacts.map((c) => [c.hex, c]));
     const selectedHex = get().selectedHex;
     set({
       contacts,
-      feedStatus: "live",
+      feedStatus: r.freshness === "FRESH" ? "live" : r.freshness === "STALE" ? "stale" : "offline",
       feedSource: r.source,
-      lastFetchAt: r.fetched_at,
+      lastFetchAt: r.fetchedAt,
+      cacheAgeSeconds: r.cacheAgeSeconds,
+      providerAvailable: r.providerAvailable,
+      regionKey: r.regionKey,
+      nextRefreshSeconds: r.nextRefreshSeconds,
+      systemMode: r.mode,
       selectedHex: selectedHex !== null && contacts.has(selectedHex) ? selectedHex : null,
     });
   },
 
   markFetchFailed() {
     consecutiveFailures += 1;
-    set({ feedStatus: consecutiveFailures >= 3 ? "offline" : "stale" });
+    const state = get();
+    const elapsedSeconds = lastTrafficAppliedAtMs === null
+      ? 0
+      : Math.max(0, (Date.now() - lastTrafficAppliedAtMs) / 1_000);
+    const totalCacheAgeSeconds = state.cacheAgeSeconds === null
+      ? null
+      : state.cacheAgeSeconds + elapsedSeconds;
+    if (totalCacheAgeSeconds !== null && totalCacheAgeSeconds >= TRAFFIC_EXPIRE_SECONDS) {
+      set({
+        contacts: new Map(),
+        selectedHex: null,
+        feedStatus: "offline",
+        cacheAgeSeconds: totalCacheAgeSeconds,
+        providerAvailable: false,
+      });
+      return;
+    }
+    set({
+      feedStatus: consecutiveFailures >= 3 ? "offline" : "stale",
+      cacheAgeSeconds: totalCacheAgeSeconds,
+      providerAvailable: false,
+    });
   },
 
   select(hex) {
@@ -159,47 +211,137 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   },
 }));
 
-export function startPolling(intervalMs = 5000): () => void {
+export type PollingIdentity = "anonymous" | "signed";
+
+export type PollingVisibility = {
+  isVisible(): boolean;
+  subscribe(listener: () => void): () => void;
+};
+
+export type TrafficPollingOptions = {
+  intervalMs?: number;
+  identity?: () => PollingIdentity;
+  visibility?: PollingVisibility;
+};
+
+const alwaysVisible: PollingVisibility = {
+  isVisible: () => true,
+  subscribe: () => () => undefined,
+};
+
+export function browserPollingVisibility(): PollingVisibility {
+  if (typeof document === "undefined") return alwaysVisible;
+  return {
+    isVisible: () => document.visibilityState !== "hidden",
+    subscribe(listener) {
+      document.addEventListener("visibilitychange", listener);
+      return () => document.removeEventListener("visibilitychange", listener);
+    },
+  };
+}
+
+export function clientTrafficCadenceSeconds(
+  identity: PollingIdentity,
+  mode: Mode,
+  systemMode: SystemMode,
+): number {
+  if (mode === "COUNTDOWN" || mode === "FLYING" || mode === "PAUSED") {
+    return ACTIVE_FLIGHT_REFRESH_SECONDS;
+  }
+  const conserving = systemMode !== "NORMAL";
+  if (identity === "signed") {
+    return conserving
+      ? CONSERVATION_SIGNED_BROWSE_REFRESH_SECONDS
+      : SIGNED_BROWSE_REFRESH_SECONDS;
+  }
+  return conserving ? CONSERVATION_ANONYMOUS_REFRESH_SECONDS : ANONYMOUS_REFRESH_SECONDS;
+}
+
+export function startTrafficPolling(options: TrafficPollingOptions = {}): () => void {
   let stopped = false;
   let inFlight = false;
   let home: { lat: number; lon: number } | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const visibility = options.visibility ?? browserPollingVisibility();
+  const identity = options.identity ?? (() => "anonymous" as const);
+
+  function clearTimer(): void {
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+  }
+
+  function delayMs(serverSeconds?: number): number {
+    const state = useStore.getState();
+    const clientMs = options.intervalMs ??
+      clientTrafficCadenceSeconds(identity(), state.mode, state.systemMode) * 1_000;
+    const serverMs = serverSeconds === undefined ? 0 : serverSeconds * 1_000;
+    return Math.max(clientMs, serverMs);
+  }
+
+  function schedule(milliseconds: number): void {
+    clearTimer();
+    if (stopped || !visibility.isVisible()) return;
+    timer = setTimeout(() => {
+      timer = null;
+      void tick();
+    }, milliseconds);
+  }
 
   // One recurring tick, armed for the whole lifetime of the poller: fetch config until
-  // it succeeds, then fetch ADS-B. This is what lets a backend that's down at page load
+  // it succeeds, then fetch regional traffic. This is what lets a backend that's down at page load
   // (config fetch rejects) still retry on the normal cadence — reaching OFFLINE via the
   // usual 3-failure threshold and recovering on its own once the backend answers, instead
   // of failing once and never being retried.
-  function tick() {
-    if (inFlight) return; // previous tick's fetch hasn't resolved yet — skip, don't queue
+  function tick(): void {
+    if (stopped || inFlight || !visibility.isVisible()) return;
     inFlight = true;
-
-    const attempt =
+    let serverNextSeconds: number | undefined;
+    let retryAfterSeconds: number | undefined;
+    let loadedConfig = false;
+    const attempt: Promise<void | TrafficFetchResult> =
       home === null
         ? fetchConfig().then((config) => {
             if (stopped) return; // stop() fired while this fetch was in flight — don't touch the store
             home = config.home;
             useStore.getState().setHome(config.home);
+            loadedConfig = true;
           })
-        : fetchAdsb(home.lat, home.lon, useStore.getState().radiusNm).then((r) => {
+        : fetchTraffic(home.lat, home.lon, useStore.getState().radiusNm).then((r) => {
             if (stopped) return;
             useStore.getState().applyFetch(r);
+            serverNextSeconds = r.nextRefreshSeconds;
+            return r;
           });
 
     attempt
-      .catch(() => {
+      .catch((error: unknown) => {
         if (stopped) return;
+        if (error instanceof FeedDownError && error.retryAfterSeconds !== null) {
+          retryAfterSeconds = error.retryAfterSeconds;
+        }
         useStore.getState().markFetchFailed();
       })
       .finally(() => {
         inFlight = false;
+        if (!stopped) {
+          schedule(
+            loadedConfig
+              ? 0
+              : delayMs(Math.max(serverNextSeconds ?? 0, retryAfterSeconds ?? 0)),
+          );
+        }
       });
   }
 
-  tick(); // fire the first attempt immediately rather than waiting a full interval
-  const timer = setInterval(tick, intervalMs);
+  const unsubscribeVisibility = visibility.subscribe(() => {
+    if (!visibility.isVisible()) clearTimer();
+    else if (!inFlight) schedule(0);
+  });
+  tick();
 
   return () => {
     stopped = true;
-    clearInterval(timer);
+    clearTimer();
+    unsubscribeVisibility();
   };
 }

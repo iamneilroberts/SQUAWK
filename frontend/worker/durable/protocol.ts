@@ -4,6 +4,8 @@ import {
   ACTIVE_FLIGHT_MAX_RESERVE,
 } from "../../src/shared/limits";
 import type { AdsbBroker } from "./AdsbBroker";
+import { isTrafficData, type TrafficRequest } from "../adsb/traffic";
+import type { TrafficData } from "../../src/data/types";
 
 export const ADSB_BROKER_OBJECT_NAME = "global-v1";
 export const ADSB_BROKER_COMMAND_PATH = "/internal/broker";
@@ -80,6 +82,7 @@ export type BrokerCommand =
   | { type: "lease-release-user"; userId: string }
   | { type: "mode-set"; requestedMode: SystemMode; forceMode: SystemMode }
   | { type: "status" | "transitions"; forceMode: SystemMode }
+  | { type: "traffic"; forceMode: SystemMode; request: TrafficRequest }
   | { type: "provider-record"; outcome: "success" | "failure" }
   | {
       type: "health-record";
@@ -113,6 +116,7 @@ export type BrokerCommandResult =
   | LeaseResult
   | { type: "status"; status: BrokerStatus }
   | { type: "transition"; transition: BrokerTransition | null; status: BrokerStatus }
+  | { type: "traffic"; traffic: TrafficData; status: BrokerStatus }
   | { type: "recorded"; status: BrokerStatus };
 
 export type BrokerResponse =
@@ -135,6 +139,7 @@ const COMMAND_TYPES = new Set([
   "mode-set",
   "status",
   "transitions",
+  "traffic",
   "provider-record",
   "health-record",
   "recover",
@@ -174,6 +179,48 @@ function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boo
 
 function isIdentifier(value: unknown): value is string {
   return typeof value === "string" && UUID.test(value);
+}
+
+function isTrafficRequest(value: unknown): value is TrafficRequest {
+  if (!isRecord(value) || !exactKeys(value, ["latitude", "longitude", "radiusNm", "audience"])) {
+    return false;
+  }
+  if (
+    typeof value.latitude !== "number" ||
+    !Number.isFinite(value.latitude) ||
+    value.latitude < -90 ||
+    value.latitude > 90 ||
+    typeof value.longitude !== "number" ||
+    !Number.isFinite(value.longitude) ||
+    value.longitude < -180 ||
+    value.longitude > 180 ||
+    typeof value.radiusNm !== "number" ||
+    !Number.isFinite(value.radiusNm)
+  ) return false;
+  const audience = value.audience;
+  if (!isRecord(audience) || typeof audience.kind !== "string") return false;
+  switch (audience.kind) {
+    case "anonymous":
+      return exactKeys(audience, ["kind"]);
+    case "signed":
+      return exactKeys(audience, ["kind", "userId"]) && isIdentifier(audience.userId);
+    case "active-ghost":
+      return (
+        exactKeys(audience, ["kind", "userId", "missionId", "selectedHex"]) &&
+        isIdentifier(audience.userId) &&
+        isIdentifier(audience.missionId) &&
+        typeof audience.selectedHex === "string" &&
+        /^[0-9a-f]{6}$/i.test(audience.selectedHex)
+      );
+    case "ambient":
+      return (
+        exactKeys(audience, ["kind", "userId", "missionId"]) &&
+        isIdentifier(audience.userId) &&
+        isIdentifier(audience.missionId)
+      );
+    default:
+      return false;
+  }
 }
 
 function isCount(value: unknown): value is number {
@@ -266,6 +313,9 @@ function parseBrokerResult(value: unknown): BrokerCommandResult {
     case "status":
     case "recorded":
       return value as BrokerCommandResult;
+    case "traffic":
+      if (!isTrafficData(value.traffic)) throw new TypeError("Invalid broker response");
+      return value as BrokerCommandResult;
     case "transition":
       if (value.transition !== null && !isTransition(value.transition)) {
         throw new TypeError("Invalid broker response");
@@ -331,6 +381,15 @@ export function parseBrokerCommand(value: unknown): BrokerCommand {
     case "status":
     case "transitions":
       if (!exactKeys(value, ["type", "forceMode"]) || !isSystemMode(value.forceMode)) return invalid();
+      return value as BrokerCommand;
+    case "traffic":
+      if (
+        !exactKeys(value, ["type", "forceMode", "request"]) ||
+        !isSystemMode(value.forceMode) ||
+        !isTrafficRequest(value.request)
+      ) {
+        return invalid();
+      }
       return value as BrokerCommand;
     case "provider-record":
       if (

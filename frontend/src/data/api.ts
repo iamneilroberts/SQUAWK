@@ -1,31 +1,83 @@
-import type { Contact, MetarResponse, TypeInfo } from "./types";
+import { isSystemMode, type SystemMode } from "../shared/mode";
+import type { MetarResponse, TrafficData, TypeInfo } from "./types";
 
 export class FeedDownError extends Error {
-  constructor(status: number) {
+  readonly status: number;
+  readonly code: string | null;
+  readonly retryAfterSeconds: number | null;
+
+  constructor(status: number, code: string | null = null, retryAfterSeconds: number | null = null) {
     super(`feed request failed: HTTP ${status}`);
     this.name = "FeedDownError";
+    this.status = status;
+    this.code = code;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
+}
+
+type ParsedApiData<T> = { data: T; mode: SystemMode };
+
+function record(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+async function readApiData<T>(response: Response): Promise<ParsedApiData<T>> {
+  let body: unknown = null;
+  try {
+    body = await response.json();
+  } catch {
+    // A non-JSON failure is still represented by its stable HTTP status below.
+  }
+  if (!response.ok) {
+    const retryHeaderValue = response.headers?.get("retry-after");
+    const retryHeader = retryHeaderValue === null || retryHeaderValue === undefined
+      ? Number.NaN
+      : Number(retryHeaderValue);
+    const retryBody = record(body) && record(body.error) ? Number(body.error.retryAfterSeconds) : NaN;
+    const retryAfterSeconds = Number.isFinite(retryBody)
+      ? retryBody
+      : Number.isFinite(retryHeader)
+        ? retryHeader
+        : null;
+    throw new FeedDownError(
+      response.status,
+      record(body) && typeof body.code === "string" ? body.code : null,
+      retryAfterSeconds,
+    );
+  }
+  if (
+    record(body) &&
+    body.ok === true &&
+    "data" in body &&
+    isSystemMode(body.mode)
+  ) {
+    return { data: body.data as T, mode: body.mode };
+  }
+  // Temporary compatibility for enrichment/METAR endpoints still served by Python
+  // until their planned Worker tasks land. Traffic itself always uses the Worker envelope.
+  return { data: body as T, mode: "NORMAL" };
 }
 
 export async function fetchConfig(): Promise<{ home: { lat: number; lon: number } }> {
   const res = await fetch("/api/config");
-  if (!res.ok) throw new FeedDownError(res.status);
-  return res.json();
+  return (await readApiData<{ home: { lat: number; lon: number } }>(res)).data;
 }
 
-export async function fetchAdsb(
+export type TrafficFetchResult = TrafficData & { mode: SystemMode };
+
+export async function fetchTraffic(
   lat: number,
   lon: number,
   radiusNm: number
-): Promise<{ contacts: Contact[]; source: string; fetched_at: number }> {
+): Promise<TrafficFetchResult> {
   const params = new URLSearchParams({
     lat: String(lat),
     lon: String(lon),
     radius_nm: String(radiusNm),
   });
-  const res = await fetch(`/api/adsb?${params}`);
-  if (!res.ok) throw new FeedDownError(res.status);
-  return res.json();
+  const res = await fetch(`/api/traffic?${params}`);
+  const parsed = await readApiData<TrafficData>(res);
+  return { ...parsed.data, mode: parsed.mode };
 }
 
 /**
@@ -38,8 +90,7 @@ export async function fetchAdsb(
  */
 export async function fetchTypeInfo(hex: string): Promise<TypeInfo> {
   const res = await fetch(`/api/type/${hex}`);
-  if (!res.ok) throw new FeedDownError(res.status);
-  return res.json();
+  return (await readApiData<TypeInfo>(res)).data;
 }
 
 /**
@@ -52,6 +103,5 @@ export async function fetchTypeInfo(hex: string): Promise<TypeInfo> {
  */
 export async function fetchMetar(icao: string): Promise<MetarResponse> {
   const res = await fetch(`/api/metar/${icao}`);
-  if (!res.ok) throw new FeedDownError(res.status);
-  return res.json();
+  return (await readApiData<MetarResponse>(res)).data;
 }

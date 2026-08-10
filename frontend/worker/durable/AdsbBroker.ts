@@ -9,9 +9,35 @@ import {
   DAILY_ADMITTED_REQUEST_LIMIT,
   KILL_SWITCH_THRESHOLD_REQUESTS,
   READ_ONLY_THRESHOLD_REQUESTS,
+  TRAFFIC_CACHE_MAX_REGIONS,
+  TRAFFIC_EXPIRE_SECONDS,
+  TRAFFIC_PROVIDER_RADIUS_STEP_NM,
+  TRAFFIC_REGION_CELL_DEGREES,
 } from "../../src/shared/limits";
 import { mostRestrictiveMode, type SystemMode } from "../../src/shared/mode";
 import type { Env } from "../env";
+import {
+  fetchProviderTraffic,
+  readProviderSettings,
+  type ProviderAttemptGate,
+  type ProviderSettings,
+  type ProviderTraffic,
+} from "../adsb/provider";
+import { normalizeRegion, type NormalizedRegion } from "../adsb/region";
+import {
+  cacheMetadataForSuccess,
+  isTrafficCacheBody,
+  isTrafficCacheMetadata,
+  freshness,
+  providerPriority,
+  retryDelayMs,
+  trafficCadenceSeconds,
+  trafficData,
+  type ProviderPriority,
+  type TrafficCacheBody,
+  type TrafficCacheMetadata,
+  type TrafficRequest,
+} from "../adsb/traffic";
 import { systemClock, type Clock } from "./clock";
 import {
   ADSB_BROKER_COMMAND_PATH,
@@ -31,7 +57,15 @@ import {
 } from "./protocol";
 
 const STATE_KEY = "broker-state:v1";
+const TRAFFIC_INDEX_KEY = "traffic-index:v1";
+const PROVIDER_GATE_KEY = "provider-gate:v1";
+const TRAFFIC_BODY_PREFIX = "traffic-body:v1:";
 const CLOCK = Symbol("AdsbBroker.clock");
+const TRAFFIC_PROVIDER = Symbol("AdsbBroker.trafficProvider");
+const PROVIDER_SETTINGS = Symbol("AdsbBroker.providerSettings");
+const SLEEP = Symbol("AdsbBroker.sleep");
+const PROVIDER_QUEUE_SNAPSHOT = Symbol("AdsbBroker.providerQueueSnapshot");
+const SIGNED_VIEWER_COUNT = Symbol("AdsbBroker.signedViewerCount");
 const MAX_COMMAND_BYTES = 8_192;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -59,8 +93,139 @@ type StoredBrokerState = {
 
 type StorageView = Pick<
   DurableObjectTransaction,
-  "get" | "put" | "setAlarm" | "deleteAlarm"
+  "get" | "put" | "delete" | "setAlarm" | "deleteAlarm"
 >;
+
+type TrafficFailureRecord = {
+  regionKey: string;
+  retryAtMs: number;
+  expiresAtMs: number;
+  lastAccessAtMs: number;
+  failureCount: number;
+};
+
+type TrafficIndex = {
+  version: 1;
+  entries: TrafficCacheMetadata[];
+  failures: TrafficFailureRecord[];
+};
+
+type TrafficCacheSnapshot = {
+  metadata: TrafficCacheMetadata | null;
+  body: TrafficCacheBody | null;
+  retryAtMs: number;
+  failureCount: number;
+};
+
+type ProviderGateState = { version: 1; nextAttemptAtMs: number };
+export type BrokerTrafficProvider = (
+  region: NormalizedRegion,
+  settings: ProviderSettings,
+  gate: ProviderAttemptGate,
+  nowMs: () => number,
+) => Promise<ProviderTraffic>;
+type Sleeper = (milliseconds: number) => Promise<void>;
+
+type ProviderJob = {
+  sequence: number;
+  priority: ProviderPriority;
+  run: () => Promise<TrafficCacheSnapshot>;
+  resolve: (snapshot: TrafficCacheSnapshot) => void;
+  reject: (error: unknown) => void;
+};
+
+class ProviderAllowanceError extends Error {
+  constructor() {
+    super("ADS-B provider allowance is unavailable");
+    this.name = "ProviderAllowanceError";
+  }
+}
+
+const defaultTrafficProvider: BrokerTrafficProvider = (region, settings, gate, nowMs) =>
+  fetchProviderTraffic(region, settings, gate, {
+    fetch: globalThis.fetch.bind(globalThis),
+    nowMs,
+    setTimeout: (callback, milliseconds) => globalThis.setTimeout(callback, milliseconds),
+    clearTimeout: (timer) => globalThis.clearTimeout(timer),
+  });
+
+const systemSleep: Sleeper = (milliseconds) =>
+  new Promise((resolve) => globalThis.setTimeout(resolve, milliseconds));
+
+function emptyTrafficIndex(): TrafficIndex {
+  return { version: 1, entries: [], failures: [] };
+}
+
+function isFailureRecord(value: unknown): value is TrafficFailureRecord {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.regionKey === "string" &&
+    Number.isSafeInteger(value.retryAtMs) &&
+    Number.isSafeInteger(value.expiresAtMs) &&
+    Number.isSafeInteger(value.lastAccessAtMs) &&
+    Number.isSafeInteger(value.failureCount) &&
+    Number(value.failureCount) >= 1
+  );
+}
+
+function isTrafficIndex(value: unknown): value is TrafficIndex {
+  if (!isRecord(value)) return false;
+  return (
+    value.version === 1 &&
+    Array.isArray(value.entries) &&
+    value.entries.every(isTrafficCacheMetadata) &&
+    Array.isArray(value.failures) &&
+    value.failures.every(isFailureRecord)
+  );
+}
+
+async function loadTrafficIndex(storage: StorageView): Promise<TrafficIndex> {
+  const stored = await storage.get<unknown>(TRAFFIC_INDEX_KEY);
+  if (stored === undefined) return emptyTrafficIndex();
+  if (!isTrafficIndex(stored)) throw new Error("Traffic cache index is invalid");
+  return stored;
+}
+
+function trafficBodyKey(regionKey: string): string {
+  return `${TRAFFIC_BODY_PREFIX}${regionKey}`;
+}
+
+async function evictExpiredTraffic(
+  storage: StorageView,
+  index: TrafficIndex,
+  nowMs: number,
+): Promise<void> {
+  const expired = index.entries.filter(({ expiresAtMs }) => expiresAtMs <= nowMs);
+  for (const entry of expired) await storage.delete(trafficBodyKey(entry.regionKey));
+  if (expired.length > 0) {
+    const expiredKeys = new Set(expired.map(({ regionKey }) => regionKey));
+    index.entries = index.entries.filter(({ regionKey }) => !expiredKeys.has(regionKey));
+  }
+  index.failures = index.failures.filter(({ expiresAtMs }) => expiresAtMs > nowMs);
+}
+
+function pruneLru(index: TrafficIndex): string[] {
+  const removed: string[] = [];
+  index.entries.sort((left, right) => right.lastAccessAtMs - left.lastAccessAtMs);
+  for (const entry of index.entries.splice(TRAFFIC_CACHE_MAX_REGIONS)) {
+    removed.push(entry.regionKey);
+  }
+  index.failures.sort((left, right) => right.lastAccessAtMs - left.lastAccessAtMs);
+  index.failures.splice(TRAFFIC_CACHE_MAX_REGIONS);
+  return removed;
+}
+
+async function loadProviderGate(storage: StorageView): Promise<ProviderGateState> {
+  const stored = await storage.get<unknown>(PROVIDER_GATE_KEY);
+  if (stored === undefined) return { version: 1, nextAttemptAtMs: 0 };
+  if (
+    !isRecord(stored) ||
+    stored.version !== 1 ||
+    !Number.isSafeInteger(stored.nextAttemptAtMs) ||
+    Number(stored.nextAttemptAtMs) < 0
+  ) throw new Error("Provider gate state is invalid");
+  return stored as ProviderGateState;
+}
 
 function zeroHealth(): BrokerHealthCounters {
   return {
@@ -293,10 +458,21 @@ async function loadState(storage: StorageView, nowMs: number): Promise<StoredBro
 }
 
 async function scheduleNextExpiry(storage: StorageView, state: StoredBrokerState): Promise<void> {
-  const earliest = state.leases.reduce<number | null>(
+  const leaseExpiry = state.leases.reduce<number | null>(
     (current, lease) => current === null || lease.expiresAtMs < current ? lease.expiresAtMs : current,
     null,
   );
+  const index = await loadTrafficIndex(storage);
+  const trafficExpiry = [...index.entries, ...index.failures].reduce<number | null>(
+    (current, entry) =>
+      current === null || entry.expiresAtMs < current ? entry.expiresAtMs : current,
+    null,
+  );
+  const earliest = leaseExpiry === null
+    ? trafficExpiry
+    : trafficExpiry === null
+      ? leaseExpiry
+      : Math.min(leaseExpiry, trafficExpiry);
   if (earliest === null) await storage.deleteAlarm();
   else await storage.setAlarm(earliest);
 }
@@ -428,6 +604,8 @@ function executeCommand(
   nowMs: number,
 ): BrokerCommandResult {
   switch (command.type) {
+    case "traffic":
+      throw new TypeError("Traffic commands require the asynchronous broker path");
     case "admit":
       return admit(state, command, nowMs);
     case "lease-acquire":
@@ -500,8 +678,415 @@ async function readCommand(request: Request): Promise<BrokerCommand> {
   return parseBrokerCommand(value);
 }
 
+async function readTrafficSnapshot(
+  storage: DurableObjectStorage,
+  regionKey: string,
+  nowMs: number,
+): Promise<TrafficCacheSnapshot> {
+  return storage.transaction(async (transaction) => {
+    const state = await loadState(transaction, nowMs);
+    rollover(state, nowMs);
+    cleanExpiredLeases(state, nowMs);
+    const index = await loadTrafficIndex(transaction);
+    await evictExpiredTraffic(transaction, index, nowMs);
+    const metadata = index.entries.find((entry) => entry.regionKey === regionKey) ?? null;
+    const failure = index.failures.find((entry) => entry.regionKey === regionKey) ?? null;
+    let body: TrafficCacheBody | null = null;
+    if (metadata !== null) {
+      const storedBody = await transaction.get<unknown>(trafficBodyKey(regionKey));
+      if (isTrafficCacheBody(storedBody)) {
+        body = storedBody;
+        metadata.lastAccessAtMs = nowMs;
+      } else {
+        index.entries = index.entries.filter((entry) => entry !== metadata);
+        await transaction.delete(trafficBodyKey(regionKey));
+      }
+    }
+    if (failure !== null) failure.lastAccessAtMs = nowMs;
+    await transaction.put(STATE_KEY, state);
+    await transaction.put(TRAFFIC_INDEX_KEY, index);
+    await scheduleNextExpiry(transaction, state);
+    return {
+      metadata: body === null ? null : metadata,
+      body,
+      retryAtMs: metadata?.retryAtMs ?? failure?.retryAtMs ?? 0,
+      failureCount: metadata?.failureCount ?? failure?.failureCount ?? 0,
+    };
+  });
+}
+
+async function persistTrafficSuccess(
+  storage: DurableObjectStorage,
+  regionKey: string,
+  result: ProviderTraffic,
+  nowMs: number,
+): Promise<TrafficCacheSnapshot> {
+  return storage.transaction(async (transaction) => {
+    const state = await loadState(transaction, nowMs);
+    rollover(state, nowMs);
+    cleanExpiredLeases(state, nowMs);
+    const index = await loadTrafficIndex(transaction);
+    await evictExpiredTraffic(transaction, index, nowMs);
+    const metadata = cacheMetadataForSuccess(regionKey, result, nowMs);
+    index.entries = index.entries.filter((entry) => entry.regionKey !== regionKey);
+    index.entries.push(metadata);
+    index.failures = index.failures.filter((entry) => entry.regionKey !== regionKey);
+    const body: TrafficCacheBody = { version: 1, contacts: result.contacts };
+    await transaction.put(trafficBodyKey(regionKey), body);
+    for (const removed of pruneLru(index)) {
+      await transaction.delete(trafficBodyKey(removed));
+    }
+    await transaction.put(STATE_KEY, state);
+    await transaction.put(TRAFFIC_INDEX_KEY, index);
+    await scheduleNextExpiry(transaction, state);
+    return { metadata, body, retryAtMs: 0, failureCount: 0 };
+  });
+}
+
+async function persistTrafficFailure(
+  storage: DurableObjectStorage,
+  regionKey: string,
+  nowMs: number,
+): Promise<TrafficCacheSnapshot> {
+  return storage.transaction(async (transaction) => {
+    const state = await loadState(transaction, nowMs);
+    rollover(state, nowMs);
+    cleanExpiredLeases(state, nowMs);
+    const index = await loadTrafficIndex(transaction);
+    await evictExpiredTraffic(transaction, index, nowMs);
+    const metadata = index.entries.find((entry) => entry.regionKey === regionKey) ?? null;
+    const oldFailure = index.failures.find((entry) => entry.regionKey === regionKey) ?? null;
+    const failureCount = (metadata?.failureCount ?? oldFailure?.failureCount ?? 0) + 1;
+    const retryAtMs = nowMs + retryDelayMs(failureCount);
+    let body: TrafficCacheBody | null = null;
+
+    if (metadata !== null) {
+      const storedBody = await transaction.get<unknown>(trafficBodyKey(regionKey));
+      if (isTrafficCacheBody(storedBody)) {
+        body = storedBody;
+        metadata.providerAvailable = false;
+        metadata.failureCount = failureCount;
+        metadata.retryAtMs = retryAtMs;
+        metadata.lastAccessAtMs = nowMs;
+      } else {
+        index.entries = index.entries.filter((entry) => entry !== metadata);
+        await transaction.delete(trafficBodyKey(regionKey));
+      }
+    }
+
+    index.failures = index.failures.filter((entry) => entry.regionKey !== regionKey);
+    if (body === null) {
+      index.failures.push({
+        regionKey,
+        retryAtMs,
+        expiresAtMs: nowMs + TRAFFIC_EXPIRE_SECONDS * 1_000,
+        lastAccessAtMs: nowMs,
+        failureCount,
+      });
+    }
+    for (const removed of pruneLru(index)) {
+      await transaction.delete(trafficBodyKey(removed));
+    }
+    await transaction.put(STATE_KEY, state);
+    await transaction.put(TRAFFIC_INDEX_KEY, index);
+    await scheduleNextExpiry(transaction, state);
+    return {
+      metadata: body === null ? null : metadata,
+      body,
+      retryAtMs,
+      failureCount,
+    };
+  });
+}
+
+async function readBrokerStatus(
+  storage: DurableObjectStorage,
+  nowMs: number,
+  forceMode: SystemMode,
+): Promise<BrokerStatus> {
+  return storage.transaction(async (transaction) => {
+    const state = await loadState(transaction, nowMs);
+    rollover(state, nowMs);
+    cleanExpiredLeases(state, nowMs);
+    await transaction.put(STATE_KEY, state);
+    await scheduleNextExpiry(transaction, state);
+    return status(state, forceMode);
+  });
+}
+
 export class AdsbBroker extends DurableObject<Env> {
   [CLOCK]: Clock = systemClock;
+  [TRAFFIC_PROVIDER]: BrokerTrafficProvider = defaultTrafficProvider;
+  [PROVIDER_SETTINGS]: ProviderSettings | null = null;
+  [SLEEP]: Sleeper = systemSleep;
+
+  readonly #trafficInFlight = new Map<string, Promise<TrafficCacheSnapshot>>();
+  readonly #providerQueue: ProviderJob[] = [];
+  readonly #signedViewers = new Map<string, Map<string, number>>();
+  #providerSequence = 0;
+  #providerDraining = false;
+  #providerRunningPriority: ProviderPriority | null = null;
+
+  [PROVIDER_QUEUE_SNAPSHOT](): ProviderPriority[] {
+    return this.#providerQueue.map(({ priority }) => priority);
+  }
+
+  [SIGNED_VIEWER_COUNT](): number {
+    let count = 0;
+    for (const viewers of this.#signedViewers.values()) count += viewers.size;
+    return count;
+  }
+
+  #settings(): ProviderSettings {
+    return this[PROVIDER_SETTINGS] ?? readProviderSettings(this.env);
+  }
+
+  #signedViewerCount(regionKey: string, request: TrafficRequest, nowMs: number): number {
+    const viewers = this.#signedViewers.get(regionKey) ?? new Map<string, number>();
+    for (const [userId, seenAtMs] of viewers) {
+      if (nowMs - seenAtMs > 45_000) viewers.delete(userId);
+    }
+    if (request.audience.kind === "signed") viewers.set(request.audience.userId, nowMs);
+    if (viewers.size === 0) this.#signedViewers.delete(regionKey);
+    else this.#signedViewers.set(regionKey, viewers);
+    return viewers.size;
+  }
+
+  #enqueueProvider(
+    priority: ProviderPriority,
+    run: () => Promise<TrafficCacheSnapshot>,
+  ): Promise<TrafficCacheSnapshot> {
+    if (
+      priority === 3 &&
+      this.#providerRunningPriority !== null &&
+      this.#providerRunningPriority < priority
+    ) return Promise.reject(new ProviderAllowanceError());
+    const promise = new Promise<TrafficCacheSnapshot>((resolve, reject) => {
+      this.#providerQueue.push({
+        sequence: this.#providerSequence++,
+        priority,
+        run,
+        resolve,
+        reject,
+      });
+    });
+    if (!this.#providerDraining) {
+      this.#providerDraining = true;
+      queueMicrotask(() => void this.#drainProviderQueue());
+    }
+    return promise;
+  }
+
+  async #drainProviderQueue(): Promise<void> {
+    try {
+      while (this.#providerQueue.length > 0) {
+        this.#providerQueue.sort(
+          (left, right) => left.priority - right.priority || left.sequence - right.sequence,
+        );
+        const job = this.#providerQueue.shift();
+        if (job === undefined) continue;
+        // Ambient traffic is the first feature shed under active contention.
+        if (
+          job.priority === 3 &&
+          this.#providerQueue.some((candidate) => candidate.priority < job.priority)
+        ) {
+          job.reject(new ProviderAllowanceError());
+          continue;
+        }
+        this.#providerRunningPriority = job.priority;
+        try {
+          job.resolve(await job.run());
+        } catch (error) {
+          job.reject(error);
+        } finally {
+          this.#providerRunningPriority = null;
+        }
+      }
+    } finally {
+      this.#providerDraining = false;
+      if (this.#providerQueue.length > 0) {
+        this.#providerDraining = true;
+        queueMicrotask(() => void this.#drainProviderQueue());
+      }
+    }
+  }
+
+  async #claimProviderAttempt(
+    settings: ProviderSettings,
+    priority: ProviderPriority,
+  ): Promise<void> {
+    while (true) {
+      if (
+        priority === 3 &&
+        this.#providerQueue.some((candidate) => candidate.priority < priority)
+      ) throw new ProviderAllowanceError();
+
+      const nowMs = this[CLOCK].nowMs();
+      const waitMs = await this.ctx.storage.transaction(async (transaction) => {
+        const state = await loadState(transaction, nowMs);
+        rollover(state, nowMs);
+        cleanExpiredLeases(state, nowMs);
+        if (state.providerRequests >= settings.dailyLimit) throw new ProviderAllowanceError();
+        const gate = await loadProviderGate(transaction);
+        const wait = Math.max(0, gate.nextAttemptAtMs - nowMs);
+        if (wait === 0) {
+          state.providerRequests += 1;
+          state.health.providerCalls += 1;
+          gate.nextAttemptAtMs = nowMs + settings.minimumIntervalMs;
+          await transaction.put(PROVIDER_GATE_KEY, gate);
+        }
+        await transaction.put(STATE_KEY, state);
+        await scheduleNextExpiry(transaction, state);
+        return wait;
+      });
+      if (waitMs === 0) return;
+      await this[SLEEP](waitMs);
+    }
+  }
+
+  async #recordProviderFailure(): Promise<void> {
+    const nowMs = this[CLOCK].nowMs();
+    await this.ctx.storage.transaction(async (transaction) => {
+      const state = await loadState(transaction, nowMs);
+      rollover(state, nowMs);
+      cleanExpiredLeases(state, nowMs);
+      state.health.providerFailures += 1;
+      await transaction.put(STATE_KEY, state);
+      await scheduleNextExpiry(transaction, state);
+    });
+  }
+
+  async #refreshTrafficRegion(
+    region: NormalizedRegion,
+    settings: ProviderSettings,
+    priority: ProviderPriority,
+  ): Promise<TrafficCacheSnapshot> {
+    try {
+      return await this.#enqueueProvider(priority, async () => {
+        const result = await this[TRAFFIC_PROVIDER](
+          region,
+          settings,
+          {
+            beforeAttempt: () => this.#claimProviderAttempt(settings, priority),
+            attemptFailed: () => this.#recordProviderFailure(),
+          },
+          () => this[CLOCK].nowMs(),
+        );
+        return persistTrafficSuccess(
+          this.ctx.storage,
+          region.regionKey,
+          result,
+          this[CLOCK].nowMs(),
+        );
+      });
+    } catch {
+      return persistTrafficFailure(
+        this.ctx.storage,
+        region.regionKey,
+        this[CLOCK].nowMs(),
+      );
+    }
+  }
+
+  async #traffic(request: TrafficRequest, forceMode: SystemMode): Promise<BrokerCommandResult> {
+    const settings = this.#settings();
+    const region = normalizeRegion(request.latitude, request.longitude, request.radiusNm, {
+      cellDegrees: TRAFFIC_REGION_CELL_DEGREES,
+      providerRadiusStepNm: TRAFFIC_PROVIDER_RADIUS_STEP_NM,
+      providerMaxRadiusNm: settings.maximumRadiusNm,
+    });
+    const nowMs = this[CLOCK].nowMs();
+    const signedViewers = this.#signedViewerCount(region.regionKey, request, nowMs);
+    const brokerStatus = await readBrokerStatus(this.ctx.storage, nowMs, forceMode);
+    const nextRefreshSeconds = trafficCadenceSeconds(request.audience, brokerStatus.budgetBand);
+    const cached = await readTrafficSnapshot(this.ctx.storage, region.regionKey, nowMs);
+    if (freshness(cached.metadata, nowMs) === "FRESH") {
+      return {
+        type: "traffic",
+        traffic: trafficData(
+          region,
+          cached.metadata,
+          cached.body,
+          nowMs,
+          nextRefreshSeconds,
+          "HIT",
+        ),
+        status: brokerStatus,
+      };
+    }
+    const cacheOnly =
+      brokerStatus.effectiveMode !== "NORMAL" && request.audience.kind !== "active-ghost";
+    if (cacheOnly) {
+      return {
+        type: "traffic",
+        traffic: trafficData(
+          region,
+          cached.metadata,
+          cached.body,
+          nowMs,
+          nextRefreshSeconds,
+          cached.metadata === null ? "EXPIRED" : "STALE",
+        ),
+        status: brokerStatus,
+      };
+    }
+    if (nowMs < cached.retryAtMs) {
+      return {
+        type: "traffic",
+        traffic: trafficData(
+          region,
+          cached.metadata,
+          cached.body,
+          nowMs,
+          nextRefreshSeconds,
+          "STALE",
+        ),
+        status: brokerStatus,
+      };
+    }
+
+    const existing = this.#trafficInFlight.get(region.regionKey);
+    if (existing !== undefined) {
+      const shared = await existing;
+      const responseNow = this[CLOCK].nowMs();
+      return {
+        type: "traffic",
+        traffic: trafficData(
+          region,
+          shared.metadata,
+          shared.body,
+          responseNow,
+          nextRefreshSeconds,
+          "COALESCED",
+        ),
+        status: await readBrokerStatus(this.ctx.storage, responseNow, forceMode),
+      };
+    }
+
+    const priority = providerPriority(request.audience, signedViewers);
+    const pending = this.#refreshTrafficRegion(region, settings, priority);
+    this.#trafficInFlight.set(region.regionKey, pending);
+    try {
+      const refreshed = await pending;
+      const responseNow = this[CLOCK].nowMs();
+      return {
+        type: "traffic",
+        traffic: trafficData(
+          region,
+          refreshed.metadata,
+          refreshed.body,
+          responseNow,
+          nextRefreshSeconds,
+          "MISS",
+        ),
+        status: await readBrokerStatus(this.ctx.storage, responseNow, forceMode),
+      };
+    } finally {
+      if (this.#trafficInFlight.get(region.regionKey) === pending) {
+        this.#trafficInFlight.delete(region.regionKey);
+      }
+    }
+  }
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -536,6 +1121,10 @@ export class AdsbBroker extends DurableObject<Env> {
     }
 
     try {
+      if (command.type === "traffic") {
+        const result = await this.#traffic(command.request, command.forceMode);
+        return json({ ok: true, result }, 200);
+      }
       const nowMs = this[CLOCK].nowMs();
       const result = await this.ctx.storage.transaction(async (transaction) => {
         const state = await loadState(transaction, nowMs);
@@ -561,7 +1150,10 @@ export class AdsbBroker extends DurableObject<Env> {
       const state = await loadState(transaction, nowMs);
       rollover(state, nowMs);
       cleanExpiredLeases(state, nowMs);
+      const index = await loadTrafficIndex(transaction);
+      await evictExpiredTraffic(transaction, index, nowMs);
       await transaction.put(STATE_KEY, state);
+      await transaction.put(TRAFFIC_INDEX_KEY, index);
       await scheduleNextExpiry(transaction, state);
     });
   }
@@ -569,6 +1161,27 @@ export class AdsbBroker extends DurableObject<Env> {
 
 export function setBrokerClockForTest(broker: AdsbBroker, clock: Clock): void {
   broker[CLOCK] = clock;
+}
+
+export function setBrokerTrafficProviderForTest(
+  broker: AdsbBroker,
+  provider: BrokerTrafficProvider,
+  settings: ProviderSettings,
+): void {
+  broker[TRAFFIC_PROVIDER] = provider;
+  broker[PROVIDER_SETTINGS] = settings;
+}
+
+export function setBrokerSleeperForTest(broker: AdsbBroker, sleeper: Sleeper): void {
+  broker[SLEEP] = sleeper;
+}
+
+export function brokerProviderQueueForTest(broker: AdsbBroker): ProviderPriority[] {
+  return broker[PROVIDER_QUEUE_SNAPSHOT]();
+}
+
+export function brokerSignedViewerCountForTest(broker: AdsbBroker): number {
+  return broker[SIGNED_VIEWER_COUNT]();
 }
 
 export async function seedAdmittedRequestsForTest(

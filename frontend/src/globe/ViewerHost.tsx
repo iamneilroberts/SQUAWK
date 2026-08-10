@@ -25,7 +25,7 @@ import {
   ScreenSpaceEventType,
   Viewer,
 } from "cesium";
-import { startPolling, useStore } from "../state/store";
+import { startTrafficPolling, useStore } from "../state/store";
 import { applyRealTimeLighting } from "./dayNightLighting";
 import { attachTerrain, createSceneHeightSampler } from "./terrainProvider";
 import { ViewerContext, type ViewerBundle } from "./viewerContext";
@@ -96,7 +96,7 @@ export default function ViewerHost({ children, onTerrainNoteChange }: ViewerHost
       useStore.getState().select(typeof hex === "string" && byHex.has(hex) ? hex : null);
     }, ScreenSpaceEventType.LEFT_CLICK);
 
-    const stopPolling = startPolling();
+    const stopPolling = startTrafficPolling();
 
     setBundle({
       viewer,
