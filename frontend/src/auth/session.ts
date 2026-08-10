@@ -1,3 +1,5 @@
+import type { ProfileClassStatistic, ProfileFlightHistoryEntry } from "../profile/results";
+
 const AUTH_TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const AIRCRAFT_HEX = /^[0-9a-f]{6}$/i;
 const AIRPORT_ICAO = /^[A-Z0-9]{3,4}$/;
@@ -26,6 +28,8 @@ export type SessionProfile = {
   defaultAssist: "none" | "low" | "medium" | "high";
   tutorialState: "new" | "started" | "complete" | "dismissed";
   coachingEnabled: boolean;
+  history: ProfileFlightHistoryEntry[];
+  classStatistics: ProfileClassStatistic[];
   csrfToken: string;
 };
 

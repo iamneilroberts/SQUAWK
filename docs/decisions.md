@@ -1753,3 +1753,36 @@ quit/pagehide release and Durable Object expiry remain fallbacks. If configured,
 bounded trace only after D1 succeeds. R2 write or trace-pointer failure cannot erase or downgrade the
 durable summary. Task 12 owns the richer debrief UI and leaderboard reads. No staging or production
 deployment occurred in this task.
+
+## 2026-08-10 — CF-012 · Stored Worker results are the debrief, profile, and leaderboard truth
+
+Task 12 promotes the Task 11 durable result to a versioned public read contract. The end card may
+show the browser calculation while submission is pending or failed, but labels it preview-only and
+never rank-eligible. An accepted response is schema v2 and includes the Worker-recomputed safety
+outcome or stable named failure, all seven components when ranked, total, evidence disposition,
+highest assist, aircraft class, frozen mission versions, and completion time. A retry reuses the
+original idempotency key only in the live page; durable offline retry remains Task 13. Late responses
+from an older retry attempt cannot overwrite a newer debrief state, and a corrupt ranked replay that
+lacks valid stored components is rejected instead of presented as authoritative.
+
+`GET /api/me` now returns the authenticated user's latest twenty finalized results plus per-class
+counts, successful landings, ranked counts, best score, and ranked-score average. Personal history
+keeps failed, partial, rejected, and unranked outcomes explicit, while scores are exposed only for
+ranked rows. Neither history nor aggregates contain email, email keys, saved coordinates, airport
+coordinates, or other location fields. The existing top-level saved center remains visible only to
+its authenticated owner as part of the pre-existing preferences contract.
+
+The public leaderboard is an exact `(aircraft class, highest assist, scoring version)` partition.
+Only finalized, verified, ranked successful landings from active, unbanned users qualify. Ordering is
+`score DESC, completion time ASC, result UUID ASC`; the opaque cursor carries that complete boundary
+and the rank offset, making ties and page boundaries deterministic. Public rows contain the handle,
+user UUID, score, rank, result UUID, and completion time—never email or location data. New D1 indexes
+cover mission partitions and result ordering without adding a new storage system.
+
+The mandatory prior-art gate selected **USE-API**: Cloudflare Workers' native Cache API is used
+directly, with D1 remaining authoritative and no dependency added. Query validation completes before
+any cache key is constructed. Canonical bounded keys live for 60 seconds; the public envelope advertises
+`max-age=15, s-maxage=60` and a 15-second minimum refresh cadence that the browser enforces. Invalid or
+unbounded filters never touch cache, mismatched cached partitions fall back to D1, cache failures do not
+change correctness, and every other API envelope remains `no-store`. No staging or production deployment
+occurred in this task.

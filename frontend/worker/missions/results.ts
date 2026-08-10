@@ -10,6 +10,7 @@ import {
   type MissionResultView,
 } from "../../src/mission/resultPackage";
 import type { AssistMode } from "../../src/mission/assists";
+import { LANDING_SCORE_WEIGHTS } from "../../src/mission/landingScore";
 import { MISSION_TRACE_TTL_MS } from "../../src/shared/limits";
 import { attachMissionTrace, getMissionById } from "../db/missions";
 import { finalizeResult, getResultByMissionId } from "../db/results";
@@ -118,25 +119,60 @@ function summaryFrom(result: FlightResult): StoredSummary {
   }
 }
 
-function storedView(result: FlightResult): MissionResultView {
+function storedComponents(value: unknown): NonNullable<MissionResultView["components"]> | null {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(LANDING_SCORE_WEIGHTS) as (keyof typeof LANDING_SCORE_WEIGHTS)[];
+  if (Object.keys(record).length !== keys.length) return null;
+  for (const key of keys) {
+    const component = record[key];
+    if (
+      typeof component !== "number" || !Number.isFinite(component) ||
+      component < 0 || component > LANDING_SCORE_WEIGHTS[key]
+    ) return null;
+  }
+  return record as NonNullable<MissionResultView["components"]>;
+}
+
+function storedView(
+  result: FlightResult,
+  mission: LockedMissionDocument,
+): MissionResultView {
   const summary = summaryFrom(result);
   let measurements: MissionResultView["measurements"] = null;
+  let components: MissionResultView["components"] = null;
   try {
-    const document = JSON.parse(result.measurementsJson) as { measurements?: MissionResultView["measurements"] };
+    const document = JSON.parse(result.measurementsJson) as {
+      measurements?: MissionResultView["measurements"];
+      components?: MissionResultView["components"];
+    };
     measurements = document.measurements ?? null;
+    components = storedComponents(document.components);
   } catch {
     measurements = null;
+    components = null;
+  }
+  if (summary.ranked && components === null) {
+    throw new ApiHttpError(
+      409,
+      "MISSION_RESULT_INVALID",
+      "Stored ranked result components are invalid",
+    );
   }
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     missionId: result.missionId,
     outcome: result.outcome === "landed" || result.outcome === "crashed" ? result.outcome : "invalid",
     failure: summary.failure,
     score: summary.ranked ? result.score / 1_000 : null,
+    components: summary.ranked ? components : null,
     measurements,
     highestAssist: publicAssist(result.highestAssist),
     evidenceStatus: result.evidenceStatus,
     ranked: summary.ranked,
+    classId: mission.classId,
+    versions: mission.versions,
+    completedAt: result.createdAt,
   };
 }
 
@@ -218,7 +254,7 @@ export async function finalizeAuthoritativeResult(
       throw new ApiHttpError(409, "MISSION_IDEMPOTENCY_CONFLICT", "Mission already has a different result");
     }
     await options.releaseLease(options.userId, options.missionId).catch(() => undefined);
-    return storedView(replay);
+    return storedView(replay, document);
   }
   if (mission.status !== "locked" || mission.lockedAt === null) {
     throw new ApiHttpError(409, "MISSION_RESULT_INVALID", "Mission is not open for a result");
@@ -264,11 +300,11 @@ export async function finalizeAuthoritativeResult(
       throw new ApiHttpError(409, "MISSION_IDEMPOTENCY_CONFLICT", "Mission already has a different result");
     }
     await options.releaseLease(options.userId, options.missionId).catch(() => undefined);
-    return storedView(raced);
+    return storedView(raced, document);
   }
 
   // Durable finalization is the ordering boundary: only now may capacity be released.
   await options.releaseLease(options.userId, options.missionId).catch(() => undefined);
   await writeOptionalTrace(options, result);
-  return storedView(result);
+  return storedView(result, document);
 }

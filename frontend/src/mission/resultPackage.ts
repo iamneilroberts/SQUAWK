@@ -9,9 +9,13 @@ import {
   type LandingEvidenceSample,
 } from "./landingEvidence";
 import { checkLandingSafety, type LandingFailure, type LandingMeasurements } from "./landingSafety";
-import { scoreLanding, type LandingScore } from "./landingScore";
+import {
+  scoreLanding,
+  type LandingScore,
+  type LandingScoreComponents,
+} from "./landingScore";
 import type { AssistMode } from "./assists";
-import type { MissionProfile, RunwayAssignment } from "./types";
+import type { AircraftClassId, MissionProfile, RunwayAssignment } from "./types";
 import { MISSION_RESULT_BODY_MAX_BYTES } from "../shared/limits";
 
 export type EvidenceFailure = "EVIDENCE_INCOMPLETE" | "EVIDENCE_IMPLAUSIBLE";
@@ -47,15 +51,19 @@ export type MissionResultRequest = {
 };
 
 export type MissionResultView = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   missionId: string;
   outcome: LandingEvaluation["outcome"];
   failure: LandingFailure | EvidenceFailure | null;
   score: number | null;
+  components: LandingScoreComponents | null;
   measurements: LandingMeasurements | null;
   highestAssist: AssistMode;
   evidenceStatus: "verified" | "partial" | "rejected";
   ranked: boolean;
+  classId: AircraftClassId;
+  versions: MissionVersionSet;
+  completedAt: number;
 };
 
 export function evaluateLandingEvidence(

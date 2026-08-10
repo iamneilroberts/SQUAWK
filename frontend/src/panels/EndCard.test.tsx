@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import EndCard from "./EndCard";
 import type { FlightStats } from "../game/stats";
 import { ktToMs, ftToM } from "../sim/units";
+import type { DebriefSubmission } from "../debrief/types";
 
 function collectText(node: unknown, out: string[] = []): string[] {
   if (node === null || node === undefined || node === false || node === true) return out;
@@ -28,7 +29,52 @@ const stats = (o: Partial<FlightStats> = {}): FlightStats => ({
   ...o,
 });
 
-const render = (s: FlightStats) => collectText(EndCard({ stats: s, onExit: () => {} })).join(" ");
+const versions = {
+  airportDataset: "oa-test-v1",
+  aircraftProfile: "c172-v1",
+  missionProfile: "c172-mission-v1",
+  assignment: "assignment-v1",
+  scoring: "scoring-v1",
+  physics: "physics-v1",
+  assistDefinition: "assist-v1",
+};
+
+const accepted: DebriefSubmission = {
+  status: "accepted",
+  result: {
+    schemaVersion: 2,
+    missionId: "33333333-3333-4333-8333-333333333333",
+    outcome: "landed",
+    failure: null,
+    score: 91.25,
+    components: {
+      verticalSpeed: 24,
+      centerline: 18,
+      touchdownZone: 17,
+      alignment: 14,
+      speed: 9,
+      bank: 4.5,
+      rollout: 4.75,
+    },
+    measurements: null,
+    highestAssist: "NAV",
+    evidenceStatus: "verified",
+    ranked: true,
+    classId: "c172s",
+    versions,
+    completedAt: 1_700_000_000_000,
+  },
+};
+
+const render = (
+  s: FlightStats,
+  submission: DebriefSubmission = accepted,
+) => collectText(EndCard({
+  stats: s,
+  submission,
+  onRetry: () => {},
+  onExit: () => {},
+})).join(" ");
 
 describe("EndCard", () => {
   it("leads with the classification", () => {
@@ -51,6 +97,75 @@ describe("EndCard", () => {
   });
   it("offers the way back to BROWSE", () => {
     expect(render(stats())).toContain("EXIT TO BROWSE");
+  });
+  it("shows the authoritative score, rank eligibility, partition, and all seven components", () => {
+    const text = render(stats({ classification: "LANDED" }));
+    expect(text).toContain("AUTHORITATIVE");
+    expect(text).toContain("91.25");
+    expect(text).toContain("RANK ELIGIBLE");
+    expect(text).toContain("C172S");
+    expect(text).toContain("NAV");
+    for (const label of [
+      "VERTICAL SPEED",
+      "CENTERLINE",
+      "TOUCHDOWN ZONE",
+      "ALIGNMENT",
+      "SPEED",
+      "BANK",
+      "ROLLOUT",
+    ]) expect(text).toContain(label);
+  });
+  it("shows every frozen version without substituting client preview authority", () => {
+    const text = render(stats());
+    for (const version of Object.values(versions)) expect(text).toContain(version);
+  });
+  it("names a stable safety failure and refuses a score or ranking", () => {
+    const failed: DebriefSubmission = {
+      status: "accepted",
+      result: {
+        ...accepted.result,
+        outcome: "crashed",
+        failure: "SINK_RATE_EXCEEDED",
+        score: null,
+        components: null,
+        ranked: false,
+      },
+    };
+    const text = render(stats(), failed);
+    expect(text).toContain("SINK_RATE_EXCEEDED");
+    expect(text).toContain("NOT RANKED");
+    expect(text).not.toContain("91.25");
+  });
+  it("keeps a failed submission honest and offers an in-session retry", () => {
+    const text = render(stats(), {
+      status: "failed",
+      preview: {
+        classId: "c172s",
+        versions,
+        highestAssist: "OFF",
+        evaluation: {
+          outcome: "landed",
+          failure: null,
+          measurements: null as never,
+          score: { total: 88, components: accepted.result.components! },
+        },
+      },
+      message: "RESULT SUBMISSION FAILED",
+      retryable: true,
+    });
+    expect(text).toContain("RESULT SUBMISSION FAILED");
+    expect(text).toContain("PREVIEW — NOT AUTHORITATIVE");
+    expect(text).toContain("NOT RANKED");
+    expect(text).toContain("RETRY RESULT");
+  });
+  it("does not invent a debrief when landing evidence is unavailable", () => {
+    const text = render(stats(), {
+      status: "unavailable",
+      message: "LANDING EVIDENCE WAS NOT CAPTURED",
+    });
+    expect(text).toContain("LANDING EVIDENCE WAS NOT CAPTURED");
+    expect(text).toContain("NOT RANKED");
+    expect(text).not.toContain("AUTHORITATIVE SCORE");
   });
   it("tells the player the site can be orbited", () => {
     expect(render(stats())).toMatch(/ORBIT|DRAG/i);

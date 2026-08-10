@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from "react";
 
 import {
+  loadCurrentProfile,
   signOut,
   updateCurrentProfile,
   type SessionProfile,
 } from "../auth/session";
+import ProfileResults from "./ProfileResults";
 
 export default function ProfilePanel({
   profile,
@@ -59,9 +61,21 @@ export default function ProfilePanel({
     }
   }
 
+  function toggleOpen(): void {
+    const next = !open;
+    setOpen(next);
+    if (!next) return;
+    setFailed(false);
+    void loadCurrentProfile()
+      .then((current) => {
+        if (current !== null) onProfile(current);
+      })
+      .catch(() => setFailed(true));
+  }
+
   return (
     <div className="profile-control">
-      <button className="status-chip-button" onClick={() => setOpen((value) => !value)}>
+      <button className="status-chip-button" onClick={toggleOpen} aria-expanded={open}>
         {profile.handle}
       </button>
       {open && (
@@ -101,6 +115,7 @@ export default function ProfilePanel({
             <input type="checkbox" checked={coaching} onChange={(event) => setCoaching(event.target.checked)} />
             COACHING ENABLED
           </label>
+          <ProfileResults history={profile.history} statistics={profile.classStatistics} />
           {failed && <div className="auth-error label">PROFILE UPDATE FAILED.</div>}
           <button className="control-button w-full" type="submit" disabled={busy}>SAVE PROFILE</button>
           <button className="auth-secondary w-full" type="button" disabled={busy} onClick={() => void logout()}>SIGN OUT</button>

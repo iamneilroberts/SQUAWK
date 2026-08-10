@@ -26,6 +26,52 @@ const SESSION_TOKEN = encodeOpaqueToken(new Uint8Array(32).fill(4));
 const WRONG_CSRF = encodeOpaqueToken(new Uint8Array(32).fill(5));
 const CSRF_SECRET = "test-only-csrf-secret-with-at-least-32-bytes";
 
+async function seedProfileResult(options: {
+  resultId: string;
+  missionId: string;
+  classId: "c172s" | "b738" | "f5e";
+  outcome: "landed" | "crashed" | "invalid";
+  score: number;
+  ranked: boolean;
+  evidenceStatus?: "verified" | "partial" | "rejected";
+  createdAt: number;
+}) {
+  const db = (env as TestEnvironment).TEST_DB;
+  await db.prepare(
+    `INSERT INTO missions
+       (id, user_id, aircraft_hex, aircraft_class, adsb_snapshot_json,
+        airport_icao, runway_ident, scoring_version, physics_version,
+        assists_json, status, created_at, locked_at, finalized_at)
+     VALUES (?, ?, 'abc123', ?, '{"schemaVersion":2}', 'KMOB', '09',
+             'scoring-v1', 'physics-v1', '{"schemaVersion":1}', 'finalized', ?, ?, ?)`,
+  ).bind(
+    options.missionId,
+    USER_ID,
+    options.classId,
+    options.createdAt - 1_000,
+    options.createdAt - 500,
+    options.createdAt,
+  ).run();
+  await db.prepare(
+    `INSERT INTO flight_results
+       (id, mission_id, outcome, measurements_json, score, highest_assist,
+        evidence_status, evidence_summary_json, created_at)
+     VALUES (?, ?, ?, '{"schemaVersion":1}', ?, 'none', ?, ?, ?)`,
+  ).bind(
+    options.resultId,
+    options.missionId,
+    options.outcome,
+    options.score,
+    options.evidenceStatus ?? "verified",
+    JSON.stringify({
+      schemaVersion: 1,
+      ranked: options.ranked,
+      failure: options.outcome === "crashed" ? "SINK_RATE_EXCEEDED" : null,
+    }),
+    options.createdAt,
+  ).run();
+}
+
 type TestEnvironment = Cloudflare.Env & {
   TEST_DB: D1Database;
   TEST_MIGRATIONS: D1Migration[];
@@ -99,6 +145,34 @@ beforeEach(async () => {
 
 describe("profile routes", () => {
   it("reuses one session-bound token across tabs and atomically saves profile changes", async () => {
+    await seedProfileResult({
+      resultId: "90000000-0000-4000-8000-000000000001",
+      missionId: "80000000-0000-4000-8000-000000000001",
+      classId: "c172s",
+      outcome: "landed",
+      score: 92_000,
+      ranked: true,
+      createdAt: NOW - 100,
+    });
+    await seedProfileResult({
+      resultId: "90000000-0000-4000-8000-000000000002",
+      missionId: "80000000-0000-4000-8000-000000000002",
+      classId: "c172s",
+      outcome: "crashed",
+      score: 0,
+      ranked: false,
+      createdAt: NOW - 200,
+    });
+    await seedProfileResult({
+      resultId: "90000000-0000-4000-8000-000000000003",
+      missionId: "80000000-0000-4000-8000-000000000003",
+      classId: "b738",
+      outcome: "landed",
+      score: 81_000,
+      ranked: false,
+      evidenceStatus: "partial",
+      createdAt: NOW - 300,
+    });
     const sessionCsrf = await deriveCsrfToken(SESSION_ID, CSRF_SECRET);
     const router = createRouter(
       createMeRoutes({
@@ -119,14 +193,66 @@ describe("profile routes", () => {
     );
     expect(firstTab.status).toBe(200);
     expect(secondTab.status).toBe(200);
-    await expect(firstTab.json()).resolves.toMatchObject({
+    const firstPayload = await firstTab.json() as {
+      data: { history: Record<string, unknown>[]; classStatistics: Record<string, unknown>[] };
+    };
+    expect(firstPayload).toMatchObject({
       data: {
         userId: USER_ID,
         handle: "SkyPilot",
         center: { lat: 30.69, lon: -88.04 },
         csrfToken: sessionCsrf,
+        history: [
+          {
+            resultId: "90000000-0000-4000-8000-000000000001",
+            classId: "c172s",
+            outcome: "landed",
+            score: 92,
+            ranked: true,
+          },
+          {
+            resultId: "90000000-0000-4000-8000-000000000002",
+            classId: "c172s",
+            outcome: "crashed",
+            score: null,
+            ranked: false,
+            failure: "SINK_RATE_EXCEEDED",
+          },
+          {
+            resultId: "90000000-0000-4000-8000-000000000003",
+            classId: "b738",
+            outcome: "landed",
+            score: null,
+            ranked: false,
+          },
+        ],
+        classStatistics: [
+          {
+            classId: "c172s",
+            completedFlights: 2,
+            successfulLandings: 1,
+            rankedFlights: 1,
+            bestScore: 92,
+            averageScore: 92,
+          },
+          {
+            classId: "b738",
+            completedFlights: 1,
+            successfulLandings: 1,
+            rankedFlights: 0,
+            bestScore: null,
+            averageScore: null,
+          },
+        ],
       },
     });
+    for (const item of [...firstPayload.data.history, ...firstPayload.data.classStatistics]) {
+      expect(item).not.toHaveProperty("email");
+      expect(item).not.toHaveProperty("emailKey");
+      expect(item).not.toHaveProperty("center");
+      expect(item).not.toHaveProperty("lat");
+      expect(item).not.toHaveProperty("lon");
+    }
     await expect(secondTab.json()).resolves.toMatchObject({
       data: { csrfToken: sessionCsrf },
     });
@@ -178,6 +304,10 @@ describe("profile routes", () => {
     expect(payload.data).toMatchObject({
       center: { lat: 90, lon: -180 },
       csrfToken: sessionCsrf,
+    });
+    expect(payload.data).toMatchObject({
+      history: expect.any(Array),
+      classStatistics: expect.any(Array),
     });
     expect(payload.data.regionKey).toMatch(/^r1:90:0:/);
 

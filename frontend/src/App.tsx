@@ -23,6 +23,7 @@ import {
   type SessionProfile,
 } from "./auth/session";
 import ProfilePanel from "./profile/ProfilePanel";
+import LeaderboardPanel from "./leaderboards/LeaderboardPanel";
 import QuickStartNotice from "./briefing/QuickStartNotice";
 import { dismissQuickStart, shouldShowQuickStart } from "./briefing/quickStartState";
 import MissionTray from "./briefing/MissionTray";
@@ -428,23 +429,26 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
           {takeoverMessage !== null && mode === "BROWSE" && (
             <div className="takeover-banner">{takeoverMessage}</div>
           )}
-          <div className="auth-control">
-            {profile === null ? (
-              <button className="status-chip-button" onClick={() => requireSignIn()}>
-                {authStatus === "loading" ? "SESSION…" : "SIGN IN"}
-              </button>
-            ) : (
-              <ProfilePanel
-                profile={profile}
-                onProfile={applyProfile}
-                onSignedOut={() => {
-                  setProfile(null);
-                  setAuthStatus("anonymous");
-                  useStore.getState().setSavedCenter(null);
-                  useStore.getState().setPollingIdentity("anonymous");
-                }}
-              />
-            )}
+          <div className="top-controls">
+            {mode === "BROWSE" && <LeaderboardPanel />}
+            <div className="auth-control">
+              {profile === null ? (
+                <button className="status-chip-button" onClick={() => requireSignIn()}>
+                  {authStatus === "loading" ? "SESSION…" : "SIGN IN"}
+                </button>
+              ) : (
+                <ProfilePanel
+                  profile={profile}
+                  onProfile={applyProfile}
+                  onSignedOut={() => {
+                    setProfile(null);
+                    setAuthStatus("anonymous");
+                    useStore.getState().setSavedCenter(null);
+                    useStore.getState().setPollingIdentity("anonymous");
+                  }}
+                />
+              )}
+            </div>
           </div>
           <AuthReturn
             token={returnToken}

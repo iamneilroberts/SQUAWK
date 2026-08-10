@@ -25,6 +25,7 @@ import { readCsrfToken, verifyCsrfToken } from "./auth/csrf";
 import { createAuthRoutes } from "./http/routes/auth";
 import { createMeRoutes } from "./http/routes/me";
 import { createMissionRoutes } from "./http/routes/missions";
+import { createLeaderboardRoutes } from "./http/routes/leaderboards";
 
 const statusRoute = defineRoute({
   method: "GET",
@@ -163,7 +164,7 @@ export function resolveEndpointLimiter(name: string, env: Env) {
     name === "auth-request" || name === "auth-consume" ||
     name === "auth-session" || name === "profile"
   ) return allowEndpointLimiter;
-  if (name === "traffic") {
+  if (name === "traffic" || name === "leaderboards") {
     return env.APP_ENV === "local"
       ? allowEndpointLimiter
       : createCloudflareEndpointLimiter(env.TRAFFIC_REQUEST_RATE_LIMITER, 15);
@@ -261,6 +262,7 @@ const apiRouter = createRouter<Env>(
     ...createAuthRoutes(),
     ...createMeRoutes(),
     ...createMissionRoutes(),
+    ...createLeaderboardRoutes(),
     recoveryStatusRoute,
   ],
   routerDependencies,

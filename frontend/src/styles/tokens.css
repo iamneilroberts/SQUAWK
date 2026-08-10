@@ -179,7 +179,11 @@ body {
 .status-chip-button:hover { background: rgba(95, 215, 224, 0.12); }
 
 /* ---- privacy-preserving sign-in and profile controls ---- */
-.auth-control { position: absolute; top: 8px; right: 8px; z-index: 30; }
+.top-controls {
+  position: absolute; top: 8px; right: 8px; z-index: 30;
+  display: flex; align-items: flex-start; gap: 6px;
+}
+.auth-control { position: relative; }
 .auth-notice {
   position: absolute; top: 8px; left: 50%; z-index: 40;
   transform: translateX(-50%); padding: 6px 10px;
@@ -206,10 +210,49 @@ body {
   background: transparent; color: var(--text); font: 11px var(--mono); cursor: pointer;
 }
 .profile-control { position: relative; }
-.profile-panel { position: absolute; top: 32px; right: 0; width: min(360px, calc(100vw - 24px)); padding: 12px; }
+.profile-panel {
+  position: absolute; top: 32px; right: 0;
+  width: min(440px, calc(100vw - 24px)); max-height: min(80vh, 720px);
+  overflow-y: auto; padding: 12px;
+}
 .profile-panel > .label { display: block; margin-top: 6px; }
 .profile-center-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .profile-checkbox { display: flex !important; align-items: center; gap: 8px; margin: 10px 0; }
+.profile-results { margin: 14px 0; padding-top: 10px; border-top: 1px solid var(--grid); }
+.profile-results > .label { display: block; margin: 8px 0 5px; color: var(--cyan); }
+.profile-statistics { display: grid; gap: 5px; }
+.profile-statistic {
+  display: grid; grid-template-columns: 1.2fr repeat(5, auto); gap: 6px;
+  padding: 5px 0; border-bottom: 1px solid var(--grid); font-size: 10px;
+}
+.profile-history { display: grid; gap: 4px; }
+.profile-history-row {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 6px 0; border-bottom: 1px solid var(--grid); font-size: 10px;
+}
+.profile-history-row > div { display: grid; gap: 2px; }
+.profile-history-row > div:last-child { text-align: right; }
+.profile-empty { padding: 10px 0; font-size: 11px; color: var(--text); }
+
+/* ---- privacy-safe, version-partitioned public leaderboard ---- */
+.leaderboard-control { position: relative; }
+.leaderboard-backdrop {
+  position: fixed; inset: 0; z-index: 80; display: grid; place-items: center;
+  padding: 16px; background: rgba(5, 7, 10, 0.72);
+}
+.leaderboard-panel {
+  width: min(640px, 100%); max-height: min(82vh, 760px);
+  overflow-y: auto; padding: 16px;
+}
+.leaderboard-heading { display: flex; align-items: center; justify-content: space-between; color: var(--cyan); }
+.leaderboard-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.leaderboard-partition { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 8px 0; color: var(--cyan); }
+.leaderboard-table-scroll { overflow-x: auto; }
+.leaderboard-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.leaderboard-table th, .leaderboard-table td { padding: 7px 8px; border-bottom: 1px solid var(--grid); text-align: left; }
+.leaderboard-table th:last-child, .leaderboard-table td:last-child { text-align: right; }
+.leaderboard-empty, .leaderboard-loading { padding: 24px 8px; text-align: center; font-size: 11px; }
+.leaderboard-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 
 /* ---- HUD: instrumentation over the globe. Amber is the SIM accent, cyan is nominal. ---- */
 .hud-root {
@@ -597,6 +640,15 @@ body {
   padding: 16px 20px;
   min-width: 280px;
 }
+.end-card {
+  width: min(760px, calc(100vw - 24px)); max-height: min(88vh, 820px);
+  overflow-y: auto;
+}
+.debrief-authority { color: var(--cyan); font-size: 11px; }
+.debrief-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.debrief-components { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+.debrief-versions { border-top: 1px solid var(--grid); padding-top: 8px; }
+.debrief-versions summary { color: var(--cyan); cursor: pointer; }
 
 /* ---- six-pack: analog dials, 1px strokes, cyan nominal / amber abnormal ---- */
 .six-pack {
@@ -1068,6 +1120,14 @@ body {
   .contact-search,
   .contact-filter { min-height: 38px; }
 
+  .top-controls {
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
+  }
+  .leaderboard-panel { max-height: calc(100dvh - 24px); padding: 12px; }
+  .debrief-grid, .debrief-components { grid-template-columns: 1fr; gap: 8px; }
+  .end-card { max-height: calc(100dvh - 24px); padding: 12px; }
+
   .quick-start-help {
     top: max(8px, env(safe-area-inset-top));
     left: max(8px, env(safe-area-inset-left));
@@ -1115,6 +1175,12 @@ body {
   .mission-grid { grid-template-columns: 1fr; gap: 2px; }
   .mission-grid > strong { margin-bottom: 4px; }
   .mission-alternative { flex-direction: column; gap: 2px; }
+  .top-controls { flex-direction: column-reverse; align-items: flex-end; }
+  .leaderboard-filters { grid-template-columns: 1fr; gap: 0; }
+  .leaderboard-backdrop { padding: 8px; }
+  .profile-statistic { grid-template-columns: 1fr 1fr; }
+  .profile-history-row { flex-direction: column; gap: 4px; }
+  .profile-history-row > div:last-child { text-align: left; }
 }
 
 @media (prefers-reduced-motion: reduce) {

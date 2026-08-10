@@ -690,14 +690,14 @@ failed hard gate has a precise reason and no score; one mission cannot rank twic
 
 **Steps:**
 
-- [ ] Replace the current simple EndCard with safety outcome, named failures, seven score
+- [x] Replace the current simple EndCard with safety outcome, named failures, seven score
       components, total, rank eligibility, highest assist, class, versions, and retry state.
-- [ ] Add user history/class statistics without exposing email or precise home location.
-- [ ] Implement public leaderboard filters by class, highest assist, and scoring version;
+- [x] Add user history/class statistics without exposing email or precise home location.
+- [x] Implement public leaderboard filters by class, highest assist, and scoring version;
       paginate with stable ordering and privacy-safe handle/user ID.
-- [ ] Cache each bounded filter set for 60 seconds and tell clients not to poll faster
+- [x] Cache each bounded filter set for 60 seconds and tell clients not to poll faster
       than 15 seconds. Invalid/unbounded filters never create cache keys.
-- [ ] Test ties, pagination, unranked exclusion, banned users, score versions, stale cache,
+- [x] Test ties, pagination, unranked exclusion, banned users, score versions, stale cache,
       and accessible mobile/desktop layouts.
 
 **Acceptance:** A completed flight has a truthful debrief and appears only in the matching

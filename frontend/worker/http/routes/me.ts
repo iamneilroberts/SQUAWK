@@ -12,6 +12,7 @@ import {
   getUserPreferences,
   updateUserProfileForSession,
 } from "../../db/users";
+import { getUserClassStatistics, listUserResultHistory } from "../../db/results";
 import type { AssistLevel, TutorialState } from "../../db/types";
 import { ApiHttpError } from "../response";
 import { defineRoute, type RouteDefinition } from "../router";
@@ -119,9 +120,11 @@ function validateProfilePatch(body: unknown): ProfilePatch {
 }
 
 async function loadProfile(db: D1Database, userId: string, csrfToken: string) {
-  const [user, preferences] = await Promise.all([
+  const [user, preferences, history, classStatistics] = await Promise.all([
     getUserById(db, userId),
     getUserPreferences(db, userId),
+    listUserResultHistory(db, userId),
+    getUserClassStatistics(db, userId),
   ]);
   if (user === null || preferences === null || user.status === "disabled") {
     throw new ApiHttpError(401, "AUTH_REQUIRED", "Authentication is required");
@@ -134,6 +137,8 @@ async function loadProfile(db: D1Database, userId: string, csrfToken: string) {
     defaultAssist: preferences.defaultAssist,
     tutorialState: preferences.tutorialState,
     coachingEnabled: preferences.coachingEnabled,
+    history,
+    classStatistics,
     csrfToken,
   };
 }
@@ -222,19 +227,7 @@ export function createMeRoutes(
       }
       return {
         code: "PROFILE_UPDATED" as const,
-        data: {
-          userId: updated.user.id,
-          handle: updated.user.handle,
-          center: {
-            lat: updated.preferences.centerLat,
-            lon: updated.preferences.centerLon,
-          },
-          regionKey: updated.preferences.regionKey,
-          defaultAssist: updated.preferences.defaultAssist,
-          tutorialState: updated.preferences.tutorialState,
-          coachingEnabled: updated.preferences.coachingEnabled,
-          csrfToken,
-        },
+        data: await loadProfile(runtime.DB, actor.userId, csrfToken),
       };
     },
   });

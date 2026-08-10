@@ -43,6 +43,10 @@ import AssistControl from "../mission/AssistControl";
 import MissionNavCue from "../mission/MissionNavCue";
 import MissionRouteLayer from "../globe/MissionRouteLayer";
 import ApproachAssistLayer from "../globe/ApproachAssistLayer";
+import type {
+  DebriefSubmission,
+  PendingMissionResult,
+} from "../debrief/types";
 
 const COUNTDOWN_FROM = 3;
 const PRELOAD_TIMEOUT_MS = 3000;
@@ -65,6 +69,10 @@ export default function FlightSession() {
   const [resumeArmed, setResumeArmed] = useState(false);
   /** Hex of the windscreen tag the player clicked, or null when no detail card is open. */
   const [trafficHex, setTrafficHex] = useState<string | null>(null);
+  const [debrief, setDebrief] = useState<DebriefSubmission>({
+    status: "unavailable",
+    message: "AUTHORITATIVE RESULT HAS NOT BEEN SUBMITTED",
+  });
 
   // Touch analog axes (mobile sub-feature 2, Option B). A single mutable object the flight loop
   // reads once per tick via the `analog` provider; the touch stick/throttle write into it. Stays
@@ -78,6 +86,8 @@ export default function FlightSession() {
   const terrainRef = useRef<TerrainService | null>(null);
   const releaseKeyRef = useRef<string | null>(null);
   const resultKeyRef = useRef<string | null>(null);
+  const pendingResultRef = useRef<PendingMissionResult | null>(null);
+  const resultAttemptRef = useRef(0);
 
   const snapshot = useSyncExternalStore(hudSnapshot.subscribe, hudSnapshot.get, hudSnapshot.get);
 
@@ -115,6 +125,37 @@ export default function FlightSession() {
     setNote("");
     setResumeArmed(false);
     setTrafficHex(null);
+    pendingResultRef.current = null;
+    setDebrief({
+      status: "unavailable",
+      message: "AUTHORITATIVE RESULT HAS NOT BEEN SUBMITTED",
+    });
+  }
+
+  function submitPendingResult(pending: PendingMissionResult): void {
+    const attempt = resultAttemptRef.current + 1;
+    resultAttemptRef.current = attempt;
+    pendingResultRef.current = pending;
+    setDebrief({ status: "submitting", preview: pending.preview });
+    void submitMissionResult(pending.request, pending.idempotencyKey)
+      .then((result) => {
+        if (pendingResultRef.current !== pending || resultAttemptRef.current !== attempt) return;
+        setDebrief({ status: "accepted", result });
+      })
+      .catch(() => {
+        if (pendingResultRef.current !== pending || resultAttemptRef.current !== attempt) return;
+        setDebrief({
+          status: "failed",
+          preview: pending.preview,
+          message: "RESULT SUBMISSION FAILED — AUTHORITATIVE SCORE UNAVAILABLE",
+          retryable: true,
+        });
+      });
+  }
+
+  function retryResult(): void {
+    const pending = pendingResultRef.current;
+    if (pending !== null) submitPendingResult(pending);
   }
 
   /**
@@ -136,10 +177,16 @@ export default function FlightSession() {
     if (lockedMission === null) {
       releaseKeyRef.current = null;
       resultKeyRef.current = null;
+      pendingResultRef.current = null;
       return;
     }
     releaseKeyRef.current = crypto.randomUUID();
     resultKeyRef.current = crypto.randomUUID();
+    pendingResultRef.current = null;
+    setDebrief({
+      status: "unavailable",
+      message: "AUTHORITATIVE RESULT HAS NOT BEEN SUBMITTED",
+    });
     const release = () => {
       if (useStore.getState().mode === "ENDED") return;
       void releaseMissionLease(
@@ -230,20 +277,47 @@ export default function FlightSession() {
             onEnd: (stats, landingResult) => {
               loopRef.current?.stop();
               useStore.getState().setEndStats(stats);
-              useStore.getState().fire("IMPACT");
-              if (landingResult === undefined) return;
+              if (landingResult === undefined) {
+                pendingResultRef.current = null;
+                setDebrief({
+                  status: "unavailable",
+                  message: "LANDING EVIDENCE WAS NOT CAPTURED",
+                });
+                useStore.getState().fire("IMPACT");
+                return;
+              }
               const highestAssist = useStore.getState().assist?.highestUsed ??
                 assistModeFromPreference(lockedMission.assist);
-              const result = buildMissionResultPackage({
-                mission: lockedMission,
-                evidence: landingResult.evidence,
-                highestAssist,
-              });
-              const key = resultKeyRef.current ?? crypto.randomUUID();
-              resultKeyRef.current = key;
-              // The Worker recomputes the preview and releases capacity only after D1 finalizes.
-              // Task 13 owns durable offline retry; until then a failed request expires naturally.
-              void submitMissionResult(result.request, key).catch(() => undefined);
+              try {
+                const result = buildMissionResultPackage({
+                  mission: lockedMission,
+                  evidence: landingResult.evidence,
+                  highestAssist,
+                });
+                const key = resultKeyRef.current ?? crypto.randomUUID();
+                resultKeyRef.current = key;
+                const pending: PendingMissionResult = {
+                  request: result.request,
+                  idempotencyKey: key,
+                  preview: {
+                    classId: lockedMission.classId,
+                    versions: lockedMission.versions,
+                    highestAssist,
+                    evaluation: result.preview,
+                  },
+                };
+                useStore.getState().fire("IMPACT");
+                // The Worker recomputes the preview and releases capacity only after D1 finalizes.
+                // Task 13 owns durable offline retry; Task 12 retries only in this live page.
+                submitPendingResult(pending);
+              } catch {
+                pendingResultRef.current = null;
+                setDebrief({
+                  status: "unavailable",
+                  message: "RESULT PACKAGE COULD NOT BE CREATED",
+                });
+                useStore.getState().fire("IMPACT");
+              }
             },
           });
           loopRef.current = loop;
@@ -523,7 +597,12 @@ export default function FlightSession() {
         />
       )}
       {mode === "ENDED" && endStats && (
-        <EndCard stats={endStats} onExit={() => leaveToBrowse("EXIT_END")} />
+        <EndCard
+          stats={endStats}
+          submission={debrief}
+          onRetry={retryResult}
+          onExit={() => leaveToBrowse("EXIT_END")}
+        />
       )}
     </>
   );

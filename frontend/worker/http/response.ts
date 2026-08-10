@@ -45,7 +45,7 @@ export function jsonEnvelope<T, Code extends string>(
   };
 
   const headers = new Headers(init.headers);
-  headers.set("cache-control", "no-store");
+  if (!headers.has("cache-control")) headers.set("cache-control", "no-store");
   headers.set("content-type", "application/json; charset=utf-8");
 
   return new Response(JSON.stringify(body), {

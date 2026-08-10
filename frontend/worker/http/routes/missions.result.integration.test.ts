@@ -224,10 +224,15 @@ describe("authoritative mission result route", () => {
     await expect(response.json()).resolves.toMatchObject({
       code: "RESULT_ACCEPTED",
       data: { result: {
+        schemaVersion: 2,
         outcome: "landed",
         score: preview.score?.total,
+        components: preview.score?.components,
         measurements: preview.measurements,
         ranked: true,
+        classId: "c172s",
+        versions,
+        completedAt: NOW,
       } },
     });
     await expect(getMissionById((env as TestEnvironment).TEST_DB, MISSION_ID)).resolves.toMatchObject({
@@ -262,6 +267,19 @@ describe("authoritative mission result route", () => {
     const conflict = await postResult({ body, key: "different-result-key" });
     expect(conflict.response.status).toBe(409);
     await expect(conflict.response.json()).resolves.toMatchObject({ code: "MISSION_IDEMPOTENCY_CONFLICT" });
+  });
+
+  it("refuses to present a ranked replay when its stored score components are corrupt", async () => {
+    const body = await requestBody();
+    expect((await postResult({ body })).response.status).toBe(200);
+    await (env as TestEnvironment).TEST_DB.prepare(
+      `UPDATE flight_results SET measurements_json = '{"schemaVersion":1,"measurements":null}'
+        WHERE mission_id = ?`,
+    ).bind(MISSION_ID).run();
+
+    const replay = await postResult({ body });
+    expect(replay.response.status).toBe(409);
+    await expect(replay.response.json()).resolves.toMatchObject({ code: "MISSION_RESULT_INVALID" });
   });
 
   it("rejects corrupt evidence, wrong runway/version, and another user", async () => {
