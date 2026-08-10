@@ -12,4 +12,5 @@ export type Env = WorkerEnv &
     AUTH_FROM_EMAIL: string;
     PUBLIC_ORIGIN?: string;
     AUTH_REQUEST_RATE_LIMITER?: RateLimit;
+    TRAFFIC_REQUEST_RATE_LIMITER?: RateLimit;
   };

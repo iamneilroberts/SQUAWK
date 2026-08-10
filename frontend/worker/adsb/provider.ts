@@ -9,6 +9,7 @@ import {
   usableTrafficContacts,
 } from "./normalize";
 import type { NormalizedRegion } from "./region";
+import { redactSensitive } from "../telemetry/redact";
 
 export type AdsbProviderEnvironment = {
   ADSB_PROVIDER_PRIMARY?: string;
@@ -270,10 +271,11 @@ export async function fetchProviderTraffic(
       const response = await dependencies.fetch(url, {
         method: "GET",
         headers: { accept: "application/json" },
-        redirect: "error",
+        redirect: "manual",
         signal: controller.signal,
       });
       if (!response.ok) {
+        console.error("adsb_provider_http_failure", { status: response.status });
         throw new ProviderAttemptError(response.status === 429 ? "rate-limited" : "http");
       }
       const payload = await readBoundedJson(response, settings.maximumResponseBytes);
@@ -287,6 +289,15 @@ export async function fetchProviderTraffic(
       };
     } catch (error) {
       if (!claimed) throw error;
+      if (!(error instanceof ProviderAttemptError)) {
+        console.error(
+          "adsb_provider_attempt_exception",
+          redactSensitive({
+            errorName: error instanceof Error ? error.name : "UnknownError",
+            errorMessage: error instanceof Error ? error.message : "Unknown provider error",
+          }),
+        );
+      }
       failures.push(failureCode(error));
       await gate.attemptFailed();
     } finally {

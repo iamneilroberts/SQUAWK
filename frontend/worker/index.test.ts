@@ -3,7 +3,7 @@ import { runInDurableObject } from "cloudflare:test";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Env } from "./env";
-import worker from "./index";
+import worker, { resolveEndpointLimiter } from "./index";
 import {
   AdsbBroker,
   setBrokerTrafficProviderForTest,
@@ -36,6 +36,22 @@ function fakeEnv(
 }
 
 describe("Worker entry", () => {
+  it("uses a dedicated traffic limiter outside local and fails closed when absent", async () => {
+    const limit = vi.fn(async () => ({ success: true }));
+    const production = fakeEnv(undefined, "production").env;
+    production.TRAFFIC_REQUEST_RATE_LIMITER = { limit } as RateLimit;
+
+    await expect(
+      resolveEndpointLimiter("traffic", production).limit("anon:digest"),
+    ).resolves.toEqual({ allowed: true });
+    expect(limit).toHaveBeenCalledWith({ key: "anon:digest" });
+
+    const missing = fakeEnv(undefined, "production").env;
+    await expect(
+      resolveEndpointLimiter("traffic", missing).limit("anon:digest"),
+    ).rejects.toMatchObject({ code: "LIMITER_UNAVAILABLE" });
+  });
+
   it("serves a typed status envelope without an assets or Python hop", async () => {
     const response = await exports.default.fetch(
       new Request("https://fly.voygent.app/api/status"),

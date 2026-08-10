@@ -156,6 +156,20 @@ const trafficRoute = defineRoute({
 
 const failClosedLimiter = createCloudflareEndpointLimiter(undefined, 1);
 
+export function resolveEndpointLimiter(name: string, env: Env) {
+  if (
+    name === "status" || name === "config" || name === "admin-recovery" ||
+    name === "auth-request" || name === "auth-consume" ||
+    name === "auth-session" || name === "profile"
+  ) return allowEndpointLimiter;
+  if (name === "traffic") {
+    return env.APP_ENV === "local"
+      ? allowEndpointLimiter
+      : createCloudflareEndpointLimiter(env.TRAFFIC_REQUEST_RATE_LIMITER, 15);
+  }
+  return failClosedLimiter;
+}
+
 function forceMode(env: Env): SystemMode {
   if (!isSystemMode(env.FORCE_MODE)) throw new TypeError("FORCE_MODE is invalid");
   return env.FORCE_MODE;
@@ -174,13 +188,7 @@ const routerDependencies = {
     ),
   authorize: (_boundary, request, context, env) =>
     authorizeSession(request, env.DB, Date.parse(context.serverTime), context.actor),
-  resolveLimiter: (name, env) =>
-    name === "status" || name === "config" || name === "admin-recovery" ||
-    name === "auth-request" || name === "auth-consume" ||
-    name === "auth-session" || name === "profile" ||
-    (name === "traffic" && env.APP_ENV === "local")
-      ? allowEndpointLimiter
-      : failClosedLimiter,
+  resolveLimiter: resolveEndpointLimiter,
   admitRequest: async ({ kind, forceMode: deploymentMode, context, params }, env) => {
     if (deploymentMode === "KILL_SWITCH") {
       return { allowed: false, mode: "KILL_SWITCH" as const };

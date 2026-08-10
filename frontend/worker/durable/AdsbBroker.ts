@@ -18,6 +18,8 @@ import { mostRestrictiveMode, type SystemMode } from "../../src/shared/mode";
 import type { Env } from "../env";
 import {
   fetchProviderTraffic,
+  ProviderConfigurationError,
+  ProviderUnavailableError,
   readProviderSettings,
   type ProviderAttemptGate,
   type ProviderSettings,
@@ -979,7 +981,10 @@ export class AdsbBroker extends DurableObject<Env> {
           this[CLOCK].nowMs(),
         );
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof ProviderUnavailableError) {
+        console.error("adsb_provider_refresh_failed", { failures: error.failures });
+      }
       return persistTrafficFailure(
         this.ctx.storage,
         region.regionKey,
@@ -1136,7 +1141,11 @@ export class AdsbBroker extends DurableObject<Env> {
         return commandResult;
       });
       return json({ ok: true, result }, 200);
-    } catch {
+    } catch (error) {
+      console.error("adsb_broker_command_failed", {
+        errorName: error instanceof Error ? error.name : "UnknownError",
+        providerConfiguration: error instanceof ProviderConfigurationError,
+      });
       return json(
         { ok: false, error: { code: "INTERNAL_ERROR", message: "Broker command failed" } },
         500,

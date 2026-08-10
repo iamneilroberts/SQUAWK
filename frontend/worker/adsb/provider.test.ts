@@ -130,7 +130,7 @@ describe("ADS-B provider fetch", () => {
       expect(init).toMatchObject({
         method: "GET",
         headers: { accept: "application/json" },
-        redirect: "error",
+        redirect: "manual",
       });
       return Response.json({ now: 1_785_118_044.001, ac: [{ hex: "abc123", lat: 30, lon: -88 }] });
     });
