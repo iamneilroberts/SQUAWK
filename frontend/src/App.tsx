@@ -19,6 +19,7 @@ import {
   loadProvisionalBriefing,
   loadTurnstileSiteKey,
   saveProvisionalBriefing,
+  updateCurrentProfile,
   type ProvisionalBriefingReference,
   type SessionProfile,
 } from "./auth/session";
@@ -35,6 +36,21 @@ import {
 } from "./briefing/briefingState";
 import { lockMission, prepareMission } from "./mission/api";
 import { missionChoiceKey, type MissionPreparationView } from "./mission/contract";
+import TutorialPanel from "./tutorial/TutorialPanel";
+import {
+  buildTutorialMission,
+  tutorialDefinitionForClass,
+  tutorialRun,
+} from "./tutorial/definitions";
+import {
+  EMPTY_TUTORIAL_PROGRESS,
+  loadTutorialProgress,
+  markTutorialCompleted,
+  markTutorialStarted,
+} from "./tutorial/progress";
+import type { AircraftClassId } from "./mission/types";
+import { startResultSync } from "./offline/runtime";
+import PwaPanel from "./pwa/PwaPanel";
 
 function missionErrorMessage(error: unknown): string {
   if (!(error instanceof AuthClientError)) return "MISSION SERVICE UNAVAILABLE. TRY AGAIN.";
@@ -69,6 +85,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
   const lockedMission = useStore((s) => s.lockedMission);
   const feedStatus = useStore((s) => s.feedStatus);
   const providerAvailable = useStore((s) => s.providerAvailable);
+  const systemMode = useStore((s) => s.systemMode);
   const [returnToken, setReturnToken] = useState(initialAuthToken);
   const [profile, setProfile] = useState<SessionProfile | null>(null);
   const [authStatus, setAuthStatus] = useState<"loading" | "anonymous" | "authenticated">("loading");
@@ -80,7 +97,12 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
     shouldShowQuickStart(typeof window === "undefined" ? null : window.localStorage));
   const [contactFocusRequest, setContactFocusRequest] = useState(0);
   const [missionCommit, setMissionCommit] = useState<MissionCommitState>({ status: "idle" });
+  const [tutorialProgress, setTutorialProgress] = useState(() => {
+    if (typeof window === "undefined") return EMPTY_TUTORIAL_PROGRESS;
+    try { return loadTutorialProgress(window.localStorage); } catch { return EMPTY_TUTORIAL_PROGRESS; }
+  });
   const missionOperation = useRef(0);
+  const tutorialStartUpdate = useRef<Promise<SessionProfile> | null>(null);
 
   const applyProfile = useCallback((nextProfile: SessionProfile) => {
     setProfile(nextProfile);
@@ -157,6 +179,11 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (authStatus !== "authenticated") return;
+    return startResultSync();
+  }, [authStatus]);
 
   useEffect(() => {
     if (pendingBriefing === null || !contacts.has(pendingBriefing.aircraftHex)) return;
@@ -325,6 +352,54 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
       });
   }, [authStatus, briefing.state, commitPreparation, missionCommit]);
 
+  const startTutorial = useCallback((classId: AircraftClassId) => {
+    const definition = tutorialDefinitionForClass(classId);
+    const started = useStore.getState().startTutorial(
+      buildTutorialMission(classId),
+      tutorialRun(definition),
+    );
+    if (!started) return;
+    try { setTutorialProgress(markTutorialStarted(localStorage)); } catch {
+      setTutorialProgress((current) => ({ ...current, started: true }));
+    }
+    if (profile !== null && profile.tutorialState === "new") {
+      const request = updateCurrentProfile({ tutorialState: "started" });
+      tutorialStartUpdate.current = request;
+      void request
+        .then(applyProfile)
+        .catch(() => undefined)
+        .finally(() => {
+          if (tutorialStartUpdate.current === request) tutorialStartUpdate.current = null;
+        });
+    }
+  }, [applyProfile, profile]);
+
+  const completeTutorial = useCallback((classId: AircraftClassId) => {
+    try { setTutorialProgress(markTutorialCompleted(localStorage, classId)); } catch {
+      setTutorialProgress((current) => ({
+        ...current,
+        started: true,
+        completedClasses: current.completedClasses.includes(classId)
+          ? current.completedClasses
+          : [...current.completedClasses, classId],
+      }));
+    }
+    if (profile !== null && profile.tutorialState !== "complete") {
+      // Keep the signed profile transition monotonic even if a very short tutorial ends
+      // while its earlier "started" request is still in flight.
+      const afterStarted = tutorialStartUpdate.current?.catch(() => undefined) ?? Promise.resolve();
+      void afterStarted
+        .then(() => updateCurrentProfile({ tutorialState: "complete" }))
+        .then(applyProfile)
+        .catch(() => undefined);
+    }
+  }, [applyProfile, profile]);
+
+  const completeCoaching = useCallback(() => {
+    if (profile === null || !profile.coachingEnabled) return;
+    void updateCurrentProfile({ coachingEnabled: false }).then(applyProfile).catch(() => undefined);
+  }, [applyProfile, profile]);
+
   const authoritativePreparation = missionCommit.status === "reconfirm" ||
     missionCommit.status === "locking"
     ? missionCommit.preparation
@@ -346,7 +421,11 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
           <ViewerHost onTerrainNoteChange={setTerrainNote}>
             <ContactLayer />
             <OverlayLayers route={mode === "BROWSE" ? route : null} />
-            <FlightSession />
+            <FlightSession
+              coachingEnabled={profile?.tutorialState === "complete" && profile.coachingEnabled}
+              onTutorialComplete={completeTutorial}
+              onCoachingComplete={completeCoaching}
+            />
           </ViewerHost>
           {mode === "BROWSE" && (
             <button
@@ -429,7 +508,16 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
           {takeoverMessage !== null && mode === "BROWSE" && (
             <div className="takeover-banner">{takeoverMessage}</div>
           )}
+          {systemMode === "KILL_SWITCH" && (
+            <div className="maintenance-banner" role="status">
+              SYSTEM MAINTENANCE — LIVE TRAFFIC AND SERVER ACTIONS ARE UNAVAILABLE. LOCAL TRAINING REMAINS AVAILABLE.
+            </div>
+          )}
           <div className="top-controls">
+            <PwaPanel mode={mode} />
+            {mode === "BROWSE" && (
+              <TutorialPanel progress={tutorialProgress} onStart={startTutorial} />
+            )}
             {mode === "BROWSE" && <LeaderboardPanel />}
             <div className="auth-control">
               {profile === null ? (

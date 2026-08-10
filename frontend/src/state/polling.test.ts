@@ -83,6 +83,7 @@ const lockedMission = {
   schemaVersion: 1,
   missionId: "00000000-0000-4000-8000-000000000001",
   status: "locked",
+  classId: "c172s",
   contact: contact("abc123"),
   assist: "medium",
 } as LockedMissionView;
@@ -185,6 +186,21 @@ describe("startTrafficPolling radius", () => {
       80,
     );
     expect(mockedFetchTraffic).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("makes zero config or traffic requests while a local tutorial is active", async () => {
+    useStore.getState().startTutorial(lockedMission, {
+      definitionId: "landing-c172s-kmob-15",
+      version: "v1",
+      classId: "c172s",
+      unranked: true,
+    });
+    const stop = startTrafficPolling({ intervalMs: 1_000 });
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(mockedFetchConfig).not.toHaveBeenCalled();
+    expect(mockedFetchTraffic).not.toHaveBeenCalled();
+    expect(mockedFetchActiveMissionTraffic).not.toHaveBeenCalled();
     stop();
   });
 

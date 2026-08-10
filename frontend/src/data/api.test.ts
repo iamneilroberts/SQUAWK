@@ -114,6 +114,17 @@ describe("fetchTraffic", () => {
       retryAfterSeconds: 30,
     });
   });
+
+  it("preserves kill-switch mode on a failed dynamic response", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      ok: false,
+      code: "KILL_SWITCH_ACTIVE",
+      mode: "KILL_SWITCH",
+      error: { message: "maintenance" },
+    }), { status: 503, headers: { "content-type": "application/json" } })));
+    const error = await fetchTraffic(30, -88, 80).catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ status: 503, code: "KILL_SWITCH_ACTIVE", mode: "KILL_SWITCH" });
+  });
 });
 
 describe("fetchActiveMissionTraffic", () => {

@@ -31,6 +31,8 @@ export async function sendMagicLinkEmail(
       message.link,
       "",
       "This link expires shortly. If you did not request it, ignore this message.",
+      "",
+      "After sign-in, open APP for the install checklist: Add to Home Screen, rotate to landscape, and enter fullscreen.",
     ].join("\n"),
   });
 }

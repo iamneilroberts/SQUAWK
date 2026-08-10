@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import {
   loadCurrentProfile,
@@ -27,6 +27,14 @@ export default function ProfilePanel({
   const [coaching, setCoaching] = useState(profile.coachingEnabled);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setHandle(profile.handle);
+    setLat(String(profile.center.lat));
+    setLon(String(profile.center.lon));
+    setAssist(profile.defaultAssist === "high" ? "medium" : profile.defaultAssist);
+    setCoaching(profile.coachingEnabled);
+  }, [profile]);
 
   async function save(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -115,6 +123,10 @@ export default function ProfilePanel({
             <input type="checkbox" checked={coaching} onChange={(event) => setCoaching(event.target.checked)} />
             COACHING ENABLED
           </label>
+          <div className="handoff-row">
+            <span className="label">TUTORIAL</span>
+            <span className="handoff-value">{profile.tutorialState.toUpperCase()}</span>
+          </div>
           <ProfileResults history={profile.history} statistics={profile.classStatistics} />
           {failed && <div className="auth-error label">PROFILE UPDATE FAILED.</div>}
           <button className="control-button w-full" type="submit" disabled={busy}>SAVE PROFILE</button>

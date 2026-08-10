@@ -158,6 +158,42 @@ describe("EndCard", () => {
     expect(text).toContain("NOT RANKED");
     expect(text).toContain("RETRY RESULT");
   });
+  it("labels a durable offline result as queued and still non-authoritative", () => {
+    const preview = {
+      classId: "c172s" as const,
+      versions,
+      highestAssist: "OFF" as const,
+      evaluation: {
+        outcome: "landed" as const,
+        failure: null,
+        measurements: null as never,
+        score: { total: 88, components: accepted.result.components! },
+      },
+    };
+    const text = render(stats(), { status: "queued", preview, message: "RESULT SAVED FOR RETRY" });
+    expect(text).toContain("QUEUED / NOT AUTHORITATIVE");
+    expect(text).toContain("RESULT SAVED FOR RETRY");
+    expect(text).toContain("NOT RANKED");
+  });
+  it("labels tutorial grading as local and unranked", () => {
+    const text = render(stats(), {
+      status: "tutorial",
+      preview: {
+        classId: "f5e",
+        versions,
+        highestAssist: "FULL",
+        evaluation: {
+          outcome: "landed",
+          failure: null,
+          measurements: null as never,
+          score: { total: 90, components: accepted.result.components! },
+        },
+      },
+    });
+    expect(text).toContain("TUTORIAL — LOCAL AND UNRANKED");
+    expect(text).toContain("NOT RANKED");
+    expect(text).not.toContain("AUTHORITATIVE — WORKER VERIFIED");
+  });
   it("does not invent a debrief when landing evidence is unavailable", () => {
     const text = render(stats(), {
       status: "unavailable",

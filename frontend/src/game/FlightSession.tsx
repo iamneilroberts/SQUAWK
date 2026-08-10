@@ -47,14 +47,38 @@ import type {
   DebriefSubmission,
   PendingMissionResult,
 } from "../debrief/types";
+import { MISSION_RECEIPT_TTL_MS } from "../shared/limits";
+import {
+  queueMissionResult,
+  removeQueuedMissionResult,
+  subscribeResultQueueEvents,
+} from "../offline/runtime";
+import { resultFailureIsPermanent } from "../offline/sync";
+import { tutorialDefinitionForClass } from "../tutorial/definitions";
+import {
+  LIVE_COACHING_LESSONS,
+  nextLesson,
+  type TutorialLesson,
+} from "../tutorial/lessons";
+import { CoachingCard, TeachingOverlay } from "../tutorial/TeachingOverlay";
+import { createTutorialTerrainService } from "../tutorial/terrain";
 
 const COUNTDOWN_FROM = 3;
 const PRELOAD_TIMEOUT_MS = 3000;
 
-export default function FlightSession() {
+export default function FlightSession({
+  coachingEnabled = false,
+  onTutorialComplete,
+  onCoachingComplete,
+}: {
+  coachingEnabled?: boolean;
+  onTutorialComplete?(classId: "c172s" | "b738" | "f5e"): void;
+  onCoachingComplete?(): void;
+}) {
   const bundle = useViewer();
   const mode = useStore((s) => s.mode);
   const lockedMission = useStore((s) => s.lockedMission);
+  const tutorial = useStore((s) => s.tutorial);
   const assist = useStore((s) => s.assist);
   const endStats = useStore((s) => s.endStats);
   const basemap = useStore((s) => s.basemap);
@@ -73,6 +97,7 @@ export default function FlightSession() {
     status: "unavailable",
     message: "AUTHORITATIVE RESULT HAS NOT BEEN SUBMITTED",
   });
+  const [activeLesson, setActiveLesson] = useState<TutorialLesson | null>(null);
 
   // Touch analog axes (mobile sub-feature 2, Option B). A single mutable object the flight loop
   // reads once per tick via the `analog` provider; the touch stick/throttle write into it. Stays
@@ -88,6 +113,18 @@ export default function FlightSession() {
   const resultKeyRef = useRef<string | null>(null);
   const pendingResultRef = useRef<PendingMissionResult | null>(null);
   const resultAttemptRef = useRef(0);
+  const seenLessonsRef = useRef(new Set<string>());
+  const coachingUsedRef = useRef(false);
+  const activeLessonRef = useRef<TutorialLesson | null>(null);
+  const coachingEnabledRef = useRef(coachingEnabled);
+  const onTutorialCompleteRef = useRef(onTutorialComplete);
+  const onCoachingCompleteRef = useRef(onCoachingComplete);
+
+  useEffect(() => {
+    coachingEnabledRef.current = coachingEnabled;
+    onTutorialCompleteRef.current = onTutorialComplete;
+    onCoachingCompleteRef.current = onCoachingComplete;
+  }, [coachingEnabled, onTutorialComplete, onCoachingComplete]);
 
   const snapshot = useSyncExternalStore(hudSnapshot.subscribe, hudSnapshot.get, hudSnapshot.get);
 
@@ -125,6 +162,10 @@ export default function FlightSession() {
     setNote("");
     setResumeArmed(false);
     setTrafficHex(null);
+    setActiveLesson(null);
+    activeLessonRef.current = null;
+    seenLessonsRef.current = new Set();
+    coachingUsedRef.current = false;
     pendingResultRef.current = null;
     setDebrief({
       status: "unavailable",
@@ -137,18 +178,41 @@ export default function FlightSession() {
     resultAttemptRef.current = attempt;
     pendingResultRef.current = pending;
     setDebrief({ status: "submitting", preview: pending.preview });
-    void submitMissionResult(pending.request, pending.idempotencyKey)
+    let persisted = false;
+    const queuedAt = Date.now();
+    const expiresAt = (lockedMission?.lockedAt ?? queuedAt) + MISSION_RECEIPT_TTL_MS;
+    void queueMissionResult(pending, queuedAt, expiresAt)
+      .then(() => { persisted = true; })
+      .catch(() => undefined)
+      .then(() => submitMissionResult(pending.request, pending.idempotencyKey))
       .then((result) => {
         if (pendingResultRef.current !== pending || resultAttemptRef.current !== attempt) return;
+        void removeQueuedMissionResult(pending.request.missionId, pending.idempotencyKey)
+          .catch(() => undefined);
         setDebrief({ status: "accepted", result });
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (pendingResultRef.current !== pending || resultAttemptRef.current !== attempt) return;
+        const permanent = resultFailureIsPermanent(error);
+        if (permanent) {
+          void removeQueuedMissionResult(pending.request.missionId, pending.idempotencyKey)
+            .catch(() => undefined);
+        }
+        if (!permanent && persisted) {
+          setDebrief({
+            status: "queued",
+            preview: pending.preview,
+            message: "RESULT SAVED — IT WILL RETRY WITH THE SAME IDEMPOTENCY KEY AFTER RECOVERY",
+          });
+          return;
+        }
         setDebrief({
           status: "failed",
           preview: pending.preview,
-          message: "RESULT SUBMISSION FAILED — AUTHORITATIVE SCORE UNAVAILABLE",
-          retryable: true,
+          message: permanent
+            ? "WORKER REJECTED THIS INVALID, EXPIRED, OR INELIGIBLE RESULT"
+            : "RESULT SUBMISSION FAILED — LOCAL QUEUE UNAVAILABLE",
+          retryable: !permanent,
         });
       });
   }
@@ -163,7 +227,7 @@ export default function FlightSession() {
    * mode is refused rather than teleporting the app to BROWSE from somewhere it should not.
    */
   function leaveToBrowse(event: GameEvent) {
-    if (lockedMission !== null && useStore.getState().mode !== "ENDED") {
+    if (lockedMission !== null && tutorial === null && useStore.getState().mode !== "ENDED") {
       const key = releaseKeyRef.current ?? crypto.randomUUID();
       releaseKeyRef.current = key;
       void releaseMissionLease(lockedMission.missionId, key).catch(() => undefined);
@@ -183,10 +247,13 @@ export default function FlightSession() {
     releaseKeyRef.current = crypto.randomUUID();
     resultKeyRef.current = crypto.randomUUID();
     pendingResultRef.current = null;
+    seenLessonsRef.current = new Set();
+    coachingUsedRef.current = false;
     setDebrief({
       status: "unavailable",
       message: "AUTHORITATIVE RESULT HAS NOT BEEN SUBMITTED",
     });
+    if (tutorial !== null) return;
     const release = () => {
       if (useStore.getState().mode === "ENDED") return;
       void releaseMissionLease(
@@ -196,7 +263,23 @@ export default function FlightSession() {
     };
     window.addEventListener("pagehide", release);
     return () => window.removeEventListener("pagehide", release);
-  }, [lockedMission]);
+  }, [lockedMission, tutorial]);
+
+  useEffect(() => subscribeResultQueueEvents((event) => {
+    const pending = pendingResultRef.current;
+    if (pending === null || event.record.missionId !== pending.request.missionId ||
+      event.record.idempotencyKey !== pending.idempotencyKey) return;
+    if (event.kind === "accepted") {
+      setDebrief({ status: "accepted", result: event.result });
+    } else {
+      setDebrief({
+        status: "failed",
+        preview: pending.preview,
+        message: "WORKER REJECTED THIS INVALID, EXPIRED, OR INELIGIBLE RESULT",
+        retryable: false,
+      });
+    }
+  }), []);
 
   // ---- COUNTDOWN: preload terrain, build the spawn, tick 3-2-1, then fly ----
   useEffect(() => {
@@ -224,27 +307,41 @@ export default function FlightSession() {
     setNote("ACQUIRING TERRAIN…");
 
     void (async () => {
-      const preload = await preloadTerrain(
-        bundle.viewer,
-        degToRad(contact.lat),
-        degToRad(contact.lon),
-        degToRad(contact.track ?? 0),
-        ktToMs(contact.gs ?? 0),
-        PRELOAD_TIMEOUT_MS,
-      );
+      const preload = tutorial === null
+        ? await preloadTerrain(
+            bundle.viewer,
+            degToRad(contact.lat),
+            degToRad(contact.lon),
+            degToRad(contact.track ?? 0),
+            ktToMs(contact.gs ?? 0),
+            PRELOAD_TIMEOUT_MS,
+          )
+        : {
+            verified: true,
+            terrainHeightM: null,
+          };
       if (cancelled) return;
 
       const built = buildLockedMissionSpawn(
         contact,
         lockedMission.classId,
         params,
-        { terrainHeightM: preload.terrainHeightM },
+        {
+          terrainHeightM: preload.terrainHeightM,
+          ...(tutorial === null
+            ? {}
+            : { initialFlapDetent: params.flaps.length - 1, initialGearDown: true }),
+        },
       );
       setSpawn(built);
-      setNote(preload.verified ? "" : "TERRAIN UNVERIFIED — COLLISION DISARMED");
+      setNote(tutorial !== null
+        ? "TUTORIAL GROUND — PUBLISHED RUNWAY ELEVATION"
+        : preload.verified ? "" : "TERRAIN UNVERIFIED — COLLISION DISARMED");
 
-      const terrain = createTerrainService(bundle.heightSampler);
-      if (!preload.verified) terrain.disarm();
+      const terrain = tutorial === null
+        ? createTerrainService(bundle.heightSampler)
+        : createTutorialTerrainService(lockedMission.assignment);
+      if (tutorial === null && !preload.verified) terrain.disarm();
       terrainRef.current = terrain;
 
       const keyboard = createKeyboard(window);
@@ -273,7 +370,29 @@ export default function FlightSession() {
               assignment: lockedMission.assignment,
               profile: lockedMission.missionProfile,
             },
-            onSnapshot: (s) => hudSnapshot.set(s),
+            onSnapshot: (s) => {
+              hudSnapshot.set(s);
+              if (activeLessonRef.current !== null) return;
+              const lessons = tutorial === null
+                ? LIVE_COACHING_LESSONS
+                : tutorialDefinitionForClass(tutorial.classId).lessons;
+              const lesson = nextLesson(
+                lessons,
+                seenLessonsRef.current,
+                s.airtimeS,
+                tutorial !== null || coachingEnabledRef.current,
+              );
+              if (lesson === null) return;
+              seenLessonsRef.current.add(lesson.id);
+              activeLessonRef.current = lesson;
+              setActiveLesson(lesson);
+              if (tutorial !== null) {
+                loopRef.current?.pause();
+                useStore.getState().fire("PAUSE");
+              } else {
+                coachingUsedRef.current = true;
+              }
+            },
             onEnd: (stats, landingResult) => {
               loopRef.current?.stop();
               useStore.getState().setEndStats(stats);
@@ -288,6 +407,24 @@ export default function FlightSession() {
               }
               const highestAssist = useStore.getState().assist?.highestUsed ??
                 assistModeFromPreference(lockedMission.assist);
+              if (tutorial !== null) {
+                pendingResultRef.current = null;
+                activeLessonRef.current = null;
+                setActiveLesson(null);
+                setDebrief({
+                  status: "tutorial",
+                  preview: {
+                    classId: lockedMission.classId,
+                    versions: lockedMission.versions,
+                    highestAssist,
+                    evaluation: landingResult.evaluation,
+                  },
+                });
+                useStore.getState().fire("IMPACT");
+                onTutorialCompleteRef.current?.(lockedMission.classId);
+                return;
+              }
+              if (coachingUsedRef.current) onCoachingCompleteRef.current?.();
               try {
                 const result = buildMissionResultPackage({
                   mission: lockedMission,
@@ -307,8 +444,8 @@ export default function FlightSession() {
                   },
                 };
                 useStore.getState().fire("IMPACT");
-                // The Worker recomputes the preview and releases capacity only after D1 finalizes.
-                // Task 13 owns durable offline retry; Task 12 retries only in this live page.
+                // Persist before the network attempt. The Worker remains the only authority and
+                // receives this exact request/idempotency key after recovery.
                 submitPendingResult(pending);
               } catch {
                 pendingResultRef.current = null;
@@ -342,7 +479,16 @@ export default function FlightSession() {
     // bundle OBJECT is rebuilt when terrainNote resolves (~1s in) but .viewer/.heightSampler
     // keep their identity for the whole mount, so depending on the whole object would re-fire
     // this mid-countdown for a field this effect never reads.
-  }, [mode, bundle?.viewer, bundle?.heightSampler, lockedMission]);
+    // Deliberately depend on the bundle's stable members, not the bundle object; see above.
+    // submitPendingResult owns refs/current mission and must not restart an active countdown.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    mode,
+    bundle?.viewer,
+    bundle?.heightSampler,
+    lockedMission,
+    tutorial,
+  ]);
 
   // ---- Esc pauses; visibilitychange auto-pauses (spec §5, §6) ----
   useEffect(() => {
@@ -509,8 +655,6 @@ export default function FlightSession() {
   // ---- returning to BROWSE from anywhere tears the flight down ----
   useEffect(() => {
     if (mode === "BROWSE") teardown();
-    // teardown is intentionally not a dependency: it closes over refs, not state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
   // ---- on entering ENDED, hand the mouse back so the site can be orbited (owner decision
@@ -534,8 +678,24 @@ export default function FlightSession() {
   const faded = immersiveActive && !chromeVisible;
   const warningActive = snapshot ? warningsFor(snapshot).length > 0 : false;
 
+  const dismissLesson = () => {
+    activeLessonRef.current = null;
+    setActiveLesson(null);
+  };
+
+  const continueTutorial = () => {
+    dismissLesson();
+    loopRef.current?.resume();
+    useStore.getState().fire("RESUME");
+  };
+
   return (
     <>
+      {tutorial !== null && (
+        <div className="tutorial-flight-banner">
+          TUTORIAL {tutorial.version} · LOCAL · NO LIVE TRAFFIC · UNRANKED
+        </div>
+      )}
       {lockedMission !== null && assist !== null && mode !== "ENDED" && (
         <>
           <MissionRouteLayer mission={lockedMission} assist={assist.current} />
@@ -569,7 +729,7 @@ export default function FlightSession() {
       {/* ENDED is deliberately excluded: the end card owns the screen and the mouse is handed
           back for orbiting (decisions B-015), so clickable tags over the impact site would
           fight that. */}
-      {(mode === "FLYING" || mode === "PAUSED") && (
+      {tutorial === null && (mode === "FLYING" || mode === "PAUSED") && (
         <>
           <TrafficOverlay onSelect={setTrafficHex} />
           {trafficHex !== null && (
@@ -589,12 +749,22 @@ export default function FlightSession() {
           <ImmersiveControl warningActive={warningActive} />
         </>
       )}
-      {mode === "PAUSED" && (
+      {mode === "PAUSED" && tutorial !== null && activeLesson !== null && (
+        <TeachingOverlay
+          lesson={activeLesson}
+          onContinue={continueTutorial}
+          onQuit={() => leaveToBrowse("QUIT")}
+        />
+      )}
+      {mode === "PAUSED" && !(tutorial !== null && activeLesson !== null) && (
         <PauseOverlay
           armed={resumeArmed}
           onArmResume={() => setResumeArmed(true)}
           onQuit={() => leaveToBrowse("QUIT")}
         />
+      )}
+      {mode === "FLYING" && tutorial === null && activeLesson !== null && (
+        <CoachingCard lesson={activeLesson} onDismiss={dismissLesson} />
       )}
       {mode === "ENDED" && endStats && (
         <EndCard

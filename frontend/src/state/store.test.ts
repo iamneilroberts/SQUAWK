@@ -71,6 +71,18 @@ describe("store", () => {
     s().applyFetch(trafficResult([], "t", 9));
     expect(s().feedStatus).toBe("live");
   });
+  it("fails closed immediately when the Worker reports kill-switch maintenance", () => {
+    useStore.getState().applyFetch(trafficResult([contact("abc123")]));
+    useStore.getState().select("abc123");
+    useStore.getState().markFetchFailed("KILL_SWITCH");
+    expect(useStore.getState()).toMatchObject({
+      systemMode: "KILL_SWITCH",
+      feedStatus: "offline",
+      providerAvailable: false,
+      selectedHex: null,
+    });
+    expect(useStore.getState().contacts.size).toBe(0);
+  });
   it("marks the provider unavailable and expires retained contacts after 120 seconds", () => {
     useStore.getState().applyFetch(
       trafficResult([contact("abc123")], "cache.test", 111, {

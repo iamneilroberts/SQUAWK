@@ -16,6 +16,8 @@ export type DebriefPreview = {
 
 export type DebriefSubmission =
   | { status: "submitting"; preview: DebriefPreview }
+  | { status: "queued"; preview: DebriefPreview; message: string }
+  | { status: "tutorial"; preview: DebriefPreview }
   | { status: "accepted"; result: MissionResultView }
   | {
       status: "failed";

@@ -15,7 +15,7 @@
 - [x] Task 10 — Integrate locked missions, assists, ghost traffic, and the existing simulator
 - [x] Task 11 — Implement runway landing evidence, safety gates, and scoring
 - [x] Task 12 — Add debrief, profiles, and cached partitioned leaderboards
-- [ ] Task 13 — Add tutorial, coaching, installability, and offline result sync
+- [x] Task 13 — Add tutorial, coaching, installability, and offline result sync
 - [ ] Owner checkpoint B — Review the complete product vertical slice
 - [ ] Task 14 — Secure admin APIs and implement controls, audits, bans, and termination
 - [ ] Task 15 — Build detailed admin telemetry, sessions, users, and logs

@@ -77,7 +77,8 @@ export default function EndCard({
   onExit(): void;
 }) {
   const accepted = submission.status === "accepted" ? submission.result : null;
-  const preview = submission.status === "submitting" || submission.status === "failed"
+  const preview = submission.status === "submitting" || submission.status === "failed" ||
+    submission.status === "queued" || submission.status === "tutorial"
     ? submission.preview
     : null;
   const evaluation = accepted ?? preview?.evaluation ?? null;
@@ -88,6 +89,10 @@ export default function EndCard({
   const versions = accepted?.versions ?? preview?.versions ?? null;
   const authority = submission.status === "accepted"
     ? "AUTHORITATIVE — WORKER VERIFIED"
+    : submission.status === "tutorial"
+      ? "TUTORIAL — LOCAL AND UNRANKED"
+      : submission.status === "queued"
+        ? "PREVIEW — QUEUED / NOT AUTHORITATIVE"
     : submission.status === "submitting"
       ? "VERIFYING AUTHORITATIVE RESULT…"
       : submission.status === "failed"
@@ -102,6 +107,9 @@ export default function EndCard({
         <div className="debrief-authority" aria-live="polite">{authority}</div>
         {submission.status === "failed" && (
           <div className="auth-error label" role="alert">{submission.message}</div>
+        )}
+        {submission.status === "queued" && (
+          <div className="debrief-queued label" role="status">{submission.message}</div>
         )}
         {submission.status === "unavailable" && (
           <div className="auth-error label" role="alert">{submission.message}</div>

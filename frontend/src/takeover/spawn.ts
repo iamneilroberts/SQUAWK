@@ -41,7 +41,11 @@ export function buildLockedMissionSpawn(
   contact: Contact,
   classId: AircraftClassId,
   aircraftProfile: ClassParams,
-  opts: { terrainHeightM: number | null },
+  opts: {
+    terrainHeightM: number | null;
+    initialFlapDetent?: number;
+    initialGearDown?: boolean;
+  },
 ): SpawnResult {
   if (aircraftProfile.id !== classId) {
     throw new TypeError("Locked aircraft profile does not match the mission class");
@@ -52,9 +56,17 @@ export function buildLockedMissionSpawn(
 export function buildSpawnState(
   contact: Contact,
   params: ClassParams,
-  opts: { terrainHeightM: number | null },
+  opts: {
+    terrainHeightM: number | null;
+    initialFlapDetent?: number;
+    initialGearDown?: boolean;
+  },
 ): SpawnResult {
   const adjustments: SpawnAdjustment[] = [];
+  const flapDetent = opts.initialFlapDetent ?? 0;
+  if (!Number.isInteger(flapDetent) || flapDetent < 0 || flapDetent >= params.flaps.length) {
+    throw new RangeError("Initial flap detent is invalid for the aircraft class");
+  }
 
   // ---- altitude: alt_geom is ellipsoidal, the same datum as the terrain (G-003) ----
   const altGeomM = contact.alt_geom === null ? null : ftToM(contact.alt_geom);
@@ -104,7 +116,7 @@ export function buildSpawnState(
   // ---- speed: ground speed approximates TAS (still air, v1 scope) ----
   const snapshotKt = contact.gs ?? 0;
   let tasMs = ktToMs(snapshotKt);
-  const vsMin = 1.3 * stallSpeedIasMs(params, 0);
+  const vsMin = 1.3 * stallSpeedIasMs(params, flapDetent);
   const vneMax = 0.9 * params.limits.vneIasMs;
   const iasMs = tasToIas(tasMs, altitudeM);
   if (iasMs < vsMin) {
@@ -161,7 +173,7 @@ export function buildSpawnState(
   const rho = isaDensity(altitudeM);
   const qBar = 0.5 * rho * tasMs * tasMs;
   const clNeeded = qBar > 0 ? (params.massKg * G0) / (qBar * params.wingAreaM2) : 0;
-  const flap = params.flaps[0];
+  const flap = params.flaps[flapDetent];
   const alphaTrimRad = Math.min(
     params.aero.stallAlphaRad,
     (clNeeded - (params.aero.cl0 + flap.dCL0)) / params.aero.clAlphaPerRad,
@@ -173,9 +185,10 @@ export function buildSpawnState(
 
   // ---- controls: the throttle that holds this speed, and the trim that holds this AoA ----
   const cl = liftCoefficient(alphaTrimRad, params, flap);
-  // GR-006: retractable spawns gear-up (the honest airborne-cruise state — this is the fix for
-  // the acceptance-flight bug where every jet read GEAR DOWN forever); fixed gear is pinned down.
-  const gearPositionAtSpawn = params.gear === "retractable" ? 0 : 1;
+  // GR-006: the default/live path keeps retractable gear up (the honest airborne-cruise state).
+  // A deterministic landing tutorial may explicitly request gear down; fixed gear stays pinned down.
+  const gearDownAtSpawn = params.gear === "fixed" || opts.initialGearDown === true;
+  const gearPositionAtSpawn = gearDownAtSpawn ? 1 : 0;
   const dragN = (dragCoefficient(cl, params, flap) + params.aero.gearDragCd0 * gearPositionAtSpawn) *
     qBar * params.wingAreaM2;
   const thrustCapacityN =
@@ -191,8 +204,8 @@ export function buildSpawnState(
     ),
   );
   const controls: ControlVector = {
-    pitch: 0, roll: 0, yaw: 0, throttle, flapDetent: 0, trim,
-    gearDown: params.gear === "fixed",
+    pitch: 0, roll: 0, yaw: 0, throttle, flapDetent, trim,
+    gearDown: gearDownAtSpawn,
     afterburner: false,
   };
 

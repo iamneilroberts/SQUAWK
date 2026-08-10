@@ -22,6 +22,7 @@ import type { GameEvent, Mode } from "../game/machine";
 import type { FlightStats } from "../game/stats";
 import type { BasemapKind } from "../globe/mapSources";
 import type { LockedMissionView } from "../mission/contract";
+import type { TutorialRun } from "../tutorial/definitions";
 import {
   initialAssistState,
   selectAssist,
@@ -79,7 +80,7 @@ type State = {
   setImmersive(on: boolean): void;
   setChromeVisible(on: boolean): void;
   applyFetch(r: TrafficFetchResult): void;
-  markFetchFailed(): void;
+  markFetchFailed(mode?: SystemMode): void;
   select(hex: string | null): void;
   setSelectionLocked(locked: boolean): void;
   /**
@@ -95,6 +96,8 @@ type State = {
   origin: { hex: string; snapshot: Contact } | null;
   /** The committed Worker response that is the sole authority for a running simulation. */
   lockedMission: LockedMissionView | null;
+  /** Present only for a deterministic local tutorial; suppresses all traffic/API polling. */
+  tutorial: TutorialRun | null;
   assist: AssistState | null;
   endStats: FlightStats | null;
   /**
@@ -106,6 +109,7 @@ type State = {
   fire(event: GameEvent): void;
   setOrigin(o: { hex: string; snapshot: Contact } | null): void;
   startLockedMission(mission: LockedMissionView): boolean;
+  startTutorial(mission: LockedMissionView, tutorial: TutorialRun): boolean;
   setAssistMode(mode: AssistMode): void;
   setEndStats(s: FlightStats | null): void;
   /** Clears the session payload without touching the mode. */
@@ -141,6 +145,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   mode: "BROWSE",
   origin: null,
   lockedMission: null,
+  tutorial: null,
   assist: null,
   endStats: null,
 
@@ -203,9 +208,19 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
     });
   },
 
-  markFetchFailed() {
+  markFetchFailed(mode) {
     consecutiveFailures += 1;
     const state = get();
+    if (mode === "KILL_SWITCH") {
+      set({
+        systemMode: mode,
+        contacts: new Map(),
+        selectedHex: null,
+        feedStatus: "offline",
+        providerAvailable: false,
+      });
+      return;
+    }
     const elapsedSeconds = lastTrafficAppliedAtMs === null
       ? 0
       : Math.max(0, (Date.now() - lastTrafficAppliedAtMs) / 1_000);
@@ -233,6 +248,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       return;
     }
     set({
+      ...(mode === undefined ? {} : { systemMode: mode }),
       feedStatus: consecutiveFailures >= 3 ? "offline" : "stale",
       cacheAgeSeconds: totalCacheAgeSeconds,
       providerAvailable: false,
@@ -265,9 +281,30 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
     set({
       mode: next,
       lockedMission: mission,
+      tutorial: null,
       origin: { hex: mission.contact.hex, snapshot: mission.contact },
       assist: initialAssistState(assistModeFromPreference(mission.assist)),
       endStats: null,
+      selectionLocked: false,
+    });
+    return true;
+  },
+
+  startTutorial(mission, tutorial) {
+    const currentMode = get().mode;
+    const next = nextMode(currentMode, "TAKE_CONTROLS");
+    if (currentMode !== "BROWSE" || next !== "COUNTDOWN" || mission.classId !== tutorial.classId) {
+      return false;
+    }
+    set({
+      mode: next,
+      lockedMission: mission,
+      tutorial,
+      origin: { hex: mission.contact.hex, snapshot: mission.contact },
+      assist: initialAssistState("FULL"),
+      endStats: null,
+      contacts: new Map(),
+      selectedHex: null,
       selectionLocked: false,
     });
     return true;
@@ -287,6 +324,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
     set({
       origin: null,
       lockedMission: null,
+      tutorial: null,
       assist: null,
       endStats: null,
       selectionLocked: false,
@@ -299,6 +337,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       mode: "BROWSE",
       origin: null,
       lockedMission: null,
+      tutorial: null,
       assist: null,
       endStats: null,
       selectionLocked: false,
@@ -389,6 +428,11 @@ export function startTrafficPolling(options: TrafficPollingOptions = {}): () => 
   function tick(): void {
     if (stopped || inFlight || !visibility.isVisible()) return;
     inFlight = true;
+    if (useStore.getState().tutorial !== null) {
+      inFlight = false;
+      schedule(delayMs());
+      return;
+    }
     let serverNextSeconds: number | undefined;
     let retryAfterSeconds: number | undefined;
     let loadedConfig = false;
@@ -432,7 +476,9 @@ export function startTrafficPolling(options: TrafficPollingOptions = {}): () => 
         if (error instanceof FeedDownError && error.retryAfterSeconds !== null) {
           retryAfterSeconds = error.retryAfterSeconds;
         }
-        useStore.getState().markFetchFailed();
+        useStore.getState().markFetchFailed(
+          error instanceof FeedDownError ? error.mode ?? undefined : undefined,
+        );
       })
       .finally(() => {
         inFlight = false;

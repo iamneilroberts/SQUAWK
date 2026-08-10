@@ -1,4 +1,5 @@
 import { captureAuthReturnFragment } from "./auth/session";
+import { initializePwa } from "./pwa/serviceWorker";
 
 const initialAuthToken = captureAuthReturnFragment(window.location, window.history);
 
@@ -19,6 +20,7 @@ async function bootstrap(): Promise<void> {
       <App initialAuthToken={initialAuthToken} />
     </React.StrictMode>,
   );
+  initializePwa();
 }
 
 void bootstrap();

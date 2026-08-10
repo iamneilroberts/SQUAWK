@@ -103,6 +103,7 @@ type StatusBarProps = {
 export default function StatusBar({ terrainNote, contactsChip, immersive = false, faded = false }: StatusBarProps) {
   const feedStatus = useStore((s) => s.feedStatus);
   const feedSource = useStore((s) => s.feedSource);
+  const tutorial = useStore((s) => s.tutorial);
   const contactCount = useStore((s) => s.contacts.size);
   const radiusNm = useStore((s) => s.radiusNm);
   const setRadiusNm = useStore((s) => s.setRadiusNm);
@@ -126,8 +127,12 @@ export default function StatusBar({ terrainNote, contactsChip, immersive = false
 
   return (
     <div className={className}>
-      <span className={chipClass}>{feedChipLabel(feedStatus, feedSource)}</span>
-      {feedStatus === "offline" && <span className="status-chip-warn">FEEDS UNREACHABLE</span>}
+      <span className={tutorial === null ? chipClass : "status-chip-live"}>
+        {tutorial === null ? feedChipLabel(feedStatus, feedSource) : "TUTORIAL · NO LIVE TRAFFIC"}
+      </span>
+      {tutorial === null && feedStatus === "offline" && (
+        <span className="status-chip-warn">FEEDS UNREACHABLE</span>
+      )}
       {regions.browseControls && terrainNote !== null && (
         <span className={terrainChipClass(terrainNote)}>{terrainNote}</span>
       )}

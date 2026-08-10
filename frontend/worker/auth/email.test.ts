@@ -41,6 +41,7 @@ describe("magic-link email", () => {
       subject: "Your Voygent ADS-B Game sign-in link",
     });
     expect(String(messages[0]?.text)).toContain(`#auth_token=${TOKEN}`);
+    expect(String(messages[0]?.text)).toMatch(/Add to Home Screen.*landscape.*fullscreen/s);
     expect(log).not.toHaveBeenCalled();
     log.mockRestore();
   });

@@ -1786,3 +1786,46 @@ any cache key is constructed. Canonical bounded keys live for 60 seconds; the pu
 unbounded filters never touch cache, mismatched cached partitions fall back to D1, cache failures do not
 change correctness, and every other API envelope remains `no-store`. No staging or production deployment
 occurred in this task.
+
+## 2026-08-10 — CF-013 · Tutorials are local facts; offline replay preserves Worker authority
+
+Task 13 adds three versioned, deterministic, always-unranked landing tutorials. The C172S starts on
+Mobile Regional runway 15, the B738 on New Orleans runway 11, and—by owner direction—the F-5E on
+Keesler AFB runway 04. Each starts on the profile glide path in landing flap/gear configuration and
+uses the same evidence, safety-gate, and scoring engine as a live mission. Tutorial state is explicit
+in the session store, suppresses every traffic/config poll and traffic overlay, and is labelled local,
+no-live-traffic, and unranked throughout the flight and debrief. Teaching moments pause the loop at
+versioned airtime triggers. Signed profiles persist aggregate started/completed state; bounded local
+storage also preserves per-class progress without an account. Optional generic coaching reuses the
+lesson progression without pausing and turns its signed preference off after the first coached live
+flight.
+
+Tutorial collision deliberately uses a disclosed flat plane at the published assigned-runway elevation.
+It never enters a live mission and does not claim sampled terrain. This keeps tutorial touchdown and
+grading deterministic when every runtime service and external terrain source is offline; live missions
+retain the existing stricter preload, last-known-good, and collision-disarm rules.
+
+The prior-art gate compared Workbox Background Sync, `vite-plugin-pwa`, and `idb` and selected **BUILD**
+for the small domain-specific queue. Workbox retains raw requests by age but does not enforce this
+product's atomic mission dedupe, count, encoded-byte, receipt-expiry, or permanent-rejection policy;
+the broader plugin adds no authority or safety benefit. The native IndexedDB queue holds at most eight
+pending packages and 1 MiB, never beyond the signed receipt's 24-hour life. It persists the exact result
+body and idempotency key before the first network attempt, evicts oldest entries transactionally, rejects
+same-mission key conflicts, and retries on app start, network recovery, visibility return, Background
+Sync notification, and a visible-page one-minute cadence. Only a successful Worker response becomes
+accepted. Invalid/expired/conflicting packages and explicit permanent account-code rejections are
+discarded; transient network, read-only, kill-switch, auth-required, and CSRF failures remain queued until
+recovery or receipt expiry. CSRF stays in module
+memory and is never written to IndexedDB or exposed to the service worker.
+
+The installable PWA uses an explicit versioned service worker rather than Workbox. The build emits a
+bounded, version-matched manifest of local application and Cesium files; install validates that manifest
+and precaches it with the verified public shell, web manifest, and icons. Runtime caching is restricted to
+same-origin generated assets, Cesium assets, and versioned airport/tutorial data. `/api`, `/admin`, non-GET
+requests, HTML returned in place of an asset, authenticated responses, and possible Access/interstitial
+navigations are never cached. A new worker waits until the player explicitly applies it from BROWSE, so an
+active flight is not replaced.
+Background Sync merely wakes authenticated window clients; it cannot replay without the in-memory CSRF
+token. The cached shell distinguishes offline traffic from a Worker-reported kill switch, and both keep
+local training available without implying live traffic or authoritative grading. No staging or production
+deployment occurred in this task.

@@ -5,13 +5,20 @@ export class FeedDownError extends Error {
   readonly status: number;
   readonly code: string | null;
   readonly retryAfterSeconds: number | null;
+  readonly mode: SystemMode | null;
 
-  constructor(status: number, code: string | null = null, retryAfterSeconds: number | null = null) {
+  constructor(
+    status: number,
+    code: string | null = null,
+    retryAfterSeconds: number | null = null,
+    mode: SystemMode | null = null,
+  ) {
     super(`feed request failed: HTTP ${status}`);
     this.name = "FeedDownError";
     this.status = status;
     this.code = code;
     this.retryAfterSeconds = retryAfterSeconds;
+    this.mode = mode;
   }
 }
 
@@ -43,6 +50,7 @@ async function readApiData<T>(response: Response): Promise<ParsedApiData<T>> {
       response.status,
       record(body) && typeof body.code === "string" ? body.code : null,
       retryAfterSeconds,
+      record(body) && isSystemMode(body.mode) ? body.mode : null,
     );
   }
   if (
