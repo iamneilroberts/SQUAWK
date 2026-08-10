@@ -15,4 +15,5 @@ export type Env = WorkerEnv &
     AUTH_REQUEST_RATE_LIMITER?: RateLimit;
     TRAFFIC_REQUEST_RATE_LIMITER?: RateLimit;
     MISSION_REQUEST_RATE_LIMITER?: RateLimit;
+    RESULT_TRACES?: R2Bucket;
   };

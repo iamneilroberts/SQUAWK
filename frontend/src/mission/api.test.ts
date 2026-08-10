@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthClientError, postAuthenticatedJson } from "../auth/session";
 import type { MissionPreparationView } from "./contract";
-import { lockMission, prepareMission, releaseMissionLease } from "./api";
+import { lockMission, prepareMission, releaseMissionLease, submitMissionResult } from "./api";
 
 vi.mock("../auth/session", () => ({
   AuthClientError: class AuthClientError extends Error {
@@ -89,6 +89,18 @@ describe("mission API client", () => {
       `/api/missions/${preparation.preparationId}/release`,
       {},
       "stable-release-key",
+    );
+  });
+
+  it("keeps the supplied result key on authoritative scoring retries", async () => {
+    const result = { missionId: preparation.preparationId, outcome: "landed" };
+    const body = { missionId: preparation.preparationId } as never;
+    vi.mocked(postAuthenticatedJson).mockResolvedValue({ result });
+    await expect(submitMissionResult(body, "stable-result-key")).resolves.toBe(result);
+    expect(postAuthenticatedJson).toHaveBeenCalledWith(
+      `/api/missions/${preparation.preparationId}/result`,
+      body,
+      "stable-result-key",
     );
   });
 });

@@ -654,23 +654,23 @@ mission while Worker request cadence stays low and traffic never affects forces.
 
 **Steps:**
 
-- [ ] Add pure geodesic runway-frame projection and test centerline, thresholds,
+- [x] Add pure geodesic runway-frame projection and test centerline, thresholds,
       permitted direction, surface polygon, touchdown zone, rollout environment, and
       antimeridian cases.
-- [ ] Record a bounded landing window at a fixed low rate (target 10 Hz, maximum 512
+- [x] Record a bounded landing window at a fixed low rate (target 10 Hz, maximum 512
       samples and 128 KB encoded request). Capture only fields required for verification.
-- [ ] Implement profile-driven hard gates: assigned surface/direction, gear, sink, bank,
+- [x] Implement profile-driven hard gates: assigned surface/direction, gear, sink, bank,
       attitude, speed, structural load, and controlled rollout. Return a stable named
       failure, never a quality score after a failed gate.
-- [ ] Implement the approved successful score weights: vertical speed 25, centerline 20,
+- [x] Implement the approved successful score weights: vertical speed 25, centerline 20,
       touchdown zone 20, alignment 15, speed 10, bank 5, rollout 5.
-- [ ] Use the same pure scorer in browser preview and Worker recomputation. The Worker
+- [x] Use the same pure scorer in browser preview and Worker recomputation. The Worker
       trusts the locked D1 mission/profile version, validates timing/plausibility/shape,
       and can mark incomplete/suspicious evidence unranked.
-- [ ] Make `POST /api/missions/:id/result` idempotent by mission ID and key. Save the
+- [x] Make `POST /api/missions/:id/result` idempotent by mission ID and key. Save the
       summary even when optional R2 trace write fails; release the lease after durable
       finalization.
-- [ ] Boundary/property-test every class threshold and scoring curve, duplicate/replayed
+- [x] Boundary/property-test every class threshold and scoring curve, duplicate/replayed
       result, corrupt evidence, wrong runway/version/user, R2 failure, and score 0–100.
 
 **Acceptance:** Worker and browser produce identical measurements for valid fixtures; a

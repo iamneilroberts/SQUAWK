@@ -9,6 +9,7 @@ import type {
   MissionPreparationView,
   PrepareMissionRequest,
 } from "./contract";
+import type { MissionResultRequest, MissionResultView } from "./resultPackage";
 
 export type PrepareMissionOutcome =
   | { kind: "prepared"; preparation: MissionPreparationView }
@@ -70,4 +71,16 @@ export async function releaseMissionLease(
     {},
     idempotencyKey,
   );
+}
+
+export async function submitMissionResult(
+  request: MissionResultRequest,
+  idempotencyKey: string = crypto.randomUUID(),
+): Promise<MissionResultView> {
+  const data = await postAuthenticatedJson<{ result: MissionResultView }>(
+    `/api/missions/${request.missionId}/result`,
+    request,
+    idempotencyKey,
+  );
+  return data.result;
 }

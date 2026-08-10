@@ -36,7 +36,9 @@ import HandoffCard from "../panels/HandoffCard";
 import PauseOverlay from "../panels/PauseOverlay";
 import EndCard from "../panels/EndCard";
 import { degToRad, ktToMs } from "../sim/units";
-import { releaseMissionLease } from "../mission/api";
+import { releaseMissionLease, submitMissionResult } from "../mission/api";
+import { buildMissionResultPackage } from "../mission/resultPackage";
+import { assistModeFromPreference } from "../mission/assists";
 import AssistControl from "../mission/AssistControl";
 import MissionNavCue from "../mission/MissionNavCue";
 import MissionRouteLayer from "../globe/MissionRouteLayer";
@@ -75,6 +77,7 @@ export default function FlightSession() {
   const keyboardRef = useRef<ReturnType<typeof createKeyboard> | null>(null);
   const terrainRef = useRef<TerrainService | null>(null);
   const releaseKeyRef = useRef<string | null>(null);
+  const resultKeyRef = useRef<string | null>(null);
 
   const snapshot = useSyncExternalStore(hudSnapshot.subscribe, hudSnapshot.get, hudSnapshot.get);
 
@@ -119,7 +122,7 @@ export default function FlightSession() {
    * mode is refused rather than teleporting the app to BROWSE from somewhere it should not.
    */
   function leaveToBrowse(event: GameEvent) {
-    if (lockedMission !== null) {
+    if (lockedMission !== null && useStore.getState().mode !== "ENDED") {
       const key = releaseKeyRef.current ?? crypto.randomUUID();
       releaseKeyRef.current = key;
       void releaseMissionLease(lockedMission.missionId, key).catch(() => undefined);
@@ -132,10 +135,13 @@ export default function FlightSession() {
   useEffect(() => {
     if (lockedMission === null) {
       releaseKeyRef.current = null;
+      resultKeyRef.current = null;
       return;
     }
     releaseKeyRef.current = crypto.randomUUID();
+    resultKeyRef.current = crypto.randomUUID();
     const release = () => {
+      if (useStore.getState().mode === "ENDED") return;
       void releaseMissionLease(
         lockedMission.missionId,
         releaseKeyRef.current ?? crypto.randomUUID(),
@@ -216,14 +222,28 @@ export default function FlightSession() {
             // Live view of the touch analog axes (Option B); `{}` on desktop -> no override.
             analog: () => touchAxesRef.current,
             callsign: formatCallsign(contact.hex),
+            landing: {
+              assignment: lockedMission.assignment,
+              profile: lockedMission.missionProfile,
+            },
             onSnapshot: (s) => hudSnapshot.set(s),
-            onEnd: (stats) => {
+            onEnd: (stats, landingResult) => {
               loopRef.current?.stop();
               useStore.getState().setEndStats(stats);
               useStore.getState().fire("IMPACT");
-              const key = releaseKeyRef.current ?? crypto.randomUUID();
-              releaseKeyRef.current = key;
-              void releaseMissionLease(lockedMission.missionId, key).catch(() => undefined);
+              if (landingResult === undefined) return;
+              const highestAssist = useStore.getState().assist?.highestUsed ??
+                assistModeFromPreference(lockedMission.assist);
+              const result = buildMissionResultPackage({
+                mission: lockedMission,
+                evidence: landingResult.evidence,
+                highestAssist,
+              });
+              const key = resultKeyRef.current ?? crypto.randomUUID();
+              resultKeyRef.current = key;
+              // The Worker recomputes the preview and releases capacity only after D1 finalizes.
+              // Task 13 owns durable offline retry; until then a failed request expires naturally.
+              void submitMissionResult(result.request, key).catch(() => undefined);
             },
           });
           loopRef.current = loop;

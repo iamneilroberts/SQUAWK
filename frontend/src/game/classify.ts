@@ -11,6 +11,12 @@ import { msToFpm, radToDeg } from "../sim/units";
 
 export type EndKind = "LANDED" | "CRASHED";
 
+export function classificationFromMissionOutcome(
+  outcome: "landed" | "crashed" | "invalid",
+): EndKind {
+  return outcome === "landed" ? "LANDED" : "CRASHED";
+}
+
 export type ImpactReading = {
   /** Positive = descending. */
   sinkRateFpm: number;

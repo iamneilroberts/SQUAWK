@@ -29,6 +29,10 @@ import { createRateMeter } from "./simRate";
 import { levelingCommand, isLevel, C172_LEVELING, MAX_LEVELING_S } from "./leveling";
 import { gearOverspeedFor } from "../hud/format";
 import { classifyLightPhase, solarElevationDeg } from "../world/dayNight";
+import { createLandingEvidenceRecorder, type LandingEvidence } from "../mission/landingEvidence";
+import { evaluateLandingEvidence, type LandingEvaluation } from "../mission/resultPackage";
+import type { MissionProfile, RunwayAssignment } from "../mission/types";
+import { classificationFromMissionOutcome } from "./classify";
 
 export const SNAPSHOT_INTERVAL_S = 0.1;
 
@@ -64,11 +68,17 @@ export type FlightLoopDeps = {
   analog?: () => AnalogAxes | undefined;
   callsign: string;
   onSnapshot(s: HudSnapshot): void;
-  onEnd(stats: FlightStats): void;
+  landing?: { assignment: RunwayAssignment; profile: MissionProfile };
+  onEnd(stats: FlightStats, landing?: FlightLandingResult): void;
+};
+
+export type FlightLandingResult = {
+  evidence: LandingEvidence;
+  evaluation: LandingEvaluation;
 };
 
 export function createFlightLoop(deps: FlightLoopDeps) {
-  const { host, params, terrain, spawn, heldKeys, analog, callsign, onSnapshot, onEnd } = deps;
+  const { host, params, terrain, spawn, heldKeys, analog, callsign, landing, onSnapshot, onEnd } = deps;
 
   // The spawn's trimmed throttle and trim ARE the sampler's starting position — otherwise
   // the player inherits an idle, untrimmed aeroplane a second after the handoff card
@@ -77,6 +87,7 @@ export function createFlightLoop(deps: FlightLoopDeps) {
   const accumulator = createAccumulator();
   const rateMeter = createRateMeter(2);
   const stats = createStatsAccumulator(spawn.state);
+  const landingRecorder = landing === undefined ? null : createLandingEvidenceRecorder(spawn.state);
 
   // Sim state lives HERE, in a closure variable — not in zustand (spec §3).
   let state: SimState = spawn.state;
@@ -142,12 +153,23 @@ export function createFlightLoop(deps: FlightLoopDeps) {
 
   function endSession() {
     ended = true;
+    const landingResult = landing === undefined || landingRecorder === null
+      ? undefined
+      : (() => {
+          const evidence = landingRecorder.finish(state);
+          return {
+            evidence,
+            evaluation: evaluateLandingEvidence(evidence, landing.assignment, landing.profile),
+          };
+        })();
     const finished = stats.finish(
       state,
-      classifyEnd(readImpact(state, params, controls.flapDetent)),
+      landingResult === undefined
+        ? classifyEnd(readImpact(state, params, controls.flapDetent))
+        : classificationFromMissionOutcome(landingResult.evaluation.outcome),
     );
     publish();
-    onEnd(finished);
+    onEnd(finished, landingResult);
   }
 
   function stepOnce() {
@@ -198,6 +220,7 @@ export function createFlightLoop(deps: FlightLoopDeps) {
 
     state = stepAircraft(state, controls, params);
     stats.update(state);
+    landingRecorder?.record(state);
 
     const geo = ecefToGeodetic(state.position);
     const ground = terrain.sample(geo.latRad, geo.lonRad, state.timeS);

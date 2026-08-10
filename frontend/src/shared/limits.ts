@@ -41,6 +41,8 @@ export const MISSION_PREPARATION_TTL_MS = 2 * 60 * 1_000;
 export const MISSION_RECEIPT_TTL_MS = 24 * 60 * 60 * 1_000;
 export const MISSION_PREPARE_BODY_MAX_BYTES = 4_096;
 export const MISSION_LOCK_BODY_MAX_BYTES = 20_000;
+export const MISSION_RESULT_BODY_MAX_BYTES = 128 * 1024;
+export const MISSION_TRACE_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
 
 // Owner-approved Task 4 contract: protect each flight present at the read-only
 // transition for the 30-minute mission reachability horizon at normal cadence.

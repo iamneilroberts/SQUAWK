@@ -13,6 +13,9 @@ import type { SpawnResult } from "../takeover/spawn";
 import type { FlightStats } from "./stats";
 import type { HudSnapshot } from "../hud/snapshot";
 import type { Contact } from "../data/types";
+import type { RunwayAssignment } from "../mission/types";
+import { missionProfileForClass } from "../mission/profiles";
+import type { FlightLandingResult } from "./flightLoop";
 
 const P = loadC172();
 
@@ -63,12 +66,14 @@ function makeLoop(overrides: {
   analog?: () => import("../input/analog").AnalogAxes | undefined;
   contact?: Contact;
   spawn?: SpawnResult;
+  landing?: { assignment: RunwayAssignment; profile: ReturnType<typeof missionProfileForClass> };
 } = {}) {
   const spawn = overrides.spawn ?? buildSpawnState(overrides.contact ?? ga(), P, { terrainHeightM: 100 });
   const terrain = createTerrainService(() =>
     "groundHeight" in overrides ? overrides.groundHeight : 100);
   const ends: FlightStats[] = [];
   const snaps: HudSnapshot[] = [];
+  const landings: FlightLandingResult[] = [];
   const h = fakeHost();
   const loop = createFlightLoop({
     host: h.host,
@@ -78,10 +83,14 @@ function makeLoop(overrides: {
     heldKeys: overrides.held ?? new Set<string>(),
     analog: overrides.analog,
     callsign: "SIM-A1B2C3",
+    landing: overrides.landing,
     onSnapshot: (s) => snaps.push(s),
-    onEnd: (s) => ends.push(s),
+    onEnd: (s, landing) => {
+      ends.push(s);
+      if (landing !== undefined) landings.push(landing);
+    },
   });
-  return { loop, host: h, ends, snaps, terrain, spawn };
+  return { loop, host: h, ends, landings, snaps, terrain, spawn };
 }
 
 describe("flight loop lifecycle", () => {
@@ -305,6 +314,34 @@ describe("flight loop collision", () => {
     expect(bits.ends).toHaveLength(1);
     expect(["LANDED", "CRASHED"]).toContain(bits.ends[0].classification);
     expect(bits.ends[0].airtimeS).toBeGreaterThan(3); // it flew, it did not spawn into the dirt
+    bits.loop.stop();
+  });
+  it("emits one bounded mission evidence window with terminal surface contact", () => {
+    const landingAssignment = {
+      airportIdent: "KTST", airportName: "Test", airportLatDeg: 30.6944,
+      airportLonDeg: -88.0399, airportElevationFt: 300, runwayId: "1",
+      runwayIdent: "09/27", runwayEndIdent: "27", runwayHeadingDeg: 270,
+      runwayLengthFt: 8_000, runwayWidthFt: 1_000, runwaySurface: "HARD",
+      runwayLighted: true,
+      assignedEnd: {
+        ident: "27", latDeg: 30.6944, lonDeg: -88.0399, elevationFt: 300,
+        headingDeg: 270, displacedThresholdFt: 0,
+      },
+      distanceNm: 1, estimatedMinutes: 1, suitability: 1,
+    } satisfies RunwayAssignment;
+    const bits = makeLoop({
+      groundHeight: spawnAltitudeM() - 60,
+      held: IDLE(),
+      landing: { assignment: landingAssignment, profile: missionProfileForClass("c172s") },
+    });
+    bits.loop.start();
+    fly(bits, 2_400);
+    expect(bits.landings).toHaveLength(1);
+    expect(bits.landings[0].evidence.samples.length).toBeLessThanOrEqual(512);
+    expect(bits.landings[0].evidence.samples.at(-1)?.surfaceContact).toBe(true);
+    expect(bits.ends[0].classification).toBe(
+      bits.landings[0].evaluation.outcome === "landed" ? "LANDED" : "CRASHED",
+    );
     bits.loop.stop();
   });
   it("a dive into terrain reads CRASHED with a real impact sink rate and speed", () => {

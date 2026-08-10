@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  classifyEnd, readImpact, MAX_LANDING_SINK_FPM, MAX_LANDING_BANK_DEG,
+  classificationFromMissionOutcome, classifyEnd, readImpact, MAX_LANDING_SINK_FPM, MAX_LANDING_BANK_DEG,
   LANDING_PITCH_RANGE_DEG, LANDING_SPEED_FACTOR,
 } from "./classify";
 import type { ImpactReading } from "./classify";
@@ -21,6 +21,14 @@ const reading = (o: Partial<ImpactReading> = {}): ImpactReading => ({
   iasMs: VS * 1.1,
   stallIasMs: VS,
   ...o,
+});
+
+describe("mission landing classification", () => {
+  it("maps only a verified mission landing to LANDED", () => {
+    expect(classificationFromMissionOutcome("landed")).toBe("LANDED");
+    expect(classificationFromMissionOutcome("crashed")).toBe("CRASHED");
+    expect(classificationFromMissionOutcome("invalid")).toBe("CRASHED");
+  });
 });
 
 describe("classifyEnd — a good touchdown", () => {

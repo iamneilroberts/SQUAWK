@@ -324,6 +324,28 @@ export async function clearExpiredMissionTracePointers(
   return result.meta.changes;
 }
 
+export async function attachMissionTrace(
+  db: D1Database,
+  missionId: string,
+  pointer: string,
+  expiresAt: number,
+): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `UPDATE missions
+          SET trace_pointer = ?, trace_expires_at = ?
+        WHERE id = ? AND status = 'finalized' AND finalized_at < ?`,
+    )
+    .bind(
+      requireText("trace pointer", pointer, 1, 256),
+      requireTimestamp("trace expiry", expiresAt),
+      requireUuid("mission id", missionId),
+      expiresAt,
+    )
+    .run();
+  return changed(result);
+}
+
 export async function abandonMission(
   db: D1Database,
   missionId: string,

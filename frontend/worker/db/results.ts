@@ -72,7 +72,8 @@ export async function finalizeResult(
     input.measurements,
     JSON_BYTE_LIMITS.measurements,
   );
-  const score = requireInteger("score", input.score, 0, 1_000_000);
+  // Scores are stored as milli-points so the public 0–100 contract keeps three decimals.
+  const score = requireInteger("score", input.score, 0, 100_000);
   const highestAssist = requireOneOf(
     "highest assist",
     input.highestAssist,

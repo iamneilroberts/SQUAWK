@@ -9,7 +9,12 @@ import {
   MISSION_LOCK_BODY_MAX_BYTES,
   MISSION_MAX_ELIGIBLE_CHOICES,
   MISSION_PREPARE_BODY_MAX_BYTES,
+  MISSION_RESULT_BODY_MAX_BYTES,
 } from "../../../src/shared/limits";
+import {
+  isLandingEvidence,
+  type MissionResultRequest,
+} from "../../../src/mission/resultPackage";
 import type { Env } from "../../env";
 import {
   sendBrokerCommand,
@@ -18,6 +23,7 @@ import {
 } from "../../durable/protocol";
 import { lockAuthoritativeMission } from "../../missions/lock";
 import { prepareAuthoritativeMission } from "../../missions/prepare";
+import { finalizeAuthoritativeResult } from "../../missions/results";
 import { getMissionById } from "../../db/missions";
 import { ApiHttpError } from "../response";
 import { defineRoute, type RouteDefinition } from "../router";
@@ -163,6 +169,30 @@ export function validateLockMission(body: unknown): LockMissionRequest {
     throw new ValidationError(400, "INVALID_REQUEST", "Mission lock request is invalid");
   }
   return body as LockMissionRequest;
+}
+
+export function validateMissionResult(body: unknown): MissionResultRequest {
+  const versionKeys = [
+    "airportDataset", "aircraftProfile", "missionProfile", "assignment", "scoring",
+    "physics", "assistDefinition",
+  ];
+  const versions = record(body) ? body.versions : null;
+  if (
+    !record(body) ||
+    !exactKeys(body, [
+      "schemaVersion", "missionId", "receipt", "choiceKey", "versions", "highestAssist", "evidence",
+    ]) ||
+    body.schemaVersion !== 1 || typeof body.missionId !== "string" || !UUID.test(body.missionId) ||
+    typeof body.receipt !== "string" || !TOKEN.test(body.receipt) ||
+    typeof body.choiceKey !== "string" || !CHOICE_KEY.test(body.choiceKey) ||
+    !record(versions) || !exactKeys(versions, versionKeys) ||
+    !versionKeys.every((key) => typeof versions[key] === "string" && VERSION.test(String(versions[key]))) ||
+    !["FULL", "NAV", "OFF"].includes(String(body.highestAssist)) ||
+    !isLandingEvidence(body.evidence)
+  ) {
+    throw new ValidationError(400, "INVALID_REQUEST", "Mission result is invalid");
+  }
+  return body as MissionResultRequest;
 }
 
 function authenticatedUserId(context: { actor: import("../../telemetry/requestContext").RequestActor }): string {
@@ -398,5 +428,50 @@ export function createMissionRoutes(
     },
   });
 
-  return [prepare, lock, traffic, release];
+  const result = defineRoute({
+    method: "POST",
+    path: "/api/missions/:missionId/result",
+    family: "mission-results",
+    boundary: "authenticated",
+    admission: "public-write",
+    security: {
+      sameOrigin: "required",
+      csrf: "required",
+      idempotency: "required",
+      body: { kind: "json", maxBytes: MISSION_RESULT_BODY_MAX_BYTES },
+    },
+    limiter: { name: "missions", retryAfterSeconds: 5 },
+    validate: ({ body }) => validateMissionResult(body),
+    handler: async ({ context, params, validated, idempotencyKey, env }) => {
+      const runtime = env as Env;
+      const userId = authenticatedUserId(context);
+      const missionId = params.missionId ?? "";
+      if (!UUID.test(missionId)) throw new ApiHttpError(404, "NOT_FOUND", "Mission not found");
+      const result = await finalizeAuthoritativeResult({
+        db: runtime.DB,
+        userId,
+        missionId,
+        idempotencyKey: idempotencyKey ?? "",
+        signingSecret: runtime.MISSION_SIGNING_SECRET,
+        now: Date.parse(context.serverTime),
+        uuid: dependencies.uuid,
+        request: validated as MissionResultRequest,
+        releaseLease: async (leaseUserId, leaseMissionId) => {
+          const released = await dependencies.broker(runtime.ADSB_BROKER, {
+            type: "lease-release",
+            userId: leaseUserId,
+            missionId: leaseMissionId,
+          });
+          if (
+            released.type !== "lease" ||
+            (!released.allowed && released.reason !== "not-found")
+          ) throw new TypeError("Flight lease release was refused");
+        },
+        traces: runtime.RESULT_TRACES,
+      });
+      return { code: "RESULT_ACCEPTED" as const, data: { result } };
+    },
+  });
+
+  return [prepare, lock, traffic, release, result];
 }

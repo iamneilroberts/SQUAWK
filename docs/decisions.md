@@ -1713,3 +1713,43 @@ the session. Explicit quit, local flight end, and best-effort `pagehide` call th
 route; Durable Object expiry remains the correctness mechanism. A disabled or banned session also
 triggers `lease-release-user` during authorization, with expiry as fallback if the broker is down.
 No production or staging deployment occurred in this task.
+
+## 2026-08-10 — CF-011 · Landing evidence is bounded client fact; scoring is frozen Worker policy
+
+Task 11 adds one shared, pure landing engine for the browser preview and Worker recomputation.
+Runway points are projected into a spherical geodesic frame whose origin is the assigned physical
+threshold, positive along-track follows the permitted runway heading, and positive cross-track is
+right of centerline. Displaced-threshold, usable-surface, first-third/3,000-foot touchdown-zone,
+and rollout-environment helpers all consume the frozen assignment. The projection takes the short
+path across the antimeridian and contains no Cesium or Worker dependency.
+
+The 60 Hz flight loop records only a rolling 10 Hz landing window: relative simulation time,
+position/altitude, IAS and sink, heading/pitch/bank, load factor, gear position, and the terminal
+surface-contact bit. It retains at most 512 samples, checks the complete encoded result against the
+128 KiB route ceiling, and never sends per-frame telemetry. The existing simulator still ends on
+first terrain contact and has no invented ground-roll physics. Until a real ground model exists,
+the controlled-rollout measurement is explicitly the runway-contained low-altitude/contact path in
+that bounded window; the geometry contract can accept later post-touchdown samples unchanged.
+
+Every launch profile drives the same ordered hard gates: assigned surface, permitted direction,
+gear at least 95% extended when required, sink, bank, pitch, speed, structural load, and controlled
+cross-track. Numeric profile maxima/minima are inclusive. A failed gate returns one stable named
+failure and no quality score. Successful landings interpolate the versioned curves with the fixed
+25/20/20/15/10/5/5 vertical-speed/centerline/touchdown/alignment/speed/bank/rollout weights. Public
+scores stay in 0–100 with three decimals; D1 stores milli-points in the bounded 0–100,000 range.
+
+`POST /api/missions/:missionId/result` requires the authenticated owner, same origin, CSRF,
+idempotency key, signed 24-hour receipt, exact locked route, and exact frozen versions. The Worker
+loads the committed D1 document rather than current mutable profiles, rejects malformed packages,
+and checks monotonic 10 Hz timing, wall-time bounds, positional speed, heading continuity, terminal
+contact, sample count, and encoded size. Structurally complete evidence is verified; incomplete
+evidence is saved partial and unranked; implausible evidence is saved rejected and unranked.
+
+One D1 batch inserts the bounded measurement/summary and changes the mission from locked to
+finalized. The database's unique mission result plus the stored idempotency key and request digest
+make an identical replay return the same result and make any changed replay conflict. Capacity is
+released only after durable finalization, superseding CF-010's eager local-impact release; active
+quit/pagehide release and Durable Object expiry remain fallbacks. If configured, R2 receives the
+bounded trace only after D1 succeeds. R2 write or trace-pointer failure cannot erase or downgrade the
+durable summary. Task 12 owns the richer debrief UI and leaderboard reads. No staging or production
+deployment occurred in this task.
