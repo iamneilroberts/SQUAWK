@@ -6,10 +6,10 @@ import {
 } from "cloudflare:test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { readCsrfToken, verifyCsrfToken } from "../../auth/csrf";
+import { deriveCsrfToken, readCsrfToken, verifyCsrfToken } from "../../auth/csrf";
 import { authorizeSession, encodeOpaqueToken } from "../../auth/sessions";
 import { hashOpaqueToken } from "../../crypto";
-import { createSession } from "../../db/sessions";
+import { createSession, getSessionById } from "../../db/sessions";
 import { createUser, upsertUserPreferences } from "../../db/users";
 import {
   allowEndpointLimiter,
@@ -23,9 +23,8 @@ const NOW = 1_700_000_000_000;
 const USER_ID = "11111111-1111-4111-8111-111111111111";
 const SESSION_ID = "22222222-2222-4222-8222-222222222222";
 const SESSION_TOKEN = encodeOpaqueToken(new Uint8Array(32).fill(4));
-const ORIGINAL_CSRF = encodeOpaqueToken(new Uint8Array(32).fill(5));
-const GET_CSRF = encodeOpaqueToken(new Uint8Array(32).fill(6));
-const PATCH_CSRF = encodeOpaqueToken(new Uint8Array(32).fill(7));
+const WRONG_CSRF = encodeOpaqueToken(new Uint8Array(32).fill(5));
+const CSRF_SECRET = "test-only-csrf-secret-with-at-least-32-bytes";
 
 type TestEnvironment = Cloudflare.Env & {
   TEST_DB: D1Database;
@@ -36,6 +35,7 @@ function runtimeEnv(): AuthRouteEnvironment {
   return {
     APP_ENV: "local",
     DB: (env as TestEnvironment).TEST_DB,
+    CSRF_SECRET,
     EMAIL_KEY_SECRET: "unused-test-secret-with-at-least-32-bytes",
     TURNSTILE_SECRET: "unused",
     AUTH_FROM_EMAIL: "sign-in@fly.voygent.app",
@@ -51,10 +51,11 @@ function dependencies(): RouterDependencies<AuthRouteEnvironment> {
     digest: async () => "network-digest",
     authorize: (_boundary, request, context, runtime) =>
       authorizeSession(request, runtime.DB, NOW, context.actor),
-    verifyCsrf: (request, context) =>
+    verifyCsrf: (request, context, runtime) =>
       verifyCsrfToken(
         readCsrfToken(request),
-        context.actor.kind === "anonymous" ? null : context.actor.csrfDigest ?? null,
+        context.actor.kind === "anonymous" ? null : context.actor.sessionId ?? null,
+        runtime.CSRF_SECRET,
       ),
     resolveLimiter: () => allowEndpointLimiter,
     admitRequest: async ({ forceMode }) => ({ allowed: true, mode: forceMode }),
@@ -87,7 +88,7 @@ beforeEach(async () => {
     id: SESSION_ID,
     userId: USER_ID,
     sessionDigest: await hashOpaqueToken(SESSION_TOKEN),
-    csrfDigest: await hashOpaqueToken(ORIGINAL_CSRF),
+    csrfDigest: await hashOpaqueToken(await deriveCsrfToken(SESSION_ID, CSRF_SECRET)),
     expiresAt: NOW + 60_000,
     lastSeenAt: NOW,
     deviceLabel: null,
@@ -97,34 +98,44 @@ beforeEach(async () => {
 });
 
 describe("profile routes", () => {
-  it("issues a fresh CSRF token and atomically saves clamped center and derived region", async () => {
-    let tokenIndex = 0;
-    const tokens = [GET_CSRF, PATCH_CSRF];
+  it("reuses one session-bound token across tabs and atomically saves profile changes", async () => {
+    const sessionCsrf = await deriveCsrfToken(SESSION_ID, CSRF_SECRET);
     const router = createRouter(
       createMeRoutes({
         now: () => NOW + 1,
-        opaqueToken: () => tokens[tokenIndex++] ?? PATCH_CSRF,
       }),
       dependencies(),
     );
     const runtime = runtimeEnv();
     const cookie = `__Host-adsb_session=${SESSION_TOKEN}`;
 
-    const read = await router.fetch(
+    const firstTab = await router.fetch(
       new Request("https://fly.voygent.app/api/me", { headers: { cookie } }),
       runtime,
     );
-    expect(read.status).toBe(200);
-    await expect(read.json()).resolves.toMatchObject({
+    const secondTab = await router.fetch(
+      new Request("https://fly.voygent.app/api/me", { headers: { cookie } }),
+      runtime,
+    );
+    expect(firstTab.status).toBe(200);
+    expect(secondTab.status).toBe(200);
+    await expect(firstTab.json()).resolves.toMatchObject({
       data: {
         userId: USER_ID,
         handle: "SkyPilot",
         center: { lat: 30.69, lon: -88.04 },
-        csrfToken: GET_CSRF,
+        csrfToken: sessionCsrf,
       },
     });
+    await expect(secondTab.json()).resolves.toMatchObject({
+      data: { csrfToken: sessionCsrf },
+    });
+    await expect(getSessionById(runtime.DB, SESSION_ID)).resolves.toMatchObject({
+      lastSeenAt: NOW,
+      csrfDigest: await hashOpaqueToken(sessionCsrf),
+    });
 
-    const staleCsrf = await router.fetch(
+    const wrongCsrf = await router.fetch(
       new Request("https://fly.voygent.app/api/me", {
         method: "PATCH",
         headers: {
@@ -132,13 +143,13 @@ describe("profile routes", () => {
           origin: "https://fly.voygent.app",
           "content-type": "application/json",
           "idempotency-key": "profile-update-1",
-          "x-csrf-token": ORIGINAL_CSRF,
+          "x-csrf-token": WRONG_CSRF,
         },
         body: JSON.stringify({ handle: "GroundPilot" }),
       }),
       runtime,
     );
-    expect(staleCsrf.status).toBe(403);
+    expect(wrongCsrf.status).toBe(403);
 
     const updated = await router.fetch(
       new Request("https://fly.voygent.app/api/me", {
@@ -148,7 +159,7 @@ describe("profile routes", () => {
           origin: "https://fly.voygent.app",
           "content-type": "application/json",
           "idempotency-key": "profile-update-2",
-          "x-csrf-token": GET_CSRF,
+          "x-csrf-token": sessionCsrf,
         },
         body: JSON.stringify({
           handle: "GroundPilot",
@@ -166,11 +177,11 @@ describe("profile routes", () => {
     };
     expect(payload.data).toMatchObject({
       center: { lat: 90, lon: -180 },
-      csrfToken: PATCH_CSRF,
+      csrfToken: sessionCsrf,
     });
     expect(payload.data.regionKey).toMatch(/^r1:90:0:/);
 
-    const oldAgain = await router.fetch(
+    const secondTabUpdate = await router.fetch(
       new Request("https://fly.voygent.app/api/me", {
         method: "PATCH",
         headers: {
@@ -178,12 +189,19 @@ describe("profile routes", () => {
           origin: "https://fly.voygent.app",
           "content-type": "application/json",
           "idempotency-key": "profile-update-3",
-          "x-csrf-token": GET_CSRF,
+          "x-csrf-token": sessionCsrf,
         },
         body: "{}",
       }),
       runtime,
     );
-    expect(oldAgain.status).toBe(403);
+    expect(secondTabUpdate.status).toBe(200);
+    await expect(secondTabUpdate.json()).resolves.toMatchObject({
+      data: { csrfToken: sessionCsrf },
+    });
+    await expect(getSessionById(runtime.DB, SESSION_ID)).resolves.toMatchObject({
+      lastSeenAt: NOW + 1,
+      csrfDigest: await hashOpaqueToken(sessionCsrf),
+    });
   });
 });

@@ -6,13 +6,11 @@ import {
   TRAFFIC_REGION_CELL_DEGREES,
 } from "../../../src/shared/limits";
 import { normalizeRegion } from "../../adsb/region";
-import { generateOpaqueToken } from "../../auth/sessions";
-import { hashOpaqueToken } from "../../crypto";
-import { rotateSessionCsrf } from "../../db/sessions";
+import { deriveCsrfToken } from "../../auth/csrf";
 import {
   getUserById,
   getUserPreferences,
-  updateUserProfileAndCsrf,
+  updateUserProfileForSession,
 } from "../../db/users";
 import type { AssistLevel, TutorialState } from "../../db/types";
 import { ApiHttpError } from "../response";
@@ -31,7 +29,6 @@ const TUTORIAL_STATES: readonly TutorialState[] = [
 
 export type MeRouteDependencies = {
   now: () => number;
-  opaqueToken: () => string;
 };
 
 type ProfilePatch = {
@@ -44,7 +41,6 @@ type ProfilePatch = {
 
 const DEFAULT_DEPENDENCIES: MeRouteDependencies = {
   now: () => Date.now(),
-  opaqueToken: generateOpaqueToken,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -163,18 +159,10 @@ export function createMeRoutes(
     handler: async ({ context, env }) => {
       const actor = profileActor(context);
       const runtime = env as AuthRouteEnvironment;
-      const csrfToken = dependencies.opaqueToken();
-      if (
-        !(await rotateSessionCsrf(
-          runtime.DB,
-          actor.sessionId ?? "",
-          actor.userId,
-          await hashOpaqueToken(csrfToken),
-          dependencies.now(),
-        ))
-      ) {
-        throw new ApiHttpError(401, "AUTH_REQUIRED", "Authentication is required");
-      }
+      const csrfToken = await deriveCsrfToken(
+        actor.sessionId ?? "",
+        runtime.CSRF_SECRET,
+      );
       return { data: await loadProfile(runtime.DB, actor.userId, csrfToken) };
     },
   });
@@ -213,8 +201,11 @@ export function createMeRoutes(
         providerRadiusStepNm: TRAFFIC_PROVIDER_RADIUS_STEP_NM,
         providerMaxRadiusNm: TRAFFIC_MAX_RADIUS_NM,
       });
-      const csrfToken = dependencies.opaqueToken();
-      const updated = await updateUserProfileAndCsrf(runtime.DB, {
+      const csrfToken = await deriveCsrfToken(
+        actor.sessionId ?? "",
+        runtime.CSRF_SECRET,
+      );
+      const updated = await updateUserProfileForSession(runtime.DB, {
         userId: actor.userId,
         sessionId: actor.sessionId ?? "",
         handle: patch.handle ?? user.handle,
@@ -224,7 +215,6 @@ export function createMeRoutes(
         defaultAssist: patch.defaultAssist ?? preferences.defaultAssist,
         tutorialState: patch.tutorialState ?? preferences.tutorialState,
         coachingEnabled: patch.coachingEnabled ?? preferences.coachingEnabled,
-        csrfDigest: await hashOpaqueToken(csrfToken),
         updatedAt: dependencies.now(),
       });
       if (updated === null) {

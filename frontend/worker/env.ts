@@ -5,6 +5,7 @@ export type Env = WorkerEnv &
     HOME_LAT?: string;
     HOME_LON?: string;
     DB: D1Database;
+    CSRF_SECRET: string;
     EMAIL_KEY_SECRET: string;
     TURNSTILE_SECRET: string;
     TURNSTILE_SITE_KEY?: string;

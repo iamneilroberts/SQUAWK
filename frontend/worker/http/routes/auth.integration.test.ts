@@ -7,6 +7,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { deriveEmailKey, hashOpaqueToken } from "../../crypto";
+import { deriveCsrfToken } from "../../auth/csrf";
 import { banUser } from "../../db/bans";
 import { createSession, getActiveSessionByDigest } from "../../db/sessions";
 import { createUser } from "../../db/users";
@@ -21,6 +22,7 @@ import { createAuthRoutes, type AuthRouteEnvironment } from "./auth";
 const NOW = 1_700_000_000_000;
 const SERVER_TIME = new Date(NOW).toISOString();
 const HMAC_SECRET = "test-only-email-key-secret-with-at-least-32-bytes";
+const CSRF_SECRET = "test-only-csrf-secret-with-at-least-32-bytes";
 const EMAIL = "pilot@example.com";
 const MAGIC_TOKEN = encodeOpaqueToken(new Uint8Array(32).fill(1));
 const SESSION_TOKEN = encodeOpaqueToken(new Uint8Array(32).fill(2));
@@ -43,6 +45,7 @@ function runtimeEnv(): AuthRouteEnvironment {
   return {
     APP_ENV: "local",
     DB: (env as TestEnvironment).TEST_DB,
+    CSRF_SECRET,
     EMAIL_KEY_SECRET: HMAC_SECRET,
     TURNSTILE_SECRET: "turnstile-secret",
     AUTH_FROM_EMAIL: "sign-in@fly.voygent.app",
@@ -73,7 +76,7 @@ function authRouter(options: {
   let uuidIndex = 0;
   const sequence = routerSequence++;
   let tokenIndex = 0;
-  const tokens = [MAGIC_TOKEN, SESSION_TOKEN, CSRF_TOKEN];
+  const tokens = [MAGIC_TOKEN, SESSION_TOKEN];
   const routes = createAuthRoutes({
     now: () => NOW,
     uuid: () =>
@@ -196,11 +199,21 @@ describe("auth HTTP routes", () => {
     expect(consumed.status).toBe(200);
     expect(consumed.headers.get("set-cookie")).toContain("__Host-adsb_session=");
     expect(consumed.headers.get("set-cookie")).not.toContain(MAGIC_TOKEN);
-    await expect(consumed.json()).resolves.toMatchObject({
-      ok: true,
-      code: "SIGNED_IN",
-      data: { csrfToken: CSRF_TOKEN },
-    });
+    const payload = await consumed.json() as {
+      ok: boolean;
+      code: string;
+      data: { csrfToken: string };
+    };
+    expect(payload).toMatchObject({ ok: true, code: "SIGNED_IN" });
+    const signedSession = await getActiveSessionByDigest(
+      runtime.DB,
+      await hashOpaqueToken(SESSION_TOKEN),
+      NOW,
+    );
+    expect(signedSession).not.toBeNull();
+    const expectedCsrf = await deriveCsrfToken(signedSession?.id ?? "", CSRF_SECRET);
+    expect(payload.data.csrfToken).toBe(expectedCsrf);
+    expect(signedSession?.csrfDigest).toBe(await hashOpaqueToken(expectedCsrf));
 
     const replay = await router.fetch(
       request("/api/auth/consume", { token: MAGIC_TOKEN }),

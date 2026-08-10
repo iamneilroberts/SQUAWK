@@ -60,7 +60,6 @@ export type UpdateUserProfileInput = {
   defaultAssist: AssistLevel;
   tutorialState: TutorialState;
   coachingEnabled: boolean;
-  csrfDigest: string;
   updatedAt: number;
 };
 
@@ -244,7 +243,7 @@ export async function getUserPreferences(
   return row === null ? null : mapPreferences(row);
 }
 
-export async function updateUserProfileAndCsrf(
+export async function updateUserProfileForSession(
   db: D1Database,
   input: UpdateUserProfileInput,
 ): Promise<{ user: User; preferences: UserPreferences } | null> {
@@ -260,7 +259,6 @@ export async function updateUserProfileAndCsrf(
     input.tutorialState,
     TUTORIAL_STATES,
   );
-  const csrfDigest = requireDigest("CSRF digest", input.csrfDigest);
   const updatedAt = requireTimestamp("updated at", input.updatedAt);
 
   const results = await db.batch([
@@ -300,11 +298,11 @@ export async function updateUserProfileAndCsrf(
     db
       .prepare(
         `UPDATE sessions
-            SET csrf_digest = ?, last_seen_at = MAX(last_seen_at, ?)
+            SET last_seen_at = MAX(last_seen_at, ?)
           WHERE id = ? AND user_id = ?
             AND revoked_at IS NULL AND expires_at > ?`,
       )
-      .bind(csrfDigest, updatedAt, sessionId, userId, updatedAt),
+      .bind(updatedAt, sessionId, userId, updatedAt),
   ]);
   if (results.some((result) => !changed(result))) return null;
 

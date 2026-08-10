@@ -8,7 +8,6 @@ export type RequestActor =
       userId: string;
       samplingKey: string;
       sessionId?: string;
-      csrfDigest?: string | null;
     };
 
 export type RequestContext = {

@@ -1579,3 +1579,26 @@ release gates. `frontend/.dev.vars.example` documents the local test-key pair an
 real secrets must stay outside git. A provisional briefing stores only a bounded aircraft/airport/
 runway reference in `sessionStorage`, is consumed once after sign-in, and must reappear in the live
 feed before selection is restored; it grants no authority.
+
+## 2026-08-10 — CF-007 · Stable session-bound HMAC CSRF replaces per-request rotation
+
+Owner checkpoint A approved the Tasks 1–7 foundation and selected a stable per-session CSRF
+token before the authorized live staging smoke test. The prior-art gate compared OWASP guidance,
+Hono's origin/Fetch-Metadata middleware, `@edge-csrf/core`, and `csrf-csrf`; the result remains
+**BUILD** in the existing Worker seam. Hono duplicates protections already present, the edge
+package does not match this session model, and the Express package imports Node-only APIs.
+
+The initial CF-006 per-read/per-write rotation is superseded because tabs sharing one hardened
+session cookie held different in-memory tokens and invalidated one another. CSRF is now
+`HMAC-SHA-256(CSRF_SECRET, "adsb-game:csrf:v1:" + lowercase_session_uuid)`. The Worker derives
+the same unpredictable token for every tab in one authenticated session, compares it in constant
+time on writes, and automatically changes it when magic-link sign-in creates a replacement
+session. `GET /api/me` no longer writes D1, profile updates no longer rotate CSRF, and the raw
+token remains confined to response data and browser module memory. The existing session row's
+digest is retained for schema compatibility and creation-time evidence but is no longer the
+verification authority.
+
+`CSRF_SECRET` is a dedicated secret, distinct from `EMAIL_KEY_SECRET`, with a minimum of 32
+characters. It must be supplied through local secret state or Wrangler secret management and
+must never be committed. Same-origin enforcement, the custom request header, idempotency keys,
+the `__Host-adsb_session` cookie, and session revocation remain independent defense layers.

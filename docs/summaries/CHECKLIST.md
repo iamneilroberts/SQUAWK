@@ -9,7 +9,7 @@
 - [x] Task 5 — Port ADS-B ingestion and add normalized regional caching
 - [x] Task 6 — Generate runway shards and deterministic mission assignment
 - [x] Task 7 — Implement magic-link identity, sessions, Turnstile, and preferences
-- [ ] Owner checkpoint A — Review the foundation before paid production resources
+- [x] Owner checkpoint A — Foundation approved 2026-08-10; live auth smoke test authorized
 - [ ] Task 8 — Build public browse, the quick-start notice, and mission tray
 - [ ] Task 9 — Add authoritative mission preparation, confirmation, and locking
 - [ ] Task 10 — Integrate locked missions, assists, ghost traffic, and the existing simulator

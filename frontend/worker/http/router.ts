@@ -128,7 +128,11 @@ export type BrokerAdmissionDecision = {
 
 export type RouterDependencies<Env extends RuntimeEnvironment> =
   RequestContextDependencies & {
-    verifyCsrf: (request: Request, context: RequestContext) => boolean | Promise<boolean>;
+    verifyCsrf: (
+      request: Request,
+      context: RequestContext,
+      env: Env,
+    ) => boolean | Promise<boolean>;
     authorize: (
       boundary: TrustBoundary,
       request: Request,
@@ -526,7 +530,7 @@ export function createRouter<Env extends RuntimeEnvironment>(
 
         if (route.security.csrf === "required") {
           dependencies.onStage?.("csrf");
-          if (!(await dependencies.verifyCsrf(request, context))) {
+          if (!(await dependencies.verifyCsrf(request, context, env))) {
             throw new ApiHttpError(403, "CSRF_INVALID", "CSRF validation failed");
           }
         }

@@ -73,7 +73,6 @@ export async function authorizeSession(
     kind: "authenticated",
     userId: user.id,
     sessionId: session.id,
-    csrfDigest: session.csrfDigest,
     samplingKey: `user:${user.id}`,
   };
 }

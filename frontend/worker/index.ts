@@ -166,10 +166,11 @@ const routerDependencies = {
   wallClock: () => new Date(),
   monotonicNow: () => performance.now(),
   digest: sha256Digest,
-  verifyCsrf: (request, context) =>
+  verifyCsrf: (request, context, env) =>
     verifyCsrfToken(
       readCsrfToken(request),
-      context.actor.kind === "anonymous" ? null : context.actor.csrfDigest ?? null,
+      context.actor.kind === "anonymous" ? null : context.actor.sessionId ?? null,
+      env.CSRF_SECRET,
     ),
   authorize: (_boundary, request, context, env) =>
     authorizeSession(request, env.DB, Date.parse(context.serverTime), context.actor),

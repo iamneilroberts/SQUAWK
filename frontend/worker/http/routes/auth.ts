@@ -11,6 +11,7 @@ import {
   TRAFFIC_REGION_CELL_DEGREES,
 } from "../../../src/shared/limits";
 import { normalizeRegion } from "../../adsb/region";
+import { deriveCsrfToken } from "../../auth/csrf";
 import { hashOpaqueToken } from "../../crypto";
 import {
   hasActiveBanForEmailKey,
@@ -49,6 +50,7 @@ export type AuthRouteEnvironment = {
   APP_ENV?: string;
   REQUEST_ANALYTICS?: AnalyticsEngineDataset;
   DB: D1Database;
+  CSRF_SECRET: string;
   EMAIL_KEY_SECRET: string;
   TURNSTILE_SECRET: string;
   AUTH_FROM_EMAIL: string;
@@ -274,7 +276,6 @@ export function createAuthRoutes(
       const { token } = validated as ReturnType<typeof validateConsumeBody>;
       const now = dependencies.now();
       const sessionToken = dependencies.opaqueToken();
-      const csrfToken = dependencies.opaqueToken();
       const home = validateCoordinates(
         runtime.HOME_LAT ?? "30.6944",
         runtime.HOME_LON ?? "-88.0399",
@@ -290,16 +291,19 @@ export function createAuthRoutes(
         },
       );
       const userId = dependencies.uuid();
+      const consumeNonce = dependencies.uuid();
+      const sessionId = dependencies.uuid();
+      const csrfToken = await deriveCsrfToken(sessionId, runtime.CSRF_SECRET);
       const session = await consumeMagicLinkSession(runtime.DB, {
         tokenDigest: await hashOpaqueToken(token),
         consumedAt: now,
-        consumeNonce: dependencies.uuid(),
+        consumeNonce,
         userId,
         handle: `Pilot_${userId.replaceAll("-", "").slice(0, 8)}`,
         centerLat: home.latitude,
         centerLon: home.longitude,
         regionKey: region.regionKey,
-        sessionId: dependencies.uuid(),
+        sessionId,
         sessionDigest: await hashOpaqueToken(sessionToken),
         csrfDigest: await hashOpaqueToken(csrfToken),
         sessionExpiresAt: now + AUTH_SESSION_TTL_SECONDS * 1_000,

@@ -152,30 +152,6 @@ export async function revokeSessionById(
   return changed(result);
 }
 
-export async function rotateSessionCsrf(
-  db: D1Database,
-  sessionId: string,
-  userId: string,
-  csrfDigest: string,
-  now: number,
-): Promise<boolean> {
-  const result = await db
-    .prepare(
-      `UPDATE sessions SET csrf_digest = ?, last_seen_at = MAX(last_seen_at, ?)
-        WHERE id = ? AND user_id = ?
-          AND revoked_at IS NULL AND expires_at > ?`,
-    )
-    .bind(
-      requireDigest("CSRF digest", csrfDigest),
-      requireTimestamp("current time", now),
-      requireUuid("session id", sessionId),
-      requireUuid("user id", userId),
-      now,
-    )
-    .run();
-  return changed(result);
-}
-
 export async function rotateSession(
   db: D1Database,
   currentDigest: string,
