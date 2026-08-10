@@ -61,12 +61,15 @@
       "vars": {
         "APP_ENV": "staging",
         "FORCE_MODE": "NORMAL",
-        "AUTH_FROM_EMAIL": "sign-in@fly.voygent.app"
+        "AUTH_FROM_EMAIL": "sign-in@fly.voygent.app",
+        "PUBLIC_ORIGIN": "https://voygent-adsb-game-staging.somotravel.workers.dev",
+        "TURNSTILE_SITE_KEY": "0x4AAAAAAEMNrkMteVREAOpe"
       },
       "d1_databases": [
         {
           "binding": "DB",
           "database_name": "voygent-adsb-game-staging",
+          "database_id": "c2de68eb-4b51-4e79-b453-92a2df0c4f29",
           "migrations_dir": "migrations"
         }
       ],
