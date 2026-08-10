@@ -1,12 +1,32 @@
-# adsb-game — current checklist
-- [x] Phase B merged to origin/main @ 4ac6862
-- [x] Dashboard 6 SDD tasks + final review + fix wave (code HEAD eefbba8)
-- [x] Durable public URL live: https://adsb.voygent.app (Docker :8021 + loran tunnel; verified 200)
-- [ ] Owner acceptance flight (remote OK: https://adsb.voygent.app) — runbook checkpoints 14–25 → sign-off
-- [ ] On sign-off: merge → main + push; docker compose up -d --build from main; rm SDD workspaces; drop stash@{0}
-- [ ] Cloudflare dashboard cleanup (owner): junk adsb.voygent.app.voygent.ai + 3 stale voygent.ai records (plain DNS only — Trap 4)
-- [ ] Strip adsb.voygent.ai from ~/.cloudflared/config.yml + sudo restart cloudflared-voygent
-- [ ] Airliner (737-800): brainstorm → spec → plan → SDD (prereqs: per-class ASI face, turbofan lapse row, Mach limit)
-- [ ] Controllable-only filter toggle: brainstorm (list vs globe) → implement + review
+# adsb-game — Cloudflare public game execution checklist
 
-_Updated: 2026-08-07 — hindustanis_
+- [x] Approve and commit the Cloudflare-native public ADS-B game design (`b985b14`)
+- [x] Add the prominent main-page `HOW TO FLY` requirement and commit the 18-task implementation plan (`2b61025`)
+- [ ] Task 1 — Establish the Cloudflare application and modern test shell
+- [ ] Task 2 — Add shared contracts and the dynamic request pipeline
+- [ ] Task 3 — Create the D1 schema and repositories
+- [ ] Task 4 — Build exact broker admission, modes, counters, and leases
+- [ ] Task 5 — Port ADS-B ingestion and add normalized regional caching
+- [ ] Task 6 — Generate runway shards and deterministic mission assignment
+- [ ] Task 7 — Implement magic-link identity, sessions, Turnstile, and preferences
+- [ ] Owner checkpoint A — Review the foundation before paid production resources
+- [ ] Task 8 — Build public browse, the quick-start notice, and mission tray
+- [ ] Task 9 — Add authoritative mission preparation, confirmation, and locking
+- [ ] Task 10 — Integrate locked missions, assists, ghost traffic, and the existing simulator
+- [ ] Task 11 — Implement runway landing evidence, safety gates, and scoring
+- [ ] Task 12 — Add debrief, profiles, and cached partitioned leaderboards
+- [ ] Task 13 — Add tutorial, coaching, installability, and offline result sync
+- [ ] Owner checkpoint B — Review the complete product vertical slice
+- [ ] Task 14 — Secure admin APIs and implement controls, audits, bans, and termination
+- [ ] Task 15 — Build detailed admin telemetry, sessions, users, and logs
+- [ ] Task 16 — Add transition-based email alerts and scheduled health checks
+- [ ] Owner checkpoint C — Run Access, control, alert, audit, and recovery drills
+- [ ] Task 17 — Add E2E, failure/load, security, and performance release gates
+- [ ] Task 18 — Provision staging, validate production, cut over, and retire Python
+- [ ] Owner checkpoint D — Explicitly approve public mission enablement
+
+Execution uses subagents one task at a time: one scoped implementer, followed by independent
+spec/compliance and code-quality reviews. The root agent owns integration, full gates, and
+the single commit for each task. Subagents must not edit overlapping files concurrently.
+
+_Updated: 2026-08-10 — mongols_
