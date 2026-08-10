@@ -13,7 +13,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await server.close();
-});
+}, 30_000);
 
 function expectSecurityHeaders(response, { hsts }) {
   const csp = response.headers.get("content-security-policy") ?? "";

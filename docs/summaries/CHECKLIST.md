@@ -7,7 +7,7 @@
 - [x] Task 3 — Create the D1 schema and repositories
 - [x] Task 4 — Build exact broker admission, modes, counters, and leases
 - [x] Task 5 — Port ADS-B ingestion and add normalized regional caching
-- [ ] Task 6 — Generate runway shards and deterministic mission assignment
+- [x] Task 6 — Generate runway shards and deterministic mission assignment
 - [ ] Task 7 — Implement magic-link identity, sessions, Turnstile, and preferences
 - [ ] Owner checkpoint A — Review the foundation before paid production resources
 - [ ] Task 8 — Build public browse, the quick-start notice, and mission tray

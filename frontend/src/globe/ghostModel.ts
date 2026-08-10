@@ -42,7 +42,14 @@ export function syncGhostModel(
   }
 
   // The ghost flies the class resolved from the takeover snapshot — the same one the player took.
-  const classId = resolveClass(origin.snapshot).classId;
+  const resolution = resolveClass(origin.snapshot);
+  if (!resolution.supported) {
+    ref.model?.destroy();
+    ref.model = null;
+    ref.classId = null;
+    return;
+  }
+  const classId = resolution.classId;
   if (ref.model === null || ref.classId !== classId) {
     ref.model?.destroy();
     ref.model = createAircraftModel(viewer, classId, GHOST_MODEL_STYLE);

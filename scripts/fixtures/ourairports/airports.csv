@@ -1,0 +1,6 @@
+id,ident,type,name,latitude_deg,longitude_deg,elevation_ft,continent,iso_country,iso_region,municipality,scheduled_service,gps_code,iata_code,local_code,home_link,wikipedia_link,keywords
+1,KAAA,small_airport,"Alpha, Field",10.0000,179.8000,125,NA,US,US-AA,Alpha,no,KAAA,AAA,AAA,,,
+2,KBBB,medium_airport,Bravo International,10.1000,-179.9000,42,NA,US,US-BB,Bravo,yes,KBBB,BBB,BBB,,,
+3,KCCC,large_airport,Charlie Gateway,89.5000,40.0000,900,EU,NO,NO-01,Charlie,yes,KCCC,CCC,CCC,,,
+4,HIDDEN,heliport,Not eligible,10,10,1,NA,US,US-AA,Alpha,no,,,,,,
+5,BAD,small_airport,Missing position,,,1,NA,US,US-AA,Alpha,no,,,,,,

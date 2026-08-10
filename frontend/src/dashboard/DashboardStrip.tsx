@@ -102,7 +102,8 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
   const radiusNm = useStore((s) => s.radiusNm);
   // The primary instruments read the flown class's params (per-class face). Falls back to the
   // C172 before an origin is set — the strip can mount a frame before a takeover exists.
-  const params = origin ? loadClassById(resolveClass(origin.snapshot).classId) : loadC172();
+  const resolution = origin ? resolveClass(origin.snapshot) : null;
+  const params = resolution?.supported ? loadClassById(resolution.classId) : loadC172();
   const weather = useWeather(snapshot);
   // The WX toggle drives both the METAR fold and the precip-radar overlay; fetch only when on.
   const navWeather = useNavWeather(snapshot, state.showWeather);

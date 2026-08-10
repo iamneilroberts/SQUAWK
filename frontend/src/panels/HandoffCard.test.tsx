@@ -53,14 +53,14 @@ describe("HandoffCard", () => {
     const text = render({ contact: ac({ t: "A320" }), spawn, params: p, matched: true, countdown: 3, note: "" });
     expect(text).toContain("A320 → 737-800 MODEL");
   });
-  it("flags an unmatched substitution (C130 flies the C172 default)", () => {
+  it("names an unsupported type without claiming a C172 substitution", () => {
     const p = loadClassById("c172s");
     const text = render({ contact: ac({ t: "C130" }), spawn, params: p, matched: false, countdown: 3, note: "" });
-    expect(text).toContain("C130 → C172 MODEL THIS BUILD (NO MATCHING CLASS)");
+    expect(text).toContain("C130 → UNSUPPORTED");
   });
   it("renders an em-dash for the model, not a guess, when the feed has no type", () => {
     const text = render({ contact: ga({ t: null }), spawn, params: P, matched: false, countdown: 3, note: "" });
-    expect(text).toContain("— → C172 MODEL THIS BUILD (NO MATCHING CLASS)");
+    expect(text).toContain("— → UNSUPPORTED");
   });
   it("shows the synthetic callsign", () => {
     expect(render({ contact: ga(), spawn, params: P, matched: true, countdown: 3, note: "" })).toContain("SIM-A1B2C3");

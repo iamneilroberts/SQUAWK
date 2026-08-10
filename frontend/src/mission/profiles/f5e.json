@@ -1,0 +1,50 @@
+{
+  "classId": "f5e",
+  "profileVersion": "mission-f5e-2026-08-10-v1",
+  "assignmentVersion": "assignment-2026-08-10-v1",
+  "scoringVersion": "scoring-2026-08-10-v1",
+  "reachability": {
+    "maxMinutes": 30,
+    "minDestinationNm": 20,
+    "defaultPlanningSpeedKt": 450,
+    "minPlanningSpeedKt": 250,
+    "maxPlanningSpeedKt": 650
+  },
+  "runway": {
+    "airportSizes": ["small", "medium", "large"],
+    "surfaces": ["HARD"],
+    "minLengthFt": 5000,
+    "minWidthFt": 75,
+    "requireLighted": false,
+    "requireBothEnds": true,
+    "maxAirportElevationFt": 10000,
+    "maxInitialHeadingDeltaDeg": 100
+  },
+  "ranking": {
+    "lengthMarginWeight": 38,
+    "widthMarginWeight": 18,
+    "lightedBonus": 5,
+    "hardSurfaceBonus": 10,
+    "minutePenalty": 0.15
+  },
+  "landing": {
+    "requireGearDown": true,
+    "maxSinkRateFpm": 900,
+    "maxAbsBankDeg": 12,
+    "minPitchDeg": -8,
+    "maxPitchDeg": 18,
+    "minTouchdownSpeedKt": 120,
+    "maxTouchdownSpeedKt": 190,
+    "maxLoadFactor": 3,
+    "maxRolloutCrossTrackFt": 55
+  },
+  "scoreCurves": {
+    "verticalSpeedFpm": [{"value": 120, "score": 1}, {"value": 450, "score": 0.7}, {"value": 900, "score": 0}],
+    "centerlineErrorFt": [{"value": 0, "score": 1}, {"value": 18, "score": 0.7}, {"value": 55, "score": 0}],
+    "touchdownZoneFt": [{"value": 700, "score": 1}, {"value": 1500, "score": 0.6}, {"value": 2500, "score": 0}],
+    "headingErrorDeg": [{"value": 0, "score": 1}, {"value": 5, "score": 0.7}, {"value": 14, "score": 0}],
+    "speedErrorKt": [{"value": 0, "score": 1}, {"value": 10, "score": 0.6}, {"value": 25, "score": 0}],
+    "bankDeg": [{"value": 0, "score": 1}, {"value": 6, "score": 0.6}, {"value": 12, "score": 0}],
+    "rolloutCrossTrackFt": [{"value": 0, "score": 1}, {"value": 18, "score": 0.7}, {"value": 55, "score": 0}]
+  }
+}

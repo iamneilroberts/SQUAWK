@@ -1498,3 +1498,34 @@ at runtime and intentionally remain absent from checked-in staging/production co
 Likewise, `/api/traffic` uses the local-only limiter adapter and fails closed outside local mode
 until a real Cloudflare limiter is provisioned. Those are release gates, not guessed defaults:
 paid/provider resources and exact allowance values require the later owner checkpoint.
+
+## 2026-08-10 — CF-005 · One immutable runway dataset and one pure assignment engine in both runtimes
+
+Mission airport data is pinned as `oa-2026-08-10-v1`, generated from the official OurAirports
+`airports.csv` and `runways.csv` bytes whose SHA-256 digests are recorded in the manifest. The
+snapshot contains 47,976 small/medium/large airports and 35,376 runways in 344 deterministic
+ten-degree shards. Every shard has a checksum, byte count, record counts, and bounds; the CI gate
+recomputes all of them, rejects unexpected files or malformed tuples, caps an individual shard at
+1 MiB, and caps the complete dataset at 16 MiB. The current encoded dataset is 7,755,182 bytes.
+
+Static shard records use the explicit `airport-runway-tuples-v1` compact encoding and expand at
+the shared loader boundary into named TypeScript airport/runway records. This avoids repeating
+long JSON keys tens of thousands of times (the equivalent object encoding was 19.9 MiB) without
+leaking tuple indexes into assignment or UI code. The existing 504 KiB medium/large airport label
+index remains separate and runway-free, so globe labels do not load worldwide mission geometry.
+Both the browser and the Worker use the same version constant, loader, profiles, geodesy, and
+assignment function; a workerd test imports and runs that exact pure module graph.
+
+The launch class profiles are immutable versioned data for C172S/GA, B738/airliner, and
+F5E/fighter. They hold the 30-minute reachability cap, planning speeds, eligible airport sizes,
+runway surface/length/width/geometry gates, landing thresholds, score curves, and ranking weights.
+These are initial playtest versions, not claims of certified aircraft performance; changing a
+threshold requires a new profile/scoring version rather than silently reinterpreting a mission.
+Assignment uses great-circle distance with antimeridian/polar handling, profile-clamped current
+groundspeed, hard runway gates, one best runway per airport, and stable suitability/time/identifier
+tie-breaks.
+
+Unknown or missing ICAO type designators are now explicitly unsupported for mission start instead
+of silently receiving the C172 model. Physical eligibility remains a separate reusable gate so an
+already-locked flight may re-sync its real ghost when a later feed row temporarily omits type data;
+that omission cannot change the locked aircraft class.

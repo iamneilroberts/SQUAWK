@@ -19,13 +19,14 @@
     "test:unit": "vitest run",
     "test:worker": "vitest run --config vitest.worker.config.ts",
     "test:routing": "npm run build && ROUTING_TEST=1 vitest run",
+    "check:airport-data": "node ../scripts/generate-ourairports.mjs --validate public/data/airports/oa-2026-08-10-v1/manifest.json",
     "types": "wrangler types worker-configuration.d.ts --env-interface WorkerEnv",
     "types:check": "wrangler types worker-configuration.d.ts --env-interface WorkerEnv --check",
     "typecheck:app": "tsc --noEmit",
     "typecheck:worker": "tsc --project tsconfig.worker.json",
     "typecheck": "npm run typecheck:app && npm run typecheck:worker",
     "lint": "eslint src worker vite.config.ts vitest.worker.config.ts --max-warnings 8",
-    "check": "npm run test:unit && npm run test:worker && npm run types:check && npm run lint && npm run test:routing"
+    "check": "npm run check:airport-data && npm run test:unit && npm run test:worker && npm run types:check && npm run lint && npm run test:routing"
   },
   "dependencies": {
     "cesium": "^1.124.0",

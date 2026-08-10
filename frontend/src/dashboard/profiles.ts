@@ -15,7 +15,7 @@
 export type PrimaryKind = "sixpack" | "efis" | "hud";
 
 export type DashboardProfile = {
-  /** The class id this profile serves — the key resolveClass(...).classId produces. */
+  /** The class id this profile serves after resolveClass has returned `supported: true`. */
   classId: string;
   /** The primary flight instrument layout. */
   primary: PrimaryKind;

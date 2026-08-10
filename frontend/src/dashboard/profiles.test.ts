@@ -40,16 +40,16 @@ describe("class -> dashboard-profile registry (data, not branches)", () => {
   // The registry lines up with the real resolveClass -> loadClassById path DashboardStrip uses:
   // a fighter contact -> class id f5e -> HUD profile, end to end, still no branch.
   it("agrees with resolveClass + loadClassById for a real fighter contact", () => {
-    const classId = resolveClass(contact("F16")).classId; // F16 is a fighter designator
-    const params = loadClassById(classId);
-    expect(params.id).toBe(classId);
-    expect(profileForClass(classId).primary).toBe("hud");
+    const resolution = resolveClass(contact("F16")); // F16 is a fighter designator
+    expect(resolution.supported).toBe(true);
+    if (!resolution.supported) throw new Error("fixture must be supported");
+    const params = loadClassById(resolution.classId);
+    expect(params.id).toBe(resolution.classId);
+    expect(profileForClass(resolution.classId).primary).toBe("hud");
   });
 
-  it("falls the unmatched/GA contact to the six-pack via the c172s default class", () => {
-    const classId = resolveClass(contact(null)).classId; // no type -> c172s default
-    expect(classId).toBe("c172s");
-    expect(profileForClass(classId).primary).toBe("sixpack");
+  it("does not route a missing type into any dashboard profile", () => {
+    expect(resolveClass(contact(null))).toMatchObject({ supported: false, classId: null });
   });
 
   it("throws on an unknown class id — a missing profile is a bug, not silent data", () => {

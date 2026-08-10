@@ -145,10 +145,14 @@ export default function FlightSession() {
     // disposed then, only when this instance's own countdown never got to start one.
     let flightStarted = false;
     const contact = origin.snapshot;
-    // The flight model is inferred from the REAL feed type (spec §4): a real airliner flies the
-    // 737 model, a real fast-jet the F-5E, everything else the C172 default. The substitution is
-    // disclosed on the handoff card, never silently swapped — data, not a per-class code branch.
-    const params = loadClassById(resolveClass(contact).classId);
+    // The initial takeover gate has already established a supported class. Re-check at this
+    // boundary so corrupt/stale client state cannot silently substitute another flight model.
+    const resolution = resolveClass(contact);
+    if (!resolution.supported) {
+      setNote(resolution.reason);
+      return;
+    }
+    const params = loadClassById(resolution.classId);
     setNote("ACQUIRING TERRAIN…");
 
     void (async () => {
@@ -263,9 +267,11 @@ export default function FlightSession() {
       if (!flown || st.mode !== "FLYING") return;
       // Re-sync keeps the class the player took over (resolved from the origin snapshot, not the
       // live contact) so a jet re-syncs as a jet — the flight model must not flip mid-flight.
+      const resolution = resolveClass(flown.snapshot);
+      if (!resolution.supported) return;
       const decision = resyncDecision(
         st.contacts.get(flown.hex),
-        loadClassById(resolveClass(flown.snapshot).classId),
+        loadClassById(resolution.classId),
         { terrainHeightM: null },
       );
       if (resyncTimerRef.current) clearTimeout(resyncTimerRef.current);
@@ -435,9 +441,9 @@ export default function FlightSession() {
 
   if (mode === "BROWSE") return null;
 
-  // The card discloses the substitution from the SAME resolver the countdown uses to load params.
+  // The card uses the same supported-class resolution as the countdown model loader.
   const originResolution = origin ? resolveClass(origin.snapshot) : null;
-  const originParams = originResolution ? loadClassById(originResolution.classId) : null;
+  const originParams = originResolution?.supported ? loadClassById(originResolution.classId) : null;
 
   // Mobile immersive/fullscreen flight (#13). immersiveActive gates every declutter; `faded` is the
   // video-player auto-hide of the informational overlays. warningActive keeps a live annunciator

@@ -1,0 +1,50 @@
+{
+  "classId": "c172s",
+  "profileVersion": "mission-c172s-2026-08-10-v1",
+  "assignmentVersion": "assignment-2026-08-10-v1",
+  "scoringVersion": "scoring-2026-08-10-v1",
+  "reachability": {
+    "maxMinutes": 30,
+    "minDestinationNm": 5,
+    "defaultPlanningSpeedKt": 115,
+    "minPlanningSpeedKt": 90,
+    "maxPlanningSpeedKt": 140
+  },
+  "runway": {
+    "airportSizes": ["small", "medium", "large"],
+    "surfaces": ["HARD", "GRAVEL", "GRASS", "DIRT"],
+    "minLengthFt": 1800,
+    "minWidthFt": 35,
+    "requireLighted": false,
+    "requireBothEnds": true,
+    "maxAirportElevationFt": 10000,
+    "maxInitialHeadingDeltaDeg": 100
+  },
+  "ranking": {
+    "lengthMarginWeight": 34,
+    "widthMarginWeight": 16,
+    "lightedBonus": 5,
+    "hardSurfaceBonus": 8,
+    "minutePenalty": 0.35
+  },
+  "landing": {
+    "requireGearDown": true,
+    "maxSinkRateFpm": 600,
+    "maxAbsBankDeg": 10,
+    "minPitchDeg": -5,
+    "maxPitchDeg": 15,
+    "minTouchdownSpeedKt": 42,
+    "maxTouchdownSpeedKt": 80,
+    "maxLoadFactor": 2,
+    "maxRolloutCrossTrackFt": 45
+  },
+  "scoreCurves": {
+    "verticalSpeedFpm": [{"value": 80, "score": 1}, {"value": 250, "score": 0.75}, {"value": 600, "score": 0}],
+    "centerlineErrorFt": [{"value": 0, "score": 1}, {"value": 15, "score": 0.7}, {"value": 45, "score": 0}],
+    "touchdownZoneFt": [{"value": 500, "score": 1}, {"value": 1200, "score": 0.6}, {"value": 1800, "score": 0}],
+    "headingErrorDeg": [{"value": 0, "score": 1}, {"value": 5, "score": 0.7}, {"value": 15, "score": 0}],
+    "speedErrorKt": [{"value": 0, "score": 1}, {"value": 8, "score": 0.6}, {"value": 20, "score": 0}],
+    "bankDeg": [{"value": 0, "score": 1}, {"value": 5, "score": 0.6}, {"value": 10, "score": 0}],
+    "rolloutCrossTrackFt": [{"value": 0, "score": 1}, {"value": 15, "score": 0.7}, {"value": 45, "score": 0}]
+  }
+}

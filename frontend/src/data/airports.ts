@@ -1,13 +1,15 @@
 /*
- * The bundled OurAirports extract and the rules for showing it (spec D-7).
+ * The lightweight bundled OurAirports label index and the rules for showing it (spec D-7).
  *
  * `airports-world.json` is GENERATED and COMMITTED — see scripts/fetch-ourairports.sh. It is
  * never fetched at runtime and the CSV is never parsed in the browser, so airport labels work
  * with the backend down and OurAirports unreachable. Public domain; credited anyway when the
  * layer is on.
  *
- * Cesium-free on purpose: `visibleAirports` is the whole declutter policy and it is arithmetic,
- * so it is unit-tested rather than eyeballed on a globe.
+ * Mission assignment uses the separate versioned regional airport/runway shards under
+ * `public/data/airports`; keeping this runway-free index avoids loading every runway just to
+ * draw labels. Cesium-free on purpose: `visibleAirports` is the whole declutter policy and it
+ * is arithmetic, so it is unit-tested rather than eyeballed on a globe.
  */
 import raw from "./airports-world.json";
 import { rangeNm } from "../dashboard/geoRange";

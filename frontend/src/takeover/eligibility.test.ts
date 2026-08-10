@@ -10,28 +10,33 @@ function contact(over: Partial<Contact> = {}): Contact {
 
 describe("resolveClass", () => {
   it("maps an airliner designator to b738", () => {
-    expect(resolveClass(contact({ t: "A320" }))).toEqual({ classId: "b738", matched: true });
+    expect(resolveClass(contact({ t: "A320" }))).toEqual({ supported: true, classId: "b738", matched: true });
   });
   it("maps a fighter designator to f5e — including a military fast-jet", () => {
-    expect(resolveClass(contact({ t: "F16", military: true }))).toEqual({ classId: "f5e", matched: true });
+    expect(resolveClass(contact({ t: "F16", military: true }))).toEqual({ supported: true, classId: "f5e", matched: true });
   });
   it("maps a GA designator to c172s", () => {
-    expect(resolveClass(contact({ t: "PA28" }))).toEqual({ classId: "c172s", matched: true });
+    expect(resolveClass(contact({ t: "PA28" }))).toEqual({ supported: true, classId: "c172s", matched: true });
   });
-  it("falls to c172s (unmatched) for an unknown type", () => {
-    expect(resolveClass(contact({ t: "C130" }))).toEqual({ classId: "c172s", matched: false });
+  it("returns explicit unsupported for an unknown type", () => {
+    expect(resolveClass(contact({ t: "C130" }))).toEqual({ supported: false, classId: null, matched: false, reason: "UNSUPPORTED AIRCRAFT TYPE" });
   });
-  it("falls to c172s (unmatched) for a missing type", () => {
-    expect(resolveClass(contact({ t: null }))).toEqual({ classId: "c172s", matched: false });
+  it("returns explicit unsupported for a missing type", () => {
+    expect(resolveClass(contact({ t: null }))).toEqual({ supported: false, classId: null, matched: false, reason: "MISSING AIRCRAFT TYPE" });
   });
 });
 
-describe("checkEligibility — physical gates only", () => {
+describe("checkEligibility — physical and supported-class gates", () => {
   it("no longer refuses a military contact", () => {
     expect(checkEligibility(contact({ t: "F16", military: true }))).toEqual({ eligible: true });
   });
-  it("no longer refuses a non-GA type", () => {
+  it("allows every supported class", () => {
     expect(checkEligibility(contact({ t: "A320" }))).toEqual({ eligible: true });
+    expect(checkEligibility(contact({ t: "F16" }))).toEqual({ eligible: true });
+  });
+  it("refuses unsupported and missing types with explicit reasons", () => {
+    expect(checkEligibility(contact({ t: "C130" }))).toEqual({ eligible: false, reason: "UNSUPPORTED AIRCRAFT TYPE" });
+    expect(checkEligibility(contact({ t: null }))).toEqual({ eligible: false, reason: "MISSING AIRCRAFT TYPE" });
   });
   it("still refuses on the ground", () => {
     expect(checkEligibility(contact({ alt_baro: "ground" })).eligible).toBe(false);
@@ -75,12 +80,12 @@ describe("disclosureLine", () => {
     const p = loadClassById("b738");
     expect(disclosureLine(contact({ t: "A320" }), p, true)).toBe("A320 → 737-800 MODEL");
   });
-  it("flags an unmatched substitution", () => {
+  it("names an unsupported type without substituting a model", () => {
     const p = loadClassById("c172s");
-    expect(disclosureLine(contact({ t: "C130" }), p, false)).toBe("C130 → C172 MODEL THIS BUILD (NO MATCHING CLASS)");
+    expect(disclosureLine(contact({ t: "C130" }), p, false)).toBe("C130 → UNSUPPORTED");
   });
   it("renders an em-dash for a missing type", () => {
     const p = loadClassById("c172s");
-    expect(disclosureLine(contact({ t: null }), p, false)).toBe("— → C172 MODEL THIS BUILD (NO MATCHING CLASS)");
+    expect(disclosureLine(contact({ t: null }), p, false)).toBe("— → UNSUPPORTED");
   });
 });

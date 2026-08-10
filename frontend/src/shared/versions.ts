@@ -1,10 +1,11 @@
 export const API_CONTRACT_VERSION = "v1" as const;
 
 export const DATA_VERSIONS = {
-  airport: "v1",
+  airport: "oa-2026-08-10-v1",
   aircraftProfile: "v1",
-  assignment: "v1",
-  scoring: "v1",
+  missionProfile: "2026-08-10-v1",
+  assignment: "assignment-2026-08-10-v1",
+  scoring: "scoring-2026-08-10-v1",
   assistDefinition: "v1",
   tutorial: "v1",
 } as const;

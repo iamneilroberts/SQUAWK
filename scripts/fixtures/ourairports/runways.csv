@@ -1,0 +1,6 @@
+id,airport_ref,airport_ident,length_ft,width_ft,surface,lighted,closed,le_ident,le_latitude_deg,le_longitude_deg,le_elevation_ft,le_heading_degT,le_displaced_threshold_ft,he_ident,he_latitude_deg,he_longitude_deg,he_elevation_ft,he_heading_degT,he_displaced_threshold_ft
+101,1,KAAA,2500,60,GRASS,0,0,09,10.0000,179.7900,124,90,0,27,10.0000,179.8100,126,270,25
+102,1,KAAA,5000,100,ASPH-GRV,1,1,18,9.9900,179.8000,123,180,,36,10.0100,179.8000,127,360,
+201,2,KBBB,7200,150,CONC,1,0,08,10.1000,-179.9100,40,80,0,26,10.1000,-179.8900,44,260,0
+301,3,KCCC,6000,90,WATER,0,0,01,89.4900,40.0000,899,10,0,19,89.5100,40.0000,901,190,0
+999,4,HIDDEN,1000,20,DIRT,0,0,01,10,10,1,10,0,19,10.01,10,1,190,0
