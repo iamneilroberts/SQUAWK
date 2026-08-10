@@ -2,7 +2,7 @@
 
 - [x] Approve and commit the Cloudflare-native public ADS-B game design (`b985b14`)
 - [x] Add the prominent main-page `HOW TO FLY` requirement and commit the 18-task implementation plan (`2b61025`)
-- [ ] Task 1 — Establish the Cloudflare application and modern test shell
+- [x] Task 1 — Establish the Cloudflare application and modern test shell
 - [ ] Task 2 — Add shared contracts and the dynamic request pipeline
 - [ ] Task 3 — Create the D1 schema and repositories
 - [ ] Task 4 — Build exact broker admission, modes, counters, and leases

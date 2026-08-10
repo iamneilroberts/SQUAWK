@@ -1,10 +1,9 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -12,10 +11,11 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "isolatedModules": true,
-    "resolveJsonModule": true,
-    "composite": true,
-    "types": ["vite/client"]
+    "types": ["@cloudflare/vitest-pool-workers/types"]
   },
-  "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "worker"]
+  "include": [
+    "worker/**/*.ts",
+    "vitest.worker.config.ts",
+    "worker-configuration.d.ts"
+  ]
 }

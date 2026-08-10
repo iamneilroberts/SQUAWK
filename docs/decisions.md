@@ -1327,3 +1327,52 @@ INVARIANTS (watertight, positive signed volume / outward winding, per-feature br
 are unit-tested and green; the actual on-screen LOOK is owner-eyeballed on deploy (exterior cam,
 press E). The SIM machinery and the amber/cyan single-instance ghost tint are geometry-independent
 and untouched.
+
+## 2026-08-10 — CF-001 · Keep `frontend/` as the single Cloudflare application root
+
+The existing React application and the new TypeScript Worker build and deploy from
+`frontend/`; there is no parallel replacement application. The Cloudflare Vite plugin owns
+the Worker-plus-assets production build and `npm run dev:worker` development path. The old
+Python-proxied `npm run dev` remains temporarily as Vite `legacy` mode until the API port is
+complete, and unit-test mode deliberately does not load the Cloudflare plugin.
+
+Static files remain assets-first at the platform boundary. `/api`, `/api/*`, and `/admin*` run
+the Worker first; the Worker delegates non-API fallback requests to `ASSETS`, while unknown
+`/api/*` paths return JSON 404s instead of SPA HTML. Direct handler tests cover that
+delegation boundary, and a checked-in Wrangler harness exercises the built Vite application,
+including the exact `/api` root, an SPA route, and a hashed asset.
+
+Configuration has distinct local, staging, and production `APP_ENV` values and repeats the
+non-inheritable `AUTH_EMAIL` and destination-restricted `ALERT_EMAIL` bindings in every
+environment. It contains no resource IDs, credentials, or real-send test path. Environment
+selection happens before bundling: staging uses `CLOUDFLARE_ENV=staging npm run build`, then
+plain `wrangler deploy` follows Vite's generated config redirect rather than rebuilding under
+a different environment. The compatibility date is pinned to 2026-08-08, the latest date
+supported by the approved local workerd build at implementation time.
+
+The verified before/after shell migration measurements are:
+
+- Before: Vite 5/Vitest 2; 78 files and 975 tests; typecheck and build green; main JavaScript
+  bundle 4,840.09 kB raw / 1,304.49 kB gzip; audit 7 findings (4 moderate, 2 high,
+  1 critical).
+- After: Vite 7.3.6/Vitest 4.1.10; the same 78 files and 975 tests; app/Worker typechecks,
+  Worker and platform-routing tests, lint, and Cloudflare production build green; client
+  JavaScript bundle 4,915.23 kB raw / 1,305.69 kB gzip. The two remaining transitive
+  advisories were resolved within their existing dependency ranges (DOMPurify 3.4.13
+  through Cesium and nanoid 3.3.18 through PostCSS); the final audit is clean and no
+  force-fix was applied.
+
+The planned `typescript-eslint` 8.66.0 release is not compatible with this repository's
+Node 22.12.0 runtime: its visitor-keys chain selects `eslint-visitor-keys` 5.0.1, whose
+engine floor is Node 22.13.0. Pin 8.55.0 instead, the newest checked compatible line; it
+selects `eslint-visitor-keys` 4.2.1 and installs without an engine warning. Existing
+explicit-`any`, mixed component/helper exports, and intentional hook dependency warnings
+are lint baselines for later focused cleanup, not reasons to rewrite tested simulator code
+during the Cloudflare shell migration.
+
+Node `>=22.12.0` and npm 11 are declared because Wrangler 4 requires Node 22 and Vite 7
+requires the 22.12 runtime floor. Lint starts with eight pre-existing hook warnings and uses
+`--max-warnings 8` as a ratchet so new warnings fail the Task 1 gate without forcing unrelated
+simulator rewrites. The old Docker/nginx build expects `dist/index.html`, while the Cloudflare
+plugin correctly emits `dist/client`; Docker Compose is therefore explicitly unsupported on
+this migration branch until its Task 18 retirement rather than being advertised as green.

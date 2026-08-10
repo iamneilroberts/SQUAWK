@@ -28,10 +28,19 @@ and [`docs/superpowers/specs/2026-08-05-phase-b-first-flyable-design.md`](docs/s
 
 Copy `.env.example` to `.env` first (no secrets required, every upstream feed is keyless).
 
-**Docker Compose** — builds and serves the whole app on **http://localhost:8021**:
+> **Cloudflare migration note:** Docker Compose is a legacy deployment path and is not
+> supported on this branch after the Cloudflare build shell lands. The production build
+> now emits a Worker plus `dist/client`, not the nginx-root layout. Docker/nginx retirement
+> is Task 18; do not use Compose as a validation or deployment path during the migration.
+
+**Cloudflare shell** — runs the unified Vite/Worker development runtime. During Task 1 only
+`/api/status` is implemented; the existing browse UI remains honestly offline until its API
+routes are ported in later tasks:
 
 ```bash
-docker compose up --build
+cd frontend
+npm ci
+npm run dev:worker
 ```
 
 **Bare metal** — one script runs the backend (uvicorn, from `backend/.venv`) and the
@@ -48,10 +57,10 @@ Ports default to backend `8020` / compose frontend `8021` (see
 [`docs/decisions.md` G-006](docs/decisions.md) — `:8010`/`:8080` are taken by other
 services on this box).
 
-> **Port overrides:** only the bare-metal path honors `ADSB_GAME_PORT` — `scripts/dev.sh`
+> **Port overrides:** only the legacy bare-metal path honors `ADSB_GAME_PORT` — `scripts/dev.sh`
 > passes it to uvicorn and `vite.config.ts` proxies to it. The Docker path is fixed: the
 > backend image, `nginx.conf`, and `docker-compose.yml` hardcode backend `8020` / published
-> `8021`, so `ADSB_GAME_PORT` in `.env` does **not** change the compose ports. Running
+> `8021`, but that Compose path is transitionally unsupported on this branch. Running
 > `cd frontend && npm run dev` directly (bypassing `dev.sh`) also leaves `ADSB_GAME_PORT`
 > unset and the Vite proxy falls back to `:8020`.
 
