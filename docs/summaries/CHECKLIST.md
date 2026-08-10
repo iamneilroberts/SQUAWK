@@ -4,7 +4,7 @@
 - [x] Add the prominent main-page `HOW TO FLY` requirement and commit the 18-task implementation plan (`2b61025`)
 - [x] Task 1 — Establish the Cloudflare application and modern test shell
 - [x] Task 2 — Add shared contracts and the dynamic request pipeline
-- [ ] Task 3 — Create the D1 schema and repositories
+- [x] Task 3 — Create the D1 schema and repositories
 - [ ] Task 4 — Build exact broker admission, modes, counters, and leases
 - [ ] Task 5 — Port ADS-B ingestion and add normalized regional caching
 - [ ] Task 6 — Generate runway shards and deterministic mission assignment
