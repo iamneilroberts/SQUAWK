@@ -37,6 +37,7 @@ describe("request and response security", () => {
     expect(csp).toContain("*.reearth.land");
     expect(csp).toContain("*.rainviewer.com");
     expect(csp).toContain("*.cesium.com");
+    expect(csp).toContain("frame-src https://challenges.cloudflare.com");
     expect(production.get("x-content-type-options")).toBe("nosniff");
     expect(production.get("referrer-policy")).toBe("strict-origin-when-cross-origin");
     expect(production.get("permissions-policy")).toContain("camera=()");

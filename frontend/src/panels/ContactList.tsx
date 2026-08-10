@@ -7,6 +7,7 @@
 import { useStore } from "../state/store";
 import type { Contact } from "../data/types";
 import { checkEligibility } from "../takeover/eligibility";
+import { saveProvisionalBriefing } from "../auth/session";
 
 /**
  * Sorts by `flight ?? ""` via `localeCompare`, hex as tiebreaker. Contacts with no
@@ -44,7 +45,13 @@ export function selectionHint(selectedHex: string | null, rowCount: number): str
   return "SELECT A CONTACT TO TAKE CONTROLS";
 }
 
-export default function ContactList() {
+export default function ContactList({
+  authenticated = false,
+  onSignInRequired,
+}: {
+  authenticated?: boolean;
+  onSignInRequired?: (aircraftHex: string) => void;
+}) {
   const contacts = useStore((s) => s.contacts);
   const selectedHex = useStore((s) => s.selectedHex);
   const feedStatus = useStore((s) => s.feedStatus);
@@ -92,6 +99,15 @@ export default function ContactList() {
               // Freeze the snapshot NOW: applyFetch nulls selectedHex the moment the
               // contact leaves the feed, and the origin must survive that (spec §4).
               if (!eligibility.eligible || selected === null) return;
+              if (!authenticated) {
+                try {
+                  saveProvisionalBriefing(sessionStorage, { aircraftHex: selected.hex });
+                } catch {
+                  // Sign-in can continue without restorable provisional state.
+                }
+                onSignInRequired?.(selected.hex);
+                return;
+              }
               useStore.getState().setOrigin({ hex: selected.hex, snapshot: { ...selected } });
               useStore.getState().fire("TAKE_CONTROLS");
             }}

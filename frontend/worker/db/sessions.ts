@@ -17,6 +17,7 @@ type SessionRow = {
   id: string;
   user_id: string;
   session_digest: string;
+  csrf_digest: string | null;
   expires_at: number;
   revoked_at: number | null;
   last_seen_at: number;
@@ -26,7 +27,8 @@ type SessionRow = {
 };
 
 const SELECT_SESSION = `SELECT id, user_id, session_digest, expires_at, revoked_at,
-                               last_seen_at, device_label, rotated_from_id, created_at
+                               last_seen_at, device_label, rotated_from_id, created_at,
+                               csrf_digest
                           FROM sessions`;
 
 function mapSession(row: SessionRow): Session {
@@ -34,6 +36,7 @@ function mapSession(row: SessionRow): Session {
     id: row.id,
     userId: row.user_id,
     sessionDigest: row.session_digest,
+    csrfDigest: row.csrf_digest,
     expiresAt: row.expires_at,
     revokedAt: row.revoked_at,
     lastSeenAt: row.last_seen_at,
@@ -48,6 +51,10 @@ function validateSession(input: CreateSessionInput): CreateSessionInput {
     id: requireUuid("session id", input.id),
     userId: requireUuid("user id", input.userId),
     sessionDigest: requireDigest("session digest", input.sessionDigest),
+    csrfDigest:
+      input.csrfDigest === null
+        ? null
+        : requireDigest("CSRF digest", input.csrfDigest),
     expiresAt: requireTimestamp("expires at", input.expiresAt),
     lastSeenAt: requireTimestamp("last seen at", input.lastSeenAt),
     deviceLabel: optionalText("device label", input.deviceLabel, 128),
@@ -78,8 +85,8 @@ export async function createSession(
     .prepare(
       `INSERT INTO sessions
          (id, user_id, session_digest, expires_at, revoked_at, last_seen_at,
-          device_label, rotated_from_id, created_at)
-       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
+          device_label, rotated_from_id, created_at, csrf_digest)
+       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
     )
     .bind(
       value.id,
@@ -90,6 +97,7 @@ export async function createSession(
       value.deviceLabel,
       value.rotatedFromId,
       value.createdAt,
+      value.csrfDigest,
     )
     .run();
   return requireStored("session", await getSessionById(db, value.id));
@@ -124,6 +132,50 @@ export async function getActiveSessionByDigest(
   return row === null ? null : mapSession(row);
 }
 
+export async function revokeSessionById(
+  db: D1Database,
+  sessionId: string,
+  userId: string,
+  revokedAt: number,
+): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `UPDATE sessions SET revoked_at = ?
+        WHERE id = ? AND user_id = ? AND revoked_at IS NULL`,
+    )
+    .bind(
+      requireTimestamp("revoked at", revokedAt),
+      requireUuid("session id", sessionId),
+      requireUuid("user id", userId),
+    )
+    .run();
+  return changed(result);
+}
+
+export async function rotateSessionCsrf(
+  db: D1Database,
+  sessionId: string,
+  userId: string,
+  csrfDigest: string,
+  now: number,
+): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `UPDATE sessions SET csrf_digest = ?, last_seen_at = MAX(last_seen_at, ?)
+        WHERE id = ? AND user_id = ?
+          AND revoked_at IS NULL AND expires_at > ?`,
+    )
+    .bind(
+      requireDigest("CSRF digest", csrfDigest),
+      requireTimestamp("current time", now),
+      requireUuid("session id", sessionId),
+      requireUuid("user id", userId),
+      now,
+    )
+    .run();
+  return changed(result);
+}
+
 export async function rotateSession(
   db: D1Database,
   currentDigest: string,
@@ -141,8 +193,8 @@ export async function rotateSession(
       .prepare(
         `INSERT INTO sessions
            (id, user_id, session_digest, expires_at, revoked_at, last_seen_at,
-            device_label, rotated_from_id, created_at)
-         SELECT ?, user_id, ?, ?, NULL, ?, ?, id, ?
+            device_label, rotated_from_id, created_at, csrf_digest)
+         SELECT ?, user_id, ?, ?, NULL, ?, ?, id, ?, ?
            FROM sessions
           WHERE session_digest = ?
             AND user_id = ?
@@ -156,6 +208,7 @@ export async function rotateSession(
         next.lastSeenAt,
         next.deviceLabel,
         next.createdAt,
+        next.csrfDigest,
         digest,
         next.userId,
         timestamp,

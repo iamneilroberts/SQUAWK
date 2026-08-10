@@ -27,6 +27,14 @@ export const ACTIVE_FLIGHT_GLOBAL_LIMIT = 10;
 export const ACTIVE_FLIGHT_WARNING = 8;
 export const ACTIVE_FLIGHT_LEASE_SECONDS = 45;
 
+export const AUTH_REQUEST_BODY_MAX_BYTES = 4_096;
+export const AUTH_CONSUME_BODY_MAX_BYTES = 1_024;
+export const AUTH_MAGIC_LINK_TTL_MS = 15 * 60 * 1_000;
+export const AUTH_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
+export const AUTH_EMAIL_RATE_WINDOW_MS = 60 * 60 * 1_000;
+export const AUTH_EMAIL_RATE_MAXIMUM = 3;
+export const DEFAULT_PROFILE_RADIUS_NM = 80;
+
 // Owner-approved Task 4 contract: protect each flight present at the read-only
 // transition for the 30-minute mission reachability horizon at normal cadence.
 export const ACTIVE_FLIGHT_PROTECTION_WINDOW_SECONDS = 30 * 60;

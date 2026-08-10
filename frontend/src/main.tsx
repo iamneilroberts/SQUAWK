@@ -1,18 +1,24 @@
-// Must be set before anything imports Cesium, so its Workers/Assets/Widgets resolve
-// against public/cesium/ (copied by scripts/copy-cesium-assets.sh) instead of the
-// package path, which isn't served in the browser.
-window.CESIUM_BASE_URL = "/cesium";
+import { captureAuthReturnFragment } from "./auth/session";
 
-import React from "react";
-import ReactDOM from "react-dom/client";
-import App from "./App";
-// Cesium's own widget styling (container/canvas sizing, credit container layout). Imported
-// before our styles so tokens.css keeps final say on anything it overrides.
-import "cesium/Build/Cesium/Widgets/widgets.css";
-import "./styles/index.css";
+const initialAuthToken = captureAuthReturnFragment(window.location, window.history);
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
+async function bootstrap(): Promise<void> {
+  // Must be set before anything imports Cesium, so its Workers/Assets/Widgets resolve
+  // against public/cesium/ instead of the package path.
+  window.CESIUM_BASE_URL = "/cesium";
+  // Preserve stylesheet order while keeping App/Cesium behind fragment removal.
+  await import("cesium/Build/Cesium/Widgets/widgets.css");
+  await import("./styles/index.css");
+  const [{ default: React }, { default: ReactDOM }, { default: App }] = await Promise.all([
+    import("react"),
+    import("react-dom/client"),
+    import("./App"),
+  ]);
+  ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+    <React.StrictMode>
+      <App initialAuthToken={initialAuthToken} />
+    </React.StrictMode>,
+  );
+}
+
+void bootstrap();

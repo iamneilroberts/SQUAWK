@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 const EXPECTED_TABLES = [
   "admin_audit",
+  "auth_email_rate_events",
   "flight_results",
   "magic_links",
   "missions",
@@ -57,7 +58,7 @@ describe("D1 migrations", () => {
     }
   });
 
-  it("applies the initial migration once and treats a second pass as a no-op", async () => {
+  it("applies every migration once and treats a second pass as a no-op", async () => {
     const { TEST_DB, TEST_MIGRATIONS } = testEnvironment();
 
     await applyD1Migrations(TEST_DB, TEST_MIGRATIONS);

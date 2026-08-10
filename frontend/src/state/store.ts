@@ -21,8 +21,12 @@ import type { GameEvent, Mode } from "../game/machine";
 import type { FlightStats } from "../game/stats";
 import type { BasemapKind } from "../globe/mapSources";
 
+export type PollingIdentity = "anonymous" | "signed";
+
 type State = {
   home: { lat: number; lon: number } | null;
+  savedCenter: { lat: number; lon: number } | null;
+  pollingIdentity: PollingIdentity;
   contacts: Map<string, Contact>;
   selectedHex: string | null;
   feedStatus: FeedStatus;
@@ -55,6 +59,8 @@ type State = {
    */
   chromeVisible: boolean;
   setHome(h: { lat: number; lon: number }): void;
+  setSavedCenter(center: { lat: number; lon: number } | null): void;
+  setPollingIdentity(identity: PollingIdentity): void;
   setRadiusNm(n: number): void;
   setBasemap(k: BasemapKind): void;
   setLabelsOn(on: boolean): void;
@@ -96,6 +102,8 @@ let lastTrafficAppliedAtMs: number | null = null;
 
 export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, get) => ({
   home: null,
+  savedCenter: null,
+  pollingIdentity: "anonymous",
   contacts: new Map(),
   selectedHex: null,
   feedStatus: "offline",
@@ -117,6 +125,14 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
 
   setHome(h) {
     set({ home: h });
+  },
+
+  setSavedCenter(center) {
+    set({ savedCenter: center });
+  },
+
+  setPollingIdentity(identity) {
+    set({ pollingIdentity: identity });
   },
 
   setRadiusNm(n) {
@@ -211,8 +227,6 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   },
 }));
 
-export type PollingIdentity = "anonymous" | "signed";
-
 export type PollingVisibility = {
   isVisible(): boolean;
   subscribe(listener: () => void): () => void;
@@ -263,7 +277,7 @@ export function startTrafficPolling(options: TrafficPollingOptions = {}): () => 
   let home: { lat: number; lon: number } | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   const visibility = options.visibility ?? browserPollingVisibility();
-  const identity = options.identity ?? (() => "anonymous" as const);
+  const identity = options.identity ?? (() => useStore.getState().pollingIdentity);
 
   function clearTimer(): void {
     if (timer !== null) clearTimeout(timer);
@@ -306,7 +320,11 @@ export function startTrafficPolling(options: TrafficPollingOptions = {}): () => 
             useStore.getState().setHome(config.home);
             loadedConfig = true;
           })
-        : fetchTraffic(home.lat, home.lon, useStore.getState().radiusNm).then((r) => {
+        : (() => {
+            const state = useStore.getState();
+            const center = state.savedCenter ?? home;
+            return fetchTraffic(center.lat, center.lon, state.radiusNm);
+          })().then((r) => {
             if (stopped) return;
             useStore.getState().applyFetch(r);
             serverNextSeconds = r.nextRefreshSeconds;

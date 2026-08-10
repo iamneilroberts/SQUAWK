@@ -126,6 +126,49 @@ export async function getActiveBansForUser(
   return result.results.map(mapBan);
 }
 
+export async function hasActiveBanForEmailKey(
+  db: D1Database,
+  emailKey: string,
+  now: number,
+): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `SELECT 1 AS active FROM user_bans
+        WHERE email_key = ? AND revoked_at IS NULL
+          AND (scope = 'permanent' OR expires_at > ?)
+        LIMIT 1`,
+    )
+    .bind(
+      requireDigest("email key", emailKey),
+      requireTimestamp("current time", now),
+    )
+    .first<number>("active");
+  return row === 1;
+}
+
+export async function hasActiveBanForIdentity(
+  db: D1Database,
+  userId: string,
+  emailKey: string,
+  now: number,
+): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `SELECT 1 AS active FROM user_bans
+        WHERE (user_id = ? OR email_key = ?)
+          AND revoked_at IS NULL
+          AND (scope = 'permanent' OR expires_at > ?)
+        LIMIT 1`,
+    )
+    .bind(
+      requireUuid("user id", userId),
+      requireDigest("email key", emailKey),
+      requireTimestamp("current time", now),
+    )
+    .first<number>("active");
+  return row === 1;
+}
+
 export async function revokeBan(
   db: D1Database,
   banId: string,

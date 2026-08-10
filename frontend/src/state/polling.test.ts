@@ -76,6 +76,8 @@ beforeEach(() => {
   mockedFetchConfig.mockReset();
   mockedFetchTraffic.mockReset();
   useStore.getState().applyFetch(trafficResult());
+  useStore.getState().setSavedCenter(null);
+  useStore.getState().setPollingIdentity("anonymous");
 });
 
 afterEach(() => {
@@ -145,6 +147,19 @@ describe("startTrafficPolling radius", () => {
 
     stop();
     useStore.getState().setRadiusNm(80); // reset for other tests sharing the singleton store
+  });
+
+  it("uses the authenticated saved center once config establishes the fallback", async () => {
+    mockedFetchConfig.mockResolvedValue({ home: { lat: 1, lon: 2 } });
+    mockedFetchTraffic.mockResolvedValue(trafficResult());
+    useStore.getState().setSavedCenter({ lat: 30.69, lon: -88.04 });
+    useStore.getState().setPollingIdentity("signed");
+
+    const stop = startTrafficPolling({ intervalMs: 1000 });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(mockedFetchTraffic).toHaveBeenCalledWith(30.69, -88.04, 80);
+    stop();
   });
 });
 

@@ -42,10 +42,16 @@ function clearTakeoverParam(): void {
   window.history.replaceState({}, "", url.pathname + url.search + url.hash);
 }
 
-export function useUrlTakeover(): string | null {
+export function useUrlTakeover(options: {
+  authStatus?: "loading" | "anonymous" | "authenticated";
+  onSignInRequired?: (aircraftHex: string) => void;
+} = {}): string | null {
   const [message, setMessage] = useState<string | null>(null);
+  const authStatus = options.authStatus ?? "authenticated";
+  const onSignInRequired = options.onSignInRequired;
 
   useEffect(() => {
+    if (authStatus === "loading") return;
     const hex = parseTakeoverHex(window.location.search);
     if (hex === null) return;
 
@@ -79,6 +85,12 @@ export function useUrlTakeover(): string | null {
       done = true;
       window.clearTimeout(timer);
       unsubscribe();
+      if (authStatus !== "authenticated") {
+        st.select(step.contact.hex);
+        onSignInRequired?.(step.contact.hex);
+        clearTakeoverParam();
+        return;
+      }
       // The SAME sequence as ContactList's TAKE CONTROLS button. Freeze the snapshot now: the
       // next applyFetch nulls selectedHex the instant the contact leaves the feed, and the origin
       // must survive that (spec §4).
@@ -98,9 +110,7 @@ export function useUrlTakeover(): string | null {
       window.clearTimeout(timer);
       unsubscribe();
     };
-    // Mount-only: parse and arm exactly once. The `done` latch + unsubscribe guarantee single-fire.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authStatus, onSignInRequired]);
 
   return message;
 }

@@ -158,6 +158,46 @@ describe("explicit dynamic router", () => {
     }
   });
 
+  it("allows public bootstrap mutations without CSRF while retaining every other mutation guard", () => {
+    expect(() =>
+      defineRoute({
+        method: "POST",
+        path: "/api/auth/request",
+        family: "auth-request",
+        boundary: "public",
+        admission: "public-write",
+        security: {
+          sameOrigin: "required",
+          csrf: "not-required",
+          idempotency: "required",
+          body: { kind: "json", maxBytes: 4_096 },
+        },
+        limiter: { name: "auth-request", retryAfterSeconds: 60 },
+        validate: ({ body }) => body,
+        handler: async () => ({ data: null }),
+      }),
+    ).not.toThrow();
+
+    expect(() =>
+      defineRoute({
+        method: "POST",
+        path: "/api/me",
+        family: "profile",
+        boundary: "authenticated",
+        admission: "public-write",
+        security: {
+          sameOrigin: "required",
+          csrf: "not-required",
+          idempotency: "required",
+          body: { kind: "json", maxBytes: 4_096 },
+        },
+        limiter: { name: "profile", retryAfterSeconds: 60 },
+        validate: ({ body }) => body,
+        handler: async () => ({ data: null }),
+      }),
+    ).toThrow(/csrf/i);
+  });
+
   it("prefers a static protected route and rejects equally specific overlaps", async () => {
     const publicHandler = vi.fn(async () => ({ data: { source: "public" } }));
     const adminHandler = vi.fn(async () => ({ data: { source: "admin" } }));

@@ -1,0 +1,6 @@
+# Copy to .dev.vars for local Worker development. Never commit real secret values.
+# Cloudflare's documented always-pass Turnstile test secret pairs with the local
+# TURNSTILE_SITE_KEY in wrangler.jsonc.
+EMAIL_KEY_SECRET=replace-with-at-least-32-random-characters
+TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA

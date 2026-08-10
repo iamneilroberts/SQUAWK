@@ -50,6 +50,20 @@ type PreferencesRow = {
   updated_at: number;
 };
 
+export type UpdateUserProfileInput = {
+  userId: string;
+  sessionId: string;
+  handle: string;
+  centerLat: number;
+  centerLon: number;
+  regionKey: string;
+  defaultAssist: AssistLevel;
+  tutorialState: TutorialState;
+  coachingEnabled: boolean;
+  csrfDigest: string;
+  updatedAt: number;
+};
+
 type MagicLinkRow = {
   id: string;
   token_digest: string;
@@ -215,6 +229,93 @@ export async function upsertUserPreferences(
   return mapPreferences(requireStored("user preferences", row));
 }
 
+export async function getUserPreferences(
+  db: D1Database,
+  userId: string,
+): Promise<UserPreferences | null> {
+  const row = await db
+    .prepare(
+      `SELECT user_id, center_lat, center_lon, region_key, default_assist,
+              tutorial_state, coaching_enabled, updated_at
+         FROM user_preferences WHERE user_id = ?`,
+    )
+    .bind(requireUuid("user id", userId))
+    .first<PreferencesRow>();
+  return row === null ? null : mapPreferences(row);
+}
+
+export async function updateUserProfileAndCsrf(
+  db: D1Database,
+  input: UpdateUserProfileInput,
+): Promise<{ user: User; preferences: UserPreferences } | null> {
+  const userId = requireUuid("user id", input.userId);
+  const sessionId = requireUuid("session id", input.sessionId);
+  const handle = requireText("handle", input.handle, 3, 32, HANDLE);
+  const centerLat = requireFiniteNumber("center latitude", input.centerLat, -90, 90);
+  const centerLon = requireFiniteNumber("center longitude", input.centerLon, -180, 180);
+  const regionKey = requireText("region key", input.regionKey, 1, 96);
+  const defaultAssist = requireOneOf("default assist", input.defaultAssist, ASSIST_LEVELS);
+  const tutorialState = requireOneOf(
+    "tutorial state",
+    input.tutorialState,
+    TUTORIAL_STATES,
+  );
+  const csrfDigest = requireDigest("CSRF digest", input.csrfDigest);
+  const updatedAt = requireTimestamp("updated at", input.updatedAt);
+
+  const results = await db.batch([
+    db
+      .prepare(
+        `UPDATE users SET handle = ?, updated_at = MAX(updated_at, ?)
+          WHERE id = ? AND status <> 'disabled'`,
+      )
+      .bind(handle, updatedAt, userId),
+    db
+      .prepare(
+        `INSERT INTO user_preferences
+           (user_id, center_lat, center_lon, region_key, default_assist,
+            tutorial_state, coaching_enabled, updated_at)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?
+          WHERE EXISTS (SELECT 1 FROM users WHERE id = ? AND status <> 'disabled')
+         ON CONFLICT(user_id) DO UPDATE SET
+           center_lat = excluded.center_lat,
+           center_lon = excluded.center_lon,
+           region_key = excluded.region_key,
+           default_assist = excluded.default_assist,
+           tutorial_state = excluded.tutorial_state,
+           coaching_enabled = excluded.coaching_enabled,
+           updated_at = excluded.updated_at`,
+      )
+      .bind(
+        userId,
+        centerLat,
+        centerLon,
+        regionKey,
+        defaultAssist,
+        tutorialState,
+        input.coachingEnabled ? 1 : 0,
+        updatedAt,
+        userId,
+      ),
+    db
+      .prepare(
+        `UPDATE sessions
+            SET csrf_digest = ?, last_seen_at = MAX(last_seen_at, ?)
+          WHERE id = ? AND user_id = ?
+            AND revoked_at IS NULL AND expires_at > ?`,
+      )
+      .bind(csrfDigest, updatedAt, sessionId, userId, updatedAt),
+  ]);
+  if (results.some((result) => !changed(result))) return null;
+
+  const [user, preferences] = await Promise.all([
+    getUserById(db, userId),
+    getUserPreferences(db, userId),
+  ]);
+  if (user === null || preferences === null) return null;
+  return { user, preferences };
+}
+
 export async function createMagicLink(
   db: D1Database,
   input: CreateMagicLinkInput,
@@ -245,6 +346,17 @@ export async function createMagicLink(
     requestId,
     requestedAt,
   };
+}
+
+export async function deleteMagicLinkByDigest(
+  db: D1Database,
+  tokenDigest: string,
+): Promise<boolean> {
+  const result = await db
+    .prepare("DELETE FROM magic_links WHERE token_digest = ? AND consumed_at IS NULL")
+    .bind(requireDigest("token digest", tokenDigest))
+    .run();
+  return changed(result);
 }
 
 export async function consumeMagicLink(

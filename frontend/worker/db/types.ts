@@ -49,6 +49,7 @@ export type Session = {
   id: string;
   userId: string;
   sessionDigest: string;
+  csrfDigest: string | null;
   expiresAt: number;
   revokedAt: number | null;
   lastSeenAt: number;

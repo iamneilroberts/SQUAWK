@@ -19,6 +19,7 @@ function expectSecurityHeaders(response, { hsts }) {
   const csp = response.headers.get("content-security-policy") ?? "";
   expect(csp).toContain("frame-ancestors 'none'");
   expect(csp).toContain("worker-src 'self' blob:");
+  expect(csp).toContain("frame-src https://challenges.cloudflare.com");
   expect(response.headers.get("x-content-type-options")).toBe("nosniff");
   expect(response.headers.get("x-frame-options")).toBe("DENY");
   expect(response.headers.get("referrer-policy")).toBe("strict-origin-when-cross-origin");

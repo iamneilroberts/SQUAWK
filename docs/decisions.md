@@ -1529,3 +1529,53 @@ Unknown or missing ICAO type designators are now explicitly unsupported for miss
 of silently receiving the C172 model. Physical eligibility remains a separate reusable gate so an
 already-locked flight may re-sync its real ghost when a later feed row temporarily omits type data;
 that omission cannot change the locked aircraft class.
+
+## 2026-08-10 — CF-006 · Digest identity, fragment returns, and one atomic session exchange
+
+Magic-link authentication extends the existing Worker, Web Crypto, and D1 seams without a new
+authentication dependency. The prior-art gate rejected Better Auth and Auth.js because their
+default schemas/flows retain raw email or place a bearer token in the query string, and rejected
+Lucia because its npm package is deprecated and does not supply the required magic-link,
+Turnstile, or Email Service flow. The custom surface is deliberately small: six bounded auth
+helpers, three auth routes, and two profile routes.
+
+Submitted email is normalized transiently and converted to
+`HMAC-SHA-256(EMAIL_KEY_SECRET, normalized_email)` before persistence. D1 receives only that
+digest, opaque-token digests, request IDs, and bounded non-identity metadata. The raw magic token
+appears only after `#auth_token=` in the emailed return URL. The initial browser module removes
+the entire fragment with `history.replaceState` before importing App or Cesium, then POSTs the
+token once. Link-preview GETs therefore cannot consume it, and React StrictMode shares the same
+in-flight consume rather than replaying the link.
+
+Migration `0002_auth_sessions.sql` adds a unique consume nonce, a per-session CSRF digest, and an
+indexed digest-only email-rate table. One D1 batch conditionally claims an unexpired link, creates
+the user/default preferences when needed, revokes prior active sessions, and inserts one
+replacement session. Every dependent statement is joined through the unique consume nonce, so a
+replay or concurrent loser cannot create partial identity/session state. Active identity bans
+burn the link without a session. Temporary bans use their exact expiry as the authority even
+though the existing `users.status` remains a denormalized admin marker.
+
+The browser receives a 256-bit opaque `__Host-adsb_session` cookie with `Secure`, `HttpOnly`,
+`SameSite=Lax`, `Path=/`, and a 30-day maximum age; D1 stores only its digest. CSRF is another
+256-bit token whose digest is session-bound. Consume and `GET /api/me` issue it, authenticated
+writes verify it, and successful profile writes rotate it atomically with the preference update.
+The raw CSRF value remains module memory only. `GET/PATCH /api/me` cover handle, exact chosen
+center, server-derived normalized region, default assist, tutorial state, and coaching; the
+server clamps the center before deriving the region. Signed polling uses that saved center and
+the approved signed cadence.
+
+`POST /api/auth/request` combines the Cloudflare IP limiter with an exact D1 limit of three
+attempts per email digest per rolling hour. Turnstile action/hostname verification is mandatory
+before identity storage or mail. Challenge, IP/digest limit, banned/disabled identity, and mail
+failure all return the same 202 body. Email failure best-effort removes the undelivered link and
+never revokes an existing session; D1 failure remains a 500 so the Worker does not claim a write
+succeeded. Static and dynamic CSPs allow only Cloudflare's Turnstile origin in script, frame, and
+connect directives.
+
+Wrangler declares isolated local/staging/production D1 names and a five-per-minute IP limiter
+namespace, but this checkpoint does not provision or deploy them. Real database IDs, production
+and staging Turnstile site keys, `EMAIL_KEY_SECRET`, and `TURNSTILE_SECRET` remain explicit owner
+release gates. `frontend/.dev.vars.example` documents the local test-key pair and secret shape;
+real secrets must stay outside git. A provisional briefing stores only a bounded aircraft/airport/
+runway reference in `sessionStorage`, is consumed once after sign-in, and must reappear in the live
+feed before selection is restored; it grants no authority.

@@ -93,6 +93,7 @@ export type RouteResult = {
   status?: number;
   code?: ApiSuccessCode;
   data?: unknown;
+  headers?: HeadersInit;
 };
 
 export type RouteDefinition = {
@@ -132,6 +133,7 @@ export type RouterDependencies<Env extends RuntimeEnvironment> =
       boundary: TrustBoundary,
       request: Request,
       context: RequestContext,
+      env: Env,
     ) => RequestActor | Promise<RequestActor>;
     resolveLimiter: (name: string, env: Env) => EndpointLimiter;
     admitRequest: (
@@ -211,13 +213,15 @@ function validateSecurity(route: RouteDefinition): void {
   if (MUTATING_METHODS.has(route.method)) {
     if (
       security.sameOrigin !== "required" ||
-      security.csrf !== "required" ||
       security.idempotency !== "required" ||
       body.kind !== "json"
     ) {
       throw new TypeError(
-        "Mutating routes require same-origin, CSRF, idempotency, and bounded JSON",
+        "Mutating routes require same-origin, idempotency, and bounded JSON",
       );
+    }
+    if (route.boundary !== "public" && security.csrf !== "required") {
+      throw new TypeError("Authenticated mutating routes require CSRF");
     }
     if (typeof route.validate !== "function") {
       throw new TypeError("Mutating routes require an explicit body validator");
@@ -382,6 +386,7 @@ function successfulResponse(context: RequestContext, result: RouteResult): Respo
     code,
     status,
     ...(result.data === undefined ? {} : { data: result.data }),
+    ...(result.headers === undefined ? {} : { headers: result.headers }),
   });
 }
 
@@ -515,7 +520,7 @@ export function createRouter<Env extends RuntimeEnvironment>(
         }
 
         dependencies.onStage?.("authorization");
-        const actor = await dependencies.authorize(route.boundary, request, context);
+        const actor = await dependencies.authorize(route.boundary, request, context, env);
         requireBoundaryActor(route.boundary, actor);
         context = { ...context, actor };
 

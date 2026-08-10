@@ -3,7 +3,13 @@ import type { SystemMode } from "../../src/shared/mode";
 
 export type RequestActor =
   | { kind: "anonymous"; samplingKey: string }
-  | { kind: "authenticated" | "admin"; userId: string; samplingKey: string };
+  | {
+      kind: "authenticated" | "admin";
+      userId: string;
+      samplingKey: string;
+      sessionId?: string;
+      csrfDigest?: string | null;
+    };
 
 export type RequestContext = {
   requestId: string;

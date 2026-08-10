@@ -20,6 +20,10 @@ import {
   ValidationError,
 } from "./http/validation";
 import { sha256Digest } from "./telemetry/requestContext";
+import { authorizeSession } from "./auth/sessions";
+import { readCsrfToken, verifyCsrfToken } from "./auth/csrf";
+import { createAuthRoutes } from "./http/routes/auth";
+import { createMeRoutes } from "./http/routes/me";
 
 const statusRoute = defineRoute({
   method: "GET",
@@ -90,7 +94,14 @@ const configRoute = defineRoute({
       runtime.HOME_LAT ?? "30.6944",
       runtime.HOME_LON ?? "-88.0399",
     );
-    return { data: { home: { lat: home.latitude, lon: home.longitude } } };
+    return {
+      data: {
+        home: { lat: home.latitude, lon: home.longitude },
+        ...(runtime.TURNSTILE_SITE_KEY === undefined
+          ? {}
+          : { turnstileSiteKey: runtime.TURNSTILE_SITE_KEY }),
+      },
+    };
   },
 });
 
@@ -155,10 +166,17 @@ const routerDependencies = {
   wallClock: () => new Date(),
   monotonicNow: () => performance.now(),
   digest: sha256Digest,
-  verifyCsrf: async () => false,
-  authorize: async (_boundary, _request, context) => context.actor,
+  verifyCsrf: (request, context) =>
+    verifyCsrfToken(
+      readCsrfToken(request),
+      context.actor.kind === "anonymous" ? null : context.actor.csrfDigest ?? null,
+    ),
+  authorize: (_boundary, request, context, env) =>
+    authorizeSession(request, env.DB, Date.parse(context.serverTime), context.actor),
   resolveLimiter: (name, env) =>
     name === "status" || name === "config" || name === "admin-recovery" ||
+    name === "auth-request" || name === "auth-consume" ||
+    name === "auth-session" || name === "profile" ||
     (name === "traffic" && env.APP_ENV === "local")
       ? allowEndpointLimiter
       : failClosedLimiter,
@@ -210,7 +228,14 @@ const routerDependencies = {
 } satisfies RouterDependencies<Env>;
 
 const apiRouter = createRouter<Env>(
-  [statusRoute, configRoute, trafficRoute, recoveryStatusRoute],
+  [
+    statusRoute,
+    configRoute,
+    trafficRoute,
+    ...createAuthRoutes(),
+    ...createMeRoutes(),
+    recoveryStatusRoute,
+  ],
   routerDependencies,
 );
 
