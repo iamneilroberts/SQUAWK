@@ -1680,6 +1680,12 @@ Staging and production declare a separate twelve-per-minute mission limiter. No 
 deployed in this task; the D1 migration, `MISSION_SIGNING_SECRET`, and limiter must be present
 before a later release can enable these routes.
 
+Production later exposed why that requirement must be executable: `/api/missions/prepare` could
+revalidate a fresh aircraft but could not sign its preparation because `MISSION_SIGNING_SECRET`
+had never been provisioned. The production deploy command now runs a read-only Cloudflare secret
+binding preflight for all four required Worker secrets before it builds or uploads. Secret values
+are never read or printed; only binding names are compared.
+
 ## 2026-08-10 — CF-010 · A locked mission is the simulator boundary; live traffic is scenery only
 
 Task 10 preserves the existing `BROWSE → COUNTDOWN → FLYING → PAUSED/ENDED` state machine. The

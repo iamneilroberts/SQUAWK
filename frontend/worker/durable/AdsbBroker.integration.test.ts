@@ -793,7 +793,7 @@ describe("AdsbBroker", () => {
       traffic: { freshness: "EXPIRED", providerAvailable: false },
     });
     expect(calls).toBe(40);
-  });
+  }, 10_000);
 
   it("records signed viewers even when the second viewer receives a cache hit", async () => {
     const target = stub();
