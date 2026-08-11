@@ -227,6 +227,7 @@ export default function TouchControls({
           rudder, afterburner, level-assist and pause were dropped from the mobile UI. Trim is a
           hold (a lever that ramps while held, matching Comma/Period on the keyboard). */}
       <div className="touch-buttons">
+        <DiscreteButton label="CAM" code="KeyE" />
         <DiscreteButton label="GEAR" code="KeyG" disabled={gearFixed} />
         <DiscreteButton label="FLP−" code="KeyV" />
         <DiscreteButton label="FLP+" code="KeyF" />
