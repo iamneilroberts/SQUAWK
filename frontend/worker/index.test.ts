@@ -52,6 +52,22 @@ describe("Worker entry", () => {
     ).rejects.toMatchObject({ code: "LIMITER_UNAVAILABLE" });
   });
 
+  it("uses a dedicated admin limiter outside local and fails closed when absent", async () => {
+    const limit = vi.fn(async () => ({ success: true }));
+    const staging = fakeEnv(undefined, "staging").env;
+    staging.ADMIN_RATE_LIMITER = { limit } as RateLimit;
+
+    await expect(
+      resolveEndpointLimiter("admin", staging).limit("admin:owner"),
+    ).resolves.toEqual({ allowed: true });
+    expect(limit).toHaveBeenCalledWith({ key: "admin:owner" });
+
+    const missing = fakeEnv(undefined, "staging").env;
+    await expect(
+      resolveEndpointLimiter("admin", missing).limit("admin:owner"),
+    ).rejects.toMatchObject({ code: "LIMITER_UNAVAILABLE" });
+  });
+
   it("serves a typed status envelope without an assets or Python hop", async () => {
     const response = await exports.default.fetch(
       new Request("https://fly.voygent.app/api/status"),
@@ -186,6 +202,26 @@ describe("Worker entry", () => {
     expect(response.status).toBe(200);
     expect(await response.text()).toContain("ADS-B Game");
     expect(fetch).toHaveBeenCalledWith(request);
+  });
+
+  it("rejects Access-unverified admin shell and API requests before assets or broker work", async () => {
+    const { env, fetch } = fakeEnv();
+    const shell = await worker.fetch(
+      new Request("https://fly.voygent.app/admin"),
+      env,
+    );
+    const api = await worker.fetch(
+      new Request("https://fly.voygent.app/api/admin/status", {
+        headers: { cookie: "__Host-adsb_session=ordinary-game-session" },
+      }),
+      env,
+    );
+
+    expect(shell.status).toBe(403);
+    expect(shell.headers.get("cache-control")).toBe("private, no-store");
+    expect(api.status).toBe(403);
+    await expect(api.json()).resolves.toMatchObject({ code: "FORBIDDEN" });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("never turns an unknown API route into the SPA", async () => {

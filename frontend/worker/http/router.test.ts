@@ -165,7 +165,7 @@ describe("explicit dynamic router", () => {
         path: "/api/auth/request",
         family: "auth-request",
         boundary: "public",
-        admission: "public-write",
+        admission: "registration",
         security: {
           sameOrigin: "required",
           csrf: "not-required",

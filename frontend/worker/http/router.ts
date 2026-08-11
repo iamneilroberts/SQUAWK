@@ -77,7 +77,12 @@ type RouteSecurity = {
     | { kind: "json"; maxBytes?: number };
 };
 
-export type RouteAdmission = "public-read" | "public-write" | "active-flight" | "recovery";
+export type RouteAdmission =
+  | "public-read"
+  | "public-write"
+  | "registration"
+  | "active-flight"
+  | "recovery";
 
 export type RouteRequest = {
   request: Request;
@@ -155,6 +160,7 @@ const REQUIRED_VALUES = new Set(["required", "not-required"]);
 const ADMISSION_VALUES = new Set<RouteAdmission>([
   "public-read",
   "public-write",
+  "registration",
   "active-flight",
   "recovery",
 ]);

@@ -10,7 +10,7 @@ import type { TrafficData } from "../../src/data/types";
 export const ADSB_BROKER_OBJECT_NAME = "global-v1";
 export const ADSB_BROKER_COMMAND_PATH = "/internal/broker";
 
-export type AdmissionKind = "public-read" | "public-write" | "active-flight";
+export type AdmissionKind = "public-read" | "public-write" | "registration" | "active-flight";
 export type BudgetBand = "normal" | "conservation" | "read-only" | "kill-switch";
 export type FlightCapacityBand = "normal" | "warning" | "full";
 export type AdmissionDenialReason =
@@ -18,6 +18,7 @@ export type AdmissionDenialReason =
   | "protected-reserve"
   | "read-only"
   | "kill-switch"
+  | "registration-disabled"
   | "lease-required"
   | "lease-reserve-exhausted";
 export type LeaseDenialReason =
@@ -57,12 +58,14 @@ export type BrokerStatus = {
   protectedReserveRemaining: number;
   health: BrokerHealthCounters;
   lastAlertTransition: BrokerTransition | null;
+  registrationEnabled: boolean;
+  providerCacheOnly: boolean;
 };
 
 export type BrokerCommand =
   | {
       type: "admit";
-      kind: "public-read" | "public-write";
+      kind: "public-read" | "public-write" | "registration";
       forceMode: SystemMode;
     }
   | {
@@ -81,6 +84,13 @@ export type BrokerCommand =
   | { type: "lease-release"; userId: string; missionId: string }
   | { type: "lease-release-user"; userId: string }
   | { type: "mode-set"; requestedMode: SystemMode; forceMode: SystemMode }
+  | {
+      type: "settings-set";
+      registrationEnabled: boolean;
+      providerCacheOnly: boolean;
+      forceMode: SystemMode;
+    }
+  | { type: "cache-clear-region"; regionKey: string; forceMode: SystemMode }
   | { type: "status" | "transitions"; forceMode: SystemMode }
   | { type: "traffic"; forceMode: SystemMode; request: TrafficRequest }
   | { type: "provider-record"; outcome: "success" | "failure" }
@@ -117,6 +127,7 @@ export type BrokerCommandResult =
   | { type: "status"; status: BrokerStatus }
   | { type: "transition"; transition: BrokerTransition | null; status: BrokerStatus }
   | { type: "traffic"; traffic: TrafficData; status: BrokerStatus }
+  | { type: "cache-cleared"; regionKey: string; cleared: boolean; status: BrokerStatus }
   | { type: "recorded"; status: BrokerStatus };
 
 export type BrokerResponse =
@@ -137,6 +148,8 @@ const COMMAND_TYPES = new Set([
   "lease-release",
   "lease-release-user",
   "mode-set",
+  "settings-set",
+  "cache-clear-region",
   "status",
   "transitions",
   "traffic",
@@ -156,6 +169,7 @@ const ADMISSION_DENIAL_REASONS = new Set<AdmissionDenialReason>([
   "protected-reserve",
   "read-only",
   "kill-switch",
+  "registration-disabled",
   "lease-required",
   "lease-reserve-exhausted",
 ]);
@@ -179,6 +193,20 @@ function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boo
 
 function isIdentifier(value: unknown): value is string {
   return typeof value === "string" && UUID.test(value);
+}
+
+function isRegionKey(value: unknown): value is string {
+  if (typeof value !== "string" || value.length > 96) return false;
+  const parts = value.split(":");
+  if (parts.length !== 4 || parts[0] !== "r1") return false;
+  const numeric = parts.slice(1).map(Number);
+  if (
+    numeric.some((part) => !Number.isFinite(part)) ||
+    parts.slice(1).some((part, index) => String(numeric[index]) !== part)
+  ) return false;
+  const [latitude, longitude, radius] = numeric as [number, number, number];
+  return latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180 &&
+    radius >= 5 && radius <= 300;
 }
 
 function isTrafficRequest(value: unknown): value is TrafficRequest {
@@ -273,6 +301,8 @@ function isStatus(value: unknown): value is BrokerStatus {
     isCount(value.protectedReserveRemaining) &&
     value.protectedReserveRemaining <= ACTIVE_FLIGHT_MAX_RESERVE &&
     isHealth(value.health) &&
+    typeof value.registrationEnabled === "boolean" &&
+    typeof value.providerCacheOnly === "boolean" &&
     (value.lastAlertTransition === null || isTransition(value.lastAlertTransition))
   );
 }
@@ -313,6 +343,11 @@ function parseBrokerResult(value: unknown): BrokerCommandResult {
     case "status":
     case "recorded":
       return value as BrokerCommandResult;
+    case "cache-cleared":
+      if (!isRegionKey(value.regionKey) || typeof value.cleared !== "boolean") {
+        throw new TypeError("Invalid broker response");
+      }
+      return value as BrokerCommandResult;
     case "traffic":
       if (!isTrafficData(value.traffic)) throw new TypeError("Invalid broker response");
       return value as BrokerCommandResult;
@@ -347,7 +382,7 @@ export function parseBrokerCommand(value: unknown): BrokerCommand {
         return value as BrokerCommand;
       }
       if (
-        (value.kind !== "public-read" && value.kind !== "public-write") ||
+        !["public-read", "public-write", "registration"].includes(String(value.kind)) ||
         !exactKeys(value, ["type", "kind", "forceMode"])
       ) return invalid();
       return value as BrokerCommand;
@@ -375,6 +410,26 @@ export function parseBrokerCommand(value: unknown): BrokerCommand {
       if (
         !exactKeys(value, ["type", "requestedMode", "forceMode"]) ||
         !isSystemMode(value.requestedMode) ||
+        !isSystemMode(value.forceMode)
+      ) return invalid();
+      return value as BrokerCommand;
+    case "settings-set":
+      if (
+        !exactKeys(value, [
+          "type",
+          "registrationEnabled",
+          "providerCacheOnly",
+          "forceMode",
+        ]) ||
+        typeof value.registrationEnabled !== "boolean" ||
+        typeof value.providerCacheOnly !== "boolean" ||
+        !isSystemMode(value.forceMode)
+      ) return invalid();
+      return value as BrokerCommand;
+    case "cache-clear-region":
+      if (
+        !exactKeys(value, ["type", "regionKey", "forceMode"]) ||
+        !isRegionKey(value.regionKey) ||
         !isSystemMode(value.forceMode)
       ) return invalid();
       return value as BrokerCommand;

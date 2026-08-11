@@ -1829,3 +1829,38 @@ Background Sync merely wakes authenticated window clients; it cannot replay with
 token. The cached shell distinguishes offline traffic from a Worker-reported kill switch, and both keep
 local training available without implying live traffic or authoritative grading. No staging or production
 deployment occurred in this task.
+
+## 2026-08-10 — CF-014 · Access is reverified at the Worker; admin mutations are audited commands
+
+Task 14's prior-art gate selected **ADOPT** for `jose` rather than hand-building JWT/JWKS
+verification. Every `/admin` shell request and `/api/admin/*` request independently validates the
+Cloudflare Access assertion against a cached rotating JWKS: exact RS256 header and bounded `kid`,
+configured issuer and audience, current `nbf`/`exp`, the application-token role, and the exact
+`dneilroberts@gmail.com` email. A game session cookie has no admin authority. Missing Access
+issuer/audience configuration fails closed, as does any verifier error. The Worker serves the SPA
+shell only after this check and overwrites any asset cache policy with `private, no-store` plus an
+Access-assertion `Vary` header. The detailed lazy-loaded console remains Task 15.
+
+The Worker configuration owns `/admin*` routing and a separate admin rate limiter. Cloudflare's
+account API showed no existing Access application to reuse, and the current Wrangler OAuth grant
+does not authorize Access writes, so Task 18 must provision the live staging/production applications,
+exact-email policies, team-domain values, and audience tags before either environment can admit an
+admin request. No placeholder trust values are deployed. This is deployment provisioning, not an
+alternate authorization path.
+
+All admin controls use the explicit recovery admission lane so a valid owner can diagnose or relax a
+runtime kill switch. Mutations still require same origin, the Access-derived CSRF identity, a bounded
+idempotency key and body, and a non-PII reason; kill, ban, session revoke, and flight termination also
+require exact typed confirmation. Requested mode can never relax a stricter deployment or automatic
+mode. Registration disable and provider cache-only are independent durable broker settings. Region
+clear accepts coordinates and clears only the single canonical broker cache key computed by the same
+normalizer used for reads.
+
+The admin idempotency key deterministically addresses one append-only D1 audit row and one alert event.
+That transaction stores the canonical request, before/after state, actor, reason, and request ID beside
+the enforcement change. A ban writes its email digest, changes user state, and revokes all live sessions
+in that same batch; authorization and queued result submission therefore fail immediately. User/flight
+lease release is a cross-Durable-Object follow-up: if it fails, the API truthfully returns a 503 with
+`mutationApplied: true`, and an identical replay retries only that idempotent release without duplicating
+the D1 mutation, audit, or alert. Flight termination first makes the locked mission `abandoned`, which
+makes any queued result ineligible before the lease release is attempted.

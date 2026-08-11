@@ -79,7 +79,7 @@ type LeaseRecord = {
 };
 
 type StoredBrokerState = {
-  version: 1;
+  version: 2;
   utcDay: string;
   admittedRequests: number;
   providerRequests: number;
@@ -91,6 +91,8 @@ type StoredBrokerState = {
   health: BrokerHealthCounters;
   transitionSequence: number;
   lastAlertTransition: BrokerTransition | null;
+  registrationEnabled: boolean;
+  providerCacheOnly: boolean;
 };
 
 type StorageView = Pick<
@@ -246,7 +248,7 @@ function utcDay(nowMs: number): string {
 
 function initialState(nowMs: number): StoredBrokerState {
   return {
-    version: 1,
+    version: 2,
     utcDay: utcDay(nowMs),
     admittedRequests: 0,
     providerRequests: 0,
@@ -258,6 +260,8 @@ function initialState(nowMs: number): StoredBrokerState {
     health: zeroHealth(),
     transitionSequence: 0,
     lastAlertTransition: null,
+    registrationEnabled: true,
+    providerCacheOnly: false,
   };
 }
 
@@ -327,7 +331,7 @@ function isStoredState(value: unknown): value is StoredBrokerState {
       isSafeCount(state.transitionSequence) &&
       state.lastAlertTransition.sequence <= state.transitionSequence);
   return (
-    state.version === 1 &&
+    state.version === 2 &&
     typeof state.utcDay === "string" &&
     /^\d{4}-\d{2}-\d{2}$/.test(state.utcDay) &&
     isSafeCount(state.admittedRequests) &&
@@ -349,9 +353,23 @@ function isStoredState(value: unknown): value is StoredBrokerState {
     (state.admittedRequests >= READ_ONLY_THRESHOLD_REQUESTS || totalReserve === 0) &&
     state.flightCapacityBand === flightCapacityBandFor(leases.length) &&
     validHealth &&
+    typeof state.registrationEnabled === "boolean" &&
+    typeof state.providerCacheOnly === "boolean" &&
     isSafeCount(state.transitionSequence) &&
     validTransition
   );
+}
+
+function migrateStoredState(value: unknown): StoredBrokerState | null {
+  const candidate = isRecord(value) && value.version === 1
+    ? {
+        ...value,
+        version: 2,
+        registrationEnabled: true,
+        providerCacheOnly: false,
+      }
+    : value;
+  return isStoredState(candidate) ? candidate : null;
 }
 
 function budgetBandFor(count: number): BudgetBand {
@@ -449,14 +467,17 @@ function status(state: StoredBrokerState, forceMode: SystemMode): BrokerStatus {
     protectedReserveRemaining: reserveRemaining(state),
     health: { ...state.health },
     lastAlertTransition: state.lastAlertTransition,
+    registrationEnabled: state.registrationEnabled,
+    providerCacheOnly: state.providerCacheOnly,
   };
 }
 
 async function loadState(storage: StorageView, nowMs: number): Promise<StoredBrokerState> {
   const stored = await storage.get<unknown>(STATE_KEY);
   if (stored === undefined) return initialState(nowMs);
-  if (!isStoredState(stored)) throw new Error("Broker storage is invalid");
-  return stored;
+  const migrated = migrateStoredState(stored);
+  if (migrated === null) throw new Error("Broker storage is invalid");
+  return migrated;
 }
 
 async function scheduleNextExpiry(storage: StorageView, state: StoredBrokerState): Promise<void> {
@@ -520,8 +541,14 @@ function admit(
   if (effectiveMode === "KILL_SWITCH") {
     return rejectAdmission(state, command.forceMode, "kill-switch");
   }
-  if (command.kind === "public-write" && effectiveMode === "READ_ONLY") {
+  if (
+    (command.kind === "public-write" || command.kind === "registration") &&
+    effectiveMode === "READ_ONLY"
+  ) {
     return rejectAdmission(state, command.forceMode, "read-only");
+  }
+  if (command.kind === "registration" && !state.registrationEnabled) {
+    return rejectAdmission(state, command.forceMode, "registration-disabled");
   }
 
   const lease = command.kind === "active-flight"
@@ -630,6 +657,12 @@ function executeCommand(
     case "mode-set":
       state.requestedMode = command.requestedMode;
       return { type: "status", status: status(state, command.forceMode) };
+    case "settings-set":
+      state.registrationEnabled = command.registrationEnabled;
+      state.providerCacheOnly = command.providerCacheOnly;
+      return { type: "status", status: status(state, command.forceMode) };
+    case "cache-clear-region":
+      throw new TypeError("Cache clear commands require the asynchronous broker path");
     case "status":
       return { type: "status", status: status(state, command.forceMode) };
     case "transitions":
@@ -1019,7 +1052,7 @@ export class AdsbBroker extends DurableObject<Env> {
         status: brokerStatus,
       };
     }
-    const cacheOnly =
+    const cacheOnly = brokerStatus.providerCacheOnly ||
       brokerStatus.effectiveMode !== "NORMAL" && request.audience.kind !== "active-ghost";
     if (cacheOnly) {
       return {
@@ -1093,6 +1126,35 @@ export class AdsbBroker extends DurableObject<Env> {
     }
   }
 
+  async #clearTrafficRegion(
+    regionKey: string,
+    forceMode: SystemMode,
+  ): Promise<BrokerCommandResult> {
+    const pending = this.#trafficInFlight.get(regionKey);
+    if (pending !== undefined) await pending.catch(() => undefined);
+    const nowMs = this[CLOCK].nowMs();
+    return this.ctx.storage.transaction(async (transaction) => {
+      const state = await loadState(transaction, nowMs);
+      rollover(state, nowMs);
+      cleanExpiredLeases(state, nowMs);
+      const index = await loadTrafficIndex(transaction);
+      const entryCount = index.entries.length;
+      const failureCount = index.failures.length;
+      index.entries = index.entries.filter((entry) => entry.regionKey !== regionKey);
+      index.failures = index.failures.filter((entry) => entry.regionKey !== regionKey);
+      await transaction.delete(trafficBodyKey(regionKey));
+      await transaction.put(STATE_KEY, state);
+      await transaction.put(TRAFFIC_INDEX_KEY, index);
+      await scheduleNextExpiry(transaction, state);
+      return {
+        type: "cache-cleared",
+        regionKey,
+        cleared: entryCount !== index.entries.length || failureCount !== index.failures.length,
+        status: status(state, forceMode),
+      };
+    });
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname !== ADSB_BROKER_COMMAND_PATH) {
@@ -1128,6 +1190,10 @@ export class AdsbBroker extends DurableObject<Env> {
     try {
       if (command.type === "traffic") {
         const result = await this.#traffic(command.request, command.forceMode);
+        return json({ ok: true, result }, 200);
+      }
+      if (command.type === "cache-clear-region") {
+        const result = await this.#clearTrafficRegion(command.regionKey, command.forceMode);
         return json({ ok: true, result }, 200);
       }
       const nowMs = this[CLOCK].nowMs();

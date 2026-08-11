@@ -21,11 +21,14 @@ import {
 } from "./http/validation";
 import { sha256Digest } from "./telemetry/requestContext";
 import { authorizeSession } from "./auth/sessions";
+import { authorizeAdminRequest } from "./admin/authorize";
+import { serveAdminShell } from "./admin/shell";
 import { readCsrfToken, verifyCsrfToken } from "./auth/csrf";
 import { createAuthRoutes } from "./http/routes/auth";
 import { createMeRoutes } from "./http/routes/me";
 import { createMissionRoutes } from "./http/routes/missions";
 import { createLeaderboardRoutes } from "./http/routes/leaderboards";
+import { createAdminRoutes } from "./http/routes/admin";
 
 const statusRoute = defineRoute({
   method: "GET",
@@ -41,28 +44,6 @@ const statusRoute = defineRoute({
   },
   limiter: { name: "status", retryAfterSeconds: 1 },
   handler: async () => ({ data: { status: "ok" } }),
-});
-
-const recoveryStatusRoute = defineRoute({
-  method: "GET",
-  path: "/api/admin/recovery/status",
-  family: "admin-recovery",
-  boundary: "admin",
-  admission: "recovery",
-  security: {
-    sameOrigin: "not-required",
-    csrf: "not-required",
-    idempotency: "not-required",
-    body: { kind: "none" },
-  },
-  limiter: { name: "admin-recovery", retryAfterSeconds: 1 },
-  handler: async ({ context }) => ({
-    data: {
-      status: "recovery-ready",
-      forceMode: context.mode,
-      broker: "unchecked",
-    },
-  }),
 });
 
 function exactQuery(request: Request, expected: readonly string[]): URLSearchParams {
@@ -160,7 +141,7 @@ const failClosedLimiter = createCloudflareEndpointLimiter(undefined, 1);
 
 export function resolveEndpointLimiter(name: string, env: Env) {
   if (
-    name === "status" || name === "config" || name === "admin-recovery" ||
+    name === "status" || name === "config" ||
     name === "auth-request" || name === "auth-consume" ||
     name === "auth-session" || name === "profile"
   ) return allowEndpointLimiter;
@@ -173,6 +154,11 @@ export function resolveEndpointLimiter(name: string, env: Env) {
     return env.APP_ENV === "local"
       ? allowEndpointLimiter
       : createCloudflareEndpointLimiter(env.MISSION_REQUEST_RATE_LIMITER, 5);
+  }
+  if (name === "admin") {
+    return env.APP_ENV === "local"
+      ? allowEndpointLimiter
+      : createCloudflareEndpointLimiter(env.ADMIN_RATE_LIMITER, 1);
   }
   return failClosedLimiter;
 }
@@ -193,19 +179,21 @@ const routerDependencies = {
       context.actor.kind === "anonymous" ? null : context.actor.sessionId ?? null,
       env.CSRF_SECRET,
     ),
-  authorize: (_boundary, request, context, env) =>
-    authorizeSession(
-      request,
-      env.DB,
-      Date.parse(context.serverTime),
-      context.actor,
-      async (userId) => {
-        await sendBrokerCommand(env.ADSB_BROKER, {
-          type: "lease-release-user",
-          userId,
-        });
-      },
-    ),
+  authorize: (boundary, request, context, env) =>
+    boundary === "admin"
+      ? authorizeAdminRequest(request, env)
+      : authorizeSession(
+          request,
+          env.DB,
+          Date.parse(context.serverTime),
+          context.actor,
+          async (userId) => {
+            await sendBrokerCommand(env.ADSB_BROKER, {
+              type: "lease-release-user",
+              userId,
+            });
+          },
+        ),
   resolveLimiter: resolveEndpointLimiter,
   admitRequest: async ({ kind, forceMode: deploymentMode, context, params }, env) => {
     if (deploymentMode === "KILL_SWITCH") {
@@ -263,7 +251,7 @@ const apiRouter = createRouter<Env>(
     ...createMeRoutes(),
     ...createMissionRoutes(),
     ...createLeaderboardRoutes(),
-    recoveryStatusRoute,
+    ...createAdminRoutes(),
   ],
   routerDependencies,
 );
@@ -273,6 +261,9 @@ const worker = {
     const { pathname } = new URL(request.url);
     if (pathname === "/api" || pathname.startsWith("/api/")) {
       return apiRouter.fetch(request, env);
+    }
+    if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+      return serveAdminShell(request, env);
     }
     return env.ASSETS.fetch(request);
   },

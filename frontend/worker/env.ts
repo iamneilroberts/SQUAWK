@@ -12,8 +12,11 @@ export type Env = WorkerEnv &
     TURNSTILE_SITE_KEY?: string;
     AUTH_FROM_EMAIL: string;
     PUBLIC_ORIGIN?: string;
+    ACCESS_TEAM_DOMAIN?: string;
+    ACCESS_AUD?: string;
     AUTH_REQUEST_RATE_LIMITER?: RateLimit;
     TRAFFIC_REQUEST_RATE_LIMITER?: RateLimit;
     MISSION_REQUEST_RATE_LIMITER?: RateLimit;
+    ADMIN_RATE_LIMITER?: RateLimit;
     RESULT_TRACES?: R2Bucket;
   };

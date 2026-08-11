@@ -58,6 +58,14 @@ export async function appendSystemEvent(
   db: D1Database,
   input: CreateSystemEventInput,
 ): Promise<SystemEvent> {
+  await prepareSystemEventInsert(db, input).run();
+  return requireStored("system event", await getSystemEventById(db, input.id));
+}
+
+export function prepareSystemEventInsert(
+  db: D1Database,
+  input: CreateSystemEventInput,
+): D1PreparedStatement {
   const id = requireUuid("event id", input.id);
   const level = requireOneOf("event level", input.level, EVENT_LEVELS);
   const category = requireText("event category", input.category, 1, 64);
@@ -84,7 +92,7 @@ export async function appendSystemEvent(
     throw new RangeError("trace retention is invalid");
   }
 
-  await db
+  return db
     .prepare(
       `INSERT INTO system_events
          (id, level, category, event_key, request_id, context_json,
@@ -101,9 +109,7 @@ export async function appendSystemEvent(
       tracePointer,
       traceExpiresAt,
       createdAt,
-    )
-    .run();
-  return requireStored("system event", await getSystemEventById(db, id));
+    );
 }
 
 export async function getSystemEventById(

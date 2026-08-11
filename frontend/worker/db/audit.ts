@@ -43,7 +43,7 @@ function mapAudit(row: AuditRow): AdminAudit {
   };
 }
 
-function prepareAuditInsert(
+export function prepareAuditInsert(
   db: D1Database,
   input: CreateAdminAuditInput,
 ): D1PreparedStatement {

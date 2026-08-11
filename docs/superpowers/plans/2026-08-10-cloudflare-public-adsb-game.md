@@ -756,23 +756,24 @@ leaderboards, tutorial, and offline behavior. Use only fake/safe ADS-B staging d
 
 **Steps:**
 
-- [ ] Configure Access-protected `/admin*` and `/api/admin/*` for staging/production
-      with exact-email policy `dneilroberts@gmail.com`.
-- [ ] Validate `Cf-Access-Jwt-Assertion` on every admin shell/API request: allowed
+- [x] Configure the fail-closed Worker contract for Access-protected `/admin*` and
+      `/api/admin/*` with exact email `dneilroberts@gmail.com`; Task 18 provisions the
+      live staging/production applications, policies, team domain, and audience.
+- [x] Validate `Cf-Access-Jwt-Assertion` on every admin shell/API request: allowed
       algorithm, signature against cached rotating JWKS by `kid`, issuer, audience,
       expiry/not-before, and exact admin email/application role. Reject cookie-only game
       sessions.
-- [ ] Serve the admin SPA shell through the Worker only after validation. Never cache
+- [x] Serve the admin SPA shell through the Worker only after validation. Never cache
       Access responses publicly.
-- [ ] Require same-origin, admin CSRF, idempotency key, reason, and typed confirmation for
+- [x] Require same-origin, admin CSRF, idempotency key, reason, and typed confirmation for
       bans, session/flight termination, and KILL_SWITCH.
-- [ ] Implement requested mode, registration disable, provider cache-only, one normalized
+- [x] Implement requested mode, registration disable, provider cache-only, one normalized
       region cache clear, session revoke, flight terminate, temporary/permanent ban,
       unban, and exact-email digest lookup.
-- [ ] A ban transaction revokes sessions; broker releases leases; future authorization
+- [x] A ban transaction revokes sessions; broker releases leases; future authorization
       and queued ranked results fail. Every mutation appends before/after/request/actor
       audit data and triggers an alert event.
-- [ ] Test invalid signature/kid/issuer/audience/time/email/role, CSRF, replay,
+- [x] Test invalid signature/kid/issuer/audience/time/email/role, CSRF, replay,
       insufficient confirmation, mode precedence, partial failure, and audit completeness.
 
 **Acceptance:** Neither an ordinary signed-in user nor a forged Access header can view or

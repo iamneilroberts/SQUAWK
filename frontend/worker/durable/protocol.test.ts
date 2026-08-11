@@ -28,6 +28,21 @@ describe("broker protocol", () => {
         },
       }),
     ).toMatchObject({ type: "traffic", request: { audience: { kind: "anonymous" } } });
+    expect(
+      parseBrokerCommand({
+        type: "settings-set",
+        registrationEnabled: false,
+        providerCacheOnly: true,
+        forceMode: "NORMAL",
+      }),
+    ).toMatchObject({ type: "settings-set", providerCacheOnly: true });
+    expect(
+      parseBrokerCommand({
+        type: "cache-clear-region",
+        regionKey: "r1:30.5:-88:100",
+        forceMode: "NORMAL",
+      }),
+    ).toMatchObject({ type: "cache-clear-region", regionKey: "r1:30.5:-88:100" });
 
     for (const invalid of [
       null,
@@ -35,6 +50,13 @@ describe("broker protocol", () => {
       { type: "admit", kind: "public-read", forceMode: "NORMAL", objectName: "chosen" },
       { type: "status", forceMode: "WEAK_MODE" },
       { type: "lease-release-user", userId: "raw-email@example.com" },
+      {
+        type: "settings-set",
+        registrationEnabled: "false",
+        providerCacheOnly: true,
+        forceMode: "NORMAL",
+      },
+      { type: "cache-clear-region", regionKey: "../../all", forceMode: "NORMAL" },
       {
         type: "traffic",
         forceMode: "NORMAL",

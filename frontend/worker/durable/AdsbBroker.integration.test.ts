@@ -409,6 +409,115 @@ describe("AdsbBroker", () => {
     expect(forced.status.effectiveMode).toBe("KILL_SWITCH");
   });
 
+  it("persists operational settings and blocks registration or provider refresh independently", async () => {
+    const target = stub();
+    const clock = new FakeClock(START);
+    await setClock(target, clock);
+    let calls = 0;
+    await setTrafficProvider(target, async (_region, _settings, gate, nowMs) => {
+      await gate.beforeAttempt();
+      calls += 1;
+      return {
+        contacts: [],
+        source: "fake-provider.test",
+        sourceTime: nowMs() / 1_000,
+        fetchedAt: nowMs() / 1_000,
+      };
+    });
+
+    const settings = await command(target, {
+      type: "settings-set",
+      registrationEnabled: false,
+      providerCacheOnly: true,
+      forceMode: "NORMAL",
+    });
+    expect(settings.status).toMatchObject({
+      registrationEnabled: false,
+      providerCacheOnly: true,
+      effectiveMode: "NORMAL",
+    });
+    await expect(
+      command(target, { type: "admit", kind: "registration", forceMode: "NORMAL" }),
+    ).resolves.toMatchObject({ allowed: false, reason: "registration-disabled" });
+    await expect(
+      traffic(target, 30, -88, {
+        kind: "active-ghost",
+        userId: USER_IDS[0]!,
+        missionId: MISSION_IDS[0]!,
+        selectedHex: "abc123",
+      }),
+    ).resolves.toMatchObject({
+      type: "traffic",
+      traffic: { freshness: "EXPIRED", providerAvailable: false },
+    });
+    expect(calls).toBe(0);
+
+    await evictDurableObject(target);
+    await setClock(target, clock);
+    await expect(command(target, { type: "status", forceMode: "NORMAL" })).resolves.toMatchObject({
+      status: { registrationEnabled: false, providerCacheOnly: true },
+    });
+  });
+
+  it("migrates the live version-one broker state with safe control defaults", async () => {
+    const target = stub();
+    const clock = new FakeClock(START);
+    await setClock(target, clock);
+    await command(target, { type: "status", forceMode: "NORMAL" });
+    await runInDurableObject<AdsbBroker, void>(target, async (_broker, state) => {
+      const current = await state.storage.get<Record<string, unknown>>("broker-state:v1");
+      expect(current).toBeDefined();
+      const {
+        registrationEnabled: _registrationEnabled,
+        providerCacheOnly: _providerCacheOnly,
+        ...versionOne
+      } = current!;
+      await state.storage.put("broker-state:v1", { ...versionOne, version: 1 });
+    });
+
+    await evictDurableObject(target);
+    await setClock(target, clock);
+    await expect(command(target, { type: "status", forceMode: "NORMAL" })).resolves.toMatchObject({
+      status: { registrationEnabled: true, providerCacheOnly: false },
+    });
+  });
+
+  it("clears exactly one normalized traffic region", async () => {
+    const target = stub();
+    const clock = new FakeClock(START);
+    await setClock(target, clock);
+    let calls = 0;
+    await setTrafficProvider(target, async (_region, _settings, gate, nowMs) => {
+      await gate.beforeAttempt();
+      calls += 1;
+      return {
+        contacts: [],
+        source: "fake-provider.test",
+        sourceTime: nowMs() / 1_000,
+        fetchedAt: nowMs() / 1_000,
+      };
+    });
+    const first = await traffic(target, 30, -88);
+    const second = await traffic(target, 34, -88);
+    if (first.type !== "traffic" || second.type !== "traffic") throw new TypeError("traffic expected");
+
+    await expect(command(target, {
+      type: "cache-clear-region",
+      regionKey: first.traffic.regionKey,
+      forceMode: "NORMAL",
+    })).resolves.toMatchObject({
+      type: "cache-cleared",
+      regionKey: first.traffic.regionKey,
+      cleared: true,
+    });
+    await expect(traffic(target, 34, -88)).resolves.toMatchObject({
+      type: "traffic",
+      traffic: { cacheStatus: "HIT", regionKey: second.traffic.regionKey },
+    });
+    await traffic(target, 30, -88);
+    expect(calls).toBe(3);
+  });
+
   it("coalesces one hundred simultaneous same-region reads to one provider fetch", async () => {
     const target = stub();
     const clock = new FakeClock(START);
