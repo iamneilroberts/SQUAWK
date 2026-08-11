@@ -105,6 +105,45 @@ function forceMode(env: Env): SystemMode {
   return env.FORCE_MODE;
 }
 
+async function queueAdminAlert(
+  runtime: Env,
+  broker: AdminBroker,
+  input: {
+    action: string;
+    auditId: string;
+    requestId: string;
+    atMs: number;
+    test?: boolean;
+  },
+): Promise<boolean> {
+  try {
+    await broker(runtime.ADSB_BROKER, input.test
+      ? {
+          type: "alert-test",
+          auditId: input.auditId,
+          requestId: input.requestId,
+          atMs: input.atMs,
+          forceMode: forceMode(runtime),
+        }
+      : {
+          type: "alert-admin",
+          action: input.action,
+          auditId: input.auditId,
+          requestId: input.requestId,
+          atMs: input.atMs,
+          forceMode: forceMode(runtime),
+        });
+    return true;
+  } catch (error) {
+    console.error("adsb_admin_alert_queue_failed", {
+      action: input.action,
+      auditId: input.auditId,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+    });
+    return false;
+  }
+}
+
 function operationalState(status: Awaited<ReturnType<typeof readOperationalStatus>>): VersionedDocument {
   return { schemaVersion: 1, ...status };
 }
@@ -516,6 +555,16 @@ export function createAdminRoutes(
           before: operationalState(before),
           after: operationalState(after),
         });
+        await queueAdminAlert(runtime, dependencies.broker, {
+          action: input.mode === "KILL_SWITCH"
+            ? "mode.kill-switch"
+            : input.mode === "READ_ONLY"
+              ? "mode.read-only"
+              : "mode.normal",
+          auditId: result.auditId,
+          requestId: context.requestId,
+          atMs: now,
+        });
         return { data: { ...result, status: after } };
       } catch (error) {
         await setRequestedMode(
@@ -565,6 +614,12 @@ export function createAdminRoutes(
           ...base,
           before: operationalState(before),
           after: operationalState(after),
+        });
+        await queueAdminAlert(runtime, dependencies.broker, {
+          action: base.action,
+          auditId: result.auditId,
+          requestId: context.requestId,
+          atMs: now,
         });
         return { data: { ...result, status: after } };
       } catch (error) {
@@ -624,6 +679,12 @@ export function createAdminRoutes(
         ...base,
         after,
       });
+      await queueAdminAlert(runtime, dependencies.broker, {
+        action: base.action,
+        auditId: result.auditId,
+        requestId: context.requestId,
+        atMs: now,
+      });
       return { data: { ...result, regionKey: cleared.regionKey, cleared: cleared.cleared } };
     },
   });
@@ -677,6 +738,12 @@ export function createAdminRoutes(
         scope: input.scope,
         expiresAt: input.expiresAt,
       }, dependencies.broker);
+      await queueAdminAlert(runtime, dependencies.broker, {
+        action: base.action,
+        auditId: result.auditId,
+        requestId: context.requestId,
+        atMs: base.createdAt,
+      });
       return { data: result };
     },
   });
@@ -702,7 +769,14 @@ export function createAdminRoutes(
         null,
         null,
       );
-      return { data: await unbanUser(runtime.DB, { ...base, banId: input.banId }) };
+      const result = await unbanUser(runtime.DB, { ...base, banId: input.banId });
+      await queueAdminAlert(runtime, dependencies.broker, {
+        action: base.action,
+        auditId: result.auditId,
+        requestId: context.requestId,
+        atMs: base.createdAt,
+      });
+      return { data: result };
     },
   });
 
@@ -732,7 +806,14 @@ export function createAdminRoutes(
         null,
         null,
       );
-      return { data: await revokeSession(runtime.DB, { ...base, sessionId: input.sessionId }) };
+      const result = await revokeSession(runtime.DB, { ...base, sessionId: input.sessionId });
+      await queueAdminAlert(runtime, dependencies.broker, {
+        action: base.action,
+        auditId: result.auditId,
+        requestId: context.requestId,
+        atMs: base.createdAt,
+      });
+      return { data: result };
     },
   });
 
@@ -762,14 +843,53 @@ export function createAdminRoutes(
         null,
         null,
       );
-      return {
-        data: await terminateFlight(
+      const result = await terminateFlight(
           runtime.DB,
           runtime.ADSB_BROKER,
           { ...base, missionId: input.missionId },
           dependencies.broker,
-        ),
-      };
+        );
+      await queueAdminAlert(runtime, dependencies.broker, {
+        action: base.action,
+        auditId: result.auditId,
+        requestId: context.requestId,
+        atMs: base.createdAt,
+      });
+      return { data: result };
+    },
+  });
+
+  const testAlert = defineRoute({
+    method: "POST",
+    path: "/api/admin/alerts/test",
+    family: "admin-alerts",
+    boundary: "admin",
+    admission: "recovery",
+    security: mutationSecurity(),
+    limiter: { name: "admin", retryAfterSeconds: 1 },
+    validate: ({ body }) => validateReason(body),
+    handler: async ({ context, idempotencyKey, validated, env }) => {
+      const runtime = env as Env;
+      const input = validated as ReturnType<typeof validateReason>;
+      const now = dependencies.now();
+      const base = mutationRecord(
+        { context, idempotencyKey, request: input, reason: input.reason },
+        "alert.test",
+        "alert-pipeline",
+        "singleton",
+        now,
+        null,
+        { schemaVersion: 1, test: true },
+      );
+      const result = await recordAdminMutation(runtime.DB, base);
+      const queued = await queueAdminAlert(runtime, dependencies.broker, {
+        action: base.action,
+        auditId: result.auditId,
+        requestId: context.requestId,
+        atMs: now,
+        test: true,
+      });
+      return { data: { ...result, queued } };
     },
   });
 
@@ -791,5 +911,6 @@ export function createAdminRoutes(
     unban,
     session,
     flight,
+    testAlert,
   ];
 }

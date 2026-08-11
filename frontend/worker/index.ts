@@ -29,6 +29,7 @@ import { createMeRoutes } from "./http/routes/me";
 import { createMissionRoutes } from "./http/routes/missions";
 import { createLeaderboardRoutes } from "./http/routes/leaderboards";
 import { createAdminRoutes } from "./http/routes/admin";
+import { runHealthCheck } from "./alerts/healthCheck";
 
 const statusRoute = defineRoute({
   method: "GET",
@@ -244,6 +245,14 @@ const routerDependencies = {
     }
     return { allowed: result.allowed, mode: result.status.effectiveMode };
   },
+  recordOutcome: async ({ outcome, atMs, context }, env) => {
+    await sendBrokerCommand(env.ADSB_BROKER, {
+      type: "request-record",
+      outcome,
+      atMs,
+      forceMode: context.mode,
+    });
+  },
   observe: (event) => console.error("worker_request_error", event),
   resolveMode: forceMode,
 } satisfies RouterDependencies<Env>;
@@ -272,6 +281,9 @@ const worker = {
       return serveAdminShell(request, env);
     }
     return env.ASSETS.fetch(request);
+  },
+  async scheduled(controller: ScheduledController, env: Env, context: ExecutionContext) {
+    context.waitUntil(runHealthCheck(env, controller.scheduledTime));
   },
 } satisfies ExportedHandler<Env>;
 

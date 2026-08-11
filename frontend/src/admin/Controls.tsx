@@ -61,11 +61,19 @@ export default function Controls({
         </div>
         <button disabled={busy || reason.length < 8} onClick={() => void run(() => adminMutation("/api/admin/cache/region", { latitude: Number(latitude), longitude: Number(longitude), radiusNm: Number(radius), reason }, csrfToken))}>Clear normalized region</button>
       </Panel>
-      <Panel title="Alert drill" note="Task 16 wires the bounded alert pipeline and audited test delivery.">
-        <button disabled>Send test alert — available after alert setup</button>
+      <Panel title="Alert drill" note="Sends one audited TEST message to the fixed operational recipient. Delivery failures remain queued for retry.">
+        <button
+          disabled={busy || reason.length < 8}
+          onClick={() => void run(() => adminMutation(
+            "/api/admin/alerts/test",
+            { reason },
+            csrfToken,
+          ))}
+        >
+          Send test alert
+        </button>
       </Panel>
       {error ? <ErrorState error={error} /> : null}
     </div>
   );
 }
-

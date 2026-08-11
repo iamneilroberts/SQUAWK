@@ -835,22 +835,22 @@ mutation privileges.
 
 **Steps:**
 
-- [ ] Route application alerts to `dneilroberts@gmail.com` using the onboarded aviation
+- [x] Route application alerts to `dneilroberts@gmail.com` using the onboarded aviation
       sending domain and a destination-restricted Email binding.
-- [ ] Add deduplicated transitions and recovery alerts for API/provider 70/90/100 percent,
+- [x] Add deduplicated transitions and recovery alerts for API/provider 70/90/100 percent,
       active flights 8/10 and 10/10, sustained 5xx/binding failure with minimum count+rate,
       provider outage/staleness/recovery, modes, bans, session/flight termination, and
       kill actions.
-- [ ] Store transition/cooldown state in the broker so isolate restarts do not duplicate
+- [x] Store transition/cooldown state in the broker so isolate restarts do not duplicate
       storms. Include UTC time, environment, threshold, action, remaining capacity,
       request/audit ID, and admin link; include no PII or secrets.
-- [ ] Add a five-minute Cron health check that detects silent failure and recovery. A
+- [x] Add a five-minute Cron health check that detects silent failure and recovery. A
       missed Cron is not itself proof of health.
-- [ ] Implement the admin test-alert action and distinguish TEST in subject/body/audit.
-- [ ] Document manual Cloudflare-native backup notifications to the same address:
+- [x] Implement the admin test-alert action and distinguish TEST in subject/body/audit.
+- [x] Document manual Cloudflare-native backup notifications to the same address:
       Workers errors, resource notifications, and billing alerts at $10/$25. State that
       these are delayed informational alerts, not a hard cap.
-- [ ] Test transition-only delivery, cooldown, UTC reset, send failure/retry, recovery,
+- [x] Test transition-only delivery, cooldown, UTC reset, send failure/retry, recovery,
       duplicate Cron/in-band observation, and exact recipient.
 
 **Acceptance:** Fake-clock drills produce one email per transition and one recovery, with

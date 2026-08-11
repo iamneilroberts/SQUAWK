@@ -115,6 +115,9 @@ function brokerHarness() {
     if (command.type === "cache-clear-region") {
       return { type: "cache-cleared", regionKey: command.regionKey, cleared: true, status };
     }
+    if (command.type === "alert-admin" || command.type === "alert-test") {
+      return { type: "recorded", status };
+    }
     throw new Error("unexpected test broker command");
   });
   return { broker: broker as typeof broker & ((namespace: Env["ADSB_BROKER"], command: BrokerCommand) => Promise<BrokerCommandResult>) };
@@ -332,6 +335,28 @@ describe("admin control routes", () => {
       },
     });
     expect(broker.mock.calls.filter(([, command]) => command.type === "settings-set")).toHaveLength(1);
+  });
+
+  it("audits and queues a recipient-bounded TEST alert", async () => {
+    const { broker } = brokerHarness();
+    const router = createRouter(createAdminRoutes({ broker, now: () => NOW }), dependencies());
+    const response = await router.fetch(adminRequest("/api/admin/alerts/test", {
+      reason: "Owner requested alert delivery drill",
+    }, "admin-test-alert-0001"), runtime());
+
+    expect(response.status).toBe(200);
+    const body = await response.json() as { data: { auditId: string; queued: boolean } };
+    expect(body.data.queued).toBe(true);
+    expect(broker).toHaveBeenCalledWith(expect.anything(), {
+      type: "alert-test",
+      auditId: body.data.auditId,
+      requestId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      atMs: NOW,
+      forceMode: "NORMAL",
+    });
+    await expect(
+      testEnvironment().TEST_DB.prepare("SELECT COUNT(*) AS count FROM admin_audit").first<number>("count"),
+    ).resolves.toBe(1);
   });
 
   it("atomically bans a user, revokes every session, releases leases, and records an alert", async () => {

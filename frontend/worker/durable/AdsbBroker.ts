@@ -41,6 +41,21 @@ import {
   type TrafficRequest,
 } from "../adsb/traffic";
 import { systemClock, type Clock } from "./clock";
+import { sendAlertEmail } from "../alerts/email";
+import {
+  dueAlerts,
+  emptyAlertState,
+  isAlertState,
+  markAlertDelivered,
+  markAlertFailed,
+  observeAlert,
+} from "../alerts/transitions";
+import {
+  ALERT_STATE_KEY,
+  type AlertCoordinatorState,
+  type AlertNotification,
+  type AlertObservation,
+} from "../alerts/types";
 import {
   ADSB_BROKER_COMMAND_PATH,
   parseBrokerCommand,
@@ -69,6 +84,7 @@ const PROVIDER_SETTINGS = Symbol("AdsbBroker.providerSettings");
 const SLEEP = Symbol("AdsbBroker.sleep");
 const PROVIDER_QUEUE_SNAPSHOT = Symbol("AdsbBroker.providerQueueSnapshot");
 const SIGNED_VIEWER_COUNT = Symbol("AdsbBroker.signedViewerCount");
+const ALERT_SENDER = Symbol("AdsbBroker.alertSender");
 const MAX_COMMAND_BYTES = 8_192;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -130,6 +146,7 @@ export type BrokerTrafficProvider = (
   nowMs: () => number,
 ) => Promise<ProviderTraffic>;
 type Sleeper = (milliseconds: number) => Promise<void>;
+export type BrokerAlertSender = (env: Env, alert: AlertNotification) => Promise<void>;
 
 type ViewerPresence = {
   userId: string;
@@ -163,6 +180,17 @@ const defaultTrafficProvider: BrokerTrafficProvider = (region, settings, gate, n
 
 const systemSleep: Sleeper = (milliseconds) =>
   new Promise((resolve) => globalThis.setTimeout(resolve, milliseconds));
+const defaultAlertSender: BrokerAlertSender = sendAlertEmail;
+
+async function loadAlertState(
+  storage: Pick<DurableObjectTransaction, "get">,
+  nowMs: number,
+): Promise<AlertCoordinatorState> {
+  const stored = await storage.get<unknown>(ALERT_STATE_KEY);
+  if (stored === undefined) return emptyAlertState(nowMs);
+  if (!isAlertState(stored)) throw new Error("Broker alert storage is invalid");
+  return stored;
+}
 
 function emptyTrafficIndex(): TrafficIndex {
   return { version: 1, entries: [], failures: [] };
@@ -689,6 +717,11 @@ function executeCommand(
     case "health-record":
       if (command.outcome === "failure") state.health.componentFailures += 1;
       return { type: "recorded", status: status(state, "NORMAL") };
+    case "request-record":
+    case "alert-admin":
+    case "alert-test":
+    case "health-check":
+      return { type: "recorded", status: status(state, command.forceMode) };
     case "recover":
       state.health = zeroHealth();
       return { type: "status", status: status(state, command.forceMode) };
@@ -864,6 +897,7 @@ export class AdsbBroker extends DurableObject<Env> {
   [TRAFFIC_PROVIDER]: BrokerTrafficProvider = defaultTrafficProvider;
   [PROVIDER_SETTINGS]: ProviderSettings | null = null;
   [SLEEP]: Sleeper = systemSleep;
+  [ALERT_SENDER]: BrokerAlertSender = defaultAlertSender;
 
   readonly #trafficInFlight = new Map<string, Promise<TrafficCacheSnapshot>>();
   readonly #providerQueue: ProviderJob[] = [];
@@ -884,6 +918,168 @@ export class AdsbBroker extends DurableObject<Env> {
 
   #settings(): ProviderSettings {
     return this[PROVIDER_SETTINGS] ?? readProviderSettings(this.env);
+  }
+
+  async #observeAlert(observation: AlertObservation): Promise<void> {
+    await this.ctx.storage.transaction(async (transaction) => {
+      const alerts = await loadAlertState(transaction, observation.type === "broker-transition"
+        ? observation.transition.atMs
+        : observation.atMs);
+      observeAlert(alerts, observation);
+      await transaction.put(ALERT_STATE_KEY, alerts);
+    });
+  }
+
+  async #observeResultTransition(result: BrokerCommandResult): Promise<void> {
+    const transition = result.status.lastAlertTransition;
+    if (transition === null) return;
+    const remainingCapacity = transition.kind === "budget"
+      ? Math.max(0, DAILY_ADMITTED_REQUEST_LIMIT - result.status.admittedRequests)
+      : Math.max(0, ACTIVE_FLIGHT_GLOBAL_LIMIT - result.status.activeFlights);
+    await this.#observeAlert({ type: "broker-transition", transition, remainingCapacity });
+  }
+
+  async #providerIsStale(nowMs: number): Promise<boolean> {
+    return this.ctx.storage.transaction(async (transaction) => {
+      const state = await loadState(transaction, nowMs);
+      const index = await loadTrafficIndex(transaction);
+      if (state.providerRequests === 0 && index.entries.length === 0 && index.failures.length === 0) {
+        return false;
+      }
+      return !index.entries.some(
+        (entry) => entry.providerAvailable && freshness(entry, nowMs) === "FRESH",
+      );
+    });
+  }
+
+  async #observeCommand(command: BrokerCommand, nowMs: number): Promise<void> {
+    switch (command.type) {
+      case "request-record":
+        await this.#observeAlert({
+          type: "request-outcome",
+          outcome: command.outcome,
+          atMs: command.atMs,
+        });
+        break;
+      case "health-record":
+        await this.#observeAlert({
+          type: "component-outcome",
+          component: command.component,
+          outcome: command.outcome,
+          atMs: nowMs,
+        });
+        break;
+      case "provider-record":
+        await this.#observeAlert({
+          type: "component-outcome",
+          component: "provider",
+          outcome: command.outcome,
+          atMs: nowMs,
+        });
+        break;
+      case "alert-admin":
+        await this.#observeAlert({
+          type: "admin-action",
+          action: command.action,
+          auditId: command.auditId,
+          requestId: command.requestId,
+          atMs: command.atMs,
+        });
+        break;
+      case "alert-test":
+        await this.#observeAlert({
+          type: "test",
+          auditId: command.auditId,
+          requestId: command.requestId,
+          atMs: command.atMs,
+        });
+        break;
+      case "health-check":
+        await this.#observeAlert({ type: "cron", atMs: command.scheduledAtMs });
+        {
+          const brokerStatus = await readBrokerStatus(
+            this.ctx.storage,
+            command.scheduledAtMs,
+            command.forceMode,
+          );
+          const configuredLimit = Number(this.env.UPSTREAM_DAILY_LIMIT ?? 500);
+          const providerLimit = Number.isSafeInteger(configuredLimit) && configuredLimit > 0
+            ? configuredLimit
+            : 500;
+          await this.#observeAlert({
+            type: "provider-capacity",
+            used: brokerStatus.providerRequests,
+            limit: providerLimit,
+            atMs: command.scheduledAtMs,
+          });
+        }
+        await this.#observeAlert({
+          type: "provider-staleness",
+          stale: await this.#providerIsStale(command.scheduledAtMs),
+          atMs: command.scheduledAtMs,
+        });
+        break;
+      default:
+        break;
+    }
+  }
+
+  async #deliverAlerts(nowMs: number): Promise<void> {
+    for (let delivered = 0; delivered < 8; delivered += 1) {
+      const alert = await this.ctx.storage.transaction(async (transaction) => {
+        const alerts = await loadAlertState(transaction, nowMs);
+        const item = dueAlerts(alerts, nowMs)[0];
+        if (item === undefined) return null;
+        // Claim before the external send so concurrent events cannot duplicate delivery.
+        item.nextAttemptAtMs = nowMs + 60_000;
+        await transaction.put(ALERT_STATE_KEY, alerts);
+        return item.alert;
+      });
+      if (alert === null) return;
+      let sent = false;
+      try {
+        await this[ALERT_SENDER](this.env, alert);
+        sent = true;
+      } catch (error) {
+        console.error("adsb_alert_delivery_failed", {
+          fingerprint: alert.fingerprint,
+          errorName: error instanceof Error ? error.name : "UnknownError",
+        });
+      }
+      await this.ctx.storage.transaction(async (transaction) => {
+        const alerts = await loadAlertState(transaction, nowMs);
+        if (sent) {
+          markAlertDelivered(alerts, alert.fingerprint);
+          observeAlert(alerts, {
+            type: "component-outcome",
+            component: "email",
+            outcome: "success",
+            atMs: nowMs,
+          });
+        } else {
+          markAlertFailed(alerts, alert.fingerprint, nowMs);
+          observeAlert(alerts, {
+            type: "component-outcome",
+            component: "email",
+            outcome: "failure",
+            atMs: nowMs,
+          });
+        }
+        await transaction.put(ALERT_STATE_KEY, alerts);
+      });
+      if (!sent) return;
+    }
+  }
+
+  async #finishCommand(
+    command: BrokerCommand,
+    result: BrokerCommandResult,
+    nowMs: number,
+  ): Promise<BrokerCommandResult> {
+    await this.#observeResultTransition(result);
+    await this.#observeCommand(command, nowMs);
+    await this.#deliverAlerts(nowMs);
+    return result;
   }
 
   #signedViewerCount(regionKey: string, request: TrafficRequest, nowMs: number): number {
@@ -1044,7 +1240,7 @@ export class AdsbBroker extends DurableObject<Env> {
       ) throw new ProviderAllowanceError();
 
       const nowMs = this[CLOCK].nowMs();
-      const waitMs = await this.ctx.storage.transaction(async (transaction) => {
+      const claim = await this.ctx.storage.transaction(async (transaction) => {
         const state = await loadState(transaction, nowMs);
         rollover(state, nowMs);
         cleanExpiredLeases(state, nowMs);
@@ -1059,10 +1255,19 @@ export class AdsbBroker extends DurableObject<Env> {
         }
         await transaction.put(STATE_KEY, state);
         await scheduleNextExpiry(transaction, state);
-        return wait;
+        return { wait, used: state.providerRequests };
       });
-      if (waitMs === 0) return;
-      await this[SLEEP](waitMs);
+      if (claim.wait === 0) {
+        await this.#observeAlert({
+          type: "provider-capacity",
+          used: claim.used,
+          limit: settings.dailyLimit,
+          atMs: nowMs,
+        });
+        await this.#deliverAlerts(nowMs);
+        return;
+      }
+      await this[SLEEP](claim.wait);
     }
   }
 
@@ -1094,22 +1299,39 @@ export class AdsbBroker extends DurableObject<Env> {
           },
           () => this[CLOCK].nowMs(),
         );
-        return persistTrafficSuccess(
+        const snapshot = await persistTrafficSuccess(
           this.ctx.storage,
           region.regionKey,
           result,
           this[CLOCK].nowMs(),
         );
+        await this.#observeAlert({
+          type: "component-outcome",
+          component: "provider",
+          outcome: "success",
+          atMs: this[CLOCK].nowMs(),
+        });
+        await this.#deliverAlerts(this[CLOCK].nowMs());
+        return snapshot;
       });
     } catch (error) {
       if (error instanceof ProviderUnavailableError) {
         console.error("adsb_provider_refresh_failed", { failures: error.failures });
       }
-      return persistTrafficFailure(
+      const failedAtMs = this[CLOCK].nowMs();
+      const snapshot = await persistTrafficFailure(
         this.ctx.storage,
         region.regionKey,
-        this[CLOCK].nowMs(),
+        failedAtMs,
       );
+      await this.#observeAlert({
+        type: "component-outcome",
+        component: "provider",
+        outcome: "failure",
+        atMs: failedAtMs,
+      });
+      await this.#deliverAlerts(failedAtMs);
+      return snapshot;
     }
   }
 
@@ -1277,15 +1499,15 @@ export class AdsbBroker extends DurableObject<Env> {
     try {
       if (command.type === "traffic") {
         const result = await this.#traffic(command.request, command.forceMode);
-        return json({ ok: true, result }, 200);
+        return json({ ok: true, result: await this.#finishCommand(command, result, this[CLOCK].nowMs()) }, 200);
       }
       if (command.type === "cache-clear-region") {
         const result = await this.#clearTrafficRegion(command.regionKey, command.forceMode);
-        return json({ ok: true, result }, 200);
+        return json({ ok: true, result: await this.#finishCommand(command, result, this[CLOCK].nowMs()) }, 200);
       }
       if (command.type === "admin-snapshot") {
         const result = await this.#adminSnapshot(command.forceMode);
-        return json({ ok: true, result }, 200);
+        return json({ ok: true, result: await this.#finishCommand(command, result, this[CLOCK].nowMs()) }, 200);
       }
       const nowMs = this[CLOCK].nowMs();
       const result = await this.ctx.storage.transaction(async (transaction) => {
@@ -1297,7 +1519,7 @@ export class AdsbBroker extends DurableObject<Env> {
         await scheduleNextExpiry(transaction, state);
         return commandResult;
       });
-      return json({ ok: true, result }, 200);
+      return json({ ok: true, result: await this.#finishCommand(command, result, nowMs) }, 200);
     } catch (error) {
       console.error("adsb_broker_command_failed", {
         errorName: error instanceof Error ? error.name : "UnknownError",
@@ -1322,6 +1544,9 @@ export class AdsbBroker extends DurableObject<Env> {
       await transaction.put(TRAFFIC_INDEX_KEY, index);
       await scheduleNextExpiry(transaction, state);
     });
+    const brokerStatus = await readBrokerStatus(this.ctx.storage, nowMs, "NORMAL");
+    await this.#observeResultTransition({ type: "status", status: brokerStatus });
+    await this.#deliverAlerts(nowMs);
   }
 }
 
@@ -1340,6 +1565,13 @@ export function setBrokerTrafficProviderForTest(
 
 export function setBrokerSleeperForTest(broker: AdsbBroker, sleeper: Sleeper): void {
   broker[SLEEP] = sleeper;
+}
+
+export function setBrokerAlertSenderForTest(
+  broker: AdsbBroker,
+  sender: BrokerAlertSender,
+): void {
+  broker[ALERT_SENDER] = sender;
 }
 
 export function brokerProviderQueueForTest(broker: AdsbBroker): ProviderPriority[] {

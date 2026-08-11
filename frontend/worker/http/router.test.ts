@@ -577,6 +577,38 @@ describe("explicit dynamic router", () => {
     await expect(response.json()).resolves.toMatchObject({ ok: true, code: "OK" });
   });
 
+  it("records admitted success and failure outcomes without letting the alert path alter truth", async () => {
+    const { env } = fakeEnv();
+    const recordOutcome = vi.fn(async () => {
+      throw new Error("broker observation unavailable");
+    });
+    const success = await createRouter(
+      [statusRoute],
+      testDependencies({ recordOutcome }),
+    ).fetch(new Request("https://fly.voygent.app/api/status"), env);
+    expect(success.status).toBe(200);
+    expect(recordOutcome).toHaveBeenCalledWith(expect.objectContaining({
+      outcome: "success",
+      status: 200,
+      atMs: Date.parse(FIXED_TIME),
+    }), env);
+
+    const failedRoute = defineRoute({
+      ...statusRoute,
+      handler: async () => { throw new Error("route failed"); },
+    });
+    recordOutcome.mockClear();
+    const failure = await createRouter(
+      [failedRoute],
+      testDependencies({ recordOutcome }),
+    ).fetch(new Request("https://fly.voygent.app/api/status"), env);
+    expect(failure.status).toBe(500);
+    expect(recordOutcome).toHaveBeenCalledWith(expect.objectContaining({
+      outcome: "failure",
+      status: 500,
+    }), env);
+  });
+
   it("turns unexpected exceptions into generic INTERNAL_ERROR and observes only redacted detail", async () => {
     const observe = vi.fn();
     const { env } = fakeEnv();

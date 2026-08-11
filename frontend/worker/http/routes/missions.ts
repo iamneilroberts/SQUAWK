@@ -468,6 +468,13 @@ export function createMissionRoutes(
           ) throw new TypeError("Flight lease release was refused");
         },
         traces: runtime.RESULT_TRACES,
+        recordTraceHealth: async (outcome) => {
+          await dependencies.broker(runtime.ADSB_BROKER, {
+            type: "health-record",
+            component: "r2",
+            outcome,
+          });
+        },
       });
       return { code: "RESULT_ACCEPTED" as const, data: { result } };
     },

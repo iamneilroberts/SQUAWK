@@ -135,6 +135,13 @@ export type BrokerAdmissionDecision = {
   mode: SystemMode;
 };
 
+export type RequestOutcomeObservation = {
+  outcome: "success" | "failure";
+  status: number;
+  atMs: number;
+  context: RequestContext;
+};
+
 export type RouterDependencies<Env extends RuntimeEnvironment> =
   RequestContextDependencies & {
     verifyCsrf: (
@@ -153,6 +160,10 @@ export type RouterDependencies<Env extends RuntimeEnvironment> =
       input: BrokerAdmissionRequest,
       env: Env,
     ) => BrokerAdmissionDecision | Promise<BrokerAdmissionDecision>;
+    recordOutcome?: (
+      input: RequestOutcomeObservation,
+      env: Env,
+    ) => void | Promise<void>;
     observe: (event: unknown) => void;
     resolveMode?: (env: Env) => SystemMode;
     onStage?: (stage: PipelineStage) => void;
@@ -639,6 +650,16 @@ export function createRouter<Env extends RuntimeEnvironment>(
       if (admitted) {
         recordTelemetry(env, context, response, dependencies.monotonicNow, telemetry);
         dependencies.onStage?.("telemetry");
+        try {
+          await dependencies.recordOutcome?.({
+            outcome: response.status >= 500 ? "failure" : "success",
+            status: response.status,
+            atMs: Date.parse(context.serverTime),
+            context,
+          }, env);
+        } catch {
+          // Alert observation is failure-tolerant and cannot replace request truth.
+        }
       }
       return response;
     },

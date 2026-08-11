@@ -32,6 +32,7 @@ describe("admin console", () => {
     expect(html).toContain("cannot relax an automatic READ_ONLY");
     expect(html).toContain("KILL_SWITCH");
     expect(html).toContain("Clear one cache region");
-    expect(html).toContain("available after alert setup");
+    expect(html).toContain("Send test alert");
+    expect(html).toContain("fixed operational recipient");
   });
 });

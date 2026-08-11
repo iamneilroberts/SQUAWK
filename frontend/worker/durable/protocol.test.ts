@@ -46,6 +46,16 @@ describe("broker protocol", () => {
     expect(
       parseBrokerCommand({ type: "admin-snapshot", forceMode: "NORMAL" }),
     ).toEqual({ type: "admin-snapshot", forceMode: "NORMAL" });
+    expect(
+      parseBrokerCommand({
+        type: "alert-admin",
+        action: "mode.kill-switch",
+        auditId: USER_ID,
+        requestId: MISSION_ID,
+        atMs: 1_700_000_000_000,
+        forceMode: "NORMAL",
+      }),
+    ).toMatchObject({ type: "alert-admin", action: "mode.kill-switch" });
 
     for (const invalid of [
       null,
@@ -60,6 +70,22 @@ describe("broker protocol", () => {
         forceMode: "NORMAL",
       },
       { type: "cache-clear-region", regionKey: "../../all", forceMode: "NORMAL" },
+      {
+        type: "alert-admin",
+        action: "pilot@example.com",
+        auditId: USER_ID,
+        requestId: MISSION_ID,
+        atMs: 1_700_000_000_000,
+        forceMode: "NORMAL",
+      },
+      {
+        type: "alert-test",
+        auditId: USER_ID,
+        requestId: MISSION_ID,
+        atMs: 1_700_000_000_000,
+        forceMode: "NORMAL",
+        reason: "must never cross the broker alert boundary",
+      },
       {
         type: "traffic",
         forceMode: "NORMAL",

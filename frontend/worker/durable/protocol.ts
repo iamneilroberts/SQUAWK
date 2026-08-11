@@ -133,6 +133,28 @@ export type BrokerCommand =
       component: "d1" | "r2" | "email" | "provider";
       outcome: "success" | "failure";
     }
+  | {
+      type: "request-record";
+      outcome: "success" | "failure";
+      atMs: number;
+      forceMode: SystemMode;
+    }
+  | {
+      type: "alert-admin";
+      action: string;
+      auditId: string;
+      requestId: string;
+      atMs: number;
+      forceMode: SystemMode;
+    }
+  | {
+      type: "alert-test";
+      auditId: string;
+      requestId: string;
+      atMs: number;
+      forceMode: SystemMode;
+    }
+  | { type: "health-check"; scheduledAtMs: number; forceMode: SystemMode }
   | { type: "recover"; action: "reset-health-counters"; forceMode: SystemMode };
 
 export type AdmissionResult = {
@@ -191,6 +213,10 @@ const COMMAND_TYPES = new Set([
   "traffic",
   "provider-record",
   "health-record",
+  "request-record",
+  "alert-admin",
+  "alert-test",
+  "health-check",
   "recover",
 ]);
 const BUDGET_BANDS = new Set<BudgetBand>([
@@ -546,6 +572,41 @@ export function parseBrokerCommand(value: unknown): BrokerCommand {
         !exactKeys(value, ["type", "component", "outcome"]) ||
         !["d1", "r2", "email", "provider"].includes(String(value.component)) ||
         (value.outcome !== "success" && value.outcome !== "failure")
+      ) return invalid();
+      return value as BrokerCommand;
+    case "request-record":
+      if (
+        !exactKeys(value, ["type", "outcome", "atMs", "forceMode"]) ||
+        (value.outcome !== "success" && value.outcome !== "failure") ||
+        !isCount(value.atMs) ||
+        !isSystemMode(value.forceMode)
+      ) return invalid();
+      return value as BrokerCommand;
+    case "alert-admin":
+      if (
+        !exactKeys(value, ["type", "action", "auditId", "requestId", "atMs", "forceMode"]) ||
+        typeof value.action !== "string" ||
+        !/^[a-z][a-z0-9._-]{0,63}$/.test(value.action) ||
+        !isIdentifier(value.auditId) ||
+        !isIdentifier(value.requestId) ||
+        !isCount(value.atMs) ||
+        !isSystemMode(value.forceMode)
+      ) return invalid();
+      return value as BrokerCommand;
+    case "alert-test":
+      if (
+        !exactKeys(value, ["type", "auditId", "requestId", "atMs", "forceMode"]) ||
+        !isIdentifier(value.auditId) ||
+        !isIdentifier(value.requestId) ||
+        !isCount(value.atMs) ||
+        !isSystemMode(value.forceMode)
+      ) return invalid();
+      return value as BrokerCommand;
+    case "health-check":
+      if (
+        !exactKeys(value, ["type", "scheduledAtMs", "forceMode"]) ||
+        !isCount(value.scheduledAtMs) ||
+        !isSystemMode(value.forceMode)
       ) return invalid();
       return value as BrokerCommand;
     case "recover":

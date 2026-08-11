@@ -1900,3 +1900,34 @@ spreadsheet formula prefixes, and retain the explicit warning that `system_event
 Workers log stream. The Analytics read secret is not yet installed in staging or production, so those
 views truthfully report `not-configured` until Task 18 provisions the read-only secret. Task 15 adds no
 Cloudflare mutation privilege to the Worker.
+
+## 2026-08-10 — CF-016 · Alert coordination is durable application state with native email and Cron delivery
+
+Task 16's prior-art gate selected **USE-API**: Cloudflare's structured Email Service
+binding and native Cron Triggers cover delivery and scheduling, while the alert policy is
+bespoke application state that belongs beside admission truth in the singleton broker.
+No MIME package, alert framework, queue product, or additional storage service is added.
+The `ALERT_EMAIL` binding is restricted to `alerts@fly.voygent.app` and
+`dneilroberts@gmail.com`; the message builder accepts only bounded operational fields and
+never receives admin reasons, actor identities, request bodies, secrets, or ADS-B data.
+
+The broker stores signal state, capacity bands, transition sequence, cooldowns, delivered
+fingerprints, recent audit IDs, and a bounded retry outbox separately from its existing
+admission state. External email delivery is claimed before the send and acknowledged only
+after success; a failure remains pending with bounded backoff. This makes duplicate
+in-band/Cron observations and isolate eviction safe without pretending email delivery is
+transactional. Threshold and recovery policy covers request and provider capacity,
+flight capacity, sustained API 5xx rate, component/provider failures, provider cache
+staleness, UTC resets, and audited administrative actions. Request health is recorded
+after the stable API response and is failure-tolerant, so the alert path cannot rewrite
+request truth.
+
+The five-minute UTC Cron evaluates windows and provider staleness, retries the outbox, and
+replays recent D1 `admin-alert` events through the same audit-ID deduplicator. It does not
+infer health from a missing invocation. R2 trace writes and scheduled D1 reads report
+component outcomes; Email send outcomes feed the same transition engine. The audited
+admin test route always emits a distinct TEST subject/body and reports whether it reached
+the broker queue. Cloudflare account notifications remain a manual defense-in-depth
+layer documented in `docs/summaries/alert-operations-runbook.md`; they are plan-dependent,
+delayed informational warnings rather than hard caps, and do not justify giving the
+application account-level mutation credentials.

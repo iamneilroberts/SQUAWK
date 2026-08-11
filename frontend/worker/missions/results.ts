@@ -29,6 +29,7 @@ export type FinalizeMissionResultOptions = {
   request: MissionResultRequest;
   releaseLease(userId: string, missionId: string): Promise<void>;
   traces?: R2Bucket;
+  recordTraceHealth?: (outcome: "success" | "failure") => Promise<void>;
 };
 
 type StoredSummary = {
@@ -209,6 +210,13 @@ async function writeOptionalTrace(
     await options.traces.put(pointer, JSON.stringify(options.request.evidence), {
       httpMetadata: { contentType: "application/json" },
     });
+    await options.recordTraceHealth?.("success").catch(() => undefined);
+  } catch {
+    await options.recordTraceHealth?.("failure").catch(() => undefined);
+    // The trace is optional. The bounded D1 result summary remains the durable truth.
+    return;
+  }
+  try {
     await attachMissionTrace(
       options.db,
       options.missionId,
@@ -216,7 +224,7 @@ async function writeOptionalTrace(
       options.now + MISSION_TRACE_TTL_MS,
     );
   } catch {
-    // The trace is optional. The bounded D1 result summary remains the durable truth.
+    // The trace pointer is optional. Scheduled D1 health checks own D1 alert state.
   }
 }
 

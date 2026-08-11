@@ -12,11 +12,13 @@ import {
   brokerProviderQueueForTest,
   brokerSignedViewerCountForTest,
   seedAdmittedRequestsForTest,
+  setBrokerAlertSenderForTest,
   setBrokerClockForTest,
   setBrokerSleeperForTest,
   setBrokerTrafficProviderForTest,
   type BrokerTrafficProvider,
 } from "./AdsbBroker";
+import type { AlertNotification } from "../alerts/types";
 import type { ProviderSettings } from "../adsb/provider";
 import type { TrafficAudience } from "../adsb/traffic";
 import { FakeClock } from "./clock";
@@ -82,6 +84,15 @@ async function setTrafficProvider(
   await runInDurableObject<AdsbBroker, void>(target, (broker) => {
     setBrokerTrafficProviderForTest(broker, provider, settings);
     if (sleeper !== undefined) setBrokerSleeperForTest(broker, sleeper);
+  });
+}
+
+async function setAlertSender(
+  target: DurableObjectStub<AdsbBroker>,
+  sender: (alert: AlertNotification) => Promise<void>,
+) {
+  await runInDurableObject<AdsbBroker, void>(target, (broker) => {
+    setBrokerAlertSenderForTest(broker, (_environment, alert) => sender(alert));
   });
 }
 
@@ -387,6 +398,87 @@ describe("AdsbBroker", () => {
       providerFailures: 0,
       componentFailures: 0,
     });
+  });
+
+  it("persists failed alert delivery, retries after eviction, and deduplicates the command", async () => {
+    const target = stub();
+    const clock = new FakeClock(START);
+    const received: AlertNotification[] = [];
+    let fail = true;
+    await setClock(target, clock);
+    await setAlertSender(target, async (alert) => {
+      if (fail) throw new Error("email unavailable");
+      received.push(alert);
+    });
+    const auditId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const requestId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const testCommand = {
+      type: "alert-test" as const,
+      auditId,
+      requestId,
+      atMs: START,
+      forceMode: "NORMAL" as const,
+    };
+
+    await command(target, testCommand);
+    await command(target, testCommand);
+    expect(received).toEqual([]);
+
+    await evictDurableObject(target);
+    clock.advance(60_000);
+    fail = false;
+    await setClock(target, clock);
+    await setAlertSender(target, async (alert) => {
+      received.push(alert);
+    });
+    await command(target, {
+      type: "health-check",
+      scheduledAtMs: clock.nowMs(),
+      forceMode: "NORMAL",
+    });
+    await command(target, testCommand);
+
+    expect(received).toHaveLength(1);
+    expect(received[0]).toMatchObject({
+      kind: "test",
+      phase: "test",
+      auditId,
+      requestId,
+    });
+  });
+
+  it("alerts once for sustained provider failure and once for recovery", async () => {
+    const target = stub();
+    const clock = new FakeClock(START);
+    const received: AlertNotification[] = [];
+    await setClock(target, clock);
+    await setAlertSender(target, async (alert) => {
+      received.push(alert);
+    });
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await command(target, {
+        type: "health-record",
+        component: "provider",
+        outcome: "failure",
+      });
+    }
+    expect(received).toHaveLength(1);
+    expect(received[0]).toMatchObject({ kind: "provider-health", phase: "active" });
+
+    clock.advance(1);
+    await command(target, {
+      type: "health-record",
+      component: "provider",
+      outcome: "success",
+    });
+    await command(target, {
+      type: "health-record",
+      component: "provider",
+      outcome: "success",
+    });
+    expect(received).toHaveLength(2);
+    expect(received[1]).toMatchObject({ kind: "provider-health", phase: "recovery" });
   });
 
   it("keeps automatic and deployment modes stricter than administrator requests", async () => {
