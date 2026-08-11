@@ -1,4 +1,4 @@
-export const QUICK_START_VERSION = 1;
+export const QUICK_START_VERSION = 2;
 export const QUICK_START_STORAGE_KEY = "adsb.quick-start.version";
 
 export type StorageReader = Pick<Storage, "getItem">;

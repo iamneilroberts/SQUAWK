@@ -14,16 +14,25 @@ function collectText(node: unknown, out: string[] = []): string[] {
 }
 
 describe("QuickStartNotice", () => {
-  it("states the complete five-step mission loop in plain language", () => {
-    const text = collectText(QuickStartNotice({ onDismiss: vi.fn(), onSelectPlane: vi.fn() })).join(" ");
-    expect(text).toContain("How to fly");
+  it("funnels a first-time visitor through account-free training before live flight", () => {
+    const text = collectText(QuickStartNotice({
+      onDismiss: vi.fn(),
+      onStartTraining: vi.fn(),
+      onSelectPlane: vi.fn(),
+    })).join(" ");
+    expect(text).toContain("Train before you sign in");
     for (const step of QUICK_START_STEPS) expect(text).toContain(step);
-    expect(QUICK_START_STEPS).toHaveLength(5);
+    expect(text).toContain("Start landing training");
+    expect(text).toContain("No account");
   });
 
-  it("offers select-plane and dismiss controls without requiring authentication", () => {
-    const text = collectText(QuickStartNotice({ onDismiss: vi.fn(), onSelectPlane: vi.fn() })).join(" ");
-    expect(text).toContain("Select a plane");
+  it("keeps browse and dismiss available without making either the primary action", () => {
+    const text = collectText(QuickStartNotice({
+      onDismiss: vi.fn(),
+      onStartTraining: vi.fn(),
+      onSelectPlane: vi.fn(),
+    })).join(" ");
+    expect(text).toContain("Browse live planes");
     expect(text).toContain("×");
   });
 });

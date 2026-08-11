@@ -95,6 +95,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
   const [pendingBriefing, setPendingBriefing] = useState<ProvisionalBriefingReference | null>(null);
   const [quickStartOpen, setQuickStartOpen] = useState(() =>
     shouldShowQuickStart(typeof window === "undefined" ? null : window.localStorage));
+  const [trainingHandoffPending, setTrainingHandoffPending] = useState(false);
   const [contactFocusRequest, setContactFocusRequest] = useState(0);
   const [missionCommit, setMissionCommit] = useState<MissionCommitState>({ status: "idle" });
   const [tutorialProgress, setTutorialProgress] = useState(() => {
@@ -103,6 +104,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
   });
   const missionOperation = useRef(0);
   const tutorialStartUpdate = useRef<Promise<SessionProfile> | null>(null);
+  const previousMode = useRef(mode);
 
   const applyProfile = useCallback((nextProfile: SessionProfile) => {
     setProfile(nextProfile);
@@ -358,7 +360,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
       buildTutorialMission(classId),
       tutorialRun(definition),
     );
-    if (!started) return;
+    if (!started) return false;
     try { setTutorialProgress(markTutorialStarted(localStorage)); } catch {
       setTutorialProgress((current) => ({ ...current, started: true }));
     }
@@ -372,7 +374,17 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
           if (tutorialStartUpdate.current === request) tutorialStartUpdate.current = null;
         });
     }
+    return true;
   }, [applyProfile, profile]);
+
+  useEffect(() => {
+    const returnedFromTraining = trainingHandoffPending &&
+      previousMode.current !== "BROWSE" && mode === "BROWSE";
+    previousMode.current = mode;
+    if (!returnedFromTraining) return;
+    setTrainingHandoffPending(false);
+    focusContacts();
+  }, [focusContacts, mode, trainingHandoffPending]);
 
   const completeTutorial = useCallback((classId: AircraftClassId) => {
     try { setTutorialProgress(markTutorialCompleted(localStorage, classId)); } catch {
@@ -446,6 +458,10 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
           {mode === "BROWSE" && quickStartOpen && selectedHex === null && (
             <QuickStartNotice
               onDismiss={dismissGuide}
+              onStartTraining={() => {
+                dismissGuide();
+                if (startTutorial("c172s")) setTrainingHandoffPending(true);
+              }}
               onSelectPlane={() => {
                 dismissGuide();
                 focusContacts();

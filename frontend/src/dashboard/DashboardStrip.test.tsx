@@ -10,11 +10,11 @@ import { DEFAULT_NAV_RANGE_NM } from "./navMath";
 // for the unified-glass redesign — the old five-panel PANEL_IDS/collapse/scopeRange API is gone.
 
 describe("strip state", () => {
-  it("opens with the weather and controls aux folds closed (instruments-first)", () => {
+  it("opens on desktop with the controls quick reference visible", () => {
     const s = defaultStripState();
     expect(s.open).toBe(true);
     expect(s.showWeather).toBe(false);
-    expect(s.showHelp).toBe(false);
+    expect(s.showHelp).toBe(true);
     expect(s.navRangeNm).toBe(DEFAULT_NAV_RANGE_NM);
   });
 
@@ -26,13 +26,13 @@ describe("strip state", () => {
   it("toggles the weather fold without disturbing the others", () => {
     const s = toggleWeather(defaultStripState());
     expect(s.showWeather).toBe(true);
-    expect(s.showHelp).toBe(false);
+    expect(s.showHelp).toBe(true);
     expect(s.open).toBe(true);
   });
 
   it("toggles the controls-help fold on its own", () => {
     const s = toggleHelp(defaultStripState());
-    expect(s.showHelp).toBe(true);
+    expect(s.showHelp).toBe(false);
     expect(s.showWeather).toBe(false);
   });
 

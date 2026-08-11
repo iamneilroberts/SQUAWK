@@ -7,6 +7,7 @@ import type {
   ProvisionalBriefingState,
 } from "./briefingState";
 import { assistModeFromPreference } from "../mission/assists";
+import CockpitPreview from "./CockpitPreview";
 
 const CLASS_LABELS: Record<AircraftClassId, string> = {
   c172s: "GENERAL AVIATION · C172S MODEL",
@@ -124,6 +125,8 @@ export default function MissionTray({
             />
           )}
 
+          <CockpitPreview classId={authoritative?.classId ?? state.classId} />
+
           {commitState.status === "reconfirm" && (
             <MissionReconfirmation
               provisional={commitState.provisional}
@@ -163,7 +166,7 @@ export default function MissionTray({
                     ? "Retry mission lock"
                   : "Take controls"}
           </button>
-          {profile === null && <div className="label mission-auth-note">SIGN-IN REQUIRED AFTER BRIEFING</div>}
+          {profile === null && <div className="label mission-auth-note">SIGN-IN REQUIRED AFTER COCKPIT PREVIEW</div>}
         </>
       )}
     </aside>

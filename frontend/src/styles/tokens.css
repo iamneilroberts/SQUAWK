@@ -500,7 +500,31 @@ body {
   line-height: 1.45;
 }
 .quick-start-steps li::marker { color: var(--amber); }
+.quick-start-copy {
+  margin-top: 10px;
+  color: var(--text);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.quick-start-account { margin-bottom: 8px; color: var(--cyan); text-align: center; }
 .quick-start-action { width: 100%; justify-content: center; }
+.quick-start-secondary {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 7px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: 10px var(--mono);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.quick-start-secondary:hover { color: var(--cyan); }
+.quick-start-secondary:focus-visible { outline: 1px solid var(--amber); outline-offset: 2px; }
 
 .mission-tray {
   position: absolute;
@@ -561,6 +585,27 @@ body {
 .mission-alternative-active { border-left-color: var(--cyan); color: var(--cyan); background: rgba(95, 215, 224, 0.12); }
 .mission-take-controls { width: 100%; justify-content: center; margin-top: 12px; }
 .mission-auth-note { margin-top: 5px; text-align: center; color: var(--amber); }
+.mission-cockpit-preview {
+  margin-top: 12px;
+  padding: 7px;
+  border: 1px solid var(--grid);
+  background: rgba(2, 8, 11, 0.55);
+}
+.mission-cockpit-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  color: var(--cyan);
+}
+.mission-cockpit-display {
+  display: flex;
+  min-height: 150px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.mission-cockpit-next { margin-top: 5px; color: var(--amber); text-align: center; }
 
 .assist-control {
   position: absolute;

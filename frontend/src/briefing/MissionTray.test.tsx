@@ -47,7 +47,7 @@ function render(state: ProvisionalBriefingState): string {
 }
 
 describe("MissionTray", () => {
-  it("shows real identity, route, runway, score, assists, disclosure, and auth gate", () => {
+  it("shows the selected class cockpit before the deferred auth gate", () => {
     const ready = assignContactMission({ contact, classId: "c172s", airports: [airport], datasetVersion: "fixture-v1" });
     const text = render(ready);
     expect(text).toContain("N123");
@@ -57,8 +57,11 @@ describe("MissionTray", () => {
     expect(text).toContain("5000");
     expect(text).toContain("0–100 AFTER SAFETY GATES");
     expect(text).toContain("REAL ADS-B POSITION → SIMULATED AIRCRAFT");
+    expect(text).toContain("SIMULATED COCKPIT PREVIEW");
+    expect(text).toContain("ASI KT");
+    expect(text).toContain("SIGN-IN COMES NEXT");
     expect(text).toContain("Take controls");
-    expect(text).toContain("SIGN-IN REQUIRED AFTER BRIEFING");
+    expect(text).toContain("SIGN-IN REQUIRED AFTER COCKPIT PREVIEW");
   });
 
   it.each([

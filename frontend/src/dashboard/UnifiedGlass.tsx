@@ -49,6 +49,19 @@ const PRIMARY_COMPONENTS: Record<
   hud: HudDisplay,
 };
 
+/** The class-selected primary instrument face, shared by the live glass and pre-auth preview. */
+export function CockpitPrimary({
+  snapshot,
+  params,
+}: {
+  snapshot: HudSnapshot | null;
+  params: ClassParams;
+}) {
+  const profile = profileForClass(params.id);
+  const Primary = PRIMARY_COMPONENTS[profile.primary];
+  return <Primary snapshot={snapshot} params={params} />;
+}
+
 export function UnifiedGlassBody({
   snapshot, params, contacts, feedStatus, ghostHex, feedRadiusNm, airports,
   navRangeNm, weather, navWeather, showWeather, showHelp,
@@ -72,8 +85,6 @@ export function UnifiedGlassBody({
   onToggleStrip(): void;
 }) {
   const profile = profileForClass(params.id);
-  const Primary = PRIMARY_COMPONENTS[profile.primary];
-
   return (
     <div className="dash-strip">
       <section className="glass panel">
@@ -107,7 +118,7 @@ export function UnifiedGlassBody({
             data-primary={profile.primary}
             style={{ background: profile.background }}
           >
-            <Primary snapshot={snapshot} params={params} />
+            <CockpitPrimary snapshot={snapshot} params={params} />
           </div>
 
           {/* RIGHT — merged tactical map (NavMap = geographic own-ship + rings + traffic + airports). */}
