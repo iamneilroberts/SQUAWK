@@ -141,6 +141,11 @@ function VirtualStick({
   );
 }
 
+/** Clamp+round a raw 0..1 throttle to a 0..100 fill percentage for the on-screen slider. */
+export function throttleFillPct(throttle: number): number {
+  return Math.min(100, Math.max(0, Math.round(throttle * 100)));
+}
+
 function ThrottleSlider({
   initial,
   onThrottle,
@@ -161,6 +166,8 @@ function ThrottleSlider({
     onThrottle(t);
   };
 
+  const pct = throttleFillPct(value);
+
   return (
     <div
       ref={trackRef}
@@ -178,8 +185,11 @@ function ThrottleSlider({
       onPointerUp={() => (active.current = false)}
       onPointerCancel={() => (active.current = false)}
     >
-      <div className="touch-throttle-fill" style={{ height: `${Math.round(value * 100)}%` }} />
-      <div className="touch-throttle-label">THR {Math.round(value * 100)}</div>
+      <div className="touch-throttle-fill" style={{ height: `${pct}%` }} />
+      <div className="touch-throttle-tick touch-throttle-tick-top" aria-hidden="true" />
+      <div className="touch-throttle-tick touch-throttle-tick-mid" aria-hidden="true" />
+      <div className="touch-throttle-tick touch-throttle-tick-bottom" aria-hidden="true" />
+      <div className="touch-throttle-label">THR {pct}%</div>
     </div>
   );
 }

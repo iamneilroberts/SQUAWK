@@ -3,7 +3,7 @@
  * mouse controls are back on behind this card so the impact or landing site can be orbited.
  */
 import type { FlightStats } from "../game/stats";
-import { formatAirtime, formatAltFt, formatG, formatIasKt } from "../hud/format";
+import { EM_DASH, formatAirtime, formatAltFt, formatG, formatIasKt } from "../hud/format";
 
 const M_PER_NM = 1852;
 
@@ -18,15 +18,19 @@ function Row({ label, value }: { label: string; value: string }) {
 
 export default function EndCard({
   stats,
+  callsign = null,
   onExit,
 }: {
   stats: FlightStats;
+  /** Set-once SIM callsign, shown on the debrief per UI-002 (identity lives off the live rail). */
+  callsign?: string | null;
   onExit(): void;
 }) {
   return (
     <div className="end-overlay">
       <div className="panel end-card">
         <div className="label handoff-title">{stats.classification}</div>
+        <Row label="CALLSIGN" value={callsign ?? EM_DASH} />
         <Row label="AIRTIME" value={formatAirtime(stats.airtimeS)} />
         <Row label="DISTANCE" value={`${(stats.distanceM / M_PER_NM).toFixed(1)} NM`} />
         <Row label="MAX IAS" value={`${formatIasKt(stats.maxIasMs)} KT`} />

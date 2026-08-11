@@ -115,7 +115,7 @@ export default function ImmersiveControl({ warningActive }: { warningActive: boo
     <>
       <button
         type="button"
-        className="immersive-toggle"
+        className={`immersive-toggle${immersive ? " immersive-toggle-active" : ""}`}
         onClick={immersive ? onExit : onEnter}
         aria-pressed={immersive}
       >

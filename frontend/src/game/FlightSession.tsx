@@ -25,6 +25,7 @@ import { createCountdownTimer } from "./countdownTimer";
 import { hudSnapshot } from "../hud/snapshot";
 import { formatCallsign, warningsFor } from "../hud/format";
 import Hud from "../hud/Hud";
+import { tapeRangesFor, type ImmersiveHudVariant } from "../hud/ImmersiveHudBar";
 import TouchControls from "../input/TouchControls";
 import type { AnalogAxes } from "../input/analog";
 import { useViewport } from "../layout/useViewport";
@@ -61,6 +62,9 @@ export default function FlightSession() {
   const [trafficHex, setTrafficHex] = useState<string | null>(null);
   /** Brief honest message when a re-sync is refused; "" when there is nothing to say. */
   const [resyncNote, setResyncNote] = useState("");
+  /** Which immersive rail (A balanced / C tapes) the player selected; held for the flight. */
+  const [immersiveHudVariant, setImmersiveHudVariant] =
+    useState<ImmersiveHudVariant>("balanced");
 
   // Touch analog axes (mobile sub-feature 2, Option B). A single mutable object the flight loop
   // reads once per tick via the `analog` provider; the touch stick/throttle write into it. Stays
@@ -462,6 +466,10 @@ export default function FlightSession() {
             immersive={immersiveActive}
             faded={faded}
             attitudeStyle={originParams?.display.attitudeStyle ?? "line"}
+            immersiveVariant={immersiveHudVariant}
+            onImmersiveVariantChange={setImmersiveHudVariant}
+            narrow={narrow}
+            tapeRange={originParams ? tapeRangesFor(originParams) : null}
           />
           {/* The cockpit dashboard is DESKTOP-ONLY. On mobile (narrow) it never renders at all —
               phones get the minimal immersive flying view (top status bar + minimal touch
@@ -504,7 +512,7 @@ export default function FlightSession() {
         />
       )}
       {mode === "ENDED" && endStats && (
-        <EndCard stats={endStats} onExit={() => leaveToBrowse("EXIT_END")} />
+        <EndCard stats={endStats} callsign={snapshot?.callsign ?? null} onExit={() => leaveToBrowse("EXIT_END")} />
       )}
     </>
   );

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import Hud from "./Hud";
+import { tapeRangesFor } from "./ImmersiveHudBar";
 import type { HudSnapshot } from "./snapshot";
 import { ktToMs, ftToM, degToRad } from "../sim/units";
 
@@ -170,13 +171,14 @@ describe("Hud", () => {
       expect(has(classes, "imm-bar")).toBe(false);
     });
 
-    it("still shows the flight data, SIM identity and attribution in the bar", () => {
+    it("still shows the flight data, SIM badge and attribution in the bar (UI-002: callsign lives on the spawn/debrief cards, not here)", () => {
       const text = collectText(
         Hud({ snapshot: snap(), attribution: "RE:EARTH TERRAIN", immersive: true }),
       ).join(" ");
       expect(text).toContain("3500"); // ALT
       expect(text).toContain("105"); // IAS
-      expect(text).toContain("SIM-A1B2C3");
+      expect(text).toContain("SIM");
+      expect(text).not.toContain("SIM-A1B2C3");
       expect(text).toContain("RE:EARTH TERRAIN");
     });
 
@@ -187,6 +189,38 @@ describe("Hud", () => {
         Hud({ snapshot: snap(), attribution: "", immersive: true, faded: true }),
       );
       expect(has(classes, "imm-bar")).toBe(true);
+    });
+  });
+
+  // ---- Always-narrow rail (mobile-rich-hud task 5): a narrow phone gets the compact rail
+  // even before the user taps FULL. Immersive/fullscreen still drives the auto-hide fade. ----
+  describe("always-narrow rail", () => {
+    const tapeRange = tapeRangesFor({
+      display: { asiMinKt: 40, asiMaxKt: 180 },
+      limits: { serviceCeilingM: 4100 },
+    });
+
+    it("renders the immersive bar on a narrow flight even when not immersive", () => {
+      const classes = collectClasses(
+        Hud({ snapshot: snap(), attribution: "x", immersive: false, narrow: true, tapeRange }),
+      );
+      expect(classes.some((c) => c.split(/\s+/).includes("imm-hud"))).toBe(true);
+    });
+
+    it("does NOT fade the bar when narrow but not immersive", () => {
+      const classes = collectClasses(
+        Hud({
+          snapshot: snap(), attribution: "x", immersive: false, narrow: true, faded: true, tapeRange,
+        }),
+      );
+      expect(classes.some((c) => c.split(/\s+/).includes("hud-faded"))).toBe(false);
+    });
+
+    it("keeps the desktop layout when neither immersive nor narrow", () => {
+      const classes = collectClasses(
+        Hud({ snapshot: snap(), attribution: "x", immersive: false, narrow: false }),
+      );
+      expect(classes.some((c) => c.split(/\s+/).includes("imm-hud"))).toBe(false);
     });
   });
 });

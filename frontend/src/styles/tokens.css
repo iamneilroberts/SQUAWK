@@ -783,9 +783,21 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(95, 215, 224, 0.18);
-  border-top: 1px solid var(--cyan);
+  background: linear-gradient(180deg, rgba(255, 176, 0, 0.4), rgba(255, 176, 0, 0.16));
+  border-top: 1px solid var(--amber);
 }
+/* End-stop (0%/100%) and mid ticks so the lever position reads at a glance. */
+.touch-throttle-tick {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(210, 222, 228, 0.5);
+  pointer-events: none;
+}
+.touch-throttle-tick-top { top: 0; height: 2px; background: rgba(255, 176, 0, 0.7); }
+.touch-throttle-tick-mid { top: 50%; }
+.touch-throttle-tick-bottom { bottom: 0; height: 2px; background: rgba(255, 176, 0, 0.7); }
 .touch-throttle-label {
   position: absolute;
   left: 0;
@@ -793,8 +805,10 @@ body {
   top: 4px;
   text-align: center;
   font-size: 10px;
+  font-weight: 600;
   letter-spacing: 0.08em;
-  color: var(--cyan);
+  color: var(--text);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
 }
 
 /* Discrete + rudder button row — bottom-centre. The row itself passes taps through; the buttons
@@ -805,10 +819,10 @@ body {
   transform: translateX(-50%);
   bottom: max(12px, env(safe-area-inset-bottom));
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
-  gap: 8px;
-  max-width: min(60vw, 520px);
+  gap: 4px;
+  max-width: calc(100vw - 16px);
   pointer-events: none;
 }
 .touch-btn {
@@ -927,6 +941,9 @@ body {
   cursor: pointer;
 }
 .immersive-toggle:active { background: rgba(95, 215, 224, 0.12); }
+.immersive-toggle-active {
+  top: max(75px, calc(env(safe-area-inset-top) + 71px));
+}
 
 /* ---- The one-time iOS "Add to Home Screen" hint (only shown where true fullscreen is
    impossible and the app is not yet an installed PWA). Amber advisory, dismissible. ---- */
@@ -968,54 +985,293 @@ body {
 }
 .status-bar-faded { opacity: 0; }
 
-/* ---- Immersive HUD: ONE dense translucent status bar pinned to the top edge, replacing the
-   scattered corner readout clusters. It holds the essential flight data + the folded-in SIM
-   identity + a compact artificial horizon, and — because it is essential instrumentation — it
-   STAYS visible (it is deliberately NOT in the fade set below). Left-anchored so it never runs
-   under the top-right EXIT chip; max-width leaves that corner clear. Dense/tight spacing. ---- */
-.imm-bar {
+/* ---- Immersive HUD A/C comparison. Both rails own only the top edge, above every touch zone.
+   The secondary row contains the HUD toggle, transient alerts, and the fullscreen exit control;
+   this leaves the whole rail width available for real flight data on a phone. ---- */
+.imm-hud {
   position: absolute;
   top: max(4px, env(safe-area-inset-top));
   left: max(4px, env(safe-area-inset-left));
-  max-width: calc(100vw - 96px);
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 2px 6px;
-  font-size: 11px;
-  border: 1px solid rgba(95, 215, 224, 0.3);
-  background: rgba(5, 7, 10, 0.66);
-  overflow: hidden;
+  right: max(4px, env(safe-area-inset-right));
+  z-index: 26;
+  pointer-events: none;
 }
-.imm-bar-sim {
+.imm-hud .imm-bar {
+  position: relative;
+  width: 100%;
+  min-height: 58px;
+  align-items: center;
+  font-size: 11px;
+  overflow: hidden;
+  border: 1px solid rgba(150, 205, 220, 0.28);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(30, 44, 54, 0.62) 0%, rgba(8, 13, 18, 0.82) 60%),
+    rgba(6, 10, 14, 0.4);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(3px);
+}
+.imm-hud .imm-bar-sim {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 4px;
-  flex: none;
   color: var(--amber);
-  padding-right: 6px;
+  padding: 2px 7px;
+  border: 1px solid var(--amber);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 176, 0, 0.22), rgba(255, 176, 0, 0.08));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+.imm-hud .imm-bar-adi { position: relative; width: 34px; height: 34px; flex: none; }
+/* glossy highlight over the shared ADI without touching its SVG */
+.imm-hud .imm-bar-adi::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(60% 60% at 38% 26%,
+    rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.06) 45%, rgba(255, 255, 255, 0) 100%);
+}
+.imm-hud .gauge-adi-sky { fill: color-mix(in srgb, var(--cyan) 22%, var(--bg)); }
+.imm-hud .gauge-adi-ground { fill: color-mix(in srgb, var(--amber) 16%, var(--grid) 60%); }
+.imm-adi-face { width: 100%; height: 100%; display: block; }
+
+/* A — shortest scan path: SIM, speed, attitude, destination/heading, altitude, flaps, throttle. */
+.imm-bar-balanced {
+  display: grid;
+  grid-template-columns:
+    27px minmax(30px, 0.65fr) 32px minmax(54px, 1.45fr)
+    minmax(36px, 0.8fr) minmax(27px, 0.55fr) minmax(38px, 0.72fr);
+  gap: 3px;
+  padding: 4px;
+}
+.imm-bar-balanced .imm-bar-sim {
+  justify-content: center;
+  align-self: stretch;
+  align-items: center;
   border-right: 1px solid rgba(255, 176, 0, 0.35);
 }
-.imm-bar-callsign { font-size: 10px; }
-.imm-bar-class { font-size: 8px; opacity: 0.8; }
-.imm-bar-adi { width: 20px; height: 20px; flex: none; }
-.imm-adi-face { width: 100%; height: 100%; display: block; }
-.imm-bar-fields {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: nowrap;
-  gap: 0 9px;
+.imm-bar-balanced .hud-sim-badge { font-size: 8px; letter-spacing: 0.08em; }
+.imm-bar-balanced .imm-bar-adi { width: 32px; height: 32px; }
+.imm-bar-balanced .imm-field {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 0;
   min-width: 0;
 }
-.imm-field { display: inline-flex; align-items: baseline; gap: 2px; }
-.imm-field-label { font-size: 8px; opacity: 0.55; }
-.imm-field-value { font-size: 12px; color: var(--cyan); }
-.imm-field-unit { font-size: 8px; opacity: 0.55; }
-.imm-bar-warnings { display: flex; align-items: center; gap: 5px; flex: none; margin-left: 2px; }
+.imm-field-label { font-size: 7px; opacity: 0.58; line-height: 1; }
+.imm-field-value { font-size: 13px; color: var(--text); line-height: 1.05; letter-spacing: -0.04em; }
+.imm-field-unit { font-size: 6px; opacity: 0.58; line-height: 1; }
 
-/* Only the attribution keeps the video-player auto-hide in immersive mode; the top bar and the
-   warnings are essential and are intentionally NOT faded (instrumentation + safety). */
-.hud-immersive .hud-attribution { transition: opacity 0.5s ease; }
+.imm-director-copy {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-width: 0;
+  line-height: 1.05;
+}
+.imm-director-copy-compact { border-inline: 1px solid rgba(95, 215, 224, 0.16); }
+.imm-director-label {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text);
+  opacity: 0.7;
+  font-size: 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.imm-director-heading { color: var(--amber); font-size: 11px; white-space: nowrap; }
+.imm-director-nav { color: var(--amber); font-size: 7px; white-space: nowrap; }
+.imm-director-secondary { color: var(--text); opacity: 0.68; font-size: 6px; white-space: nowrap; }
+.imm-director-arrow { display: inline-block; margin-right: 2px; transform-origin: 50% 55%; }
+
+/* C — instrument-like speed/altitude edge tapes around the real shared attitude indicator. */
+.imm-hud .imm-bar-tapes {
+  display: grid;
+  grid-template-columns: clamp(56px, 16vw, 86px) minmax(0, 1fr) clamp(60px, 17vw, 92px);
+  gap: 6px;
+  padding: 6px 8px;
+  min-height: 66px;
+}
+.imm-hud .imm-tape {
+  position: relative;
+  align-self: stretch;
+  overflow: hidden;
+  padding: 3px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 2px;
+  border: 1px solid rgba(150, 205, 220, 0.3);
+  border-radius: 9px;
+  background: linear-gradient(180deg, rgba(40, 56, 66, 0.5), rgba(10, 16, 22, 0.55));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.imm-hud .tape-window { position: relative; width: 100%; height: 44px; overflow: hidden; } /* == TAPE_WINDOW_PX */
+.imm-hud .tape-strip { position: absolute; left: 0; right: 0; bottom: 0; will-change: transform; }
+.imm-hud .tape-tick { position: absolute; height: 1px; background: rgba(210, 222, 228, 0.55); }
+.imm-hud .tape-tick.major { width: 13px; background: rgba(230, 238, 242, 0.8); }
+.imm-hud .tape-tick.minor { width: 7px; }
+.imm-hud .imm-tape[data-side="left"] .tape-tick { left: 3px; }
+.imm-hud .imm-tape[data-side="right"] .tape-tick { right: 3px; }
+.imm-hud .tape-tick .tt-label { position: absolute; top: -5px; font-size: 7px; color: #d7e2e7; opacity: 0.8; }
+.imm-hud .imm-tape[data-side="left"] .tape-tick .tt-label { left: 16px; }
+.imm-hud .imm-tape[data-side="right"] .tape-tick .tt-label { right: 16px; text-align: right; }
+.imm-hud .tape-ptr {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  right: 3px;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.imm-hud .tape-ptr .imm-field-value {
+  min-width: 42px;
+  padding: 3px 4px;
+  text-align: center;
+  font-size: 15px;
+  border: 1px solid rgba(120, 200, 214, 0.6);
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(10, 18, 24, 0.9), rgba(4, 8, 11, 0.95));
+  box-shadow: inset 0 0 6px rgba(95, 215, 224, 0.12);
+}
+.imm-hud .tape-window::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: rgba(255, 176, 0, 0.55);
+  z-index: 1;
+}
+.imm-director {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.imm-director-stack {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-width: 0;
+}
+.imm-director-stack .imm-bar-sim {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.imm-director-stack .hud-sim-badge { font-size: 7px; letter-spacing: 0.08em; }
+.imm-director-systems {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text);
+  opacity: 0.72;
+  font-size: 7px;
+  white-space: nowrap;
+}
+.imm-director-systems b { color: var(--amber); font-weight: 600; }
+.imm-bar-tapes .imm-director-heading { font-size: 13px; }
+.imm-bar-tapes .imm-director-nav { font-size: 8px; }
+
+.imm-hud-toggle {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  z-index: 27;
+  min-width: 48px;
+  min-height: 36px;
+  border: 1px solid rgba(95, 215, 224, 0.5);
+  border-radius: 0;
+  background: rgba(5, 7, 10, 0.66);
+  color: var(--cyan);
+  font: 10px var(--mono);
+  letter-spacing: 0.08em;
+  pointer-events: auto;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+.imm-hud-toggle:active { background: rgba(95, 215, 224, 0.14); }
+.imm-hud-toggle:focus-visible,
+.immersive-toggle:focus-visible {
+  outline: 1px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.imm-hud-warnings {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 50%;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  max-width: calc(100% - 124px);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.imm-hud-warnings .hud-warning {
+  padding: 3px 5px;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+
+@media (max-width: 767px) {
+  /* The A/C rail and its secondary row occupy the first ~105px. Keep mission controls below it;
+     the joystick/throttle remain anchored to the bottom and are intentionally untouched. */
+  .assist-control,
+  .mission-nav-cue {
+    top: max(112px, calc(env(safe-area-inset-top) + 108px));
+  }
+  .assist-control { left: max(8px, env(safe-area-inset-left)); }
+  .mission-nav-cue { right: max(8px, env(safe-area-inset-right)); left: auto; }
+}
+
+@media (max-width: 360px) {
+  .imm-bar-balanced { gap: 2px; padding-inline: 2px; }
+  .imm-director-systems { gap: 3px; }
+}
+
+@media (min-width: 600px) and (max-height: 500px) {
+  .imm-bar-balanced { gap: 8px; padding-inline: 8px; }
+  .imm-bar-balanced .imm-field-value { font-size: 15px; }
+  .imm-bar-balanced .imm-field-label { font-size: 8px; }
+  .imm-director-copy-compact .imm-director-label { font-size: 8px; }
+  .imm-director-copy-compact .imm-director-heading { font-size: 13px; }
+  .imm-director-copy-compact .imm-director-nav { font-size: 8px; }
+  .imm-director-copy-compact .imm-director-secondary { font-size: 7px; }
+
+  .imm-bar-tapes .imm-director {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 10px;
+    width: min(100%, 440px);
+    justify-self: center;
+  }
+  .imm-bar-tapes .imm-bar-adi { width: 40px; height: 40px; }
+  .imm-bar-tapes .imm-director-label { font-size: 8px; }
+  .imm-bar-tapes .imm-director-heading { font-size: 15px; }
+  .imm-bar-tapes .imm-director-nav { font-size: 9px; }
+  .imm-bar-tapes .imm-director-systems { gap: 10px; font-size: 8px; }
+}
+
+/* Only the attribution keeps the video-player auto-hide in immersive mode. While visible, it uses
+   the gap between the stick and throttle above the bottom button row, so required source credit is
+   never hidden beneath an interactive surface. */
+.hud-immersive .hud-attribution {
+  right: max(76px, calc(env(safe-area-inset-right) + 72px));
+  bottom: max(72px, calc(env(safe-area-inset-bottom) + 64px));
+  left: max(156px, calc(env(safe-area-inset-left) + 152px));
+  text-align: center;
+  transition: opacity 0.5s ease;
+}
 .hud-immersive.hud-faded .hud-attribution { opacity: 0; }
 
 /* ========================================================================
