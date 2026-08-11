@@ -19,6 +19,11 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body, #root { height: 100%; }
+/* iOS Safari: `height: 100%` resolves to the layout viewport, which excludes the area the
+   collapsing browser toolbars free up — so a landscape flight letterboxes with black below the
+   globe. `100dvh` (dynamic viewport height) tracks the actually-visible area as the chrome hides,
+   filling the screen in both orientations. Falls back to the `100%` above on older browsers. */
+#root { height: 100dvh; }
 
 body {
   background: var(--bg);
@@ -1266,10 +1271,15 @@ body {
    the gap between the stick and throttle above the bottom button row, so required source credit is
    never hidden beneath an interactive surface. */
 .hud-immersive .hud-attribution {
+  /* Required data-source credit (Esri, Re:Earth/Mapterhorn CC BY 4.0, traffic feeds) — kept on
+     screen for licensing, but tucked to a small, dim, left-aligned line in the safe zone between
+     the stick (lower-left) and throttle (right), and folded into the chrome auto-hide below. */
   right: max(76px, calc(env(safe-area-inset-right) + 72px));
   bottom: max(72px, calc(env(safe-area-inset-bottom) + 64px));
   left: max(156px, calc(env(safe-area-inset-left) + 152px));
-  text-align: center;
+  text-align: left;
+  font-size: 8px;
+  opacity: 0.4;
   transition: opacity 0.5s ease;
 }
 .hud-immersive.hud-faded .hud-attribution { opacity: 0; }

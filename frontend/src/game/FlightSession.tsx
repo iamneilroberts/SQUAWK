@@ -495,7 +495,7 @@ export default function FlightSession() {
             onStick={onStick}
             onStickRelease={onStickRelease}
             onThrottle={onThrottle}
-            initialThrottle={snapshot?.throttle ?? 0}
+            throttle={snapshot?.throttle ?? 0}
             gearFixed={(snapshot?.gear ?? "fixed") === "fixed"}
           />
           <ImmersiveControl warningActive={warningActive} />
