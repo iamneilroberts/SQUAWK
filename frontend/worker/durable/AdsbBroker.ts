@@ -48,6 +48,7 @@ import {
   type AdmissionResult,
   type BrokerCommand,
   type BrokerCommandResult,
+  type BrokerAdminSnapshot,
   type BrokerHealthCounters,
   type BrokerResponse,
   type BrokerStatus,
@@ -129,6 +130,13 @@ export type BrokerTrafficProvider = (
   nowMs: () => number,
 ) => Promise<ProviderTraffic>;
 type Sleeper = (milliseconds: number) => Promise<void>;
+
+type ViewerPresence = {
+  userId: string;
+  missionId: string | null;
+  lastSeenAtMs: number;
+  audience: "signed" | "active-ghost" | "ambient";
+};
 
 type ProviderJob = {
   sequence: number;
@@ -635,6 +643,8 @@ function executeCommand(
   switch (command.type) {
     case "traffic":
       throw new TypeError("Traffic commands require the asynchronous broker path");
+    case "admin-snapshot":
+      throw new TypeError("Administrative snapshots require the asynchronous broker path");
     case "admit":
       return admit(state, command, nowMs);
     case "lease-acquire":
@@ -857,7 +867,7 @@ export class AdsbBroker extends DurableObject<Env> {
 
   readonly #trafficInFlight = new Map<string, Promise<TrafficCacheSnapshot>>();
   readonly #providerQueue: ProviderJob[] = [];
-  readonly #signedViewers = new Map<string, Map<string, number>>();
+  readonly #signedViewers = new Map<string, Map<string, ViewerPresence>>();
   #providerSequence = 0;
   #providerDraining = false;
   #providerRunningPriority: ProviderPriority | null = null;
@@ -877,14 +887,91 @@ export class AdsbBroker extends DurableObject<Env> {
   }
 
   #signedViewerCount(regionKey: string, request: TrafficRequest, nowMs: number): number {
-    const viewers = this.#signedViewers.get(regionKey) ?? new Map<string, number>();
-    for (const [userId, seenAtMs] of viewers) {
-      if (nowMs - seenAtMs > 45_000) viewers.delete(userId);
+    const viewers = this.#signedViewers.get(regionKey) ?? new Map<string, ViewerPresence>();
+    for (const [userId, presence] of viewers) {
+      if (nowMs - presence.lastSeenAtMs > 45_000) viewers.delete(userId);
     }
-    if (request.audience.kind === "signed") viewers.set(request.audience.userId, nowMs);
+    if (request.audience.kind !== "anonymous") {
+      viewers.set(request.audience.userId, {
+        userId: request.audience.userId,
+        missionId: request.audience.kind === "signed" ? null : request.audience.missionId,
+        lastSeenAtMs: nowMs,
+        audience: request.audience.kind,
+      });
+    }
     if (viewers.size === 0) this.#signedViewers.delete(regionKey);
     else this.#signedViewers.set(regionKey, viewers);
     return viewers.size;
+  }
+
+  #prunePresence(nowMs: number): void {
+    for (const [regionKey, viewers] of this.#signedViewers) {
+      for (const [userId, presence] of viewers) {
+        if (nowMs - presence.lastSeenAtMs > 45_000) viewers.delete(userId);
+      }
+      if (viewers.size === 0) this.#signedViewers.delete(regionKey);
+    }
+  }
+
+  async #adminSnapshot(forceMode: SystemMode): Promise<BrokerCommandResult> {
+    const nowMs = this[CLOCK].nowMs();
+    this.#prunePresence(nowMs);
+    return this.ctx.storage.transaction(async (transaction) => {
+      const state = await loadState(transaction, nowMs);
+      rollover(state, nowMs);
+      cleanExpiredLeases(state, nowMs);
+      const index = await loadTrafficIndex(transaction);
+      await evictExpiredTraffic(transaction, index, nowMs);
+      const brokerStatus = status(state, forceMode);
+      const viewerCounts = new Map(
+        [...this.#signedViewers].map(([regionKey, viewers]) => [regionKey, viewers.size]),
+      );
+      const failureByRegion = new Map(index.failures.map((failure) => [failure.regionKey, failure]));
+      const cacheRegionKeys = new Set([
+        ...index.entries.map(({ regionKey }) => regionKey),
+        ...index.failures.map(({ regionKey }) => regionKey),
+      ]);
+      const cacheRegions: BrokerAdminSnapshot["cacheRegions"] = [...cacheRegionKeys]
+        .map((regionKey) => {
+          const metadata = index.entries.find((entry) => entry.regionKey === regionKey);
+          const failure = failureByRegion.get(regionKey);
+          return {
+            regionKey,
+            fetchedAtMs: metadata === undefined ? null : metadata.fetchedAt * 1_000,
+            expiresAtMs: metadata?.expiresAtMs ?? failure?.expiresAtMs ?? nowMs,
+            lastAccessAtMs: metadata?.lastAccessAtMs ?? failure?.lastAccessAtMs ?? nowMs,
+            providerAvailable: metadata?.providerAvailable ?? false,
+            failureCount: metadata?.failureCount ?? failure?.failureCount ?? 0,
+            retryAtMs: metadata?.retryAtMs ?? failure?.retryAtMs ?? 0,
+            viewerCount: viewerCounts.get(regionKey) ?? 0,
+          };
+        })
+        .sort((left, right) => right.lastAccessAtMs - left.lastAccessAtMs)
+        .slice(0, TRAFFIC_CACHE_MAX_REGIONS);
+      const presence: BrokerAdminSnapshot["presence"] = [];
+      for (const [regionKey, viewers] of this.#signedViewers) {
+        for (const viewer of viewers.values()) presence.push({ ...viewer, regionKey });
+      }
+      presence.sort((left, right) => right.lastSeenAtMs - left.lastSeenAtMs);
+      const queuedByPriority: [number, number, number, number] = [0, 0, 0, 0];
+      for (const { priority } of this.#providerQueue) queuedByPriority[priority] += 1;
+      const snapshot: BrokerAdminSnapshot = {
+        capturedAtMs: nowMs,
+        status: brokerStatus,
+        leases: state.leases.map((lease) => ({ ...lease })),
+        cacheRegions,
+        presence: presence.slice(0, 200),
+        providerWork: {
+          queuedByPriority,
+          inFlightRegions: this.#trafficInFlight.size,
+          runningPriority: this.#providerRunningPriority,
+        },
+      };
+      await transaction.put(STATE_KEY, state);
+      await transaction.put(TRAFFIC_INDEX_KEY, index);
+      await scheduleNextExpiry(transaction, state);
+      return { type: "admin-snapshot", snapshot, status: brokerStatus };
+    });
   }
 
   #enqueueProvider(
@@ -1194,6 +1281,10 @@ export class AdsbBroker extends DurableObject<Env> {
       }
       if (command.type === "cache-clear-region") {
         const result = await this.#clearTrafficRegion(command.regionKey, command.forceMode);
+        return json({ ok: true, result }, 200);
+      }
+      if (command.type === "admin-snapshot") {
+        const result = await this.#adminSnapshot(command.forceMode);
         return json({ ok: true, result }, 200);
       }
       const nowMs = this[CLOCK].nowMs();

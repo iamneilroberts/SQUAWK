@@ -1,6 +1,6 @@
 import { hashSessionToken } from "../crypto";
 import { hasActiveBanForIdentity } from "../db/bans";
-import { getActiveSessionByDigest } from "../db/sessions";
+import { getActiveSessionByDigest, touchSessionLastSeen } from "../db/sessions";
 import { getUserById } from "../db/users";
 import type { RequestActor } from "../telemetry/requestContext";
 
@@ -73,6 +73,7 @@ export async function authorizeSession(
     }
     return anonymousActor;
   }
+  await touchSessionLastSeen(db, session.id, now).catch(() => undefined);
   return {
     kind: "authenticated",
     userId: user.id,

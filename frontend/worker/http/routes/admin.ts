@@ -18,6 +18,21 @@ import {
 import { deriveCsrfToken } from "../../auth/csrf";
 import type { BanScope, VersionedDocument } from "../../db/types";
 import { sendBrokerCommand } from "../../durable/protocol";
+import {
+  ANALYTICS_VIEWS,
+  ANALYTICS_WINDOWS,
+  queryRequestAnalytics,
+  type AnalyticsView,
+  type AnalyticsWindow,
+} from "../../admin/analytics";
+import { exportAdminEvents, listAdminEvents, type AdminEventFilters } from "../../admin/events";
+import {
+  findAdminUserByExactIdentity,
+  listAdminActiveSessions,
+  readAdminOverview,
+  readAdminUserDetail,
+  readBrokerAdminSnapshot,
+} from "../../admin/overview";
 import type { Env } from "../../env";
 import { ApiHttpError } from "../response";
 import { defineRoute, type RouteDefinition } from "../router";
@@ -30,12 +45,14 @@ export type AdminRouteDependencies = {
   now: () => number;
   uuid: () => string;
   broker: AdminBroker;
+  analytics: typeof queryRequestAnalytics;
 };
 
 const DEFAULT_DEPENDENCIES: AdminRouteDependencies = {
   now: () => Date.now(),
   uuid: () => crypto.randomUUID(),
   broker: sendBrokerCommand,
+  analytics: queryRequestAnalytics,
 };
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -132,6 +149,65 @@ function mutationSecurity() {
   };
 }
 
+function readSecurity() {
+  return {
+    sameOrigin: "not-required" as const,
+    csrf: "not-required" as const,
+    idempotency: "not-required" as const,
+    body: { kind: "none" as const },
+  };
+}
+
+function queryValues(request: Request, allowed: readonly string[]): URLSearchParams {
+  const search = new URL(request.url).searchParams;
+  const accepted = new Set(allowed);
+  for (const key of search.keys()) {
+    if (!accepted.has(key) || search.getAll(key).length !== 1) invalid();
+  }
+  return search;
+}
+
+function boundedInteger(value: string | null, fallback: number, maximum: number): number {
+  if (value === null) return fallback;
+  if (!/^\d+$/.test(value)) invalid();
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > maximum) invalid();
+  return parsed;
+}
+
+function optionalTimestamp(value: string | null): number | null {
+  if (value === null) return null;
+  if (!/^\d+$/.test(value)) invalid();
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) invalid();
+  return parsed;
+}
+
+function validateEventsQuery(request: Request, exportMode = false) {
+  const search = queryValues(
+    request,
+    exportMode
+      ? ["level", "category", "after", "before", "limit", "format"]
+      : ["level", "category", "after", "before", "limit"],
+  );
+  const level = search.get("level");
+  if (level !== null && !["warning", "error", "transition"].includes(level)) invalid();
+  const category = search.get("category");
+  if (category !== null && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(category)) invalid();
+  const filters: AdminEventFilters = {
+    level: level as AdminEventFilters["level"],
+    category,
+    afterMs: optionalTimestamp(search.get("after")),
+    beforeMs: optionalTimestamp(search.get("before")),
+    limit: boundedInteger(search.get("limit"), exportMode ? 250 : 100, exportMode ? 250 : 200),
+  };
+  if (filters.afterMs !== null && filters.beforeMs !== null && filters.afterMs > filters.beforeMs) invalid();
+  if (!exportMode) return { filters };
+  const format = search.get("format") ?? "json";
+  if (format !== "json" && format !== "csv") invalid();
+  return { filters, format: format as "json" | "csv" };
+}
+
 function validateMode(body: unknown) {
   if (!record(body) || !exactKeys(body, ["mode", "reason"], ["confirmation"])) invalid();
   if (!isSystemMode(body.mode)) invalid();
@@ -226,6 +302,180 @@ export function createAdminRoutes(
           csrfToken: await deriveCsrfToken(actor.sessionId!, runtime.CSRF_SECRET),
         },
       };
+    },
+  });
+
+  const overview = defineRoute({
+    method: "GET",
+    path: "/api/admin/overview",
+    family: "admin-overview",
+    boundary: "admin",
+    admission: "recovery",
+    security: readSecurity(),
+    limiter: { name: "admin", retryAfterSeconds: 1 },
+    validate: ({ request }) => {
+      queryValues(request, []);
+      return undefined;
+    },
+    handler: async ({ env }) => {
+      const runtime = env as Env;
+      return { data: await readAdminOverview(runtime, forceMode(runtime), dependencies.now(), dependencies.broker) };
+    },
+  });
+
+  const analytics = defineRoute({
+    method: "GET",
+    path: "/api/admin/analytics",
+    family: "admin-analytics",
+    boundary: "admin",
+    admission: "recovery",
+    security: readSecurity(),
+    limiter: { name: "admin", retryAfterSeconds: 1 },
+    validate: ({ request }) => {
+      const search = queryValues(request, ["view", "window"]);
+      const view = search.get("view") ?? "summary";
+      const window = search.get("window") ?? "1h";
+      if (!ANALYTICS_VIEWS.includes(view as AnalyticsView)) invalid();
+      if (!ANALYTICS_WINDOWS.includes(window as AnalyticsWindow)) invalid();
+      return { view: view as AnalyticsView, window: window as AnalyticsWindow };
+    },
+    handler: async ({ validated, env }) => {
+      const { view, window } = validated as { view: AnalyticsView; window: AnalyticsWindow };
+      return { data: await dependencies.analytics(env as Env, view, window) };
+    },
+  });
+
+  const capacity = defineRoute({
+    method: "GET",
+    path: "/api/admin/capacity",
+    family: "admin-capacity",
+    boundary: "admin",
+    admission: "recovery",
+    security: readSecurity(),
+    limiter: { name: "admin", retryAfterSeconds: 1 },
+    validate: ({ request }) => {
+      queryValues(request, []);
+      return undefined;
+    },
+    handler: async ({ env }) => {
+      const runtime = env as Env;
+      const snapshot = await readBrokerAdminSnapshot(runtime.ADSB_BROKER, forceMode(runtime), dependencies.broker);
+      return { data: {
+        capturedAtMs: snapshot.capturedAtMs,
+        cacheRegions: snapshot.cacheRegions,
+        providerWork: snapshot.providerWork,
+        status: snapshot.status,
+        source: "application-snapshot",
+        authoritativeBilling: false,
+      } };
+    },
+  });
+
+  const activeSessions = defineRoute({
+    method: "GET",
+    path: "/api/admin/sessions",
+    family: "admin-sessions",
+    boundary: "admin",
+    admission: "recovery",
+    security: readSecurity(),
+    limiter: { name: "admin", retryAfterSeconds: 1 },
+    validate: ({ request }) => {
+      const search = queryValues(request, ["limit"]);
+      return { limit: boundedInteger(search.get("limit"), 50, 100) };
+    },
+    handler: async ({ validated, env }) => {
+      const runtime = env as Env;
+      const snapshot = await readBrokerAdminSnapshot(runtime.ADSB_BROKER, forceMode(runtime), dependencies.broker);
+      return { data: {
+        sessions: await listAdminActiveSessions(runtime.DB, snapshot, dependencies.now(), (validated as { limit: number }).limit),
+        capturedAtMs: snapshot.capturedAtMs,
+        presenceEphemeral: true,
+      } };
+    },
+  });
+
+  const events = defineRoute({
+    method: "GET",
+    path: "/api/admin/events",
+    family: "admin-events",
+    boundary: "admin",
+    admission: "recovery",
+    security: readSecurity(),
+    limiter: { name: "admin", retryAfterSeconds: 1 },
+    validate: ({ request }) => validateEventsQuery(request),
+    handler: async ({ validated, env }) => {
+      const { filters } = validated as { filters: AdminEventFilters };
+      const runtime = env as Env;
+      const accountId = runtime.CLOUDFLARE_ACCOUNT_ID;
+      const service = runtime.APP_ENV === "production" ? "voygent-adsb-game" : "voygent-adsb-game-staging";
+      const workersLogsUrl = accountId !== undefined && /^[0-9a-f]{32}$/i.test(accountId)
+        ? `https://dash.cloudflare.com/${accountId}/workers/services/view/${service}/production/observability/logs`
+        : "https://dash.cloudflare.com/";
+      return { data: {
+        events: await listAdminEvents(runtime.DB, filters),
+        fullLogStream: false,
+        workersLogsUrl,
+      } };
+    },
+  });
+
+  const eventExport = defineRoute({
+    method: "GET",
+    path: "/api/admin/events/export",
+    family: "admin-events-export",
+    boundary: "admin",
+    admission: "recovery",
+    security: readSecurity(),
+    limiter: { name: "admin", retryAfterSeconds: 1 },
+    validate: ({ request }) => validateEventsQuery(request, true),
+    handler: async ({ validated, env }) => {
+      const { filters, format } = validated as { filters: AdminEventFilters; format: "json" | "csv" };
+      return { data: await exportAdminEvents((env as Env).DB, filters, format) };
+    },
+  });
+
+  const userSearch = defineRoute({
+    method: "GET",
+    path: "/api/admin/users",
+    family: "admin-users",
+    boundary: "admin",
+    admission: "recovery",
+    security: readSecurity(),
+    limiter: { name: "admin", retryAfterSeconds: 1 },
+    validate: ({ request }) => {
+      const search = queryValues(request, ["kind", "query"]);
+      const kind = search.get("kind");
+      const query = search.get("query");
+      if ((kind !== "id" && kind !== "handle") || query === null || query.length > 36 || query.includes("@")) invalid();
+      return { kind, query };
+    },
+    handler: async ({ validated, env }) => {
+      const { kind, query } = validated as { kind: "id" | "handle"; query: string };
+      const user = await findAdminUserByExactIdentity((env as Env).DB, kind, query);
+      return { data: { user } };
+    },
+  });
+
+  const userDetail = defineRoute({
+    method: "GET",
+    path: "/api/admin/users/:userId",
+    family: "admin-users",
+    boundary: "admin",
+    admission: "recovery",
+    security: readSecurity(),
+    limiter: { name: "admin", retryAfterSeconds: 1 },
+    validate: ({ params, request }) => {
+      queryValues(request, []);
+      return { userId: routeId(params, "userId") };
+    },
+    handler: async ({ validated, env }) => {
+      const user = await readAdminUserDetail(
+        (env as Env).DB,
+        (validated as { userId: string }).userId,
+        dependencies.now(),
+      );
+      if (user === null) throw new ApiHttpError(404, "NOT_FOUND", "User not found");
+      return { data: { user } };
     },
   });
 
@@ -523,5 +773,23 @@ export function createAdminRoutes(
     },
   });
 
-  return [status, mode, settings, cache, lookup, ban, unban, session, flight];
+  return [
+    status,
+    overview,
+    analytics,
+    capacity,
+    activeSessions,
+    events,
+    eventExport,
+    userSearch,
+    userDetail,
+    mode,
+    settings,
+    cache,
+    lookup,
+    ban,
+    unban,
+    session,
+    flight,
+  ];
 }

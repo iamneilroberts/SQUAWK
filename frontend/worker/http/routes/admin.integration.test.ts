@@ -6,6 +6,7 @@ import { encodeOpaqueToken } from "../../auth/sessions";
 import { deriveEmailKey, hashSessionToken } from "../../crypto";
 import { getActiveBansForUser } from "../../db/bans";
 import { createLockedMission, getMissionById } from "../../db/missions";
+import { appendSystemEvent } from "../../db/events";
 import { createSession, getSessionById } from "../../db/sessions";
 import { createUser, getUserById } from "../../db/users";
 import type { Env } from "../../env";
@@ -77,6 +78,24 @@ function brokerHarness() {
   let status = initialStatus();
   const broker = vi.fn(async (_namespace: Env["ADSB_BROKER"], command: BrokerCommand) => {
     if (command.type === "status") return { type: "status", status };
+    if (command.type === "admin-snapshot") return {
+      type: "admin-snapshot",
+      status,
+      snapshot: {
+        capturedAtMs: NOW,
+        status,
+        leases: [{ userId: USER_ID, missionId: MISSION_ID, expiresAtMs: NOW + 45_000, reserveRemaining: 0 }],
+        cacheRegions: [],
+        presence: [{
+          userId: USER_ID,
+          missionId: MISSION_ID,
+          regionKey: "r1:30.75:-88:100",
+          lastSeenAtMs: NOW,
+          audience: "active-ghost",
+        }],
+        providerWork: { queuedByPriority: [0, 0, 0, 0], inFlightRegions: 0, runningPriority: null },
+      },
+    };
     if (command.type === "mode-set") {
       status = { ...status, requestedMode: command.requestedMode, effectiveMode: command.requestedMode };
       return { type: "status", status };
@@ -191,6 +210,66 @@ describe("admin control routes", () => {
         csrfToken: expect.stringMatching(/^[0-9a-f]{64}$/),
       },
     });
+  });
+
+  it("serves bounded overview, session, event, and exact user reads without sensitive digests", async () => {
+    await appendSystemEvent(testEnvironment().TEST_DB, {
+      id: "66666666-6666-4666-8666-666666666666",
+      level: "warning",
+      category: "provider",
+      eventKey: "provider.degraded",
+      requestId: "request-safe-pointer",
+      context: { schemaVersion: 1, state: "degraded" },
+      tracePointer: null,
+      traceExpiresAt: null,
+      createdAt: NOW,
+    });
+    const { broker } = brokerHarness();
+    const router = createRouter(createAdminRoutes({ broker, now: () => NOW }), dependencies());
+    const app = runtime();
+
+    const responses = await Promise.all([
+      router.fetch(new Request("https://fly.voygent.app/api/admin/overview"), app),
+      router.fetch(new Request("https://fly.voygent.app/api/admin/sessions?limit=10"), app),
+      router.fetch(new Request("https://fly.voygent.app/api/admin/events?level=warning&limit=10"), app),
+      router.fetch(new Request("https://fly.voygent.app/api/admin/users?kind=handle&query=AdminTarget"), app),
+      router.fetch(new Request(`https://fly.voygent.app/api/admin/users/${USER_ID}`), app),
+    ]);
+    expect(responses.every((response) => response.status === 200)).toBe(true);
+    const body = (await Promise.all(responses.map((response) => response.text()))).join("\n");
+    expect(body).toContain("provider.degraded");
+    expect(body).toContain("r1:30.75:-88:100");
+    expect(body).toContain("AdminTarget");
+    expect(body).not.toContain(EMAIL);
+    expect(body).not.toContain(await hashSessionToken(SESSION_TOKEN));
+    expect(body).not.toContain("email_key");
+    expect(body).not.toContain("session_digest");
+  });
+
+  it("keeps empty log reads and bounded exports explicit", async () => {
+    const { broker } = brokerHarness();
+    const router = createRouter(createAdminRoutes({ broker, now: () => NOW }), dependencies());
+    const app = runtime();
+    const empty = await router.fetch(
+      new Request("https://fly.voygent.app/api/admin/events?limit=10"),
+      app,
+    );
+    const exported = await router.fetch(
+      new Request("https://fly.voygent.app/api/admin/events/export?format=csv&limit=10"),
+      app,
+    );
+    const invalid = await router.fetch(
+      new Request("https://fly.voygent.app/api/admin/events?limit=10&limit=20"),
+      app,
+    );
+
+    await expect(empty.json()).resolves.toMatchObject({
+      data: { events: [], fullLogStream: false },
+    });
+    await expect(exported.json()).resolves.toMatchObject({
+      data: { format: "csv", count: 0, content: expect.stringContaining("id,level,category") },
+    });
+    expect(invalid.status).toBe(400);
   });
 
   it("requires CSRF and KILL_SWITCH typed confirmation", async () => {

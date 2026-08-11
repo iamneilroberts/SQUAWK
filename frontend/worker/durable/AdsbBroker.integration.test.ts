@@ -728,6 +728,62 @@ describe("AdsbBroker", () => {
     ).resolves.toBe(2);
   });
 
+  it("returns a bounded administrative snapshot without traffic contacts", async () => {
+    const target = stub();
+    const clock = new FakeClock(START);
+    await setClock(target, clock);
+    await acquire(target, USER_IDS[0]!, MISSION_IDS[0]!);
+    await setTrafficProvider(target, async (_region, _settings, gate, nowMs) => {
+      await gate.beforeAttempt();
+      return {
+        contacts: [{
+          hex: "abc123",
+          flight: "PRIVATE1",
+          t: "F16",
+          lat: 30,
+          lon: -88,
+          alt_geom: 1_000,
+          alt_baro: 900,
+          gs: 100,
+          track: 90,
+          baro_rate: 0,
+          military: true,
+          seen_pos: 0,
+        }],
+        source: "fake-provider.test",
+        sourceTime: nowMs() / 1_000,
+        fetchedAt: nowMs() / 1_000,
+      };
+    });
+    await traffic(target, 30, -88, {
+      kind: "active-ghost",
+      userId: USER_IDS[0]!,
+      missionId: MISSION_IDS[0]!,
+      selectedHex: "abc123",
+    });
+
+    const result = await command(target, { type: "admin-snapshot", forceMode: "NORMAL" });
+    expect(result).toMatchObject({
+      type: "admin-snapshot",
+      snapshot: {
+        capturedAtMs: START,
+        leases: [{ userId: USER_IDS[0], missionId: MISSION_IDS[0] }],
+        cacheRegions: [{ viewerCount: 1, providerAvailable: true }],
+        presence: [{
+          userId: USER_IDS[0],
+          missionId: MISSION_IDS[0],
+          audience: "active-ghost",
+        }],
+      },
+    });
+    expect(JSON.stringify(result)).not.toContain("PRIVATE1");
+    expect(JSON.stringify(result)).not.toContain("abc123");
+
+    clock.advance(45_001);
+    const expired = await command(target, { type: "admin-snapshot", forceMode: "NORMAL" });
+    expect(expired.type === "admin-snapshot" && expired.snapshot.presence).toEqual([]);
+  });
+
   it("serves cache-only browsing in read-only mode while active ghosts may refresh", async () => {
     const target = stub();
     const clock = new FakeClock(START);

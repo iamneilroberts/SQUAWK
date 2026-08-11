@@ -62,6 +62,39 @@ export type BrokerStatus = {
   providerCacheOnly: boolean;
 };
 
+export type BrokerAdminSnapshot = {
+  capturedAtMs: number;
+  status: BrokerStatus;
+  leases: Array<{
+    userId: string;
+    missionId: string;
+    expiresAtMs: number;
+    reserveRemaining: number;
+  }>;
+  cacheRegions: Array<{
+    regionKey: string;
+    fetchedAtMs: number | null;
+    expiresAtMs: number;
+    lastAccessAtMs: number;
+    providerAvailable: boolean;
+    failureCount: number;
+    retryAtMs: number;
+    viewerCount: number;
+  }>;
+  presence: Array<{
+    userId: string;
+    missionId: string | null;
+    regionKey: string;
+    lastSeenAtMs: number;
+    audience: "signed" | "active-ghost" | "ambient";
+  }>;
+  providerWork: {
+    queuedByPriority: [number, number, number, number];
+    inFlightRegions: number;
+    runningPriority: number | null;
+  };
+};
+
 export type BrokerCommand =
   | {
       type: "admit";
@@ -92,6 +125,7 @@ export type BrokerCommand =
     }
   | { type: "cache-clear-region"; regionKey: string; forceMode: SystemMode }
   | { type: "status" | "transitions"; forceMode: SystemMode }
+  | { type: "admin-snapshot"; forceMode: SystemMode }
   | { type: "traffic"; forceMode: SystemMode; request: TrafficRequest }
   | { type: "provider-record"; outcome: "success" | "failure" }
   | {
@@ -128,6 +162,7 @@ export type BrokerCommandResult =
   | { type: "transition"; transition: BrokerTransition | null; status: BrokerStatus }
   | { type: "traffic"; traffic: TrafficData; status: BrokerStatus }
   | { type: "cache-cleared"; regionKey: string; cleared: boolean; status: BrokerStatus }
+  | { type: "admin-snapshot"; snapshot: BrokerAdminSnapshot; status: BrokerStatus }
   | { type: "recorded"; status: BrokerStatus };
 
 export type BrokerResponse =
@@ -152,6 +187,7 @@ const COMMAND_TYPES = new Set([
   "cache-clear-region",
   "status",
   "transitions",
+  "admin-snapshot",
   "traffic",
   "provider-record",
   "health-record",
@@ -317,6 +353,53 @@ function isLease(value: unknown): value is NonNullable<LeaseResult["lease"]> {
   );
 }
 
+function isAdminSnapshot(value: unknown): value is BrokerAdminSnapshot {
+  if (!isRecord(value) || !isCount(value.capturedAtMs) || !isStatus(value.status)) return false;
+  if (
+    !Array.isArray(value.leases) ||
+    value.leases.length > ACTIVE_FLIGHT_GLOBAL_LIMIT ||
+    !value.leases.every((lease) => isLease(lease))
+  ) return false;
+  if (
+    !Array.isArray(value.cacheRegions) ||
+    value.cacheRegions.length > 32 ||
+    !value.cacheRegions.every((region) =>
+      isRecord(region) &&
+      isRegionKey(region.regionKey) &&
+      (region.fetchedAtMs === null || isCount(region.fetchedAtMs)) &&
+      isCount(region.expiresAtMs) &&
+      isCount(region.lastAccessAtMs) &&
+      typeof region.providerAvailable === "boolean" &&
+      isCount(region.failureCount) &&
+      isCount(region.retryAtMs) &&
+      isCount(region.viewerCount)
+    )
+  ) return false;
+  if (
+    !Array.isArray(value.presence) ||
+    value.presence.length > 200 ||
+    !value.presence.every((entry) =>
+      isRecord(entry) &&
+      isIdentifier(entry.userId) &&
+      (entry.missionId === null || isIdentifier(entry.missionId)) &&
+      isRegionKey(entry.regionKey) &&
+      isCount(entry.lastSeenAtMs) &&
+      ["signed", "active-ghost", "ambient"].includes(String(entry.audience))
+    )
+  ) return false;
+  const work = value.providerWork;
+  return (
+    isRecord(work) &&
+    Array.isArray(work.queuedByPriority) &&
+    work.queuedByPriority.length === 4 &&
+    work.queuedByPriority.every(isCount) &&
+    isCount(work.inFlightRegions) &&
+    (work.runningPriority === null ||
+      (Number.isInteger(work.runningPriority) && Number(work.runningPriority) >= 0 &&
+        Number(work.runningPriority) <= 3))
+  );
+}
+
 function parseBrokerResult(value: unknown): BrokerCommandResult {
   if (!isRecord(value) || typeof value.type !== "string" || !isStatus(value.status)) {
     throw new TypeError("Invalid broker response");
@@ -345,6 +428,11 @@ function parseBrokerResult(value: unknown): BrokerCommandResult {
       return value as BrokerCommandResult;
     case "cache-cleared":
       if (!isRegionKey(value.regionKey) || typeof value.cleared !== "boolean") {
+        throw new TypeError("Invalid broker response");
+      }
+      return value as BrokerCommandResult;
+    case "admin-snapshot":
+      if (!isAdminSnapshot(value.snapshot)) {
         throw new TypeError("Invalid broker response");
       }
       return value as BrokerCommandResult;
@@ -435,6 +523,7 @@ export function parseBrokerCommand(value: unknown): BrokerCommand {
       return value as BrokerCommand;
     case "status":
     case "transitions":
+    case "admin-snapshot":
       if (!exactKeys(value, ["type", "forceMode"]) || !isSystemMode(value.forceMode)) return invalid();
       return value as BrokerCommand;
     case "traffic":

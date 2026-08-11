@@ -1864,3 +1864,39 @@ lease release is a cross-Durable-Object follow-up: if it fails, the API truthful
 `mutationApplied: true`, and an identical replay retries only that idempotent release without duplicating
 the D1 mutation, audit, or alert. Flight termination first makes the locked mission `abandoned`, which
 makes any queued result ineligible before the lease release is attempted.
+
+## 2026-08-10 — CF-015 · The owner console reads bounded application truth and labels platform authority
+
+Task 15's prior-art gate selected **USE-API** for Cloudflare Analytics Engine's official read-only
+SQL API. The Worker exposes only three hard-coded, sample-weight-aware query templates and four
+enumerated time windows. The browser can select a view and window but can never submit SQL, a dataset,
+an account, or a token. The query client validates the configured account and dataset, uses an
+Account Analytics Read token supplied only as a secret, times out after five seconds, bounds rows and
+cells, and caches each fixed query for fifteen seconds. Empty, delayed, malformed, unavailable, and
+not-configured states remain distinct. Application counters, sample-weighted request-path estimates,
+and D1 entity counts are explicitly non-authoritative; links lead to Cloudflare's authoritative views.
+
+The admin entry is selected before any public application, PWA, stylesheet, or Cesium import. The
+production build emits a 26.1 KB admin JavaScript chunk with no Cesium/globe marker, while the simulator
+stays in its existing separate public chunk. Admin JavaScript and CSS emit under network-only
+`/admin-assets/`, outside the public PWA precache and runtime asset-cache allowlist. The console provides Overview, Traffic & Capacity, Active
+Sessions, Logs & Errors, Users, and Controls at desktop and narrow mobile widths. It preserves the Task
+14 mutation contracts, including Access-derived CSRF, reasons, idempotency, and typed destructive
+confirmations. The test-alert slot is visible but deliberately disabled until Task 16 supplies the
+audited alert endpoint; Task 16 owns that delivery behavior.
+
+The broker's administrative snapshot is a bounded internal command. It contains status, current leases,
+cache metadata, provider queue depth, and at most 200 ephemeral authenticated presence records. It never
+contains ADS-B contacts, aircraft identifiers, raw coordinates, email, IP addresses, cookies, or tokens.
+Presence expires after 45 seconds in memory. Successful session authorization updates D1 `last_seen_at`
+only when at least the configured one-minute interval has elapsed, and a failed activity write cannot
+replace otherwise valid authorization truth.
+
+Admin D1 reads return only the minimum diagnostic fields: handles and UUIDs, device labels, coarse
+normalized region keys, mission class/duration/assist summaries, status/counts, and scrubbed system
+events. Exact email lookup derives the existing HMAC in memory and returns no email or digest. Event
+queries accept only bounded severity/category/time filters; CSV/JSON exports cap rows, neutralize
+spreadsheet formula prefixes, and retain the explicit warning that `system_events` is not the complete
+Workers log stream. The Analytics read secret is not yet installed in staging or production, so those
+views truthfully report `not-configured` until Task 18 provisions the read-only secret. Task 15 adds no
+Cloudflare mutation privilege to the Worker.

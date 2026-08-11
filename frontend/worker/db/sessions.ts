@@ -132,6 +132,33 @@ export async function getActiveSessionByDigest(
   return row === null ? null : mapSession(row);
 }
 
+export async function touchSessionLastSeen(
+  db: D1Database,
+  sessionId: string,
+  now: number,
+  minimumIntervalMs = 60_000,
+): Promise<boolean> {
+  const timestamp = requireTimestamp("last seen at", now);
+  const interval = requireInteger("last seen interval", minimumIntervalMs, 1_000, 3_600_000);
+  const result = await db
+    .prepare(
+      `UPDATE sessions
+          SET last_seen_at = ?
+        WHERE id = ?
+          AND revoked_at IS NULL
+          AND expires_at > ?
+          AND last_seen_at <= ?`,
+    )
+    .bind(
+      timestamp,
+      requireUuid("session id", sessionId),
+      timestamp,
+      Math.max(0, timestamp - interval),
+    )
+    .run();
+  return changed(result);
+}
+
 export async function revokeSessionById(
   db: D1Database,
   sessionId: string,

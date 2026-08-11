@@ -14,6 +14,8 @@ describe("PWA artifacts", () => {
   it("keeps updates waiting and delegates result sync only to authenticated window clients", () => {
     const worker = readFileSync("public/sw.js", "utf8");
     const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
+    const viteConfig = readFileSync("vite.config.ts", "utf8");
+    const assetGenerator = readFileSync("scripts/generate-sw-assets.mjs", "utf8");
     const installHandler = worker.slice(
       worker.indexOf('self.addEventListener("install"'),
       worker.indexOf('self.addEventListener("activate"'),
@@ -26,6 +28,10 @@ describe("PWA artifacts", () => {
     expect(worker).toContain('!contentType.includes("text/html")');
     expect(worker).toContain('{ type: "SYNC_RESULTS" }');
     expect(worker).not.toContain("x-csrf-token");
+    expect(worker).not.toContain('url.pathname.startsWith("/admin-assets/")');
+    expect(viteConfig).toContain('"admin-assets/[name]-[hash].js"');
+    expect(viteConfig).toContain('"admin-assets/[name]-[hash][extname]"');
+    expect(assetGenerator).toContain("AdminApp-|admin-");
     expect(packageJson.scripts.postbuild).toBe("node scripts/generate-sw-assets.mjs");
   });
 });

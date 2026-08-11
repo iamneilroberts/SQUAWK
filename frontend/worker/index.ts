@@ -125,7 +125,13 @@ const trafficRoute = defineRoute({
         request,
       });
       if (result.type !== "traffic") throw new TypeError("Unexpected broker response");
-      return { data: result.traffic };
+      return {
+        data: result.traffic,
+        telemetry: {
+          cacheStatus: result.traffic.cacheStatus,
+          operation: result.traffic.providerAvailable ? "provider-available" : "provider-unavailable",
+        },
+      };
     } catch (error) {
       throw new ApiHttpError(
         503,

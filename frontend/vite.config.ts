@@ -18,6 +18,20 @@ export default defineConfig(({ mode }) => {
       ...(!legacyDevelopment && !unitTests ? [cloudflare()] : []),
     ],
     define: { CESIUM_BASE_URL: JSON.stringify("/cesium") },
+    build: {
+      rollupOptions: {
+        output: {
+          chunkFileNames: (chunk) =>
+            chunk.name === "AdminApp"
+              ? "admin-assets/[name]-[hash].js"
+              : "assets/[name]-[hash].js",
+          assetFileNames: (asset) =>
+            asset.names.some((name) => name === "admin.css")
+              ? "admin-assets/[name]-[hash][extname]"
+              : "assets/[name]-[hash][extname]",
+        },
+      },
+    },
     server: legacyDevelopment
       ? {
           proxy: { "/api": `http://127.0.0.1:${backendPort}` },

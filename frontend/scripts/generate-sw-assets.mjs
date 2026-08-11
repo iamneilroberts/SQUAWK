@@ -23,7 +23,8 @@ async function filesBelow(root) {
 const assets = (await Promise.all(roots.map(filesBelow))).flat().sort();
 if (
   assets.length === 0 ||
-  assets.some((path) => !path.startsWith("/assets/") && !path.startsWith("/cesium/"))
+  assets.some((path) => !path.startsWith("/assets/") && !path.startsWith("/cesium/")) ||
+  assets.some((path) => /^\/assets\/(?:AdminApp-|admin-)/.test(path))
 ) {
   throw new Error("Refusing to write an invalid service-worker asset manifest");
 }

@@ -795,26 +795,26 @@ specified, and immediately enforced.
 
 **Steps:**
 
-- [ ] Lazy-load admin code only on `/admin`; keep it out of the public app chunk.
-- [ ] Overview: effective/requested/automatic mode, component/binding health, exact API
+- [x] Lazy-load admin code only on `/admin`; keep it out of the public app chunk.
+- [x] Overview: effective/requested/automatic mode, component/binding health, exact API
       and provider budget bars, projected exhaustion, active flights, cache hit rate,
       latency/error summaries, monitoring-degraded flags, and authoritative-platform links.
-- [ ] Traffic & Capacity: route/status/reject trends, cache regions/age/viewers, provider
+- [x] Traffic & Capacity: route/status/reject trends, cache regions/age/viewers, provider
       calls/failures, D1/R2/email operations, cadence/reserve state, and bounded filters.
-- [ ] Active Sessions: user ID/handle, bounded last activity/device summary, coarse region,
+- [x] Active Sessions: user ID/handle, bounded last activity/device summary, coarse region,
       mission/aircraft/duration/assists, with revoke/end actions. Keep presence ephemeral
       in the broker and flush D1 last-seen no more often than configured.
-- [ ] Logs & Errors: scrubbed `system_events` warnings/errors/transitions with request ID,
+- [x] Logs & Errors: scrubbed `system_events` warnings/errors/transitions with request ID,
       severity/type/time filters, bounded CSV/JSON export, and direct link to Workers Logs.
       Do not pretend this table is the entire Cloudflare log stream.
-- [ ] Users: search by user ID, handle, or exact entered email digest; show status,
+- [x] Users: search by user ID, handle, or exact entered email digest; show status,
       sessions/results/bans; ban/unban/revoke controls with required confirmations.
-- [ ] Controls: NORMAL/READ_ONLY/KILL_SWITCH, registration, cache-only, region clear,
+- [x] Controls: NORMAL/READ_ONLY/KILL_SWITCH, registration, cache-only, region clear,
       test alert, automatic-mode explanation, and visible reason when effective mode
       cannot be relaxed.
-- [ ] Implement only hard-coded Analytics Engine SQL templates behind a read-only account
+- [x] Implement only hard-coded Analytics Engine SQL templates behind a read-only account
       token; rate-limit and briefly cache results. UI accepts parameters, never SQL.
-- [ ] Label application counters/estimates separately from authoritative Cloudflare
+- [x] Label application counters/estimates separately from authoritative Cloudflare
       billing. Test empty, sampled, delayed, and unavailable analytics/log states.
 
 **Acceptance:** The owner can diagnose capacity, sessions, provider/cache health, errors,

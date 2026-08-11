@@ -99,6 +99,10 @@ export type RouteResult = {
   code?: ApiSuccessCode;
   data?: unknown;
   headers?: HeadersInit;
+  telemetry?: {
+    cacheStatus?: string;
+    operation?: string;
+  };
 };
 
 export type RouteDefinition = {
@@ -309,10 +313,17 @@ function recordTelemetry(
   context: RequestContext,
   response: Response,
   monotonicNow: () => number,
+  telemetry?: RouteResult["telemetry"],
 ): void {
   try {
     env.REQUEST_ANALYTICS?.writeDataPoint({
-      blobs: [context.routeFamily, statusClass(response.status), context.mode, "none", "none"],
+      blobs: [
+        context.routeFamily,
+        statusClass(response.status),
+        context.mode,
+        telemetry?.cacheStatus ?? "none",
+        telemetry?.operation ?? "none",
+      ],
       doubles: [Math.max(0, monotonicNow() - context.startedAtMs)],
       indexes: [context.actor.samplingKey],
     });
@@ -521,6 +532,7 @@ export function createRouter<Env extends RuntimeEnvironment>(
 
       const { route, params } = selected;
       let admitted = false;
+      let telemetry: RouteResult["telemetry"];
       let response: Response;
       try {
         dependencies.onStage?.("context");
@@ -611,6 +623,7 @@ export function createRouter<Env extends RuntimeEnvironment>(
           ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
           env,
         });
+        telemetry = result.telemetry;
         dependencies.onStage?.("response");
         response = successfulResponse(context, result);
       } catch (error) {
@@ -624,7 +637,7 @@ export function createRouter<Env extends RuntimeEnvironment>(
 
       response = secure(response, env);
       if (admitted) {
-        recordTelemetry(env, context, response, dependencies.monotonicNow);
+        recordTelemetry(env, context, response, dependencies.monotonicNow, telemetry);
         dependencies.onStage?.("telemetry");
       }
       return response;

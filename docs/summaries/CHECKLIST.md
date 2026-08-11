@@ -18,7 +18,7 @@
 - [x] Task 13 — Add tutorial, coaching, installability, and offline result sync
 - [x] Owner checkpoint B — Product vertical slice approved 2026-08-10; owner directed Task 14 to continue
 - [x] Task 14 — Secure admin APIs and implement controls, audits, bans, and termination
-- [ ] Task 15 — Build detailed admin telemetry, sessions, users, and logs
+- [x] Task 15 — Build detailed admin telemetry, sessions, users, and logs
 - [ ] Task 16 — Add transition-based email alerts and scheduled health checks
 - [ ] Owner checkpoint C — Run Access, control, alert, audit, and recovery drills
 - [ ] Task 17 — Add E2E, failure/load, security, and performance release gates

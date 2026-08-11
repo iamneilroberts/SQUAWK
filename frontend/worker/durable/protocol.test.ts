@@ -43,6 +43,9 @@ describe("broker protocol", () => {
         forceMode: "NORMAL",
       }),
     ).toMatchObject({ type: "cache-clear-region", regionKey: "r1:30.5:-88:100" });
+    expect(
+      parseBrokerCommand({ type: "admin-snapshot", forceMode: "NORMAL" }),
+    ).toEqual({ type: "admin-snapshot", forceMode: "NORMAL" });
 
     for (const invalid of [
       null,

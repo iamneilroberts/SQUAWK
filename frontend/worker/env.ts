@@ -19,4 +19,7 @@ export type Env = WorkerEnv &
     MISSION_REQUEST_RATE_LIMITER?: RateLimit;
     ADMIN_RATE_LIMITER?: RateLimit;
     RESULT_TRACES?: R2Bucket;
+    CLOUDFLARE_ACCOUNT_ID?: string;
+    ANALYTICS_READ_TOKEN?: string;
+    REQUEST_ANALYTICS_DATASET?: string;
   };

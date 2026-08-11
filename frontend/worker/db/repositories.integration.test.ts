@@ -29,6 +29,7 @@ import {
   deleteExpiredSessions,
   getActiveSessionByDigest,
   rotateSession,
+  touchSessionLastSeen,
 } from "./sessions";
 import {
   consumeMagicLink,
@@ -210,6 +211,30 @@ describe("D1 repositories", () => {
     await expect(
       getActiveSessionByDigest(TEST_DB, digest("d"), NOW + 200),
     ).resolves.toBeNull();
+  });
+
+  it("flushes session last-seen at a bounded cadence", async () => {
+    const { TEST_DB } = testEnvironment();
+    await seedUser(TEST_DB);
+    await createSession(TEST_DB, {
+      id: SESSION_ID,
+      userId: USER_ID,
+      sessionDigest: digest("c"),
+      csrfDigest: digest("f"),
+      expiresAt: NOW + 120_000,
+      lastSeenAt: NOW,
+      deviceLabel: null,
+      rotatedFromId: null,
+      createdAt: NOW,
+    });
+
+    await expect(touchSessionLastSeen(TEST_DB, SESSION_ID, NOW + 999, 1_000)).resolves.toBe(false);
+    await expect(touchSessionLastSeen(TEST_DB, SESSION_ID, NOW + 1_000, 1_000)).resolves.toBe(true);
+    await expect(
+      TEST_DB.prepare("SELECT last_seen_at FROM sessions WHERE id = ?")
+        .bind(SESSION_ID)
+        .first<number>("last_seen_at"),
+    ).resolves.toBe(NOW + 1_000);
   });
 
   it("locks a bounded mission snapshot and finalizes exactly one result", async () => {

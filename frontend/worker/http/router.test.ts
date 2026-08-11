@@ -538,6 +538,30 @@ describe("explicit dynamic router", () => {
     expect(JSON.stringify(datapoint)).not.toContain("203.0.113.42");
   });
 
+  it("records only route-declared cache and operation telemetry labels", async () => {
+    const { env, writeDataPoint } = fakeEnv();
+    const route = defineRoute({
+      ...statusRoute,
+      handler: async () => ({
+        data: { status: "ok" },
+        telemetry: { cacheStatus: "HIT", operation: "provider-available" },
+      }),
+    });
+    const response = await createRouter([route], testDependencies()).fetch(
+      new Request("https://fly.voygent.app/api/status"),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect(writeDataPoint.mock.calls[0]?.[0]?.blobs).toEqual([
+      "status",
+      "2xx",
+      "NORMAL",
+      "HIT",
+      "provider-available",
+    ]);
+  });
+
   it("does not let telemetry failure alter a successful response", async () => {
     const { env, writeDataPoint } = fakeEnv();
     writeDataPoint.mockImplementation(() => {
