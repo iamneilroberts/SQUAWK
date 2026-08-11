@@ -83,3 +83,12 @@ For every drill or incident, retain the deployment version, environment, first a
 email UTC times, signal and recovery fingerprints, request/audit IDs, and relevant
 scrubbed log links. Do not paste email bodies, Access assertions, cookies, secrets, raw
 addresses, or raw request payloads into the repository.
+
+## Production Access and TEST-mail evidence — 2026-08-10
+
+- Worker version `940456f5-f77c-4fff-9c8a-a214eecc68a5` admitted the Access-authenticated owner to
+  `/admin` while anonymous checks still redirected both `/admin` and `/api/admin/status` to Access.
+- The owner confirmed that one production TEST alert reached the configured destination.
+- The alert's request/audit IDs and exact delivery UTC were not captured, so this is proof of the
+  Access and delivery path only; the remaining checkpoint C control, audit, kill, recovery, and
+  idempotent-replay drills are still required.

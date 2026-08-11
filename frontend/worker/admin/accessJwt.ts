@@ -26,10 +26,24 @@ export type AccessJwtVerificationOptions = {
   now?: Date;
 };
 
+export type AccessJwtFailureReason =
+  | "configuration"
+  | "token-shape"
+  | "protected-header"
+  | "verification"
+  | "identity";
+
 export class AccessJwtError extends Error {
-  constructor(message = "Access token validation failed", options?: ErrorOptions) {
+  readonly reason: AccessJwtFailureReason;
+
+  constructor(
+    message = "Access token validation failed",
+    options?: ErrorOptions,
+    reason: AccessJwtFailureReason = "verification",
+  ) {
     super(message, options);
     this.name = "AccessJwtError";
+    this.reason = reason;
   }
 }
 
@@ -44,14 +58,18 @@ function validatedConfiguration(configuration: AccessJwtConfiguration): {
     typeof configuration.audience !== "string" ||
     !ACCESS_AUDIENCE.test(configuration.audience)
   ) {
-    throw new AccessJwtError("Access JWT configuration is invalid");
+    throw new AccessJwtError("Access JWT configuration is invalid", undefined, "configuration");
   }
 
   let url: URL;
   try {
     url = new URL(configuration.teamDomain);
   } catch (error) {
-    throw new AccessJwtError("Access JWT configuration is invalid", { cause: error });
+    throw new AccessJwtError(
+      "Access JWT configuration is invalid",
+      { cause: error },
+      "configuration",
+    );
   }
   if (
     url.protocol !== "https:" ||
@@ -62,7 +80,7 @@ function validatedConfiguration(configuration: AccessJwtConfiguration): {
     url.username !== "" ||
     url.password !== ""
   ) {
-    throw new AccessJwtError("Access JWT configuration is invalid");
+    throw new AccessJwtError("Access JWT configuration is invalid", undefined, "configuration");
   }
   return { issuer: url.origin, audience: configuration.audience };
 }
@@ -98,18 +116,18 @@ export async function verifyAccessJwt(
 ): Promise<AccessIdentity> {
   const { issuer, audience } = validatedConfiguration(configuration);
   if (typeof token !== "string" || token.length < 32 || token.length > 16_384) {
-    throw new AccessJwtError();
+    throw new AccessJwtError(undefined, undefined, "token-shape");
   }
 
   try {
     const protectedHeader = decodeProtectedHeader(token);
     if (
       protectedHeader.alg !== "RS256" ||
-      protectedHeader.typ !== "JWT" ||
+      (protectedHeader.typ !== undefined && protectedHeader.typ !== "JWT") ||
       typeof protectedHeader.kid !== "string" ||
       !ACCESS_KID.test(protectedHeader.kid)
     ) {
-      throw new AccessJwtError();
+      throw new AccessJwtError(undefined, undefined, "protected-header");
     }
 
     const { payload } = await jwtVerify(
@@ -130,7 +148,7 @@ export async function verifyAccessJwt(
       payload.sub.length < 1 ||
       payload.sub.length > 256
     ) {
-      throw new AccessJwtError();
+      throw new AccessJwtError(undefined, undefined, "identity");
     }
 
     const identityDigest = await sha256(`${issuer}\n${payload.sub}`);
@@ -141,7 +159,7 @@ export async function verifyAccessJwt(
     };
   } catch (error) {
     if (error instanceof AccessJwtError) throw error;
-    throw new AccessJwtError(undefined, { cause: error });
+    throw new AccessJwtError(undefined, { cause: error }, "verification");
   }
 }
 

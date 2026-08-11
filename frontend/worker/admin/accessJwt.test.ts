@@ -44,6 +44,7 @@ type TokenOverrides = {
   kid?: string;
   notBefore?: number;
   expiration?: number;
+  protectedType?: "JWT" | "not-jwt" | null;
   tokenType?: string;
   key?: CryptoKey;
 };
@@ -54,7 +55,13 @@ async function token(overrides: TokenOverrides = {}): Promise<string> {
     email: overrides.email ?? ADMIN_EMAIL,
     type: overrides.tokenType ?? "app",
   })
-    .setProtectedHeader({ alg: "RS256", kid: overrides.kid ?? KID, typ: "JWT" })
+    .setProtectedHeader({
+      alg: "RS256",
+      kid: overrides.kid ?? KID,
+      ...(overrides.protectedType === null
+        ? {}
+        : { typ: overrides.protectedType ?? "JWT" }),
+    })
     .setIssuer(overrides.issuer ?? ISSUER)
     .setAudience(overrides.audience ?? AUDIENCE)
     .setSubject(SUBJECT)
@@ -75,6 +82,26 @@ describe("Cloudflare Access application JWT validation", () => {
       ),
       subject: SUBJECT,
     });
+  });
+
+  it("accepts Cloudflare application tokens without the optional typ header", async () => {
+    await expect(
+      verifyAccessJwt(
+        await token({ protectedType: null }),
+        configuration,
+        { jwks, now: NOW },
+      ),
+    ).resolves.toMatchObject({ subject: SUBJECT });
+  });
+
+  it("rejects an explicitly incompatible typ header", async () => {
+    await expect(
+      verifyAccessJwt(
+        await token({ protectedType: "not-jwt" }),
+        configuration,
+        { jwks, now: NOW },
+      ),
+    ).rejects.toThrow();
   });
 
   it.each([

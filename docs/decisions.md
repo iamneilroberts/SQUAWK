@@ -1931,3 +1931,12 @@ the broker queue. Cloudflare account notifications remain a manual defense-in-de
 layer documented in `docs/summaries/alert-operations-runbook.md`; they are plan-dependent,
 delayed informational warnings rather than hard caps, and do not justify giving the
 application account-level mutation credentials.
+
+## 2026-08-10 — CF-014A · Treat the JWT `typ` header as optional metadata
+
+The live production Access application issued a valid application JWT without the optional
+protected-header `typ` member. The Worker now accepts an absent `typ`, still rejects an explicitly
+incompatible value, and continues to require RS256, a bounded signing-key ID, rotating JWKS signature
+validation, exact issuer and audience, time claims, application role, subject, and the exact owner
+email. Access denials remain non-enumerating to the client; authenticated verifier failures emit only
+a bounded failure category and library error code, never a token, claim value, cookie, email, or IP.
