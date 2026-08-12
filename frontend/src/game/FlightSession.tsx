@@ -22,6 +22,7 @@ import { preloadTerrain } from "../globe/terrainPreload";
 import { createCountdownTimer } from "./countdownTimer";
 import { hudSnapshot } from "../hud/snapshot";
 import { formatCallsign, warningsFor } from "../hud/format";
+import { approachWarningsFor } from "../hud/approachAlerts";
 import Hud from "../hud/Hud";
 import { tapeRangesFor, type ImmersiveHudVariant } from "../hud/ImmersiveHudBar";
 import TouchControls from "../input/TouchControls";
@@ -703,6 +704,16 @@ export default function FlightSession({
         })()
       : null;
 
+  const immersiveApproachWarnings =
+    lockedMission !== null && snapshot !== null && assist !== null
+      ? approachWarningsFor(
+          snapshot,
+          lockedMission.assignment,
+          lockedMission.missionProfile.guidance,
+          assist.current,
+        )
+      : [];
+
   const dismissLesson = () => {
     activeLessonRef.current = null;
     setActiveLesson(null);
@@ -758,6 +769,7 @@ export default function FlightSession({
             immersiveVariant={immersiveHudVariant}
             onImmersiveVariantChange={setImmersiveHudVariant}
             immersiveNavCue={immersiveNavCue}
+            immersiveApproachWarnings={immersiveApproachWarnings}
             narrow={narrow}
             tapeRange={originParams ? tapeRangesFor(originParams) : null}
           />
