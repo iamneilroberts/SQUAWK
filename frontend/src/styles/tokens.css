@@ -1150,6 +1150,9 @@ body {
   bottom: max(72px, calc(env(safe-area-inset-bottom) + 64px));
   width: 52px;
   height: 46vh;
+  /* Cap the length on short (landscape) viewports so the lever top never rides up under the
+     top-right EXIT toggle — keeps its top at least ~180px below the viewport top. */
+  max-height: calc(100dvh - 180px);
   /* Transparent/minimalist (owner refinement, #13): faint cyan outline, see-through track. */
   border: 1px solid rgba(95, 215, 224, 0.4);
   background: rgba(5, 7, 10, 0.18);
@@ -1404,9 +1407,18 @@ body {
 }
 
 /* ---- Immersive StatusBar: already collapsed to feed-status + attribution by statusBarRegions;
-   here it just dims slightly and fades with the video-player auto-hide. It STAYS in the DOM and
-   reappears on tap — attribution is faded, never removed (CLAUDE.md data-sources safeguard). ---- */
+   here it dims slightly and fades with the video-player auto-hide. It STAYS in the DOM and
+   reappears on tap — attribution is faded, never removed (CLAUDE.md data-sources safeguard).
+   In immersive it is pulled OUT of the column flow (position: fixed) and overlaid on the globe's
+   bottom edge, so it no longer eats a solid band beneath the globe — that band was the "letterbox"
+   the owner flagged. Low z-index + translucent keeps the touch buttons above readable. ---- */
 .status-bar-immersive {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  background: linear-gradient(0deg, rgba(5, 7, 10, 0.82), rgba(5, 7, 10, 0));
   opacity: 0.72;
   transition: opacity 0.5s ease;
 }
@@ -1689,22 +1701,14 @@ body {
   .imm-bar-tapes .imm-director-systems { gap: 10px; font-size: 8px; }
 }
 
-/* Only the attribution keeps the video-player auto-hide in immersive mode. While visible, it uses
-   the gap between the stick and throttle above the bottom button row, so required source credit is
-   never hidden beneath an interactive surface. */
+/* In immersive flight the HUD's own attribution line is HIDDEN to declutter the flying view: the
+   required data-source credit (Esri, Re:Earth/Mapterhorn CC BY 4.0, traffic feeds) is still shown
+   honestly by the StatusBar, which overlays the bottom edge in immersive mode (see
+   .status-bar-immersive). Dropping the duplicate removes the faint mid-globe band the owner flagged.
+   Non-immersive mobile/desktop keep the HUD attribution (no .hud-immersive class there). */
 .hud-immersive .hud-attribution {
-  /* Required data-source credit (Esri, Re:Earth/Mapterhorn CC BY 4.0, traffic feeds) — kept on
-     screen for licensing, but tucked to a small, dim, left-aligned line in the safe zone between
-     the stick (lower-left) and throttle (right), and folded into the chrome auto-hide below. */
-  right: max(76px, calc(env(safe-area-inset-right) + 72px));
-  bottom: max(72px, calc(env(safe-area-inset-bottom) + 64px));
-  left: max(156px, calc(env(safe-area-inset-left) + 152px));
-  text-align: left;
-  font-size: 8px;
-  opacity: 0.4;
-  transition: opacity 0.5s ease;
+  display: none;
 }
-.hud-immersive.hud-faded .hud-attribution { opacity: 0; }
 
 /* ========================================================================
  * Unified glass cockpit (desktop-only redesign). ONE panel: per-class primary
@@ -1810,8 +1814,12 @@ body {
    full glass dashboard. Terminal language: transparent/near-black, cyan data, amber accents. */
 .mobile-navwx-chip {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  /* Bottom-centre, in the free zone between the stick (lower-left) and throttle (right),
+     just above the CAM/GEAR/FLP/TRM button row — clear of the top-right EXIT toggle it
+     was previously hidden beneath. */
+  bottom: 66px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 30;
   display: inline-flex;
   align-items: center;
