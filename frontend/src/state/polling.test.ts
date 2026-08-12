@@ -277,6 +277,53 @@ describe("startTrafficPolling cold-start recovery (backend down at page load)", 
   });
 });
 
+describe("startTrafficPolling immediate refresh on select / radius change (#41)", () => {
+  it("advances the next poll when a contact is selected, mid-cadence", async () => {
+    mockedFetchConfig.mockResolvedValue({ home: { lat: 1, lon: 2 } });
+    mockedFetchTraffic.mockResolvedValue(trafficResult());
+    const stop = startTrafficPolling({ intervalMs: 30_000 });
+    await vi.advanceTimersByTimeAsync(0); // config + first traffic fetch
+    expect(mockedFetchTraffic).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(500); // next poll is ~30 s out, nothing fires on its own
+    expect(mockedFetchTraffic).toHaveBeenCalledTimes(1);
+
+    useStore.getState().select("abc123"); // advances the poll to now
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedFetchTraffic).toHaveBeenCalledTimes(2);
+
+    stop();
+  });
+
+  it("is a no-op while a fetch is already in flight — never a parallel upstream call", async () => {
+    mockedFetchConfig.mockResolvedValue({ home: { lat: 1, lon: 2 } });
+    const pending = deferred<FetchResult>();
+    mockedFetchTraffic.mockReturnValueOnce(pending.promise);
+    const stop = startTrafficPolling({ intervalMs: 30_000 });
+    await vi.advanceTimersByTimeAsync(0); // config resolves, first traffic fetch left pending
+    expect(mockedFetchTraffic).toHaveBeenCalledTimes(1);
+
+    useStore.getState().setRadiusNm(120); // in flight -> both refreshes are no-ops
+    useStore.getState().select("abc123");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockedFetchTraffic).toHaveBeenCalledTimes(1);
+
+    pending.resolve(trafficResult());
+    await vi.advanceTimersByTimeAsync(0);
+    stop();
+    useStore.getState().setRadiusNm(80); // reset the shared singleton for other tests
+  });
+
+  it("is a safe no-op when no poller is running", () => {
+    expect(() => {
+      useStore.getState().select("abc123");
+      useStore.getState().setRadiusNm(90);
+    }).not.toThrow();
+    expect(mockedFetchTraffic).not.toHaveBeenCalled();
+    useStore.getState().setRadiusNm(80);
+  });
+});
+
 describe("visibility and cadence policy", () => {
   it("uses anonymous, signed, active-flight, and conservation cadences", () => {
     expect(clientTrafficCadenceSeconds("anonymous", "BROWSE", "NORMAL")).toBe(30);

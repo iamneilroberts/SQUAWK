@@ -4,9 +4,12 @@
  * the map-first provisional MissionTray; authentication and controls live there, not in rows.
  */
 import { useEffect, useRef, useState } from "react";
-import { useStore } from "../state/store";
+import { secondsSinceTrafficApplied, useStore } from "../state/store";
 import type { Contact } from "../data/types";
 import { checkEligibility, resolveClass } from "../takeover/eligibility";
+
+/** How often the list re-evaluates flyability against the wall clock (piece 3). */
+const AGE_TICK_MS = 5_000;
 
 export type ContactClassFilter = "all" | "c172s" | "b738" | "f5e" | "unsupported";
 export type ContactAltitudeFilter = "all" | "low" | "mid" | "high";
@@ -59,6 +62,33 @@ export function sortContacts(contacts: Contact[]): Contact[] {
   });
 }
 
+/**
+ * Age a frozen snapshot's `seen_pos` forward by the seconds elapsed since it was fetched, so the
+ * displayed flyability matches real elapsed time between polls (piece 3). Between 30 s browse polls
+ * a snapshot's `seen_pos` is frozen, so a contact fetched fresh would keep looking flyable even as
+ * it truly ages past the 15 s freshness gate. Pure: returns a shallow clone rather than mutating,
+ * and leaves a null `seen_pos` (already ineligible) and non-positive elapsed untouched.
+ */
+export function agedContact(contact: Contact, secondsSince: number): Contact {
+  if (contact.seen_pos === null || secondsSince <= 0) return contact;
+  return { ...contact, seen_pos: contact.seen_pos + secondsSince };
+}
+
+/**
+ * Flyable (eligible) contacts first, so the one thing the player can act on is at the top of the
+ * list (piece 2). Stable within each group: the callsign/hex order from sortContacts is preserved.
+ * Eligibility is read from whatever contacts are passed in, so callers that pre-age with
+ * agedContact get a flyable-first order that matches the dimming.
+ */
+export function sortContactsFlyableFirst(contacts: Contact[]): Contact[] {
+  const flyable: Contact[] = [];
+  const rest: Contact[] = [];
+  for (const contact of sortContacts(contacts)) {
+    (checkEligibility(contact).eligible ? flyable : rest).push(contact);
+  }
+  return [...flyable, ...rest];
+}
+
 export function formatAlt(c: Contact): string {
   if (c.alt_baro === "ground") return "GND";
   const alt = c.alt_geom ?? c.alt_baro;
@@ -105,7 +135,17 @@ export default function ContactList({
     if (focusRequest > 0) searchRef.current?.focus();
   }, [focusRequest]);
 
-  const rows = sortContacts(filterContacts(Array.from(contacts.values()), filters));
+  // Flyability changes with wall-clock time (piece 3): a fresh contact ages past 15 s between
+  // polls. Force a re-render on a slow tick so rows dim honestly without waiting for the next poll.
+  const [, setAgeTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setAgeTick((t) => t + 1), AGE_TICK_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  const secondsSince = secondsSinceTrafficApplied();
+  const aged = Array.from(contacts.values()).map((c) => agedContact(c, secondsSince));
+  const rows = sortContactsFlyableFirst(filterContacts(aged, filters));
   const hint = selectionHint(selectedHex, rows.length);
 
   return (
@@ -149,13 +189,13 @@ export default function ContactList({
           </select>
           <select
             className="contact-filter"
-            aria-label="Filter contacts by mission eligibility"
+            aria-label="Filter contacts by flyability"
             value={filters.eligibility}
             onChange={(event) => setFilters((current) => ({ ...current, eligibility: event.target.value as ContactEligibilityFilter }))}
           >
-            <option value="all">ALL STATUS</option>
-            <option value="eligible">ELIGIBLE</option>
-            <option value="ineligible">INELIGIBLE</option>
+            <option value="all">ALL FLYABLE</option>
+            <option value="eligible">FLYABLE</option>
+            <option value="ineligible">NOT FLYABLE</option>
           </select>
         </div>
       </div>
@@ -184,6 +224,9 @@ export default function ContactList({
                 (eligible ? "" : " contact-row-ineligible")
               }
             >
+              <span className="contact-cell-flag" aria-label={eligible ? "Flyable" : undefined}>
+                {eligible ? "►" : ""}
+              </span>
               <span className="contact-cell-id">{c.flight ?? "—"}</span>
               <span className="contact-cell-id">{c.t ?? "—"}</span>
               <span className="contact-cell-num">{formatAlt(c)}</span>

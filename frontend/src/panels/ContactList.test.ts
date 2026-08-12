@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { filterContacts, sortContacts, formatAlt, formatGs, selectionHint } from "./ContactList";
+import {
+  agedContact,
+  filterContacts,
+  formatAlt,
+  formatGs,
+  selectionHint,
+  sortContacts,
+  sortContactsFlyableFirst,
+} from "./ContactList";
+import { checkEligibility } from "../takeover/eligibility";
 import type { Contact } from "../data/types";
 
 const contact = (overrides: Partial<Contact> = {}): Contact => ({
@@ -15,6 +24,46 @@ describe("sortContacts", () => {
     const c = contact({ hex: "c3", flight: null });
     const d = contact({ hex: "a0", flight: null });
     expect(sortContacts([a, b, c, d]).map((x) => x.hex)).toEqual(["a0", "c3", "a1", "b2"]);
+  });
+});
+
+describe("agedContact", () => {
+  it("advances seen_pos by the elapsed seconds, so a fresh contact goes stale as time passes", () => {
+    const c = contact({ t: "C172", seen_pos: 10 });
+    expect(agedContact(c, 0).seen_pos).toBe(10);
+    expect(checkEligibility(agedContact(c, 4)).eligible).toBe(true); // 14 <= 15
+    expect(checkEligibility(agedContact(c, 6)).eligible).toBe(false); // 16 > 15
+  });
+  it("leaves a null seen_pos untouched — it is already ineligible", () => {
+    expect(agedContact(contact({ seen_pos: null }), 30).seen_pos).toBeNull();
+  });
+  it("never rewinds seen_pos for non-positive elapsed time", () => {
+    expect(agedContact(contact({ seen_pos: 5 }), -3).seen_pos).toBe(5);
+    expect(agedContact(contact({ seen_pos: 5 }), 0).seen_pos).toBe(5);
+  });
+  it("does not mutate the original snapshot", () => {
+    const c = contact({ t: "C172", seen_pos: 2 });
+    agedContact(c, 20);
+    expect(c.seen_pos).toBe(2);
+  });
+});
+
+describe("sortContactsFlyableFirst", () => {
+  it("puts flyable contacts first, preserving callsign/hex order within each group", () => {
+    const stale = contact({ hex: "a1", flight: "AAA", t: "C172", seen_pos: 40 });
+    const flyB = contact({ hex: "b2", flight: "BBB", t: "C172", seen_pos: 1 });
+    const flyC = contact({ hex: "c3", flight: "CCC", t: "C172", seen_pos: 1 });
+    const missingType = contact({ hex: "d4", flight: "DDD", t: null, seen_pos: 1 });
+    expect(sortContactsFlyableFirst([stale, flyB, flyC, missingType]).map((x) => x.hex))
+      .toEqual(["b2", "c3", "a1", "d4"]);
+  });
+  it("reflects aged eligibility when contacts are pre-aged, matching the dimming", () => {
+    const fresh = contact({ hex: "f1", flight: "FRESH", t: "C172", seen_pos: 12 });
+    const other = contact({ hex: "o1", flight: "OTHER", t: "C172", seen_pos: 5 });
+    // Age both past 15 s: neither is flyable, so order falls back to callsign/hex.
+    const aged = [fresh, other].map((c) => agedContact(c, 16));
+    expect(sortContactsFlyableFirst(aged).map((x) => x.hex)).toEqual(["f1", "o1"]);
+    expect(aged.every((c) => !checkEligibility(c).eligible)).toBe(true);
   });
 });
 

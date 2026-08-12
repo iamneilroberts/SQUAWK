@@ -138,6 +138,27 @@ type State = {
 let consecutiveFailures = 0;
 let lastTrafficAppliedAtMs: number | null = null;
 
+// The running traffic poller registers its immediate-refresh here (issue #41), so store actions
+// that change what the client should be looking at — select() and setRadiusNm() — can ADVANCE the
+// next poll instead of waiting out the 30 s browse cadence. It only reuses the poller's schedule(0)
+// debounce; it never fires a parallel upstream call (the server keeps a 30 s region cache and a DO
+// 1/s gate). Null when no poller is running, so it is a no-op off the browse screen and in tests.
+let activeRefreshNow: (() => void) | null = null;
+
+function triggerRefreshNow(): void {
+  activeRefreshNow?.();
+}
+
+/**
+ * Seconds of wall-clock elapsed since the last traffic snapshot was applied, from the same
+ * `lastTrafficAppliedAtMs` clock markFetchFailed ages the cache with. Used to age a frozen
+ * snapshot's `seen_pos` forward so displayed flyability stays honest between polls (issue #41).
+ */
+export function secondsSinceTrafficApplied(nowMs: number = Date.now()): number {
+  if (lastTrafficAppliedAtMs === null) return 0;
+  return Math.max(0, (nowMs - lastTrafficAppliedAtMs) / 1_000);
+}
+
 export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, get) => ({
   home: null,
   savedCenter: null,
@@ -181,6 +202,9 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
 
   setRadiusNm(n) {
     set({ radiusNm: n });
+    // Advance the next poll so the client's freshness matches the new radius the server will
+    // validate against (issue #41). No-op if no poller is running or one is already in flight.
+    triggerRefreshNow();
   },
 
   setBasemap(k) {
@@ -284,6 +308,10 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   select(hex) {
     if (get().selectionLocked) return;
     set({ selectedHex: hex });
+    // Refresh on select so the picked contact's freshness is current when the player hits TAKE
+    // CONTROLS and the server re-checks it (issue #41) — otherwise a snapshot up to 30 s old fails
+    // the mission-lock freshness gate. Only when picking a real contact, not on deselect.
+    if (hex !== null) triggerRefreshNow();
   },
 
   setSelectionLocked(locked) {
@@ -521,15 +549,25 @@ export function startTrafficPolling(options: TrafficPollingOptions = {}): () => 
       });
   }
 
+  // Advance the next poll to now, reusing the same schedule(0) debounce visibility uses. A no-op
+  // while a fetch is in flight (that fetch already carries the latest radius/selection) or while
+  // hidden — so callers (select/setRadiusNm) never open a parallel upstream call. See issue #41.
+  function refreshNow(): void {
+    if (stopped || inFlight || !visibility.isVisible()) return;
+    schedule(0);
+  }
+
   const unsubscribeVisibility = visibility.subscribe(() => {
     if (!visibility.isVisible()) clearTimer();
     else if (!inFlight) schedule(0);
   });
+  activeRefreshNow = refreshNow;
   tick();
 
   return () => {
     stopped = true;
     clearTimer();
     unsubscribeVisibility();
+    if (activeRefreshNow === refreshNow) activeRefreshNow = null;
   };
 }

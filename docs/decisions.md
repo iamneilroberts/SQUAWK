@@ -2131,3 +2131,32 @@ layers can react. Runway outline + destination cue stay (they mark the target, n
 
 Residual (owner verifies on-device): drag/look sensitivity and pinch-zoom direction are tuned blind
 (pinch-apart = zoom in, matching applyZoom's sign) and may need adjustment after real-device testing.
+
+## 2026-08-12 — CF-023 — Make browse playable: refresh-on-select, flyable-first list, honest aging, un-crowd
+
+Owner was blocked on mobile: couldn't tell which live contacts were flyable, and takeover kept
+failing with "THE AIRCRAFT IS NO LONGER FRESH AND ELIGIBLE" (server re-checks freshness against the
+live feed at mission-lock; the client showed poll snapshots up to 30 s old against a 15 s freshness
+window — a structural mismatch, poll cadence > freshness window, with no refresh on select).
+
+Four-part fix:
+1. #41 refresh-on-select/range-change: `select(hex)` and `setRadiusNm` advance the next poll via a
+   `refreshNow()` the running poller registers into a module ref. Reuses the poller's schedule(0)/
+   inFlight debounce — never a parallel upstream call (server 30 s region cache + DO 1/s gate), no-op
+   when no poller runs or one is in flight. So the picked contact is fresh when TAKE CONTROLS re-checks.
+2. Flyable-first list: eligible contacts sort to the top (stable partition), a leading cyan ► marks
+   them, and the eligibility filter is relabelled to flyability — ALL FLYABLE / FLYABLE / NOT FLYABLE
+   (internal values all|eligible|ineligible unchanged). Uses the same checkEligibility predicate as the
+   TAKE CONTROLS gate, so the list and the button agree.
+3. Honest aging: the list ages each snapshot's seen_pos forward by wall-clock elapsed since the fetch
+   (`agedContact`, a display-only clone — real store contacts untouched, so takeover still uses fresh
+   data) and re-renders on a 5 s tick, so a contact greys out at the true 15 s staleness instead of
+   staying falsely flyable for the whole 30 s poll gap.
+4. Un-crowd browse portrait: on narrow screens the funnel chips (PILOT/LEADERBOARDS/APP…) stacked into
+   a tall notch-pushed column over the contact drawer; they now wrap into a compact right-aligned
+   cluster (`.top-controls:not(.top-controls-immersive)` — immersive flight's dropped band and desktop
+   both excluded/undisturbed).
+
+Gate: typecheck + 1223 tests (+9) + lint green. Residual (owner verifies on-device): whether takeover
+now succeeds reliably, and whether the wrapped chip cluster fully clears the list on a real notched
+phone (piece 4 was only verified in an isolated CSS harness, no live Chrome available here).

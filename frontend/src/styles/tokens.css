@@ -106,6 +106,14 @@ body {
 .contact-row-ineligible {
   opacity: 0.5;
 }
+/* Leading flyability marker (piece 2): a cyan chevron on rows the player can actually take
+   controls of. Fixed-width so it reads as a column and every row's id cell stays aligned whether
+   or not the marker is present. */
+.contact-cell-flag {
+  flex: 0 0 10px;
+  text-align: center;
+  color: var(--cyan);
+}
 .contact-cell-id {
   flex: 1 1 0;
   text-align: left;
@@ -1314,6 +1322,18 @@ body {
   .top-controls {
     top: max(8px, env(safe-area-inset-top));
     right: max(8px, env(safe-area-inset-right));
+  }
+  /* Browse funnel chips must stay in the top band, clear of the 60vh contact drawer below (owner:
+     on small portrait phones the chips stacked into a tall column — pushed down by the notch
+     safe-area inset — and covered the contact list's header and top rows). Wrap right-aligned into
+     a compact cluster instead of a single tall column. Immersive flight keeps its own dropped band
+     (.top-controls-immersive), so it is excluded and undisturbed. */
+  .top-controls:not(.top-controls-immersive) {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: flex-end;
+    max-width: calc(100vw - 16px);
   }
   .leaderboard-panel { max-height: calc(100dvh - 24px); padding: 12px; }
   .tutorial-panel, .pwa-panel { max-height: calc(100dvh - 24px); padding: 12px; }
