@@ -207,13 +207,15 @@ describe("Hud", () => {
       expect(classes.some((c) => c.split(/\s+/).includes("imm-hud"))).toBe(true);
     });
 
-    it("does NOT fade the bar when narrow but not immersive", () => {
+    it("fades the bar on narrow flight when the session says faded (auto-hide, 2026-08-11)", () => {
+      // The fade decision lives upstream (FlightSession arms auto-hide on any narrow flight);
+      // Hud simply applies it — fullscreen is no longer a precondition.
       const classes = collectClasses(
         Hud({
           snapshot: snap(), attribution: "x", immersive: false, narrow: true, faded: true, tapeRange,
         }),
       );
-      expect(classes.some((c) => c.split(/\s+/).includes("hud-faded"))).toBe(false);
+      expect(classes.some((c) => c.split(/\s+/).includes("hud-faded"))).toBe(true);
     });
 
     it("keeps the desktop layout when neither immersive nor narrow", () => {

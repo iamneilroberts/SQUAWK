@@ -680,7 +680,8 @@ export default function FlightSession({
   // video-player auto-hide of the informational overlays. warningActive keeps a live annunciator
   // visible through the fade (safety) — same warningsFor the HUD renders, so they never disagree.
   const immersiveActive = isImmersiveActive(immersive, narrow, mode);
-  const faded = immersiveActive && !chromeVisible;
+  // Fade on ANY narrow flight, not just requested fullscreen (owner declutter 2026-08-11).
+  const faded = (immersiveActive || (narrow && mode === "FLYING")) && !chromeVisible;
   const warningActive = snapshot ? warningsFor(snapshot).length > 0 : false;
 
   const dismissLesson = () => {

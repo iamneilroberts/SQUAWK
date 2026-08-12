@@ -18,7 +18,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "../state/store";
-import { isImmersiveActive, showImmersiveToggle, overlaysVisible } from "./immersive";
+import { showImmersiveToggle, overlaysVisible } from "./immersive";
 import {
   requestAppFullscreen, exitAppFullscreen, fullscreenSupported, isStandalone, shouldShowInstallHint,
 } from "./fullscreen";
@@ -35,7 +35,9 @@ export default function ImmersiveControl({ warningActive }: { warningActive: boo
   const setChromeVisible = useStore((s) => s.setChromeVisible);
   const { width } = useViewport();
   const narrow = isNarrowViewport(width);
-  const immersiveActive = isImmersiveActive(immersive, narrow, mode);
+  // Auto-hide arms on ANY narrow flight, not just requested fullscreen (owner 2026-08-11:
+  // clutter never faded in a plain browser tab because the fade was fullscreen-gated).
+  const autoHideActive = narrow && mode === "FLYING";
 
   const [hintDismissed, setHintDismissed] = useState(false);
 
@@ -55,7 +57,7 @@ export default function ImmersiveControl({ warningActive }: { warningActive: boo
   warnRef.current = warningActive;
 
   useEffect(() => {
-    if (!immersiveActive) {
+    if (!autoHideActive) {
       setChromeVisible(true);
       return;
     }
@@ -77,16 +79,16 @@ export default function ImmersiveControl({ warningActive }: { warningActive: boo
       clearInterval(id);
       setChromeVisible(true);
     };
-  }, [immersiveActive, setChromeVisible]);
+  }, [autoHideActive, setChromeVisible]);
 
   // A warning appearing must reveal the chrome immediately (before the next poll) AND reset the
   // idle window so it lingers after the warning clears — treat it as an interaction.
   useEffect(() => {
-    if (immersiveActive && warningActive) {
+    if (autoHideActive && warningActive) {
       lastInteractionRef.current = Date.now();
       setChromeVisible(true);
     }
-  }, [immersiveActive, warningActive, setChromeVisible]);
+  }, [autoHideActive, warningActive, setChromeVisible]);
 
   // ---- keep the toggle honest when the user leaves fullscreen by a browser gesture ----
   useEffect(() => {

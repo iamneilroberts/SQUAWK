@@ -72,7 +72,7 @@ export default function Hud({
   const simRate = formatSimRate(snapshot.simRate);
   const showBar = immersive || narrow;
   const rootClass =
-    "hud-root" + (showBar ? " hud-immersive" : "") + (immersive && faded ? " hud-faded" : "");
+    "hud-root" + (showBar ? " hud-immersive" : "") + (faded ? " hud-faded" : "");
 
   // Immersive mobile flight (or any narrow phone, even pre-FULL): ONE dense top bar carries the
   // essential flight data + SIM identity + warnings and STAYS visible (it is not faded) unless
