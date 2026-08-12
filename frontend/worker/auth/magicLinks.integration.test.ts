@@ -6,10 +6,11 @@ import {
 } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { codeDigest } from "../crypto";
 import { banUser } from "../db/bans";
 import { createSession, getActiveSessionByDigest } from "../db/sessions";
 import { createMagicLink, createUser } from "../db/users";
-import { consumeMagicLinkSession } from "./magicLinks";
+import { consumeAuthCodeSession, consumeMagicLinkSession } from "./magicLinks";
 
 const NOW = 1_700_000_000_000;
 const USER_ID = "11111111-1111-4111-8111-111111111111";
@@ -228,5 +229,210 @@ describe("atomic magic-link session exchange", () => {
     await expect(
       consumeMagicLinkSession(TEST_DB, consumeInput()),
     ).resolves.toMatchObject({ id: SESSION_A_ID, userId: USER_ID });
+  });
+});
+
+const CODE = "012345";
+const WRONG_CODE = "999999";
+const EMAIL_A = digest("a");
+const EMAIL_B = "2".repeat(64);
+
+type CodeInput = {
+  emailKey: string;
+  code: string;
+  now: number;
+  consumeNonce: string;
+  userId: string;
+  handle: string;
+  centerLat: number;
+  centerLon: number;
+  regionKey: string;
+  sessionId: string;
+  sessionDigest: string;
+  csrfDigest: string;
+  sessionExpiresAt: number;
+  deviceLabel: string | null;
+};
+
+function codeInput(overrides: Partial<CodeInput> = {}): CodeInput {
+  return {
+    emailKey: EMAIL_A,
+    code: CODE,
+    now: NOW + 1,
+    consumeNonce: NONCE_A,
+    userId: USER_ID,
+    handle: "Pilot_11111111",
+    centerLat: 30.69,
+    centerLon: -88.04,
+    regionKey: "region:30.5:-88",
+    sessionId: SESSION_A_ID,
+    sessionDigest: digest("c"),
+    csrfDigest: digest("e"),
+    sessionExpiresAt: NOW + 2_592_000_000,
+    deviceLabel: null,
+    ...overrides,
+  };
+}
+
+async function createCodeLink(
+  db: D1Database,
+  options: {
+    email?: string;
+    code?: string | null;
+    expiresAt?: number;
+    tokenDigest?: string;
+  } = {},
+): Promise<void> {
+  const email = options.email ?? EMAIL_A;
+  const code = options.code === undefined ? CODE : options.code;
+  await createMagicLink(db, {
+    id: LINK_ID,
+    tokenDigest: options.tokenDigest ?? digest("b"),
+    emailKey: email,
+    expiresAt: options.expiresAt ?? NOW + 60_000,
+    requestId: "request-code",
+    requestedAt: NOW,
+    codeDigest: code === null ? null : await codeDigest(email, code),
+  });
+}
+
+describe("atomic auth-code session exchange", () => {
+  it("issues a session for the right code and revokes the prior one", async () => {
+    const { TEST_DB } = testEnvironment();
+    await createUser(TEST_DB, {
+      id: USER_ID,
+      emailKey: EMAIL_A,
+      handle: "ExistingPilot",
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await createSession(TEST_DB, {
+      id: OLD_SESSION_ID,
+      userId: USER_ID,
+      sessionDigest: digest("9"),
+      csrfDigest: digest("8"),
+      expiresAt: NOW + 60_000,
+      lastSeenAt: NOW,
+      deviceLabel: null,
+      rotatedFromId: null,
+      createdAt: NOW,
+    });
+    await createCodeLink(TEST_DB);
+
+    await expect(
+      consumeAuthCodeSession(TEST_DB, codeInput()),
+    ).resolves.toMatchObject({ id: SESSION_A_ID, userId: USER_ID });
+    await expect(
+      getActiveSessionByDigest(TEST_DB, digest("9"), NOW + 2),
+    ).resolves.toBeNull();
+    await expect(
+      TEST_DB.prepare("SELECT COUNT(*) AS count FROM sessions WHERE revoked_at IS NULL")
+        .first<number>("count"),
+    ).resolves.toBe(1);
+  });
+
+  it("burns the row after five wrong attempts, defeating a later correct code", async () => {
+    const { TEST_DB } = testEnvironment();
+    await createCodeLink(TEST_DB);
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await expect(
+        consumeAuthCodeSession(TEST_DB, codeInput({ code: WRONG_CODE })),
+      ).resolves.toBeNull();
+    }
+    await expect(
+      TEST_DB.prepare("SELECT code_attempts FROM magic_links WHERE id = ?")
+        .bind(LINK_ID)
+        .first<number>("code_attempts"),
+    ).resolves.toBe(5);
+
+    await expect(
+      consumeAuthCodeSession(TEST_DB, codeInput()),
+    ).resolves.toBeNull();
+    await expect(
+      TEST_DB.prepare("SELECT COUNT(*) AS count FROM sessions").first<number>("count"),
+    ).resolves.toBe(0);
+  });
+
+  it("returns null for an expired row at the exact boundary", async () => {
+    const { TEST_DB } = testEnvironment();
+    await createCodeLink(TEST_DB, { expiresAt: NOW + 1 });
+
+    await expect(
+      consumeAuthCodeSession(TEST_DB, codeInput({ now: NOW + 1 })),
+    ).resolves.toBeNull();
+  });
+
+  it("never matches a legacy row whose code_digest is NULL", async () => {
+    const { TEST_DB } = testEnvironment();
+    await createCodeLink(TEST_DB, { code: null });
+
+    await expect(
+      consumeAuthCodeSession(TEST_DB, codeInput()),
+    ).resolves.toBeNull();
+  });
+
+  it("is salted: a row for email A cannot be consumed with email B and the same code", async () => {
+    const { TEST_DB } = testEnvironment();
+    await createCodeLink(TEST_DB, { email: EMAIL_A });
+
+    await expect(
+      consumeAuthCodeSession(TEST_DB, codeInput({ emailKey: EMAIL_B })),
+    ).resolves.toBeNull();
+  });
+
+  it("shares one-use with the link path: consuming by LINK kills the code", async () => {
+    const { TEST_DB } = testEnvironment();
+    await createCodeLink(TEST_DB);
+
+    await expect(
+      consumeMagicLinkSession(TEST_DB, consumeInput()),
+    ).resolves.toMatchObject({ id: SESSION_A_ID });
+    await expect(
+      consumeAuthCodeSession(
+        TEST_DB,
+        codeInput({
+          consumeNonce: NONCE_B,
+          sessionId: SESSION_B_ID,
+          sessionDigest: digest("d"),
+          csrfDigest: digest("f"),
+        }),
+      ),
+    ).resolves.toBeNull();
+  });
+
+  it("shares one-use with the link path: consuming by CODE kills the link", async () => {
+    const { TEST_DB } = testEnvironment();
+    await createCodeLink(TEST_DB);
+
+    await expect(
+      consumeAuthCodeSession(TEST_DB, codeInput()),
+    ).resolves.toMatchObject({ id: SESSION_A_ID });
+    await expect(
+      consumeMagicLinkSession(TEST_DB, consumeInput(SESSION_B_ID, NONCE_B)),
+    ).resolves.toBeNull();
+  });
+
+  it("allows exactly one winner for a concurrent double-verify", async () => {
+    const { TEST_DB } = testEnvironment();
+    await createCodeLink(TEST_DB);
+
+    const outcomes = await Promise.all([
+      consumeAuthCodeSession(TEST_DB, codeInput()),
+      consumeAuthCodeSession(
+        TEST_DB,
+        codeInput({
+          consumeNonce: NONCE_B,
+          sessionId: SESSION_B_ID,
+          sessionDigest: digest("d"),
+          csrfDigest: digest("f"),
+        }),
+      ),
+    ]);
+
+    expect(outcomes.filter((value) => value !== null)).toHaveLength(1);
+    await expect(
+      TEST_DB.prepare("SELECT COUNT(*) AS count FROM sessions").first<number>("count"),
+    ).resolves.toBe(1);
   });
 });

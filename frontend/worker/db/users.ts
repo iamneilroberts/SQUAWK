@@ -325,14 +325,19 @@ export async function createMagicLink(
   const requestId = requireText("request id", input.requestId, 8, 128);
   const requestedAt = requireTimestamp("requested at", input.requestedAt);
   if (expiresAt <= requestedAt) throw new RangeError("magic link expiry is invalid");
+  const codeDigest =
+    input.codeDigest === undefined || input.codeDigest === null
+      ? null
+      : requireDigest("code digest", input.codeDigest);
 
   await db
     .prepare(
       `INSERT INTO magic_links
-         (id, token_digest, email_key, expires_at, consumed_at, request_id, requested_at)
-       VALUES (?, ?, ?, ?, NULL, ?, ?)`,
+         (id, token_digest, email_key, expires_at, consumed_at, request_id,
+          requested_at, code_digest)
+       VALUES (?, ?, ?, ?, NULL, ?, ?, ?)`,
     )
-    .bind(id, tokenDigest, emailKey, expiresAt, requestId, requestedAt)
+    .bind(id, tokenDigest, emailKey, expiresAt, requestId, requestedAt, codeDigest)
     .run();
 
   return {

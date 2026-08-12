@@ -43,7 +43,9 @@ export type MagicLink = {
   requestedAt: number;
 };
 
-export type CreateMagicLinkInput = Omit<MagicLink, "consumedAt">;
+export type CreateMagicLinkInput = Omit<MagicLink, "consumedAt"> & {
+  codeDigest?: string | null;
+};
 
 export type Session = {
   id: string;

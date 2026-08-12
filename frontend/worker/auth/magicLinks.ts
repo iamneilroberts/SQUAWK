@@ -1,3 +1,4 @@
+import { codeDigest, constantTimeEqual } from "../crypto";
 import {
   changed,
   optionalText,
@@ -11,6 +12,8 @@ import { getSessionById } from "../db/sessions";
 import type { Session } from "../db/types";
 
 const HANDLE = /^[A-Za-z][A-Za-z0-9_-]{2,31}$/;
+const SIGN_IN_CODE = /^\d{6}$/;
+const MAX_CODE_ATTEMPTS = 5;
 
 export type ConsumeMagicLinkSessionInput = {
   tokenDigest: string;
@@ -28,12 +31,49 @@ export type ConsumeMagicLinkSessionInput = {
   deviceLabel: string | null;
 };
 
-export async function consumeMagicLinkSession(
-  db: D1Database,
-  input: ConsumeMagicLinkSessionInput,
-): Promise<Session | null> {
-  const value = {
-    tokenDigest: requireDigest("token digest", input.tokenDigest),
+export type ConsumeAuthCodeSessionInput = {
+  emailKey: string;
+  code: string;
+  now: number;
+  consumeNonce: string;
+  userId: string;
+  handle: string;
+  centerLat: number;
+  centerLon: number;
+  regionKey: string;
+  sessionId: string;
+  sessionDigest: string;
+  csrfDigest: string;
+  sessionExpiresAt: number;
+  deviceLabel: string | null;
+};
+
+// Shared, validated inputs for the 5-statement consume batch. The row is
+// selected differently per entry point (token digest for the link path, row id
+// for the code path); every statement after the first keys off consume_nonce.
+type ConsumeBatchValue = {
+  consumedAt: number;
+  consumeNonce: string;
+  userId: string;
+  handle: string;
+  centerLat: number;
+  centerLon: number;
+  regionKey: string;
+  sessionId: string;
+  sessionDigest: string;
+  csrfDigest: string;
+  sessionExpiresAt: number;
+  deviceLabel: string | null;
+};
+
+type ConsumeSelector =
+  | { column: "token_digest"; value: string }
+  | { column: "id"; value: string };
+
+function validateConsumeBatchValue(
+  input: Omit<ConsumeMagicLinkSessionInput, "tokenDigest">,
+): ConsumeBatchValue {
+  const value: ConsumeBatchValue = {
     consumedAt: requireTimestamp("consumed at", input.consumedAt),
     consumeNonce: requireUuid("consume nonce", input.consumeNonce),
     userId: requireUuid("user id", input.userId),
@@ -50,20 +90,27 @@ export async function consumeMagicLinkSession(
   if (value.sessionExpiresAt <= value.consumedAt) {
     throw new RangeError("session expiry is invalid");
   }
+  return value;
+}
 
+async function runConsumeBatch(
+  db: D1Database,
+  selector: ConsumeSelector,
+  value: ConsumeBatchValue,
+): Promise<Session | null> {
   const results = await db.batch([
     db
       .prepare(
         `UPDATE magic_links
             SET consumed_at = ?, consume_nonce = ?
-          WHERE token_digest = ?
+          WHERE ${selector.column} = ?
             AND consumed_at IS NULL
             AND expires_at > ?`,
       )
       .bind(
         value.consumedAt,
         value.consumeNonce,
-        value.tokenDigest,
+        selector.value,
         value.consumedAt,
       ),
     db
@@ -161,4 +208,61 @@ export async function consumeMagicLinkSession(
 
   if (!changed(results[0]) || !changed(results[4])) return null;
   return getSessionById(db, value.sessionId);
+}
+
+export async function consumeMagicLinkSession(
+  db: D1Database,
+  input: ConsumeMagicLinkSessionInput,
+): Promise<Session | null> {
+  const tokenDigest = requireDigest("token digest", input.tokenDigest);
+  const value = validateConsumeBatchValue(input);
+  return runConsumeBatch(db, { column: "token_digest", value: tokenDigest }, value);
+}
+
+export async function consumeAuthCodeSession(
+  db: D1Database,
+  input: ConsumeAuthCodeSessionInput,
+): Promise<Session | null> {
+  const emailKey = requireDigest("email key", input.emailKey);
+  // Bad code format is a caller failure, but must stay indistinguishable from a
+  // wrong code, so it returns null rather than throwing.
+  if (!SIGN_IN_CODE.test(input.code)) return null;
+  const now = requireTimestamp("current time", input.now);
+  const value = validateConsumeBatchValue({ ...input, consumedAt: now });
+
+  // Newest eligible row for this identity that actually carries a code.
+  const row = await db
+    .prepare(
+      `SELECT id, code_digest
+         FROM magic_links
+        WHERE email_key = ?
+          AND code_digest IS NOT NULL
+          AND consumed_at IS NULL
+          AND expires_at > ?
+        ORDER BY requested_at DESC, id DESC
+        LIMIT 1`,
+    )
+    .bind(emailKey, now)
+    .first<{ id: string; code_digest: string }>();
+  if (row === null) return null;
+
+  // Atomic attempt-cap: increment guarded in one statement; 0 rows changed means
+  // the row is spent, expired, or over the attempt cap. Never read-then-write.
+  const increment = await db
+    .prepare(
+      `UPDATE magic_links
+          SET code_attempts = code_attempts + 1
+        WHERE id = ?
+          AND code_attempts < ?
+          AND consumed_at IS NULL
+          AND expires_at > ?`,
+    )
+    .bind(row.id, MAX_CODE_ATTEMPTS, now)
+    .run();
+  if (!changed(increment)) return null;
+
+  const expected = await codeDigest(emailKey, input.code);
+  if (!constantTimeEqual(expected, row.code_digest)) return null;
+
+  return runConsumeBatch(db, { column: "id", value: row.id }, value);
 }

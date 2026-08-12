@@ -55,3 +55,19 @@ export async function hashOpaqueToken(token: string): Promise<string> {
 }
 
 export const hashSessionToken = hashOpaqueToken;
+
+export async function codeDigest(
+  emailKey: string,
+  code: string,
+): Promise<string> {
+  return hex(await crypto.subtle.digest("SHA-256", bytes(`${emailKey}:${code}`)));
+}
+
+export function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let index = 0; index < a.length; index += 1) {
+    mismatch |= a.charCodeAt(index) ^ b.charCodeAt(index);
+  }
+  return mismatch === 0;
+}

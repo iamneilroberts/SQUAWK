@@ -23,6 +23,22 @@ export function generateOpaqueToken(): string {
   return encodeOpaqueToken(crypto.getRandomValues(new Uint8Array(32)));
 }
 
+const SIGN_IN_CODE_SPACE = 1_000_000;
+// Largest multiple of the code space that fits in a uint32; values at or above
+// it are rejected so `% SIGN_IN_CODE_SPACE` stays uniform (no modulo bias).
+const SIGN_IN_CODE_CEILING =
+  Math.floor(0x1_0000_0000 / SIGN_IN_CODE_SPACE) * SIGN_IN_CODE_SPACE;
+
+export function generateSignInCode(): string {
+  const buffer = new Uint32Array(1);
+  let value: number;
+  do {
+    crypto.getRandomValues(buffer);
+    value = buffer[0] ?? 0;
+  } while (value >= SIGN_IN_CODE_CEILING);
+  return (value % SIGN_IN_CODE_SPACE).toString().padStart(6, "0");
+}
+
 export function sessionCookie(token: string, maxAgeSeconds: number): string {
   assertOpaqueToken(token);
   if (!Number.isSafeInteger(maxAgeSeconds) || maxAgeSeconds < 1) {
