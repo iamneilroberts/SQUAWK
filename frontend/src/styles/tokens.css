@@ -479,7 +479,8 @@ body {
   position: absolute;
   top: 48px;
   left: 12px;
-  z-index: 25;
+  /* Above .top-controls (30): the funnel chips were painting through the card (owner 2026-08-11). */
+  z-index: 35;
   width: min(390px, calc(100% - 24px));
   padding: 14px 16px;
   pointer-events: auto;
