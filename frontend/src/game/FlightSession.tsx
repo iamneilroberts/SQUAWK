@@ -33,6 +33,7 @@ import ImmersiveControl from "../layout/ImmersiveControl";
 import DashboardStrip, { stripMountedForMode } from "../dashboard/DashboardStrip";
 import TrafficOverlay from "../globe/TrafficOverlay";
 import TrafficDetailCard from "../dashboard/TrafficDetailCard";
+import MobileNavWx from "../dashboard/MobileNavWx";
 import HandoffCard from "../panels/HandoffCard";
 import PauseOverlay from "../panels/PauseOverlay";
 import EndCard from "../panels/EndCard";
@@ -755,6 +756,7 @@ export default function FlightSession({
             gearFixed={(snapshot?.gear ?? "fixed") === "fixed"}
           />
           <ImmersiveControl warningActive={warningActive} />
+          <MobileNavWx snapshot={snapshot} />
         </>
       )}
       {mode === "PAUSED" && tutorial !== null && activeLesson !== null && (

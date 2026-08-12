@@ -1962,3 +1962,16 @@ cadences are also slowed (anonymous 15→30s, signed 8→20s; conservation 30/15
 kept at 12s for responsiveness). A single fixed location additionally collapses all browse into one
 0.25° cached region, maximizing coalescing. `UPSTREAM_DAILY_LIMIT` (500) and the
 conservation/read-only/kill thresholds are unchanged.
+
+## 2026-08-11 — CF-018 · Mobile NAV/WX combo as a collapsed overlay, reusing the desktop pieces
+
+The tactical NavMap (with the precip-radar overlay) + METAR weather panel already exist and ship on
+desktop inside `UnifiedGlass`/`DashboardStrip`, which is gated `!immersiveActive && !narrow` — hidden
+on phones by the "minimal immersive flying view, no dashboard clutter" directive. Owner asked for that
+combo on mobile too, collapsed. Rather than a second implementation, a thin `MobileNavWx` component
+sources the same store data DashboardStrip feeds and renders the same `NavMap` + `WeatherPanelBody`.
+Collapsed it is a `NAV/WX` chip with a one-glance WX token (`navWxChipStatus`: CLR / BKN030 / OFF /
+NO OBS / NO STN — honest, never a fabricated number); tapping expands a translucent overlay that floats
+OVER the flight view (does not shrink it), with ✕ to collapse. Frugal: the precip-radar layer
+(`useNavWeather`) is fetched only while the panel is open. Mounted in FlightSession's `FLYING && narrow`
+branch only; desktop is untouched.
