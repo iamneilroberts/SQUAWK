@@ -105,6 +105,8 @@ export default function StatusBar({ terrainNote, contactsChip, immersive = false
   const feedSource = useStore((s) => s.feedSource);
   const tutorial = useStore((s) => s.tutorial);
   const contactCount = useStore((s) => s.contacts.size);
+  const cacheAgeSeconds = useStore((s) => s.cacheAgeSeconds);
+  const systemMode = useStore((s) => s.systemMode);
   const radiusNm = useStore((s) => s.radiusNm);
   const setRadiusNm = useStore((s) => s.setRadiusNm);
   const basemap = useStore((s) => s.basemap);
@@ -132,6 +134,15 @@ export default function StatusBar({ terrainNote, contactsChip, immersive = false
       </span>
       {tutorial === null && feedStatus === "offline" && (
         <span className="status-chip-warn">FEEDS UNREACHABLE</span>
+      )}
+      {/* Tiny API debug chip (owner 2026-08-12): cache age + non-NORMAL capacity mode, so
+          "is it me or the feed?" is answerable at a glance. Honest: no age = em-dash. */}
+      {tutorial === null && (
+        <span className={systemMode === "NORMAL" ? "status-chip-live" : "status-chip-warn"}>
+          {`API ${cacheAgeSeconds === null ? "—" : `${Math.round(cacheAgeSeconds)}S`}${
+            systemMode === "NORMAL" ? "" : ` · ${systemMode.replace("_", "-")}`
+          }`}
+        </span>
       )}
       {regions.browseControls && terrainNote !== null && (
         <span className={terrainChipClass(terrainNote)}>{terrainNote}</span>

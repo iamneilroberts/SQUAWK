@@ -596,7 +596,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
             ? { open: contactsOpen, onToggle: () => setContactsOpen((o) => !o) }
             : undefined
         }
-        immersive={immersiveActive}
+        immersive={immersiveActive || mobileFlight}
         faded={statusFaded}
       />
     </div>
