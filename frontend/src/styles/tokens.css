@@ -768,6 +768,29 @@ body {
   background: rgba(5, 7, 10, 0.92);
   border-top: 1px solid rgba(95, 215, 224, 0.25);
 }
+/* Always-reachable debrief close (#32): fixed to the screen corner, above the overlay (z 45)
+   and every flight-chrome layer, so the debrief can never trap the player regardless of card
+   height, iOS dvh quirks, or the browse chrome that reappears underneath in ENDED. */
+.end-close {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  z-index: 46;
+  pointer-events: auto;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 7, 10, 0.92);
+  border: 1px solid var(--amber);
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+}
 .debrief-authority { color: var(--cyan); font-size: 11px; }
 .debrief-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .debrief-components { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }

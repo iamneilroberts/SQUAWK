@@ -105,6 +105,16 @@ export default function EndCard({
 
   return (
     <div className="end-overlay">
+      {/* Always-reachable close (#32): fixed to the screen corner so it can never be scrolled
+          away, pushed off by iOS dvh, or covered by the browse chrome the way the footer was. */}
+      <button
+        className="end-close"
+        type="button"
+        onClick={onExit}
+        aria-label="Close debrief and return to browse"
+      >
+        ✕
+      </button>
       <div className="panel end-card" role="dialog" aria-label="Flight debrief">
         <div className="label handoff-title">DEBRIEF — {stats.classification}</div>
         <div className="debrief-authority" aria-live="polite">{authority}</div>
