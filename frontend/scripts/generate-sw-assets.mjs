@@ -1,7 +1,7 @@
-import { readdir, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
 
-const CACHE_VERSION = "2026-08-10-task13-v1";
 const clientRoot = resolve("dist/client");
 const roots = [resolve(clientRoot, "assets"), resolve(clientRoot, "cesium")];
 
@@ -29,10 +29,31 @@ if (
   throw new Error("Refusing to write an invalid service-worker asset manifest");
 }
 
+// Per-release cache version derived from the (content-hashed) asset filenames, so it changes
+// exactly when the build output changes — never on an identical rebuild. Stamping this into both
+// the manifest AND the built service worker gives sw.js changing bytes each real release, which is
+// what lets a deploy reach an already-installed PWA: the browser fires `updatefound`, PwaPanel
+// surfaces "APPLY READY UPDATE", and applyWaitingUpdate() activates it between flights (sw.js
+// still never skipWaiting()s on its own — an active flight is never swapped under the player).
+const cacheVersion = `build-${createHash("sha256").update(assets.join("\n")).digest("hex").slice(0, 16)}`;
+
 await writeFile(
   resolve(clientRoot, "sw-assets.json"),
-  `${JSON.stringify({ schemaVersion: 1, cacheVersion: CACHE_VERSION, assets })}\n`,
+  `${JSON.stringify({ schemaVersion: 1, cacheVersion, assets })}\n`,
   "utf8",
 );
 
-console.log(`service-worker asset manifest: ${assets.length} files`);
+// Stamp the same version into the deployed service worker. installShell() requires
+// manifest.cacheVersion === CACHE_VERSION, so the two must move together.
+const swPath = resolve(clientRoot, "sw.js");
+const swSource = await readFile(swPath, "utf8");
+const stampedWorker = swSource.replace(
+  /const CACHE_VERSION = "[^"]*";/,
+  `const CACHE_VERSION = "${cacheVersion}";`,
+);
+if (stampedWorker === swSource) {
+  throw new Error("Failed to stamp CACHE_VERSION into dist/client/sw.js");
+}
+await writeFile(swPath, stampedWorker, "utf8");
+
+console.log(`service-worker asset manifest: ${assets.length} files (cacheVersion ${cacheVersion})`);
