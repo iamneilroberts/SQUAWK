@@ -40,7 +40,7 @@ import EndCard from "../panels/EndCard";
 import { degToRad, ktToMs } from "../sim/units";
 import { releaseMissionLease, submitMissionResult } from "../mission/api";
 import { buildMissionResultPackage } from "../mission/resultPackage";
-import { assistModeFromPreference } from "../mission/assists";
+import { assistFeatures, assistModeFromPreference, missionNavigationCue } from "../mission/assists";
 import AssistControl from "../mission/AssistControl";
 import MissionNavCue from "../mission/MissionNavCue";
 import MissionRouteLayer from "../globe/MissionRouteLayer";
@@ -684,6 +684,24 @@ export default function FlightSession({
   const faded = (immersiveActive || (narrow && mode === "FLYING")) && !chromeVisible;
   const warningActive = snapshot ? warningsFor(snapshot).length > 0 : false;
 
+  // Destination pointer in the HUD bar (owner 2026-08-11: "need some kind of pointer to the
+  // airport"). Feeds the bar's NavDirector (relative-bearing arrow + distance) from the same
+  // missionNavigationCue the big screen-space cue used; the bar replaces that cue on narrow.
+  const immersiveNavCue =
+    lockedMission !== null &&
+    snapshot !== null &&
+    assist !== null &&
+    assistFeatures(assist.current).destinationCue
+      ? (() => {
+          const cue = missionNavigationCue(snapshot, lockedMission.assignment);
+          return {
+            destination: `${lockedMission.assignment.airportIdent} RWY ${lockedMission.assignment.runwayEndIdent}`,
+            bearingDeg: cue.bearingDeg,
+            distanceNm: cue.distanceNm,
+          };
+        })()
+      : null;
+
   const dismissLesson = () => {
     activeLessonRef.current = null;
     setActiveLesson(null);
@@ -708,11 +726,15 @@ export default function FlightSession({
           <ApproachAssistLayer mission={lockedMission} assist={assist.current} />
           {/* Screen-space assist chrome folds into the same video-player auto-hide as the HUD
               (owner 2026-08-11: assist elements take too much space — fade them out). The
-              world-space Cesium layers above stay: they are the guidance itself. */}
-          <div className={"mission-chrome" + (faded ? " mission-chrome-faded" : "")}>
-            <MissionNavCue mission={lockedMission} assist={assist.current} />
-            <AssistControl />
-          </div>
+              world-space Cesium layers above stay: they are the guidance itself. On narrow
+              (phone) the chrome is NOT rendered at all — the HUD bar's NavDirector carries the
+              destination pointer instead (owner: clean portrait view). */}
+          {!narrow && (
+            <div className={"mission-chrome" + (faded ? " mission-chrome-faded" : "")}>
+              <MissionNavCue mission={lockedMission} assist={assist.current} />
+              <AssistControl />
+            </div>
+          )}
         </>
       )}
       {mode === "COUNTDOWN" && lockedMission && (
@@ -731,6 +753,7 @@ export default function FlightSession({
             attitudeStyle={originParams?.display.attitudeStyle ?? "line"}
             immersiveVariant={immersiveHudVariant}
             onImmersiveVariantChange={setImmersiveHudVariant}
+            immersiveNavCue={immersiveNavCue}
             narrow={narrow}
             tapeRange={originParams ? tapeRangesFor(originParams) : null}
           />
