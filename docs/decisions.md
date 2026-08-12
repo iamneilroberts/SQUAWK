@@ -2021,3 +2021,13 @@ during the build:
 - **Always-narrow rail:** `Hud` now renders the immersive bar when `immersive || narrow`; the
   `hud-faded` auto-hide stays gated to `immersive` only, so a narrow non-immersive flight shows the
   bar without fading.
+
+## 2026-08-12 — CF-019 — PAPI renders DIMGRAY on null snapshot; route line live-clipped
+
+PAPI (#23) is world furniture (all assist levels, mounts outside the assist gate). Before the
+sim publishes its first hudSnapshot there is no observer position, so light colors are
+unknowable — they render DIMGRAY rather than a fabricated on-slope 2W2R (honest-data rule 1).
+The mission route line (#50) starts at the live aircraft position via CallbackProperty
+(contact position pre-spawn fallback) so guidance never points behind the aircraft. The
+approach surface (#24) replaced the corridor edge polylines; approachGuidance() still returns
+corridorEdges (pure API unchanged) — only the layer stopped drawing them.
