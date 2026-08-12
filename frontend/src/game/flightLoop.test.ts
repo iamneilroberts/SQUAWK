@@ -412,6 +412,48 @@ describe("flight loop collision", () => {
   });
 });
 
+describe("flight loop absolute altitude floor (#58)", () => {
+  // Root cause: ground collision is the ONLY existing end path, and it is gated on
+  // `collisionArmed`. When terrain is unverified (never sampled, or disarmed) that gate
+  // never opens, so a plane that falls underground never ends — the player is trapped.
+  // These tests drive that exact scenario: terrain permanently unverified, altitude
+  // crossing the absolute floor, and confirm the loop still ends.
+  const IDLE = () => new Set(["KeyS"]);
+
+  function fly(loopBits: ReturnType<typeof makeLoop>, frames: number) {
+    let t = 1000;
+    for (let i = 0; i < frames && loopBits.ends.length === 0; i++) {
+      t += 1000 / 60;
+      loopBits.host.frame(t);
+    }
+    return t;
+  }
+
+  it("ends a flight that falls through unverified terrain past the absolute floor", () => {
+    // groundHeight: undefined -> the sampler never returns a usable height, so
+    // collisionArmed stays false for the entire flight (see "does not collide while the
+    // ground has never been sampled" above). Spawn already close to the -500 m floor so a
+    // short idle glide (~1.7 m/s sink here) crosses it well inside the test budget.
+    const contact = ga({ alt_geom: -1575 }); // ftToM(-1575) ~= -480 m: above the floor, underground
+    const spawn = buildSpawnState(contact, P, { terrainHeightM: null });
+    const bits = makeLoop({ groundHeight: undefined, held: IDLE(), spawn });
+    bits.loop.start();
+    fly(bits, 1800); // 30 s of idle glide -- crosses the floor around the 12 s mark
+    expect(bits.ends).toHaveLength(1);
+    bits.loop.stop();
+  });
+
+  it("does not end a normal flight at/above the floor while terrain is unverified", () => {
+    // Default spawn (~1066 m) with terrain never sampled: collision can never arm, and the
+    // ~30 s idle glide only sheds ~120 m — nowhere near the -500 m floor. Must not end.
+    const bits = makeLoop({ groundHeight: undefined, held: IDLE() });
+    bits.loop.start();
+    fly(bits, 1800); // 30 s of idle glide
+    expect(bits.ends).toHaveLength(0);
+    bits.loop.stop();
+  });
+});
+
 describe("the 10 Hz snapshot carries everything the cockpit instruments need", () => {
   it("publishes pitch and roll, not just heading — the attitude indicator has no other source", () => {
     const { loop, host, snaps } = makeLoop();

@@ -37,6 +37,17 @@ import { classificationFromMissionOutcome } from "./classify";
 export const SNAPSHOT_INTERVAL_S = 0.1;
 
 /**
+ * Terrain-independent crash floor (#58). Ground collision is gated on `collisionArmed`,
+ * which never opens while terrain is unverified (never sampled, or permanently disarmed at
+ * COUNTDOWN) — without this, a plane that falls through unverified/absent terrain never ends
+ * and the player is trapped. No real mission terrain sits 500 m below the WGS84 ellipsoid
+ * (Death Valley, the deepest, is ~-85 m), so crossing this floor means the aircraft has fallen
+ * through terrain that was never there to collide with — treat it as a crash regardless of
+ * `collisionArmed`.
+ */
+const ABSOLUTE_FLOOR_M = -500;
+
+/**
  * Body roll/pitch rate (rad/s) below which the leveling assist counts the aircraft settled.
  * Set above the small residual oscillation that lingers once the bank is already level, but well
  * under the ~0.6 rad/s the aircraft is still rolling at when it crosses through level on its
@@ -152,6 +163,11 @@ export function createFlightLoop(deps: FlightLoopDeps) {
   }
 
   function endSession() {
+    // Guard against double-fire: the ground-collision check and the absolute-floor check
+    // (#58) both call this from the same stepOnce tick when an aircraft dives through
+    // armed terrain past the floor in one step. Without this guard both would run
+    // endSession's landing-evidence/stats/onEnd side effects a second time.
+    if (ended) return;
     ended = true;
     const landingResult = landing === undefined || landingRecorder === null
       ? undefined
@@ -226,6 +242,12 @@ export function createFlightLoop(deps: FlightLoopDeps) {
     const ground = terrain.sample(geo.latRad, geo.lonRad, state.timeS);
     terrainClearanceM = ground.heightM === null ? null : state.altitudeM - ground.heightM;
     if (ground.collisionArmed && ground.heightM !== null && state.altitudeM <= ground.heightM) {
+      endSession();
+    }
+    // Terrain-independent: must fire even when collisionArmed is false (unverified terrain),
+    // which is the whole point (#58). endSession()'s own guard keeps this from double-firing
+    // on a tick where the collision check above already ended the session.
+    if (state.altitudeM < ABSOLUTE_FLOOR_M) {
       endSession();
     }
   }
