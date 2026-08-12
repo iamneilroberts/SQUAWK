@@ -1,10 +1,22 @@
 # Checklist
 
-_Updated: 2026-08-12 08:41 — mongols-rich-hud (tip cd676ab pushed + DEPLOYED, live worker dd46de1d)_
+_Updated: 2026-08-12 11:05 — mongols-rich-hud (tip 3bbf43e pushed + DEPLOYED, live worker 497721cb)_
 
 Source handoff: `<coord>/handoffs/pause-2026-08-12-mongols-live-iteration.md`
 
-## Checklist
+## Today's shipped wave (all deployed to fly.voygent.app)
+- [x] Approach guidance #24 surface + #23 PAPI + #50 route clip (worker dd46de1d); #54 PAPI order fix
+- [x] PIN sign-in #40 — owner-verified on-device, CLOSED (worker 2b408015, migration 0005 live)
+- [x] NAV/WX overlay ✕ close fix (worker 9d37b341)
+- [x] #32/#31/#33 batch (3bbf43e, worker 497721cb) — debrief sticky-footer+z45, touch-button dark plate, traffic-card narrow clamp — AWAITING owner on-device confirm of #32
+- [x] Full issue triage: closed shipped #10/#11/#16/#25/#13; 42 open grouped A–G; filed #55/#56/#57
+
+## Group A remaining (mobile funnel)
+- [ ] #55 contacts show mission-eligibility before selection + #41 on-demand ADS-B fetch on briefing open (pair)
+- [ ] #57 flight declutter: DCLTR toggle + relocate HUD/controls to edges + nearest-few traffic labels
+- [ ] #56 provisional-mission card portrait · #34 quick-start width · #28 browse bottom block · #21 handoff dialog portrait
+
+## Older checklist
 - [x] Rich HUD port + NAV/WX + PWA pipeline + declutter wave → all deployed to fly.voygent.app
 - [x] Push branch to origin (synced @ ae2101c)
 - [x] #27 NAV/WX overlay verified by owner — closed
