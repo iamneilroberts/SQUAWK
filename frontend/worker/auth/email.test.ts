@@ -17,7 +17,7 @@ describe("magic-link email", () => {
     expect(`${url.origin}${url.pathname}${url.search}`).not.toContain(TOKEN);
   });
 
-  it("sends through the dedicated binding without logging identity material", async () => {
+  it("leads with the space-grouped code, keeps the link as fallback, and logs no identity", async () => {
     const messages: EmailMessageBuilder[] = [];
     const send = vi.fn(async (message: EmailMessageBuilder) => {
       messages.push(message);
@@ -31,6 +31,7 @@ describe("magic-link email", () => {
         from: "sign-in@fly.voygent.app",
         to: "pilot@example.com",
         link: buildMagicLinkUrl("https://fly.voygent.app", TOKEN),
+        code: "123456",
       },
     );
 
@@ -38,11 +39,29 @@ describe("magic-link email", () => {
     expect(messages[0]).toMatchObject({
       from: "sign-in@fly.voygent.app",
       to: "pilot@example.com",
-      subject: "Your Voygent ADS-B Game sign-in link",
+      subject: "Your sign-in code: 123 456",
     });
-    expect(String(messages[0]?.text)).toContain(`#auth_token=${TOKEN}`);
-    expect(String(messages[0]?.text)).toMatch(/Add to Home Screen.*landscape.*fullscreen/s);
+    const text = String(messages[0]?.text);
+    // Code leads the body, space-grouped.
+    expect(text).toContain("123 456");
+    // Link stays as a same-browser fallback.
+    expect(text).toContain(`#auth_token=${TOKEN}`);
+    expect(text.indexOf("123 456")).toBeLessThan(text.indexOf(`#auth_token=${TOKEN}`));
+    expect(text).toMatch(/Add to Home Screen.*landscape.*fullscreen/s);
     expect(log).not.toHaveBeenCalled();
     log.mockRestore();
+  });
+
+  it("rejects a code that is not exactly six digits", async () => {
+    const send = vi.fn(async () => ({ messageId: "test-message" }));
+    await expect(
+      sendMagicLinkEmail({ send } as unknown as SendEmail, {
+        from: "sign-in@fly.voygent.app",
+        to: "pilot@example.com",
+        link: buildMagicLinkUrl("https://fly.voygent.app", TOKEN),
+        code: "12345",
+      }),
+    ).rejects.toThrow(TypeError);
+    expect(send).not.toHaveBeenCalled();
   });
 });

@@ -12,7 +12,7 @@ import {
 } from "../../../src/shared/limits";
 import { normalizeRegion } from "../../adsb/region";
 import { deriveCsrfToken } from "../../auth/csrf";
-import { hashOpaqueToken } from "../../crypto";
+import { codeDigest, hashOpaqueToken } from "../../crypto";
 import {
   hasActiveBanForEmailKey,
   hasActiveBanForIdentity,
@@ -29,10 +29,14 @@ import {
   reserveEmailRateLimit,
 } from "../../auth/emailIdentity";
 import { buildMagicLinkUrl, sendMagicLinkEmail } from "../../auth/email";
-import { consumeMagicLinkSession } from "../../auth/magicLinks";
+import {
+  consumeAuthCodeSession,
+  consumeMagicLinkSession,
+} from "../../auth/magicLinks";
 import {
   clearSessionCookie,
   generateOpaqueToken,
+  generateSignInCode,
   sessionCookie,
 } from "../../auth/sessions";
 import { verifyTurnstile } from "../../auth/turnstile";
@@ -65,6 +69,7 @@ export type AuthRouteDependencies = {
   now: () => number;
   uuid: () => string;
   opaqueToken: () => string;
+  signInCode: () => string;
   verifyChallenge: (input: {
     request: Request;
     response: string;
@@ -75,6 +80,7 @@ export type AuthRouteDependencies = {
   sendEmail: (
     normalizedEmail: string,
     link: string,
+    code: string,
     env: AuthRouteEnvironment,
   ) => Promise<void>;
 };
@@ -83,6 +89,7 @@ const DEFAULT_DEPENDENCIES: AuthRouteDependencies = {
   now: () => Date.now(),
   uuid: () => crypto.randomUUID(),
   opaqueToken: generateOpaqueToken,
+  signInCode: generateSignInCode,
   verifyChallenge: ({ request, response, requestId, env }) =>
     verifyTurnstile({
       secret: env.TURNSTILE_SECRET,
@@ -100,11 +107,12 @@ const DEFAULT_DEPENDENCIES: AuthRouteDependencies = {
       return false;
     }
   },
-  sendEmail: (normalizedEmail, link, env) =>
+  sendEmail: (normalizedEmail, link, code, env) =>
     sendMagicLinkEmail(env.AUTH_EMAIL, {
       from: env.AUTH_FROM_EMAIL,
       to: normalizedEmail,
       link,
+      code,
     }),
 };
 
@@ -149,6 +157,26 @@ function validateConsumeBody(body: unknown): { token: string } {
     throw new ValidationError(400, "INVALID_REQUEST", "Request body is invalid");
   }
   return { token: value.token };
+}
+
+function validateVerifyCodeBody(body: unknown): { email: string; code: string } {
+  const value = exactRecord(body, ["email", "code"]);
+  // Email is validated structurally like /api/auth/request; the code's *format*
+  // is intentionally NOT enforced here so a malformed code returns the same
+  // enumeration-proof 401 as a wrong one rather than a distinguishable 400.
+  if (
+    typeof value.email !== "string" ||
+    value.email.length < 3 ||
+    value.email.length > 254 ||
+    typeof value.code !== "string"
+  ) {
+    throw new ValidationError(400, "INVALID_REQUEST", "Request body is invalid");
+  }
+  try {
+    return { email: normalizeEmail(value.email), code: value.code };
+  } catch {
+    throw new ValidationError(400, "INVALID_REQUEST", "Request body is invalid");
+  }
 }
 
 function validateEmptyBody(body: unknown): Record<string, never> {
@@ -230,6 +258,7 @@ export function createAuthRoutes(
 
       const token = dependencies.opaqueToken();
       const tokenDigest = await hashOpaqueToken(token);
+      const code = dependencies.signInCode();
       await createMagicLink(runtime.DB, {
         id: dependencies.uuid(),
         tokenDigest,
@@ -237,6 +266,7 @@ export function createAuthRoutes(
         expiresAt: now + AUTH_MAGIC_LINK_TTL_MS,
         requestId: context.requestId,
         requestedAt: now,
+        codeDigest: await codeDigest(identity.emailKey, code),
       });
 
       try {
@@ -244,6 +274,7 @@ export function createAuthRoutes(
         await dependencies.sendEmail(
           identity.normalizedEmail,
           buildMagicLinkUrl(publicOrigin, token),
+          code,
           runtime,
         );
       } catch {
@@ -326,6 +357,92 @@ export function createAuthRoutes(
     },
   });
 
+  const verifyCodeRoute = defineRoute({
+    method: "POST",
+    path: "/api/auth/verify-code",
+    family: "auth-verify-code",
+    boundary: "public",
+    admission: "public-write",
+    security: {
+      sameOrigin: "required",
+      csrf: "not-required",
+      idempotency: "required",
+      body: { kind: "json", maxBytes: AUTH_REQUEST_BODY_MAX_BYTES },
+    },
+    // Shares the request IP limiter binding (see dependencies.limitIp below);
+    // this named endpoint limiter is the same no-op bucket as /api/auth/request.
+    limiter: { name: "auth-request", retryAfterSeconds: 60 },
+    validate: ({ body }) => validateVerifyCodeBody(body),
+    handler: async ({ request, validated, env }) => {
+      const runtime = env as AuthRouteEnvironment;
+      const input = validated as ReturnType<typeof validateVerifyCodeBody>;
+
+      // IP rate limit BEFORE any database work, mirroring /api/auth/request.
+      const ipRateKey = await sha256Digest(
+        `auth-ip:${coarseIpNetwork(request.headers.get("cf-connecting-ip"))}`,
+      );
+      if (!(await dependencies.limitIp(ipRateKey, runtime))) {
+        throw new ApiHttpError(429, "RATE_LIMITED", "Request rate limit exceeded", {
+          retryAfterSeconds: 60,
+        });
+      }
+
+      const now = dependencies.now();
+      const identity = await deriveEmailIdentity(input.email, runtime.EMAIL_KEY_SECRET);
+      const sessionToken = dependencies.opaqueToken();
+      const home = validateCoordinates(
+        runtime.HOME_LAT ?? "30.6944",
+        runtime.HOME_LON ?? "-88.0399",
+      );
+      const region = normalizeRegion(
+        home.latitude,
+        home.longitude,
+        DEFAULT_PROFILE_RADIUS_NM,
+        {
+          cellDegrees: TRAFFIC_REGION_CELL_DEGREES,
+          providerRadiusStepNm: TRAFFIC_PROVIDER_RADIUS_STEP_NM,
+          providerMaxRadiusNm: TRAFFIC_MAX_RADIUS_NM,
+        },
+      );
+      const userId = dependencies.uuid();
+      const consumeNonce = dependencies.uuid();
+      const sessionId = dependencies.uuid();
+      const csrfToken = await deriveCsrfToken(sessionId, runtime.CSRF_SECRET);
+      const session = await consumeAuthCodeSession(runtime.DB, {
+        emailKey: identity.emailKey,
+        code: input.code,
+        now,
+        consumeNonce,
+        userId,
+        handle: `Pilot_${userId.replaceAll("-", "").slice(0, 8)}`,
+        centerLat: home.latitude,
+        centerLon: home.longitude,
+        regionKey: region.regionKey,
+        sessionId,
+        sessionDigest: await hashOpaqueToken(sessionToken),
+        csrfDigest: await hashOpaqueToken(csrfToken),
+        sessionExpiresAt: now + AUTH_SESSION_TTL_SECONDS * 1_000,
+        deviceLabel: null,
+      });
+      // Every failure — unknown email, wrong/malformed code, expired, attempt-
+      // capped, no pending code — collapses to this one 401 (enumeration-proof).
+      if (session === null) {
+        throw new ApiHttpError(
+          401,
+          "AUTH_CODE_INVALID",
+          "The sign-in code is invalid or expired",
+        );
+      }
+      return {
+        code: "SIGNED_IN" as const,
+        data: { csrfToken },
+        headers: {
+          "set-cookie": sessionCookie(sessionToken, AUTH_SESSION_TTL_SECONDS),
+        },
+      };
+    },
+  });
+
   const logoutRoute = defineRoute({
     method: "POST",
     path: "/api/auth/logout",
@@ -364,5 +481,5 @@ export function createAuthRoutes(
     },
   });
 
-  return [requestRoute, consumeRoute, logoutRoute];
+  return [requestRoute, consumeRoute, verifyCodeRoute, logoutRoute];
 }

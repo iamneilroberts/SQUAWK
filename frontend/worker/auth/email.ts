@@ -1,9 +1,11 @@
 const OPAQUE_TOKEN = /^[A-Za-z0-9_-]{43}$/;
+const SIGN_IN_CODE = /^\d{6}$/;
 
 export type MagicLinkEmail = {
   from: string;
   to: string;
   link: string;
+  code: string;
 };
 
 export function buildMagicLinkUrl(publicOrigin: string, token: string): string {
@@ -21,16 +23,23 @@ export async function sendMagicLinkEmail(
   binding: SendEmail,
   message: MagicLinkEmail,
 ): Promise<void> {
+  if (!SIGN_IN_CODE.test(message.code)) throw new TypeError("Sign-in code is invalid");
+  const grouped = `${message.code.slice(0, 3)} ${message.code.slice(3)}`;
   await binding.send({
     from: message.from,
     to: message.to,
-    subject: "Your Voygent ADS-B Game sign-in link",
+    subject: `Your sign-in code: ${grouped}`,
     text: [
-      "Use this one-time link to sign in to Voygent ADS-B Game:",
+      "Your one-time sign-in code for Voygent ADS-B Game:",
+      "",
+      `    ${grouped}`,
+      "",
+      "Type this code into the sign-in screen you left open. It expires shortly.",
+      "If you did not request it, ignore this message.",
+      "",
+      "Opening the email on the same browser? This one-time link signs you in too:",
       "",
       message.link,
-      "",
-      "This link expires shortly. If you did not request it, ignore this message.",
       "",
       "After sign-in, open APP for the install checklist: Add to Home Screen, rotate to landscape, and enter fullscreen.",
     ].join("\n"),
