@@ -5,3 +5,11 @@
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
+
+# The service worker and its asset manifest carry stable names, so they must never be edge- or
+# browser-cached: a stale copy pins an installed PWA to old assets across deploys. no-store forces
+# every update-check to fetch the freshly-deployed, build-id-stamped copy (see generate-sw-assets.mjs).
+/sw.js
+  Cache-Control: no-store, must-revalidate
+/sw-assets.json
+  Cache-Control: no-store, must-revalidate
