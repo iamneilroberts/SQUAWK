@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import {
+  AuthClientError,
   loadCurrentProfile,
   requestMagicLink,
   verifyAuthCode,
@@ -54,6 +55,7 @@ type SheetState =
   | "sent"
   | "verifying"
   | "code-error"
+  | "code-rate-limited"
   | "error"
   | "done";
 
@@ -61,8 +63,27 @@ const CODE_ENTRY_STATES: ReadonlySet<SheetState> = new Set([
   "sent",
   "verifying",
   "code-error",
+  "code-rate-limited",
   "done",
 ]);
+
+// A trip of the IP rate limiter (5/min, worker-side) and an actually-wrong/expired code
+// collapse to the same 401 AUTH_CODE_INVALID at the API boundary (enumeration-proof), but
+// verifyAuthCode's AuthClientError still carries the distinguishing RATE_LIMITED code from a
+// 429. Without this branch a rate-limited user typing the CORRECT code sees "invalid" with no
+// signal to back off, and retries forever.
+export const CODE_ENTRY_ERROR_COPY = {
+  "code-error": "CODE INVALID OR EXPIRED.",
+  "code-rate-limited": "TOO MANY ATTEMPTS — WAIT A MINUTE AND TRY AGAIN.",
+} as const;
+
+export function codeEntryErrorState(
+  error: unknown,
+): "code-error" | "code-rate-limited" {
+  return error instanceof AuthClientError && error.code === "RATE_LIMITED"
+    ? "code-rate-limited"
+    : "code-error";
+}
 
 export default function SignInSheet({
   siteKey,
@@ -133,8 +154,8 @@ export default function SignInSheet({
       setState("done");
       onAuthenticated(profile);
       onClose();
-    } catch {
-      setState("code-error");
+    } catch (error) {
+      setState(codeEntryErrorState(error));
     }
   }
 
@@ -162,8 +183,8 @@ export default function SignInSheet({
               value={code}
               onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
             />
-            {state === "code-error" && (
-              <p className="auth-error label">CODE INVALID OR EXPIRED.</p>
+            {(state === "code-error" || state === "code-rate-limited") && (
+              <p className="auth-error label">{CODE_ENTRY_ERROR_COPY[state]}</p>
             )}
             <button
               className="control-button w-full"
