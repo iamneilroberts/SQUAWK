@@ -1,25 +1,29 @@
 # Checklist
 
-_Updated: 2026-08-12 00:15 — mongols-rich-hud (15 commits live at fly.voygent.app; guidance spec pending final approval)_
+_Updated: 2026-08-12 08:41 — mongols-rich-hud (tip cd676ab pushed + DEPLOYED, live worker dd46de1d)_
 
 Source handoff: `<coord>/handoffs/pause-2026-08-12-mongols-live-iteration.md`
-(Prior mongols 18-task execution checklist superseded — Tasks 1-16 done, 17/18 deferred to public-readiness; see the plan doc.)
 
 ## Checklist
-- [x] Task 1 readiness assessment → mongols already live+public at fly.voygent.app
-- [x] Privacy model decided (public demo funnel, magic-link at take-controls; keep auth)
-- [x] Frugal ADS-B + home lock (47bcdf6) → deployed
-- [x] Rich HUD port (a90516f) → deployed
-- [x] Mobile NAV/WX combo (6fab5a1) → deployed
-- [x] PWA build-id updates + boot watchdog (449eb9a/8fc56d7) → deployed
-- [x] White-screen root-caused (iOS fingerprint protection) + owner unblocked
-- [x] Declutter wave (auto-hide any narrow flight, nav pointer e6801f4, z-fixes, API chip 9397ea4)
-- [x] Push branch to origin (synced @ 9397ea4)
-- [ ] Approach-guidance spec (decisions all captured in handoff; get final "design approved" → spec → writing-plans → build #24+#23)
-- [ ] #27 verify NAV/WX chip tap opens overlay (FLYING && narrow only)
-- [ ] #26 portrait top-right layout pass (FULL under THR)
-- [ ] #28 compact mobile BROWSE bottom block
-- [ ] #25 white-screen: confirm quiet, close
-- [ ] Daytime eligibility test (GA/airliner missions offered?)
+- [x] Rich HUD port + NAV/WX + PWA pipeline + declutter wave → all deployed to fly.voygent.app
+- [x] Push branch to origin (synced @ ae2101c)
+- [x] #27 NAV/WX overlay verified by owner — closed
+- [x] Weather feed fixed (55fdca4: /api/metar/:icao ported to Worker; verified real KMOB METAR)
+- [x] Approach-guidance spec WRITTEN + committed (888f27a: docs/superpowers/specs/2026-08-12-approach-guidance-design.md) — owner approved
+- [x] Worktree crawl ledger: salvage committed ae2101c; ais parked @ origin/ais 50d85e7
+
+## Do now
+- [x] BUILD SHIPPED: approach guidance (#24 surface + #23 PAPI + #50 route clip + approach-warnings wiring) — 7 commits ae2101c..cd676ab, 1191 tests green, opus48 final review APPROVED, deployed worker dd46de1d — AWAITING OWNER LOOK-PASS (surface on final; PAPI at all assist levels; route no longer trails behind)
+- [x] #54 FIXED + CLOSED (d56b724, deployed worker 135d0cd1): offsets reversed, spec §3.2 amended — real PAPI order, red pair inboard
+- [ ] #32 debrief window can't be closed on mobile (traps the player — highest bug)
+- [ ] Plane types: verify GA/airliner/fighter all offer missions with daytime traffic (adsbdb mapping breadth; related #30 helicopters, #29 free-flight spawn)
+- [ ] TRIAGE owner feature batch #35–#49 (#38+#39 major direction; #35+#49 spec together; #40+#41 best quick wins)
+- [ ] Mobile bug batch: #31 touch-button contrast · #33 ✕-overlap audit · #34 cards too wide portrait · #26 top-right layout · #28 browse bottom block
+
+## Later
+- [ ] #25 white-screen: confirm quiet with protections off, then close
+- [ ] Daytime test flight (GA/airliner eligibility)
 - [ ] Reconcile mongols ← mongols-rich-hud (ff) on owner sign-off
-- [ ] LATER: #22 ghost plane · #21 · #20 · anonymous quota guard · Task 17/18 gates
+- [ ] Prune-safe worktrees (per crawl ledger): burmese, koreans, malay, shu, ais-testing, glass-dash, gltf-models (check its untracked .env first); hindustanis/vikings stale CHECKLIST edits → checkout --
+- [ ] #22 ghost-plane director · #21 portrait handoff card clipped · #20 wacky callsign · anonymous quota guard · Task 17/18 public-readiness gates
+- [ ] Owner question pending: nginx no-cache on old adsb.voygent.app stack (low priority)

@@ -2052,3 +2052,30 @@ Implemented the in-place 6-digit code step (spec §4). Non-obvious calls:
 - **Post-verify `loadCurrentProfile() === null`** (session cookie didn't take) falls back to the
   sheet's generic `error` state ("SIGN-IN IS TEMPORARILY UNAVAILABLE.") rather than `code-error`,
   mirroring `AuthReturn`'s `onFailure` treatment of the same edge case.
+
+## 2026-08-12 — CF-020 — PIN sign-in (#40): code alongside link, one shared row
+
+The magic-link email opened in the device's default browser — a different cookie jar than
+the PWA/Safari tab holding the briefing — stranding mobile sign-in (root cause: sign-in
+detection was one-shot and fragment-based; the requesting tab never re-checked). Fix: the
+email now leads with a 6-digit one-time code typed into the same SignInSheet
+(`autocomplete="one-time-code"` so iOS offers it from Mail); the link stays as a fallback.
+Design: one `magic_links` row serves both forms (consuming either kills both via the shared
+`consumed_at` + trigger); `code_digest = sha256(email_key + ":" + code)` — salted so a
+leaked DB can't be cross-matched offline; atomic UPDATE-guarded 5-attempt cap; every
+verify failure returns one byte-identical 401. The consume batch was extracted
+(`runConsumeBatch`) and reused by both paths — user upsert, prior-session revocation, and
+single-winner semantics are shared, not duplicated. (Correction to the Task 3 entry above:
+the sheet DOES now show distinct copy for 429 — "TOO MANY ATTEMPTS…" — added in 082d747
+after task review.)
+
+Residual risks (accepted): (1) Verify-code and request exhibit a latency oracle — the
+no-pending-row path skips the attempt-increment write and the SHA-256/constant-time
+compare, so response time distinguishes "this address has a live pending code" from
+"none." It never reveals the code and is bounded by 5/min/IP, 3 emails/hour/address,
+5 attempts/row, and the 15-min TTL. (2) Only the newest unconsumed code row per address
+is verifiable: requesting a second code before entering the first silently invalidates
+the first (latest-wins) — expected UX, marginally stronger security. (3) constantTimeEqual
+guards the digest comparison, but the surrounding row SELECT and attempt UPDATE are not
+constant-time; acceptable because the compared secret is a salted digest over an
+attempt-capped 10^6 space.
