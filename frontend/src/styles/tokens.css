@@ -1423,7 +1423,9 @@ body {
      control row (FULL/EXIT · DCLTR · MENU) never covers the ALT / FLP readouts. */
   top: max(96px, calc(env(safe-area-inset-top) + 88px));
   right: max(8px, env(safe-area-inset-right));
-  z-index: 30;
+  /* Above the informational funnel chips (PILOT / APP at z 30) so a FULL tap is never stolen by
+     an overlapping PILOT chip (#26 follow-up); the funnel is dropped to its own band below. */
+  z-index: 31;
   border: 1px solid rgba(95, 215, 224, 0.5);
   background: rgba(5, 7, 10, 0.35);
   color: var(--cyan);
@@ -1980,10 +1982,12 @@ body {
 .mission-chrome { transition: opacity 0.5s ease; }
 .mission-chrome-faded { opacity: 0; pointer-events: none; }
 
-/* Funnel chips (SIGN IN / APP / panels) during immersive flight: below the HUD bar (same 75px
-   offset as .immersive-toggle-active) and folded into the chrome auto-hide. */
+/* Funnel chips (SIGN IN / APP / PILOT) during immersive flight: dropped into their OWN band
+   BELOW the FULL/DCLTR/MENU control row (which occupies safe-area+88px .. ~124px). Sitting them
+   at safe-area+132px stops the tappable PILOT/APP chips from overlapping — and stealing taps from
+   — the FULL button (#26 follow-up). Folded into the chrome auto-hide like the rest. */
 .top-controls-immersive {
-  top: max(75px, calc(env(safe-area-inset-top) + 71px));
+  top: max(140px, calc(env(safe-area-inset-top) + 132px));
   transition: opacity 0.5s ease;
 }
 .top-controls-faded { opacity: 0; pointer-events: none; }
