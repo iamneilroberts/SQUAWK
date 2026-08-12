@@ -536,7 +536,9 @@ body {
   position: absolute;
   right: 12px;
   bottom: 12px;
-  z-index: 24;
+  /* Above .top-controls (30): the funnel chips were painting through the briefing/preview/
+     secure-handoff cards on narrow screens (owner 2026-08-11), same as .quick-start. */
+  z-index: 35;
   width: min(470px, calc(100% - 24px));
   max-height: calc(100% - 64px);
   overflow-y: auto;
