@@ -163,7 +163,7 @@ describe("Worker entry", () => {
         source: "fixture.test",
         freshness: "FRESH",
         providerAvailable: true,
-        nextRefreshSeconds: 15,
+        nextRefreshSeconds: 30,
       },
     });
     expect(calls).toBe(1);

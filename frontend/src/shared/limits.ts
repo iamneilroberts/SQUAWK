@@ -1,13 +1,19 @@
-export const ANONYMOUS_REFRESH_SECONDS = 15;
-export const SIGNED_BROWSE_REFRESH_SECONDS = 8;
+// Frugal ADS-B mode (2026-08-11): slowed client refresh cadences and, more importantly,
+// decoupled + raised TRAFFIC_FRESH_SECONDS (the upstream-fetch gate) to conserve the
+// provider daily allowance while the game runs from a single fixed location.
+export const ANONYMOUS_REFRESH_SECONDS = 30;
+export const SIGNED_BROWSE_REFRESH_SECONDS = 20;
 export const ACTIVE_FLIGHT_REFRESH_SECONDS = 12;
 
-export const CONSERVATION_ANONYMOUS_REFRESH_SECONDS = 30;
-export const CONSERVATION_SIGNED_BROWSE_REFRESH_SECONDS = 15;
+export const CONSERVATION_ANONYMOUS_REFRESH_SECONDS = 60;
+export const CONSERVATION_SIGNED_BROWSE_REFRESH_SECONDS = 40;
 
 export const TRAFFIC_MIN_RADIUS_NM = 10;
 export const TRAFFIC_MAX_RADIUS_NM = 250;
-export const TRAFFIC_FRESH_SECONDS = SIGNED_BROWSE_REFRESH_SECONDS;
+// Cache-fresh window: how long cached traffic is served before an upstream refetch.
+// Decoupled from SIGNED_BROWSE_REFRESH_SECONDS so raising the cache lifetime does not
+// change how often signed browsers poll. This is the dominant ADS-B frugality knob.
+export const TRAFFIC_FRESH_SECONDS = 30;
 export const TRAFFIC_EXPIRE_SECONDS = 120;
 export const TRAFFIC_RETRY_BASE_SECONDS = 15;
 export const TRAFFIC_RETRY_MAX_SECONDS = 60;

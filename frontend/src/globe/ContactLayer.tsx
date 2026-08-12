@@ -31,7 +31,9 @@ export default function ContactLayer() {
   // whole mount, but the bundle object is rebuilt when terrainNote resolves (~1s in), and
   // depending on the whole object would re-fire this and snap a mid-pan user back home.
   useEffect(() => {
-    const center = savedCenter ?? home;
+    // Location lock (2026-08-11): browse camera is pinned to the fixed home location.
+    // savedCenter ignored for now; custom locations return once ADS-B supports them.
+    const center = home;
     if (!center || !bundle || mode !== "BROWSE") return;
     bundle.viewer.camera.setView({
       destination: Cartesian3.fromDegrees(center.lon, center.lat, BROWSE_HEIGHT_M),

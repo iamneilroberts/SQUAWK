@@ -730,7 +730,7 @@ describe("AdsbBroker", () => {
       traffic: { freshness: "FRESH", providerAvailable: true, contacts: [{ hex: "abc123" }] },
     });
 
-    clock.advance(9_000);
+    clock.advance(31_000); // past the 30s TRAFFIC_FRESH_SECONDS window → STALE
     fail = true;
     await expect(traffic(target)).resolves.toMatchObject({
       type: "traffic",

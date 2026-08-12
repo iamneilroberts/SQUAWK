@@ -18,10 +18,10 @@ const region = normalizeRegion(30, -88, 80, {
 
 describe("traffic policy", () => {
   it("uses the approved normal and conservation cadences", () => {
-    expect(trafficCadenceSeconds({ kind: "anonymous" }, "normal")).toBe(15);
-    expect(trafficCadenceSeconds({ kind: "signed", userId: "u" }, "normal")).toBe(8);
-    expect(trafficCadenceSeconds({ kind: "anonymous" }, "conservation")).toBe(30);
-    expect(trafficCadenceSeconds({ kind: "signed", userId: "u" }, "read-only")).toBe(15);
+    expect(trafficCadenceSeconds({ kind: "anonymous" }, "normal")).toBe(30);
+    expect(trafficCadenceSeconds({ kind: "signed", userId: "u" }, "normal")).toBe(20);
+    expect(trafficCadenceSeconds({ kind: "anonymous" }, "conservation")).toBe(60);
+    expect(trafficCadenceSeconds({ kind: "signed", userId: "u" }, "read-only")).toBe(40);
     expect(
       trafficCadenceSeconds(
         { kind: "active-ghost", userId: "u", missionId: "m", selectedHex: "abc123" },

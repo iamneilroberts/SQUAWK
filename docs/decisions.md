@@ -1946,3 +1946,19 @@ incompatible value, and continues to require RS256, a bounded signing-key ID, ro
 validation, exact issuer and audience, time claims, application role, subject, and the exact owner
 email. Access denials remain non-enumerating to the client; authenticated verifier failures emit only
 a bounded failure category and library error code, never a token, claim value, cookie, email, or IP.
+
+## 2026-08-11 — CF-017 · Frugal ADS-B mode + single fixed start location
+
+For the private-demo phase the game runs from one fixed location (owner's home, Mobile AL —
+`HOME_LAT`/`HOME_LON` defaults `30.6944, -88.0399`). Browse traffic and the browse camera are
+pinned to `home`; the per-user `savedCenter` is ignored client-side (`store.ts`, `ContactLayer.tsx`)
+rather than removed, so custom locations can return unchanged once the ADS-B provider is validated
+for arbitrary centers.
+
+To conserve the provider daily allowance, `TRAFFIC_FRESH_SECONDS` (the upstream-fetch gate) is
+decoupled from `SIGNED_BROWSE_REFRESH_SECONDS` and raised 8→30s — the dominant frugality knob, since
+upstream refetch happens only when a poll finds the cache staler than this window. Client refresh
+cadences are also slowed (anonymous 15→30s, signed 8→20s; conservation 30/15→60/40s; active flight
+kept at 12s for responsiveness). A single fixed location additionally collapses all browse into one
+0.25° cached region, maximizing coalescing. `UPSTREAM_DAILY_LIMIT` (500) and the
+conservation/read-only/kill thresholds are unchanged.

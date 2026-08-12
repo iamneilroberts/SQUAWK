@@ -461,7 +461,10 @@ export function startTrafficPolling(options: TrafficPollingOptions = {}): () => 
                 state.radiusNm,
               );
             }
-            const center = state.savedCenter ?? home;
+            // Location lock (2026-08-11): browse is pinned to the fixed home location.
+            // savedCenter is ignored for now; custom locations return once the ADS-B
+            // provider is validated for arbitrary centers.
+            const center = home;
             return fetchTraffic(center.lat, center.lon, state.radiusNm);
           })().then((r) => {
             if (stopped) return;

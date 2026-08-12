@@ -14,6 +14,7 @@ import {
   KILL_SWITCH_THRESHOLD_REQUESTS,
   READ_ONLY_THRESHOLD_REQUESTS,
   SIGNED_BROWSE_REFRESH_SECONDS,
+  TRAFFIC_FRESH_SECONDS,
 } from "./limits";
 
 describe("launch limits", () => {
@@ -30,11 +31,13 @@ describe("launch limits", () => {
       ANONYMOUS_REFRESH_SECONDS,
       SIGNED_BROWSE_REFRESH_SECONDS,
       ACTIVE_FLIGHT_REFRESH_SECONDS,
-    ]).toEqual([15, 8, 12]);
+    ]).toEqual([30, 20, 12]);
     expect([
       CONSERVATION_ANONYMOUS_REFRESH_SECONDS,
       CONSERVATION_SIGNED_BROWSE_REFRESH_SECONDS,
       ACTIVE_FLIGHT_REFRESH_SECONDS,
-    ]).toEqual([30, 15, 12]);
+    ]).toEqual([60, 40, 12]);
+    // Frugal ADS-B: cache-fresh window is the upstream-fetch gate; keep it locked.
+    expect(TRAFFIC_FRESH_SECONDS).toBe(30);
   });
 });

@@ -219,7 +219,7 @@ describe("startTrafficPolling radius", () => {
     stop();
   });
 
-  it("uses the authenticated saved center once config establishes the fallback", async () => {
+  it("pins browse traffic to the fixed home location, ignoring any saved center", async () => {
     mockedFetchConfig.mockResolvedValue({ home: { lat: 1, lon: 2 } });
     mockedFetchTraffic.mockResolvedValue(trafficResult());
     useStore.getState().setSavedCenter({ lat: 30.69, lon: -88.04 });
@@ -228,7 +228,8 @@ describe("startTrafficPolling radius", () => {
     const stop = startTrafficPolling({ intervalMs: 1000 });
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(mockedFetchTraffic).toHaveBeenCalledWith(30.69, -88.04, 80);
+    // Location lock (2026-08-11): savedCenter is ignored; browse fetch uses home.
+    expect(mockedFetchTraffic).toHaveBeenCalledWith(1, 2, 80);
     stop();
   });
 });
@@ -278,11 +279,11 @@ describe("startTrafficPolling cold-start recovery (backend down at page load)", 
 
 describe("visibility and cadence policy", () => {
   it("uses anonymous, signed, active-flight, and conservation cadences", () => {
-    expect(clientTrafficCadenceSeconds("anonymous", "BROWSE", "NORMAL")).toBe(15);
-    expect(clientTrafficCadenceSeconds("signed", "BROWSE", "NORMAL")).toBe(8);
+    expect(clientTrafficCadenceSeconds("anonymous", "BROWSE", "NORMAL")).toBe(30);
+    expect(clientTrafficCadenceSeconds("signed", "BROWSE", "NORMAL")).toBe(20);
     expect(clientTrafficCadenceSeconds("anonymous", "FLYING", "NORMAL")).toBe(12);
-    expect(clientTrafficCadenceSeconds("anonymous", "BROWSE", "READ_ONLY")).toBe(30);
-    expect(clientTrafficCadenceSeconds("signed", "BROWSE", "READ_ONLY")).toBe(15);
+    expect(clientTrafficCadenceSeconds("anonymous", "BROWSE", "READ_ONLY")).toBe(60);
+    expect(clientTrafficCadenceSeconds("signed", "BROWSE", "READ_ONLY")).toBe(40);
   });
 
   it("does no polling while hidden and resumes immediately when visible", async () => {
