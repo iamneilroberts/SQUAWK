@@ -246,8 +246,11 @@ export function createFlightLoop(deps: FlightLoopDeps) {
     }
     // Terrain-independent: must fire even when collisionArmed is false (unverified terrain),
     // which is the whole point (#58). endSession()'s own guard keeps this from double-firing
-    // on a tick where the collision check above already ended the session.
-    if (state.altitudeM < ABSOLUTE_FLOOR_M) {
+    // on a tick where the collision check above already ended the session. Also catches a
+    // non-finite altitude (NaN from a degenerate quaternion / divide-by-zero in aero) —
+    // `NaN < ABSOLUTE_FLOOR_M` is false, so without the explicit finiteness check a runaway
+    // NaN state would slip past both this and the collision check and never end.
+    if (!Number.isFinite(state.altitudeM) || state.altitudeM < ABSOLUTE_FLOOR_M) {
       endSession();
     }
   }

@@ -452,6 +452,24 @@ describe("flight loop absolute altitude floor (#58)", () => {
     expect(bits.ends).toHaveLength(0);
     bits.loop.stop();
   });
+
+  it("ends a flight whose altitude has gone non-finite, even with terrain unverified", () => {
+    // NaN is the exact trap the finite check exists for: `NaN < ABSOLUTE_FLOOR_M` and
+    // `NaN <= ground.heightM` are BOTH false, so without an explicit Number.isFinite guard a
+    // NaN altitude (a degenerate quaternion / divide-by-zero in aero at some edge) would slip
+    // past both end conditions and never end. A NaN alt_geom is the smallest seam that
+    // produces a real, physics-propagated NaN altitude through the actual spawn/step path
+    // (a degenerate quaternion is far harder to hand-construct and inject through this
+    // harness, which has no state-injection seam by design).
+    const contact = ga({ alt_geom: NaN });
+    const spawn = buildSpawnState(contact, P, { terrainHeightM: null });
+    expect(spawn.state.altitudeM).toBeNaN(); // confirm the seam actually produces NaN
+    const bits = makeLoop({ groundHeight: undefined, held: IDLE(), spawn });
+    bits.loop.start();
+    fly(bits, 60); // NaN never resolves back to finite -- a couple of ticks is enough
+    expect(bits.ends).toHaveLength(1);
+    bits.loop.stop();
+  });
 });
 
 describe("the 10 Hz snapshot carries everything the cockpit instruments need", () => {
