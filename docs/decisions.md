@@ -1975,3 +1975,49 @@ NO OBS / NO STN — honest, never a fabricated number); tapping expands a transl
 OVER the flight view (does not shrink it), with ✕ to collapse. Frugal: the precip-radar layer
 (`useNavWeather`) is fetched only while the panel is open. Mounted in FlightSession's `FLYING && narrow`
 branch only; desktop is untouched.
+
+## 2026-08-11 — UI-001 · Richer, more immersive look is allowed to override strict LORAN minimalism on gameplay surfaces (owner)
+
+The founding visual direction (CLAUDE.md "Visual direction": near-black, 1px borders, no radius
+> 2px, no shadows, HUD-as-instrumentation) was set for a mission-terminal feel. Owner reviewed
+interactive mobile-HUD mocks and decided that on the actual FLIGHT/gameplay surfaces a more
+realistic, richer treatment — glossy attitude ball, rounded translucent panels, soft depth,
+real satellite terrain behind the HUD, functional moving speed/altitude tapes — is preferred
+when it makes gameplay more immersive. This is a deliberate departure from the strict LORAN
+rule for the flight HUD; it does NOT relax the honesty rules (real-or-absent data, SIM state
+unmistakable, honest offline). The mission-terminal language still governs non-gameplay chrome
+(browse globe, status bars, admin/dashboard panels) unless a later decision says otherwise.
+Reference mocks: staging.voygent.ai/mocks/adsb-hud-rich-scenery.html (rich, default) vs
+adsb-hud-ac-cockpit.html (flat/spec). Consequence: HUD/flight components may use radius, gloss,
+and shadow; reviewers should not flag those as spec violations on gameplay surfaces.
+
+## 2026-08-11 — UI-002 · HUD shows only what is actionable now; demote set-once identity data (owner)
+
+Owner principle: remove any on-screen element that does not need to be visible at a given moment.
+Applied first to the SIM identity pill (`SIM  SIM-4F2A  C172`): the amber **SIM** badge stays
+persistent (ground rule 2 — sim state must be unmistakable), but the synthetic callsign
+(`SIM-<hex>`) and aircraft class (`C172`) are set once at spawn and never change in flight, so they
+are clutter on the live HUD. They move to spawn/handoff and the debrief screen, leaving only the
+SIM badge on the flying HUD. General rule going forward: transient/actionable data (speed, attitude,
+warnings, approach coaching) earns persistent HUD space; static "set-and-forget" data does not and
+belongs in menus, the spawn card, or the debrief.
+
+## 2026-08-11 — UI-003 · Mobile rich HUD build: implementation calls
+
+Built the rich mobile HUD from the approved mock (UI-001) via TDD. Non-obvious calls made
+during the build:
+- **Functional tapes are prebuilt-strip + fixed-window translate, not runtime-measured.** The
+  mock read `window.clientHeight` each frame; the real `ImmersiveHudBar`/`AttitudeIndicator` are
+  deliberately hook-free (spec §8, tested without jsdom). So `TAPE_WINDOW_PX = 44` is an exported
+  constant and the tape window CSS is pinned to `height: 44px` — the two are coupled; change both
+  or neither. `tapeStripOffset(value, range)` is a pure function of props.
+- **Per-class tape ranges come from existing data, not new fields.** IAS tape = the class ASI
+  face (`display.asiMinKt/asiMaxKt`, spec §6); ALT tape max = `limits.serviceCeilingM` → ft,
+  rounded up to a clean 1000-ft boundary. No new params; a 737/F-5 get their own scales for free.
+- **Glossy attitude ball is CSS-only.** The shared `AttitudeIndicator` SVG (used by the desktop
+  six-pack too) is untouched; the gloss is a `.imm-hud .imm-bar-adi::after` radial-gradient overlay
+  plus `.imm-hud`-scoped sky/ground tints. Nothing leaks to the desktop cockpit — that stays a
+  separate, later pass.
+- **Always-narrow rail:** `Hud` now renders the immersive bar when `immersive || narrow`; the
+  `hud-faded` auto-hide stays gated to `immersive` only, so a narrow non-immersive flight shows the
+  bar without fading.
