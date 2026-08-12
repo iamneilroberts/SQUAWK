@@ -110,6 +110,27 @@ describe("projectTraffic", () => {
     const spread: ProjectFn = () => ({ x: 200 + n++ * 120, y: 300 });
     expect(run(mapOf(...three), spread, { maxCount: 2 })).toHaveLength(2);
   });
+
+  it("marks only the nearest 3 tags detailed, the rest bare — declutters the windscreen", () => {
+    // 5 contacts at increasing range, spread apart so the CAP/spacing rules don't interfere.
+    const five = [0, 1, 2, 3, 4].map((i) => c({ hex: `hex${i}`, lat: 30.01 + i * 0.02 }));
+    let n = 0;
+    const spread: ProjectFn = () => {
+      const i = n++;
+      return { x: 80 + (i % 8) * 105, y: 80 + Math.floor(i / 8) * 120 };
+    };
+    const tags = run(mapOf(...five), spread);
+    expect(tags.map((t) => t.hex)).toEqual(["hex0", "hex1", "hex2", "hex3", "hex4"]);
+    expect(tags.map((t) => t.detailed)).toEqual([true, true, true, false, false]);
+  });
+
+  it("marks every tag detailed when there are 3 or fewer", () => {
+    const two = [0, 1].map((i) => c({ hex: `hex${i}`, lat: 30.01 + i * 0.02 }));
+    let n = 0;
+    const spread: ProjectFn = () => ({ x: 200 + n++ * 120, y: 300 });
+    const tags = run(mapOf(...two), spread);
+    expect(tags.map((t) => t.detailed)).toEqual([true, true]);
+  });
 });
 
 describe("tag text", () => {

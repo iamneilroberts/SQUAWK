@@ -966,6 +966,20 @@ body {
 .traffic-tag-line { color: var(--text); opacity: 0.75; }
 .traffic-tag-mil { color: var(--amber); border-left-color: var(--amber); }
 .traffic-tag-ghost { opacity: 0.55; border-left-style: dashed; }
+/* Bare marker: same x/y anchor as .traffic-tag, no label box — just a dot for declutter. */
+.traffic-tag-bare {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border: none;
+  background: transparent;
+  color: var(--cyan);
+  padding: 0;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.traffic-tag-bare.traffic-tag-mil { color: var(--amber); }
+.traffic-tag-bare.traffic-tag-ghost { opacity: 0.55; }
+.traffic-tag-marker { font-size: 14px; line-height: 1; }
 .traffic-overlay { position: absolute; inset: 0; pointer-events: none; }
 .traffic-card {
   position: absolute;

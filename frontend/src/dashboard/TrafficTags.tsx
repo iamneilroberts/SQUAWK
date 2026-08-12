@@ -16,16 +16,22 @@ export default function TrafficTags({ tags, onSelect }: {
           type="button"
           key={t.hex}
           className={[
-            "traffic-tag",
+            t.detailed ? "traffic-tag" : "traffic-tag-bare",
             t.ghost ? "traffic-tag-ghost" : "",
             t.military ? "traffic-tag-mil" : "",
           ].filter(Boolean).join(" ")}
           style={{ left: t.x, top: t.y }}
           onClick={() => onSelect(t.hex)}
         >
-          <span className="traffic-tag-label">{t.label}</span>
-          <span className="traffic-tag-line">{t.typeLine}</span>
-          <span className="traffic-tag-line">{t.altLine}</span>
+          {t.detailed ? (
+            <>
+              <span className="traffic-tag-label">{t.label}</span>
+              <span className="traffic-tag-line">{t.typeLine}</span>
+              <span className="traffic-tag-line">{t.altLine}</span>
+            </>
+          ) : (
+            <span className="traffic-tag-marker">&#8226;</span>
+          )}
         </button>
       ))}
     </>

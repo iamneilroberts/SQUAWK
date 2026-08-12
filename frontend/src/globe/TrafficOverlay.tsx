@@ -28,9 +28,12 @@ export default function TrafficOverlay({ onSelect }: { onSelect(hex: string): vo
   const bundle = useViewer();
   const contacts = useStore((s) => s.contacts);
   const origin = useStore((s) => s.origin);
+  const decluttered = useStore((s) => s.decluttered);
   const snapshot = useSyncExternalStore(hudSnapshot.subscribe, hudSnapshot.get, hudSnapshot.get);
 
   if (!bundle || snapshot === null) return null;
+  // Decluttered mode folds the windscreen labels into the DCLTR toggle: none rendered at all.
+  if (decluttered) return null;
   const scene = bundle.viewer.scene;
   const canvas = scene.canvas;
 

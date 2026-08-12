@@ -35,6 +35,8 @@ export type TrafficTag = {
   altLine: string;
   military: boolean;
   ghost: boolean;
+  /** The nearest 3 tags get the full label/type/alt box; the rest are bare markers. */
+  detailed: boolean;
 };
 
 /** Keep tags clear of the screen edge, where half a tag reads as a glitch. */
@@ -98,6 +100,7 @@ export function projectTraffic(input: {
       altLine: tagAltLine(c),
       military: c.military,
       ghost: hex === ghostHex,
+      detailed: false, // filled in below once the nearest-first order is settled
     });
   }
 
@@ -111,5 +114,7 @@ export function projectTraffic(input: {
     );
     if (!collides) kept.push(tag);
   }
+  // kept is still nearest-first: the closest 3 get the full label box, the rest a bare marker.
+  kept.forEach((tag, i) => { tag.detailed = i < 3; });
   return kept;
 }

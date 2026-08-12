@@ -27,7 +27,7 @@ function findByProp(node: unknown, key: string, out: unknown[] = []): unknown[] 
 
 const tag = (o: Partial<TrafficTag> = {}): TrafficTag => ({
   hex: "a1b2c3", x: 420, y: 300, rangeNm: 12.4, label: "N12345", typeLine: "C172",
-  altLine: "3500 FT", military: false, ghost: false, ...o,
+  altLine: "3500 FT", military: false, ghost: false, detailed: true, ...o,
 });
 
 describe("TrafficTags", () => {
@@ -54,6 +54,20 @@ describe("TrafficTags", () => {
     ) as (() => void)[];
     handlers.filter((h) => typeof h === "function").forEach((h) => h());
     expect(seen).toEqual(["a1b2c3"]);
+  });
+
+  it("renders a bare marker with no callsign/type/alt box when not detailed", () => {
+    const text = collectText(TrafficTags({ tags: [tag({ detailed: false })], onSelect: () => {} })).join(" ");
+    expect(text).not.toContain("N12345");
+    expect(text).not.toContain("C172");
+    expect(text).not.toContain("3500 FT");
+  });
+
+  it("still anchors a bare marker at the projection's screen position", () => {
+    const styles = findByProp(
+      TrafficTags({ tags: [tag({ detailed: false })], onSelect: () => {} }), "style",
+    );
+    expect(styles).toContainEqual(expect.objectContaining({ left: 420, top: 300 }));
   });
 
   it("distinguishes the ghost and military tags by class, not by inventing a field", () => {
