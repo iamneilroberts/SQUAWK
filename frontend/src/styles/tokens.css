@@ -1418,7 +1418,10 @@ body {
    touch zone (stick bottom-left, throttle right edge, buttons bottom-centre). ---- */
 .immersive-toggle {
   position: absolute;
-  top: max(8px, env(safe-area-inset-top));
+  /* Below the immersive HUD bar (#26): the bar sits at top safe-area+4px with min-height 58px,
+     so its bottom is ~safe-area+62px. 88px above the inset clears it with a ~26px gap so this
+     control row (FULL/EXIT · DCLTR · MENU) never covers the ALT / FLP readouts. */
+  top: max(96px, calc(env(safe-area-inset-top) + 88px));
   right: max(8px, env(safe-area-inset-right));
   z-index: 30;
   border: 1px solid rgba(95, 215, 224, 0.5);
@@ -1463,7 +1466,9 @@ body {
    impossible and the app is not yet an installed PWA). Amber advisory, dismissible. ---- */
 .immersive-hint {
   position: absolute;
-  top: max(52px, calc(env(safe-area-inset-top) + 44px));
+  /* Stacks below the relocated control row (#26) — the toggles are at safe-area+88px with a 36px
+     min-height, so +128px keeps the hint clear of both the row and the HUD bar above it. */
+  top: max(136px, calc(env(safe-area-inset-top) + 128px));
   right: max(8px, env(safe-area-inset-right));
   z-index: 30;
   display: flex;
@@ -1748,11 +1753,13 @@ body {
 }
 
 @media (max-width: 767px) {
-  /* The A/C rail and its secondary row occupy the first ~105px. Keep mission controls below it;
-     the joystick/throttle remain anchored to the bottom and are intentionally untouched. */
+  /* The A/C rail, its secondary row, AND the relocated control chips (FULL/EXIT · DCLTR · MENU at
+     safe-area+88px, 36px tall → bottom ~124px) occupy the top band. Keep mission controls below
+     all of it (#26) so mission-nav-cue no longer collides with the right-anchored chips; the
+     joystick/throttle remain anchored to the bottom and are intentionally untouched. */
   .assist-control,
   .mission-nav-cue {
-    top: max(112px, calc(env(safe-area-inset-top) + 108px));
+    top: max(132px, calc(env(safe-area-inset-top) + 128px));
   }
   .assist-control { left: max(8px, env(safe-area-inset-left)); }
   .mission-nav-cue { right: max(8px, env(safe-area-inset-right)); left: auto; }
