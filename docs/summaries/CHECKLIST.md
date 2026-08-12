@@ -1,32 +1,25 @@
-# adsb-game — Cloudflare public game execution checklist
+# Checklist
 
-- [x] Approve and commit the Cloudflare-native public ADS-B game design (`b985b14`)
-- [x] Add the prominent main-page `HOW TO FLY` requirement and commit the 18-task implementation plan (`2b61025`)
-- [x] Task 1 — Establish the Cloudflare application and modern test shell
-- [x] Task 2 — Add shared contracts and the dynamic request pipeline
-- [x] Task 3 — Create the D1 schema and repositories
-- [x] Task 4 — Build exact broker admission, modes, counters, and leases
-- [x] Task 5 — Port ADS-B ingestion and add normalized regional caching
-- [x] Task 6 — Generate runway shards and deterministic mission assignment
-- [x] Task 7 — Implement magic-link identity, sessions, Turnstile, and preferences
-- [x] Owner checkpoint A — Foundation approved 2026-08-10; live auth smoke test authorized
-- [x] Task 8 — Build public browse, the quick-start notice, and mission tray
-- [x] Task 9 — Add authoritative mission preparation, confirmation, and locking
-- [x] Task 10 — Integrate locked missions, assists, ghost traffic, and the existing simulator
-- [x] Task 11 — Implement runway landing evidence, safety gates, and scoring
-- [x] Task 12 — Add debrief, profiles, and cached partitioned leaderboards
-- [x] Task 13 — Add tutorial, coaching, installability, and offline result sync
-- [x] Owner checkpoint B — Product vertical slice approved 2026-08-10; owner directed Task 14 to continue
-- [x] Task 14 — Secure admin APIs and implement controls, audits, bans, and termination
-- [x] Task 15 — Build detailed admin telemetry, sessions, users, and logs
-- [x] Task 16 — Add transition-based email alerts and scheduled health checks
-- [ ] Owner checkpoint C — Run Access, control, alert, audit, and recovery drills
-- [ ] Task 17 — Add E2E, failure/load, security, and performance release gates
-- [ ] Task 18 — Provision staging, validate production, cut over, and retire Python
-- [ ] Owner checkpoint D — Explicitly approve public mission enablement
+_Updated: 2026-08-12 00:15 — mongols-rich-hud (15 commits live at fly.voygent.app; guidance spec pending final approval)_
 
-Execution uses subagents one task at a time: one scoped implementer, followed by independent
-spec/compliance and code-quality reviews. The root agent owns integration, full gates, and
-the single commit for each task. Subagents must not edit overlapping files concurrently.
+Source handoff: `<coord>/handoffs/pause-2026-08-12-mongols-live-iteration.md`
+(Prior mongols 18-task execution checklist superseded — Tasks 1-16 done, 17/18 deferred to public-readiness; see the plan doc.)
 
-_Updated: 2026-08-10 — mongols_
+## Checklist
+- [x] Task 1 readiness assessment → mongols already live+public at fly.voygent.app
+- [x] Privacy model decided (public demo funnel, magic-link at take-controls; keep auth)
+- [x] Frugal ADS-B + home lock (47bcdf6) → deployed
+- [x] Rich HUD port (a90516f) → deployed
+- [x] Mobile NAV/WX combo (6fab5a1) → deployed
+- [x] PWA build-id updates + boot watchdog (449eb9a/8fc56d7) → deployed
+- [x] White-screen root-caused (iOS fingerprint protection) + owner unblocked
+- [x] Declutter wave (auto-hide any narrow flight, nav pointer e6801f4, z-fixes, API chip 9397ea4)
+- [x] Push branch to origin (synced @ 9397ea4)
+- [ ] Approach-guidance spec (decisions all captured in handoff; get final "design approved" → spec → writing-plans → build #24+#23)
+- [ ] #27 verify NAV/WX chip tap opens overlay (FLYING && narrow only)
+- [ ] #26 portrait top-right layout pass (FULL under THR)
+- [ ] #28 compact mobile BROWSE bottom block
+- [ ] #25 white-screen: confirm quiet, close
+- [ ] Daytime eligibility test (GA/airliner missions offered?)
+- [ ] Reconcile mongols ← mongols-rich-hud (ff) on owner sign-off
+- [ ] LATER: #22 ghost plane · #21 · #20 · anonymous quota guard · Task 17/18 gates

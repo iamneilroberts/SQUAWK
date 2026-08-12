@@ -20,6 +20,7 @@ import {
   ValidationError,
 } from "./http/validation";
 import { sha256Digest } from "./telemetry/requestContext";
+import { lookupMetar } from "./wx/metar";
 import { authorizeSession } from "./auth/sessions";
 import { authorizeAdminRequest } from "./admin/authorize";
 import { serveAdminShell } from "./admin/shell";
@@ -45,6 +46,25 @@ const statusRoute = defineRoute({
   },
   limiter: { name: "status", retryAfterSeconds: 1 },
   handler: async () => ({ data: { status: "ok" } }),
+});
+
+/* Nearest-station surface weather for the NAV/WX panel — the Worker port of the retired
+ * Python /api/metar/{icao} proxy (honest-data rules in worker/wx/metar.ts). Public read:
+ * anonymous browse shows weather too. */
+const metarRoute = defineRoute({
+  method: "GET",
+  path: "/api/metar/:icao",
+  family: "config",
+  boundary: "public",
+  admission: "public-read",
+  security: {
+    sameOrigin: "not-required",
+    csrf: "not-required",
+    idempotency: "not-required",
+    body: { kind: "none" },
+  },
+  limiter: { name: "config", retryAfterSeconds: 1 },
+  handler: async ({ params }) => ({ data: await lookupMetar(params.icao ?? "") }),
 });
 
 function exactQuery(request: Request, expected: readonly string[]): URLSearchParams {
@@ -261,6 +281,7 @@ const apiRouter = createRouter<Env>(
   [
     statusRoute,
     configRoute,
+    metarRoute,
     trafficRoute,
     ...createAuthRoutes(),
     ...createMeRoutes(),
