@@ -559,46 +559,22 @@ export default function FlightSession({
     };
   }, [mode]);
 
-  // ---- exterior view: drag to orbit, wheel to zoom (issue #4) ----
-  // Only active while the exterior view is on; the host ignores the deltas otherwise. Uses plain
-  // mouse drag (no pointer lock — this is an orbit, not a first-person swivel), so it never fights
-  // the hold-Q cockpit look. Cesium's own camera inputs stay disabled during flight, so the wheel
-  // is ours to consume for zoom.
+  // ---- exterior view: wheel to zoom (issue #4) ----
+  // Drag-to-orbit now lives in the unified pointer handler below (mouse + touch, issue #65): Cesium's
+  // ScreenSpaceEventHandler calls preventDefault() on the canvas pointerdown, which suppresses the
+  // compatibility `mousedown` a drag-to-orbit handler used to rely on — so a real mouse never orbited.
+  // Wheel isn't a pointer event, so zoom stays here. Cesium's own camera inputs are disabled during
+  // flight, so the wheel is ours to consume for zoom.
   useEffect(() => {
     if (mode !== "FLYING" || !bundle) return;
     const canvas = bundle.viewer.scene.canvas;
-    let dragging = false;
-
-    const onMouseDown = () => {
-      if (!hostRef.current?.isExteriorActive()) return;
-      dragging = true;
-      hostRef.current.setOrbiting(true);
-    };
-    const onMouseMove = (e: MouseEvent) => {
-      if (!dragging) return;
-      hostRef.current?.applyOrbitDrag(e.movementX, e.movementY);
-    };
-    const onMouseUp = () => {
-      if (!dragging) return;
-      dragging = false;
-      hostRef.current?.setOrbiting(false); // begins the ease-back to the chase framing
-    };
     const onWheel = (e: WheelEvent) => {
       if (!hostRef.current?.isExteriorActive()) return;
       e.preventDefault(); // don't scroll the page; this is a camera zoom
       hostRef.current.applyOrbitZoom(e.deltaY);
     };
-
-    canvas.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
     canvas.addEventListener("wheel", onWheel, { passive: false });
-    return () => {
-      canvas.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-      canvas.removeEventListener("wheel", onWheel);
-    };
+    return () => canvas.removeEventListener("wheel", onWheel);
   }, [mode, bundle]);
 
   // ---- hold Q = mouse free-look (issue #9) ----
@@ -668,11 +644,13 @@ export default function FlightSession({
     };
   }, [mode, bundle]);
 
-  // ---- touch: drag the open canvas to look (cockpit) or orbit (exterior); pinch zooms the
-  // exterior (#9 look-around, #36 exterior touch-rotate). Touch/pen only — the mouse + hold-Q paths
-  // above own the desktop, so filtering pointerType keeps them from double-firing. The stick,
-  // throttle and touch-buttons are pointer-events:auto DOM elements ABOVE the canvas, so a drag that
-  // starts on a control never reaches this canvas listener and the flight inputs stay untouched.
+  // ---- pointer drag on the open canvas: look (cockpit) or orbit (exterior); pinch zooms the
+  // exterior (#9 look-around, #36 exterior touch-rotate, #65 desktop mouse). Handles touch, pen AND
+  // mouse from the SAME listener: Cesium's ScreenSpaceEventHandler preventDefault()s the canvas
+  // pointerdown, which suppresses the legacy `mousedown` a separate desktop handler would need — so
+  // reading pointer events directly is the only reliable path for a real mouse. The stick, throttle
+  // and touch-buttons are pointer-events:auto DOM elements ABOVE the canvas, so a drag that starts on
+  // a control never reaches this canvas listener and the flight inputs stay untouched.
   useEffect(() => {
     if (mode !== "FLYING" || !bundle) return;
     const canvas = bundle.viewer.scene.canvas;
@@ -682,17 +660,15 @@ export default function FlightSession({
     /** Pinch pixels → the wheel-delta scale applyOrbitZoom expects; spreading fingers zooms IN. */
     const PINCH_TO_WHEEL = 2;
 
-    const isTouch = (e: PointerEvent) => e.pointerType === "touch" || e.pointerType === "pen";
     const pinchDistance = () => {
       const [a, b] = [...points.values()];
       return Math.hypot(a.x - b.x, a.y - b.y);
     };
 
     const onDown = (e: PointerEvent) => {
-      if (!isTouch(e)) return;
-      // Suppress the compatibility mouse events a touch would otherwise emit, so the desktop
-      // mouse-orbit handler can't also process this same drag (belt-and-suspenders; that handler
-      // reads movementX, ~0 for touch-compat events, so the practical double-apply is negligible).
+      if (e.pointerType === "mouse" && e.button !== 0) return; // left-drag only for the mouse
+      // Take the drag: stop any browser default (text selection, native drag) and keep receiving
+      // moves after the pointer leaves the canvas via pointer capture.
       e.preventDefault();
       points.set(e.pointerId, { x: e.clientX, y: e.clientY });
       canvas.setPointerCapture?.(e.pointerId);
