@@ -166,7 +166,9 @@ export default function ContactList({
             {contacts.size === 0 ? `NO CONTACTS — ${feedStatus.toUpperCase()}` : "NO CONTACTS MATCH FILTERS"}
           </div>
         ) : (
-          rows.map((c) => (
+          rows.map((c) => {
+            const eligible = checkEligibility(c).eligible;
+            return (
             <button
               type="button"
               key={c.hex}
@@ -178,7 +180,8 @@ export default function ContactList({
               className={
                 "contact-row" +
                 (c.military ? " contact-row-military" : "") +
-                (c.hex === selectedHex ? " contact-row-selected" : "")
+                (c.hex === selectedHex ? " contact-row-selected" : "") +
+                (eligible ? "" : " contact-row-ineligible")
               }
             >
               <span className="contact-cell-id">{c.flight ?? "—"}</span>
@@ -186,7 +189,8 @@ export default function ContactList({
               <span className="contact-cell-num">{formatAlt(c)}</span>
               <span className="contact-cell-num">{formatGs(c)}</span>
             </button>
-          ))
+            );
+          })
         )}
       </div>
 

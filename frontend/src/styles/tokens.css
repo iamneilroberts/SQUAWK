@@ -103,6 +103,9 @@ body {
 .contact-row-military {
   color: var(--amber);
 }
+.contact-row-ineligible {
+  opacity: 0.5;
+}
 .contact-cell-id {
   flex: 1 1 0;
   text-align: left;

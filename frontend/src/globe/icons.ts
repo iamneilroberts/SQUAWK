@@ -5,9 +5,18 @@
  * `contactRotationRad` stay importable in vitest, which has no `document`.
  */
 import type { Contact } from "../data/types";
+import { checkEligibility } from "../takeover/eligibility";
 
-/** Military contacts are amber; everything else is cyan (LORAN palette). */
+/** Muted gray for contacts that fail the takeover gate (#55) — dimmed, not hidden. */
+export const INELIGIBLE_COLOR = "#5a6b70";
+
+/**
+ * Ineligible contacts (checkEligibility, computed live — no cached verdict) render dimmed
+ * gray so eligible ones stand out; among eligible contacts, military is amber and civil is
+ * cyan (LORAN palette).
+ */
 export function contactColor(c: Contact): string {
+  if (!checkEligibility(c).eligible) return INELIGIBLE_COLOR;
   return c.military ? "#ffb000" : "#5fd7e0";
 }
 
