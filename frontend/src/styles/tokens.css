@@ -1869,3 +1869,8 @@ body {
   pointer-events: auto;
 }
 .mobile-navwx-map { min-height: 220px; }
+
+/* Screen-space assist chrome (ASSIST chip + destination cue) joins the video-player auto-hide:
+   fades with the rest of the informational chrome, tap restores. Stays in the DOM. */
+.mission-chrome { transition: opacity 0.5s ease; }
+.mission-chrome-faded { opacity: 0; pointer-events: none; }

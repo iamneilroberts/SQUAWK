@@ -705,8 +705,13 @@ export default function FlightSession({
         <>
           <MissionRouteLayer mission={lockedMission} assist={assist.current} />
           <ApproachAssistLayer mission={lockedMission} assist={assist.current} />
-          <MissionNavCue mission={lockedMission} assist={assist.current} />
-          <AssistControl />
+          {/* Screen-space assist chrome folds into the same video-player auto-hide as the HUD
+              (owner 2026-08-11: assist elements take too much space — fade them out). The
+              world-space Cesium layers above stay: they are the guidance itself. */}
+          <div className={"mission-chrome" + (faded ? " mission-chrome-faded" : "")}>
+            <MissionNavCue mission={lockedMission} assist={assist.current} />
+            <AssistControl />
+          </div>
         </>
       )}
       {mode === "COUNTDOWN" && lockedMission && (
