@@ -114,6 +114,13 @@ type State = {
   lockedMission: LockedMissionView | null;
   /** Present only for a deterministic local tutorial; suppresses all traffic/API polling. */
   tutorial: TutorialRun | null;
+  /**
+   * True for a local FREE FLIGHT (#29): a synthesized cruise with no destination. Like `tutorial`
+   * it suppresses ALL traffic/API polling, lease release/keepalive and result submission, so the
+   * flight is entirely client-side. Unlike `tutorial` it does NOT trigger lessons/coaching — those
+   * stay gated on `tutorial !== null` alone.
+   */
+  freeFlight: boolean;
   assist: AssistState | null;
   endStats: FlightStats | null;
   /**
@@ -126,6 +133,7 @@ type State = {
   setOrigin(o: { hex: string; snapshot: Contact } | null): void;
   startLockedMission(mission: LockedMissionView): boolean;
   startTutorial(mission: LockedMissionView, tutorial: TutorialRun): boolean;
+  startFreeFlight(mission: LockedMissionView): boolean;
   setAssistMode(mode: AssistMode): void;
   setEndStats(s: FlightStats | null): void;
   /** Clears the session payload without touching the mode. */
@@ -185,6 +193,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   origin: null,
   lockedMission: null,
   tutorial: null,
+  freeFlight: false,
   assist: null,
   endStats: null,
 
@@ -336,6 +345,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       mode: next,
       lockedMission: mission,
       tutorial: null,
+      freeFlight: false,
       origin: { hex: mission.contact.hex, snapshot: mission.contact },
       assist: initialAssistState(assistModeFromPreference(mission.assist)),
       endStats: null,
@@ -354,8 +364,30 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       mode: next,
       lockedMission: mission,
       tutorial,
+      freeFlight: false,
       origin: { hex: mission.contact.hex, snapshot: mission.contact },
       assist: initialAssistState("FULL"),
+      endStats: null,
+      contacts: new Map(),
+      selectedHex: null,
+      selectionLocked: false,
+    });
+    return true;
+  },
+
+  startFreeFlight(mission) {
+    const currentMode = get().mode;
+    const next = nextMode(currentMode, "TAKE_CONTROLS");
+    if (currentMode !== "BROWSE" || next !== "COUNTDOWN" || mission.status !== "locked") {
+      return false;
+    }
+    set({
+      mode: next,
+      lockedMission: mission,
+      tutorial: null,
+      freeFlight: true,
+      origin: { hex: mission.contact.hex, snapshot: mission.contact },
+      assist: initialAssistState(assistModeFromPreference(mission.assist)),
       endStats: null,
       contacts: new Map(),
       selectedHex: null,
@@ -379,6 +411,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       origin: null,
       lockedMission: null,
       tutorial: null,
+      freeFlight: false,
       assist: null,
       endStats: null,
       selectionLocked: false,
@@ -392,6 +425,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       origin: null,
       lockedMission: null,
       tutorial: null,
+      freeFlight: false,
       assist: null,
       endStats: null,
       selectionLocked: false,
@@ -482,7 +516,8 @@ export function startTrafficPolling(options: TrafficPollingOptions = {}): () => 
   function tick(): void {
     if (stopped || inFlight || !visibility.isVisible()) return;
     inFlight = true;
-    if (useStore.getState().tutorial !== null) {
+    const session = useStore.getState();
+    if (session.tutorial !== null || session.freeFlight) {
       inFlight = false;
       schedule(delayMs());
       return;

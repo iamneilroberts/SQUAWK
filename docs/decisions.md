@@ -2181,3 +2181,37 @@ pointerdown continuously; touch is unaffected since it doesn't emit mousemove). 
 Note: on desktop non-immersive FLYING the FULL/DCLTR/MENU chips now appear top-right (the opt-in entry
 point) at top:96px; they clear the classic HUD on normal viewports but could approach the right
 readouts on a very short window — owner verifies on-device.
+
+## 2026-08-12 — CF-025 — Free flight (#29): fly a class with no live feed and no server call
+
+Owner ask (#29): let the player fly a chosen class WITHOUT live ADS-B and WITHOUT any server call —
+the feed can be down and this must still work, fully client-side. Approved scope: pick CLASS +
+ALTITUDE + HEADING, spawn airborne straight-and-level over the HOME location, fly over real terrain.
+Unranked, always SIM.
+
+Decision: reuse the tutorial's proven offline machinery instead of a new code path. New pure builder
+`freeflight/freeFlight.ts:buildFreeFlightMission(classId, {altitudeFt, headingDeg, homeLatDeg?,
+homeLonDeg?, missionId?})` mirrors `buildTutorialMission`: it synthesizes the ONLY object the honesty
+rules allow us to invent — the player's own aircraft (Contact hex `ff01xx`, callsign `FREExxx`) — and
+hand-assembles a full `LockedMissionView` with ZERO fetches (traffic.source null, cacheStatus MISS).
+Differences from the tutorial: spawn is over HOME (default Mobile AL 30.6944/-88.0399, passed in so the
+builder is pure) at the chosen alt/heading and a class cruise speed read from the mission profile
+(`reachability.defaultPlanningSpeedKt` = 115/430/450 kt), baro_rate 0 (level), and NO gear/flap
+override so retractable gear stays UP (honest clean cruise; fixed gear stays down).
+
+Inert destination: free flight has no real objective, so the assignment is a zero-distance runway AT
+the spawn point and assist is `none`. At OFF assist the route line, approach corridor and nav cue all
+self-suppress (`assistFeatures.route/approachCorridor/destinationCue` false); only PapiLayer (world
+furniture) draws, harmlessly, at the ground point you fly away from. No new runway data required.
+
+Store: added `freeFlight: boolean` (default false) + `startFreeFlight(mission)` mirroring
+`startTutorial` (require BROWSE, fire TAKE_CONTROLS, clear contacts/selection). EVERY `tutorial !== null`
+skip-gate that suppresses server traffic was extended to ALSO skip on `freeFlight`: the poller no-op
+(store tick), mission-lease release in `leaveToBrowse`, the pagehide keepalive, and the result-submit
+path in `onEnd` (free flight submits nothing and shows a local "FREE FLIGHT — LOCAL AND UNRANKED"
+debrief). Deliberately NOT extended: tutorial lessons/coaching stay gated on `tutorial !== null` alone,
+so free flight does not trigger the scripted teaching overlays. `clearSession`/`resetSession` reset the
+flag. Terrain is the normal real-sampled path (free flight is `tutorial === null`, so it already takes
+the `createTerrainService` branch); the persistent SIM banner + synthetic callsign come from the Hud
+and `formatCallsign` for free. Browse entry is `freeflight/FreeFlightPanel.tsx`, a FREE FLIGHT
+status-chip dialog modeled on TutorialPanel, reachable even when the feed is OFFLINE.

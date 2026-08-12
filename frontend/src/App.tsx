@@ -37,6 +37,8 @@ import {
 import { lockMission, prepareMission } from "./mission/api";
 import { missionChoiceKey, type MissionPreparationView } from "./mission/contract";
 import TutorialPanel from "./tutorial/TutorialPanel";
+import FreeFlightPanel from "./freeflight/FreeFlightPanel";
+import { buildFreeFlightMission } from "./freeflight/freeFlight";
 import {
   buildTutorialMission,
   tutorialDefinitionForClass,
@@ -381,6 +383,18 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
     return true;
   }, [applyProfile, profile]);
 
+  const startFreeFlight = useCallback(
+    (classId: AircraftClassId, opts: { altitudeFt: number; headingDeg: number }) => {
+      // Build here where crypto.randomUUID is available; the pure builder accepts the id.
+      const mission = buildFreeFlightMission(classId, {
+        ...opts,
+        missionId: crypto.randomUUID(),
+      });
+      return useStore.getState().startFreeFlight(mission);
+    },
+    [],
+  );
+
   useEffect(() => {
     const returnedFromTraining = trainingHandoffPending &&
       previousMode.current !== "BROWSE" && mode === "BROWSE";
@@ -550,6 +564,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
             {mode === "BROWSE" && (
               <TutorialPanel progress={tutorialProgress} onStart={startTutorial} />
             )}
+            {mode === "BROWSE" && <FreeFlightPanel onStart={startFreeFlight} />}
             {mode === "BROWSE" && <LeaderboardPanel />}
             <div className="auth-control">
               {profile === null ? (

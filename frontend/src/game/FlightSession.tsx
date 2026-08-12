@@ -83,6 +83,7 @@ export default function FlightSession({
   const mode = useStore((s) => s.mode);
   const lockedMission = useStore((s) => s.lockedMission);
   const tutorial = useStore((s) => s.tutorial);
+  const freeFlight = useStore((s) => s.freeFlight);
   const assist = useStore((s) => s.assist);
   const endStats = useStore((s) => s.endStats);
   const basemap = useStore((s) => s.basemap);
@@ -235,7 +236,7 @@ export default function FlightSession({
    * mode is refused rather than teleporting the app to BROWSE from somewhere it should not.
    */
   function leaveToBrowse(event: GameEvent) {
-    if (lockedMission !== null && tutorial === null && useStore.getState().mode !== "ENDED") {
+    if (lockedMission !== null && tutorial === null && !freeFlight && useStore.getState().mode !== "ENDED") {
       const key = releaseKeyRef.current ?? crypto.randomUUID();
       releaseKeyRef.current = key;
       void releaseMissionLease(lockedMission.missionId, key).catch(() => undefined);
@@ -261,7 +262,7 @@ export default function FlightSession({
       status: "unavailable",
       message: "AUTHORITATIVE RESULT HAS NOT BEEN SUBMITTED",
     });
-    if (tutorial !== null) return;
+    if (tutorial !== null || freeFlight) return;
     const release = () => {
       if (useStore.getState().mode === "ENDED") return;
       void releaseMissionLease(
@@ -271,7 +272,7 @@ export default function FlightSession({
     };
     window.addEventListener("pagehide", release);
     return () => window.removeEventListener("pagehide", release);
-  }, [lockedMission, tutorial]);
+  }, [lockedMission, tutorial, freeFlight]);
 
   useEffect(() => subscribeResultQueueEvents((event) => {
     const pending = pendingResultRef.current;
@@ -415,6 +416,19 @@ export default function FlightSession({
               }
               const highestAssist = useStore.getState().assist?.highestUsed ??
                 assistModeFromPreference(lockedMission.assist);
+              // Free flight (#29) has no destination and is never ranked: submit nothing, show a
+              // local debrief. Sits before the tutorial branch so it never runs onTutorialComplete.
+              if (freeFlight) {
+                pendingResultRef.current = null;
+                activeLessonRef.current = null;
+                setActiveLesson(null);
+                setDebrief({
+                  status: "unavailable",
+                  message: "FREE FLIGHT — LOCAL AND UNRANKED. NO RESULT SUBMITTED.",
+                });
+                useStore.getState().fire("IMPACT");
+                return;
+              }
               if (tutorial !== null) {
                 pendingResultRef.current = null;
                 activeLessonRef.current = null;
@@ -496,6 +510,7 @@ export default function FlightSession({
     bundle?.heightSampler,
     lockedMission,
     tutorial,
+    freeFlight,
   ]);
 
   // Pause from FLYING: stop the physics loop and move the machine to PAUSED. Shared by desktop

@@ -169,6 +169,30 @@ describe("session state", () => {
     });
     expect(useStore.getState().startLockedMission(mission)).toBe(false);
   });
+  it("startFreeFlight only starts from BROWSE, sets the freeFlight flag and clears contacts (#29)", () => {
+    useStore.getState().resetSession();
+    useStore.getState().applyFetch(trafficResult([contact("abc123")]));
+    const mission = lockedMission("none");
+    expect(useStore.getState().startFreeFlight(mission)).toBe(true);
+    const s = useStore.getState();
+    expect(s.mode).toBe("COUNTDOWN");
+    expect(s.freeFlight).toBe(true);
+    expect(s.tutorial).toBeNull();
+    expect(s.lockedMission).toBe(mission);
+    expect(s.contacts.size).toBe(0);
+    expect(s.selectedHex).toBeNull();
+    // A second start is refused: we are no longer in BROWSE.
+    expect(useStore.getState().startFreeFlight(mission)).toBe(false);
+  });
+  it("resetSession and a live mission both clear the freeFlight flag (#29)", () => {
+    useStore.getState().resetSession();
+    useStore.getState().startFreeFlight(lockedMission("none"));
+    expect(useStore.getState().freeFlight).toBe(true);
+    useStore.getState().resetSession();
+    expect(useStore.getState().freeFlight).toBe(false);
+    useStore.getState().startLockedMission(lockedMission());
+    expect(useStore.getState().freeFlight).toBe(false);
+  });
   it("tracks highest assist monotonically for the locked flight", () => {
     useStore.getState().resetSession();
     useStore.getState().startLockedMission(lockedMission("none"));

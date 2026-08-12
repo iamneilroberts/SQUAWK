@@ -284,6 +284,11 @@ body {
 .pwa-panel > .control-button { width: 100%; margin-top: 8px; justify-content: center; }
 .pwa-message { margin-top: 10px; color: var(--amber); }
 
+/* ---- free flight (#29) ---- */
+.freeflight-field { display: grid; gap: 6px; margin-top: 12px; font-size: 11px; }
+.freeflight-class[aria-pressed="true"] { border-color: var(--cyan); color: var(--cyan); }
+.freeflight-panel > .control-button { width: 100%; margin-top: 14px; justify-content: center; }
+
 .teaching-overlay {
   position: absolute; inset: 0; z-index: 78; display: grid; place-items: center;
   padding: 16px; background: rgba(5, 7, 10, 0.62); pointer-events: auto;
