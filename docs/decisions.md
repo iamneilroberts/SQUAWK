@@ -2079,3 +2079,30 @@ the first (latest-wins) — expected UX, marginally stronger security. (3) const
 guards the digest comparison, but the surrounding row SELECT and attempt UPDATE are not
 constant-time; acceptable because the compared secret is a salted digest over an
 attempt-capped 10^6 space.
+
+## 2026-08-12 — CF-021 — Mobile abort valve (MENU) + top-right control row relocated below the HUD bar
+
+#58 root cause: ground-collision (`endSession` → `fire("IMPACT")`, gated on
+`ground.collisionArmed`) is the only path to ENDED, and terrain that never verifies (or is
+`disarm()`ed at COUNTDOWN, a one-way door) leaves collision off forever — the plane falls
+underground with no end, and mobile had no manual way out. Task 1 (CF backstop) added an
+absolute -500 m altitude floor + non-finite guard. This entry covers the mobile UX half.
+
+MENU button (#58): a control chip in the narrow-FLYING top-right cluster that fires the SAME
+pause sequence as desktop Escape — the sequence is extracted into one shared `pauseFlight()`
+handler in FlightSession so the button and the keyboard/visibility handlers can't drift. It
+opens the existing PauseOverlay (RESUME / QUIT TO BROWSE), which already renders on narrow
+(`mode === "PAUSED"`, no desktop gate). Placed with FULL/EXIT/DCLTR as control chrome — never
+hidden by declutter or the idle auto-hide, because a trapped player must always reach the exit.
+
+Control-row relocation (#26): the FULL/EXIT · DCLTR · MENU row sat at top safe-area+8px,
+directly over the HUD bar's ALT and FLP fields. Moved to safe-area+88px — clears the 62px bar
+and lands just under the centered warnings row (ends ~84px) with no vertical overlap. Mission
+controls (assist-control / mission-nav-cue) moved 108→128px so the right-anchored nav cue no
+longer collides with the relocated FULL/EXIT chip; the iOS "add to home screen" hint stacks
+below the row. `.immersive-toggle-active` (defined but never applied in TSX) left untouched.
+
+Residual risk (accepted): the exact pixel offsets are notch-dependent and unverifiable
+off-device — owner confirms the row clears the bar and MENU→QUIT works on-device after deploy.
+The `terrain.disarm()` one-way door remains; the -500 m floor and MENU are backstops, not a
+root re-arm of terrain collision (deferred).
