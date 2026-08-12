@@ -49,9 +49,11 @@ gates already mark.
   offset half the runway width + 50 ft laterally, at runway elevation.
 - `papiColors(aircraft: {latDeg,lonDeg,altitudeFt}, papi: GuidancePoint, glideSlopeDeg): boolean[4]`
   — the aircraft's elevation angle from the PAPI position
-  (`atan2(altFt − papiAltFt, horizontalDistanceFt)`), compared against the four thresholds
-  `glideSlopeDeg + (−0.5, −0.2, +0.2, +0.5)°`; each light is white when the aircraft is above
-  its threshold. On-slope = `[true, true, false, false]` (2W2R). Pure, table-driven tests.
+  (`atan2(altFt − papiAltFt, horizontalDistanceFt)`), compared against the four thresholds,
+  ordered highest-first from the runway-nearest unit: `glideSlopeDeg + (+0.5, +0.2, −0.2, −0.5)°`;
+  each light is white when the aircraft is above its threshold. On-slope = `[false, false, true,
+  true]` (2W2R: red pair inboard, white pair outboard). Pure, table-driven tests.
+  (corrected 2026-08-12, #54: original mapping was mirrored vs a real PAPI)
 
 ## 4. Rendering (Cesium, entity API — matches the existing layer style)
 

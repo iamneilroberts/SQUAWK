@@ -80,10 +80,10 @@ describe("papiColors", () => {
 
   it.each([
     [3 - 0.6, [false, false, false, false]], // 2.4° — four red, well low
-    [3 - 0.3, [true, false, false, false]],  // 2.7° — slightly low
-    [3 - 0.1, [true, true, false, false]],   // 2.9° — on slope (2W2R)
-    [3 + 0.1, [true, true, false, false]],   // 3.1° — on slope (2W2R)
-    [3 + 0.3, [true, true, true, false]],    // 3.3° — slightly high
+    [3 - 0.3, [false, false, false, true]],  // 2.7° — slightly low
+    [3 - 0.1, [false, false, true, true]],   // 2.9° — on slope (2W2R)
+    [3 + 0.1, [false, false, true, true]],   // 3.1° — on slope (2W2R)
+    [3 + 0.3, [false, true, true, true]],    // 3.3° — slightly high
     [3 + 0.6, [true, true, true, true]],     // 3.6° — four white, well high
   ])("elevation angle %f° → %j", (angleDeg, expected) => {
     expect(papiColors(aircraftAtAngle(angleDeg), papi, GLIDE)).toEqual(expected);
@@ -94,7 +94,7 @@ describe("papiColors", () => {
     const { latDeg, lonDeg } = destinationPoint(below.latDeg, below.lonDeg, 180, 3);
     const altitudeFt = -14 + Math.tan((3 * Math.PI) / 180) * 3 * FEET_PER_NM;
     expect(papiColors({ latDeg, lonDeg, altitudeFt }, below, GLIDE)).toEqual([
-      true, true, false, false,
+      false, false, true, true,
     ]);
   });
 });

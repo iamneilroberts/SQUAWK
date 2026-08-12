@@ -11,8 +11,12 @@ const FEET_PER_NM = 6076.11549;
 const LATERAL_CLEARANCE_FT = 50;
 const LIGHT_SPACING_FT = 25;
 
-/** Per-light offsets from the glide slope; a light is WHITE above `glideSlopeDeg + offset`. */
-export const PAPI_THRESHOLD_OFFSETS_DEG = [-0.5, -0.2, 0.2, 0.5] as const;
+/**
+ * Per-light offsets from the glide slope; a light is WHITE above `glideSlopeDeg + offset`.
+ * Ordered to match a real PAPI: the nearest-runway unit (index 0) has the HIGHEST threshold,
+ * descending outward — so on-slope shows the red pair inboard, white pair outboard (#54).
+ */
+export const PAPI_THRESHOLD_OFFSETS_DEG = [0.5, 0.2, -0.2, -0.5] as const;
 
 function runwayElevationFt(assignment: RunwayAssignment): number {
   return assignment.assignedEnd.elevationFt ?? assignment.airportElevationFt ?? 0;
