@@ -6,6 +6,15 @@
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
 
+# The navigation HTML has a stable name (/) and points at the content-hashed JS/CSS bundles. If the
+# edge caches it, a client is pinned to whatever bundle hashes that cached copy names — so a deploy
+# that uploads new bundles still renders stale because the HTML pointing at them was cached. no-store
+# forces every navigation to fetch the current HTML, which references the current bundles.
+/
+  Cache-Control: no-store, must-revalidate
+/index.html
+  Cache-Control: no-store, must-revalidate
+
 # The service worker and its asset manifest carry stable names, so they must never be edge- or
 # browser-cached: a stale copy pins an installed PWA to old assets across deploys. no-store forces
 # every update-check to fetch the freshly-deployed, build-id-stamped copy (see generate-sw-assets.mjs).
