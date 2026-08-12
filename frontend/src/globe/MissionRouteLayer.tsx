@@ -3,6 +3,7 @@ import {
   ArcType,
   Cartesian2,
   Cartesian3,
+  CallbackProperty,
   Color,
   LabelStyle,
   VerticalOrigin,
@@ -10,12 +11,9 @@ import {
 import type { LockedMissionView } from "../mission/contract";
 import { assistFeatures, type AssistMode } from "../mission/assists";
 import { runwayOutline } from "../mission/guidanceGeometry";
+import { hudSnapshot } from "../hud/snapshot";
+import { routeStartPoint } from "./missionRoutePath";
 import { useViewer } from "./viewerContext";
-
-function contactAltitudeM(mission: LockedMissionView): number {
-  const contact = mission.contact;
-  return (contact.alt_geom ?? (typeof contact.alt_baro === "number" ? contact.alt_baro : 0)) * 0.3048;
-}
 
 export default function MissionRouteLayer({
   mission,
@@ -31,11 +29,6 @@ export default function MissionRouteLayer({
     const features = assistFeatures(assist);
     if (viewer === undefined || viewer.isDestroyed() || !features.route) return;
     const assignment = mission.assignment;
-    const start = Cartesian3.fromDegrees(
-      mission.contact.lon,
-      mission.contact.lat,
-      contactAltitudeM(mission),
-    );
     const destination = Cartesian3.fromDegrees(
       assignment.assignedEnd.lonDeg,
       assignment.assignedEnd.latDeg,
@@ -43,7 +36,15 @@ export default function MissionRouteLayer({
     );
     const route = viewer.entities.add({
       polyline: {
-        positions: [start, destination],
+        // #50: start at the LIVE aircraft position so the line only ever shows the
+        // remaining path — pre-spawn it falls back to the contact's real position.
+        positions: new CallbackProperty(() => {
+          const start = routeStartPoint(hudSnapshot.get(), mission);
+          return [
+            Cartesian3.fromDegrees(start.lonDeg, start.latDeg, start.altitudeFt * 0.3048),
+            destination,
+          ];
+        }, false),
         width: 2,
         arcType: ArcType.GEODESIC,
         material: Color.CYAN.withAlpha(0.85),
