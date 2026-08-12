@@ -13,6 +13,7 @@ Source handoff: `<coord>/handoffs/pause-2026-08-12-mongols-live-iteration.md`
 - [x] Worktree crawl ledger: salvage committed ae2101c; ais parked @ origin/ais 50d85e7
 
 ## Do now
+- [x] PIN SIGN-IN SHIPPED (#40, d3b7d30..78a7638, worker 2b408015, migration 0005 live): emailed 6-digit code typed in-place — no browser handoff. Smoke: verify-code wrong code → 401 clean. AWAITING OWNER PHONE TEST (§7.1) → close #40.
 - [x] BUILD SHIPPED: approach guidance (#24 surface + #23 PAPI + #50 route clip + approach-warnings wiring) — 7 commits ae2101c..cd676ab, 1191 tests green, opus48 final review APPROVED, deployed worker dd46de1d — AWAITING OWNER LOOK-PASS (surface on final; PAPI at all assist levels; route no longer trails behind)
 - [x] #54 FIXED + CLOSED (d56b724, deployed worker 135d0cd1): offsets reversed, spec §3.2 amended — real PAPI order, red pair inboard
 - [ ] #32 debrief window can't be closed on mobile (traps the player — highest bug)
