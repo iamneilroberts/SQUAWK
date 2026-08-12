@@ -27,10 +27,12 @@ export default function ActiveSessions({ csrfToken }: { csrfToken: string }) {
   };
   const terminate = async (session: Session) => {
     if (!session.mission) return;
-    const confirmation = window.prompt(`Type TERMINATE ${session.mission.id} to end this flight.`);
-    if (confirmation !== `TERMINATE ${session.mission.id}`) return;
-    const reason = window.prompt("Operational reason (at least 8 characters):") ?? "";
-    if (reason.length < 8) return;
+    // Mobile-friendly (owner 2026-08-12): dropped the typed "TERMINATE <uuid>" + reason prompts —
+    // typing a UUID on a phone made ending a flight impractical. A single confirm tap remains as an
+    // accidental-tap guard; the server still requires the confirmation string, so we fill it here.
+    if (!window.confirm(`End this flight (${session.handle})? This cannot be undone.`)) return;
+    const confirmation = `TERMINATE ${session.mission.id}`;
+    const reason = "Ended by admin from console";
     await adminMutation(`/api/admin/flights/${session.mission.id}/terminate`, { reason, confirmation }, csrfToken);
     await load();
   };
