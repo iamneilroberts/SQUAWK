@@ -529,7 +529,16 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
               SYSTEM MAINTENANCE — LIVE TRAFFIC AND SERVER ACTIONS ARE UNAVAILABLE. LOCAL TRAINING REMAINS AVAILABLE.
             </div>
           )}
-          <div className="top-controls">
+          {/* In immersive flight the funnel chips (SIGN IN / APP / …) drop below the HUD bar and
+              join the chrome auto-hide — they were overlapping the bar's THR field and the FULL
+              toggle, and added clutter (owner 2026-08-11). */}
+          <div
+            className={
+              "top-controls" +
+              (immersiveActive ? " top-controls-immersive" : "") +
+              (statusFaded ? " top-controls-faded" : "")
+            }
+          >
             <PwaPanel mode={mode} />
             {mode === "BROWSE" && (
               <TutorialPanel progress={tutorialProgress} onStart={startTutorial} />

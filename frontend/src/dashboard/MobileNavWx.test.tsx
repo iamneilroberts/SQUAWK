@@ -43,12 +43,12 @@ describe("navWxChipStatus", () => {
     expect(navWxChipStatus({ kind: "no-position" })).toBe("—");
     expect(navWxChipStatus({ kind: "no-station" })).toBe("NO STN");
     expect(navWxChipStatus({ kind: "loading", station, rangeNm: 4 })).toBe("…");
-    expect(navWxChipStatus({ kind: "unreachable", station, rangeNm: 4 })).toBe("OFF");
+    expect(navWxChipStatus({ kind: "unreachable", station, rangeNm: 4 })).toBe("WX OFF");
   });
 
-  it("treats an unavailable feed as OFF even under an ok envelope", () => {
+  it("treats an unavailable feed as WX OFF even under an ok envelope", () => {
     const state: WeatherState = { kind: "ok", station, rangeNm: 4, resp: resp({ available: false, metar: null }) };
-    expect(navWxChipStatus(state)).toBe("OFF");
+    expect(navWxChipStatus(state)).toBe("WX OFF");
   });
 
   it("shows NO OBS when the station has no current report (available, metar null)", () => {

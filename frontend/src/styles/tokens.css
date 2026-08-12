@@ -1874,3 +1874,11 @@ body {
    fades with the rest of the informational chrome, tap restores. Stays in the DOM. */
 .mission-chrome { transition: opacity 0.5s ease; }
 .mission-chrome-faded { opacity: 0; pointer-events: none; }
+
+/* Funnel chips (SIGN IN / APP / panels) during immersive flight: below the HUD bar (same 75px
+   offset as .immersive-toggle-active) and folded into the chrome auto-hide. */
+.top-controls-immersive {
+  top: max(75px, calc(env(safe-area-inset-top) + 71px));
+  transition: opacity 0.5s ease;
+}
+.top-controls-faded { opacity: 0; pointer-events: none; }

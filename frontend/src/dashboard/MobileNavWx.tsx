@@ -34,9 +34,9 @@ export function navWxChipStatus(state: WeatherState): string {
     case "loading":
       return "…";
     case "unreachable":
-      return "OFF";
+      return "WX OFF";
     case "ok":
-      if (!state.resp.available) return "OFF";
+      if (!state.resp.available) return "WX OFF";
       if (state.resp.metar === null) return "NO OBS";
       return formatClouds(state.resp.metar);
   }
@@ -61,7 +61,7 @@ export default function MobileNavWx({ snapshot }: { snapshot: HudSnapshot | null
         onClick={() => setExpanded(true)}
         aria-label="Open nav and weather"
       >
-        <span className="mobile-navwx-chip-label">NAV/WX</span>
+        <span className="mobile-navwx-chip-label">NAV/WX ▸</span>
         <span className="mobile-navwx-chip-status">{navWxChipStatus(weather)}</span>
       </button>
     );
