@@ -4,6 +4,7 @@ import {
   ACTIVE_FLIGHT_GLOBAL_LIMIT,
   ACTIVE_FLIGHT_LEASE_SECONDS,
   ACTIVE_FLIGHT_RESERVE_PER_LEASE,
+  ACTIVE_FLIGHT_USER_LIMIT,
   ACTIVE_FLIGHT_WARNING,
   CONSERVATION_THRESHOLD_REQUESTS,
   DAILY_ADMITTED_REQUEST_LIMIT,
@@ -344,7 +345,13 @@ function isStoredState(value: unknown): value is StoredBrokerState {
       isSafeCount(lease.reserveRemaining) &&
       lease.reserveRemaining <= ACTIVE_FLIGHT_RESERVE_PER_LEASE,
   );
-  const uniqueUsers = new Set(leases.map((lease) => lease.userId)).size === leases.length;
+  const userLeaseCounts = new Map<string, number>();
+  for (const lease of leases) {
+    userLeaseCounts.set(lease.userId, (userLeaseCounts.get(lease.userId) ?? 0) + 1);
+  }
+  const withinUserLimit = [...userLeaseCounts.values()].every(
+    (count) => count <= ACTIVE_FLIGHT_USER_LIMIT,
+  );
   const uniqueMissions = new Set(leases.map((lease) => lease.missionId)).size === leases.length;
   const totalReserve = leases.reduce(
     (total, lease) => total + Number(lease.reserveRemaining),
@@ -383,7 +390,7 @@ function isStoredState(value: unknown): value is StoredBrokerState {
     ["normal", "warning", "full"].includes(String(state.flightCapacityBand)) &&
     leases.length <= ACTIVE_FLIGHT_GLOBAL_LIMIT &&
     validLeases &&
-    uniqueUsers &&
+    withinUserLimit &&
     uniqueMissions &&
     totalReserve <= ACTIVE_FLIGHT_GLOBAL_LIMIT * ACTIVE_FLIGHT_RESERVE_PER_LEASE &&
     (state.admittedRequests >= READ_ONLY_THRESHOLD_REQUESTS || totalReserve === 0) &&
@@ -640,7 +647,11 @@ function mutateLease(
     };
   }
   if (command.type === "lease-renew") return rejectLease(state, command.forceMode, "not-found");
-  if (state.leases.some((lease) => lease.userId === command.userId)) {
+  const userLeaseCount = state.leases.reduce(
+    (total, lease) => (lease.userId === command.userId ? total + 1 : total),
+    0,
+  );
+  if (userLeaseCount >= ACTIVE_FLIGHT_USER_LIMIT) {
     return rejectLease(state, command.forceMode, "user-limit");
   }
   if (state.leases.length >= ACTIVE_FLIGHT_GLOBAL_LIMIT) {

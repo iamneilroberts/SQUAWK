@@ -28,7 +28,10 @@ export const CONSERVATION_THRESHOLD_PERCENT = 70;
 export const READ_ONLY_THRESHOLD_PERCENT = 90;
 export const KILL_SWITCH_THRESHOLD_PERCENT = 100;
 
-export const ACTIVE_FLIGHT_USER_LIMIT = 1;
+// Concurrent flights a single account may hold at once (owner request 2026-08-12: raised 1 -> 5
+// "for now"). Enforced in AdsbBroker.mutateLease + its stored-state invariant. Still bounded by
+// ACTIVE_FLIGHT_GLOBAL_LIMIT, so one account cannot hold more than that many global slots.
+export const ACTIVE_FLIGHT_USER_LIMIT = 5;
 export const ACTIVE_FLIGHT_GLOBAL_LIMIT = 10;
 export const ACTIVE_FLIGHT_WARNING = 8;
 export const ACTIVE_FLIGHT_LEASE_SECONDS = 45;

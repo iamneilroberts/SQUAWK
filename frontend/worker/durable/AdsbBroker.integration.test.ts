@@ -262,16 +262,16 @@ describe("AdsbBroker", () => {
     expect(admissions.every(({ status }) => status.admittedRequests === 100_000)).toBe(true);
   });
 
-  it("enforces one lease per user, ten globally, warning/full transitions, and concurrency", async () => {
+  it("enforces five leases per user, ten globally, warning/full transitions, and concurrency", async () => {
     const target = stub();
     await setClock(target, new FakeClock(START));
 
-    const duplicateUser = await Promise.all([
-      acquire(target, USER_IDS[0]!, MISSION_IDS[0]!),
-      acquire(target, USER_IDS[0]!, MISSION_IDS[1]!),
-    ]);
-    expect(duplicateUser.filter(({ allowed }) => allowed)).toHaveLength(1);
-    expect(duplicateUser.find(({ allowed }) => !allowed)?.reason).toBe("user-limit");
+    // One account may hold up to five concurrent flights; the sixth is rejected as user-limit.
+    const sameUser = await Promise.all(
+      MISSION_IDS.slice(0, 6).map((missionId) => acquire(target, USER_IDS[0]!, missionId)),
+    );
+    expect(sameUser.filter(({ allowed }) => allowed)).toHaveLength(5);
+    expect(sameUser.find(({ allowed }) => !allowed)?.reason).toBe("user-limit");
     await command(target, { type: "lease-release-user", userId: USER_IDS[0]! });
 
     const outcomes = await Promise.all(
@@ -291,19 +291,21 @@ describe("AdsbBroker", () => {
         brokerStatus.lastAlertTransition.to === "full"),
     ).toBe(true);
 
+    // Eleventh distinct user is over the global ceiling even though nobody is at their own limit.
     await expect(acquire(target, USER_IDS[10]!, MISSION_IDS[10]!)).resolves.toMatchObject({
       allowed: false,
       reason: "global-limit",
     });
+    // Freeing one global slot lets an existing user take a SECOND concurrent flight (within five).
     await command(target, {
       type: "lease-release",
       userId: USER_IDS[9]!,
       missionId: MISSION_IDS[9]!,
     });
     await expect(acquire(target, USER_IDS[0]!, MISSION_IDS[11]!)).resolves.toMatchObject({
-      allowed: false,
-      reason: "user-limit",
+      allowed: true,
     });
+    // Releasing that user drops both of their flights, easing back from full to the warning band.
     await expect(
       command(target, { type: "lease-release-user", userId: USER_IDS[0]! }),
     ).resolves.toMatchObject({
