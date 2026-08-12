@@ -1,8 +1,13 @@
 import { useEffect } from "react";
-import { Cartesian2, Cartesian3, Color, LabelStyle, VerticalOrigin } from "cesium";
+import { Cartesian2, Cartesian3, Color, LabelStyle, PolygonHierarchy, VerticalOrigin } from "cesium";
 import type { LockedMissionView } from "../mission/contract";
 import { assistFeatures, type AssistMode } from "../mission/assists";
-import { approachGuidance, type GuidancePoint } from "../mission/guidanceGeometry";
+import {
+  approachGuidance,
+  approachSurface,
+  surfaceQuads,
+  type GuidancePoint,
+} from "../mission/guidanceGeometry";
 import { useViewer } from "./viewerContext";
 
 function world(point: GuidancePoint): Cartesian3 {
@@ -23,11 +28,14 @@ export default function ApproachAssistLayer({
     const features = assistFeatures(assist);
     if (viewer === undefined || viewer.isDestroyed() || !features.approachCorridor) return;
     const guidance = approachGuidance(mission.assignment, mission.missionProfile.guidance);
-    const entities = guidance.corridorEdges.map((edge) => viewer.entities.add({
-      polyline: {
-        positions: [world(edge.left), world(edge.right)],
-        width: 1,
-        material: Color.CYAN.withAlpha(0.45),
+    // The flyable surface (#24) replaces the two corridor edge polylines: one translucent
+    // quad per cross-section pair, lying exactly on the slope the gates mark.
+    const sections = approachSurface(mission.assignment, mission.missionProfile.guidance);
+    const entities = surfaceQuads(sections).map((quad) => viewer.entities.add({
+      polygon: {
+        hierarchy: new PolygonHierarchy(quad.map(world)),
+        perPositionHeight: true,
+        material: Color.CYAN.withAlpha(0.15),
       },
     }));
     if (features.glideGates) {
