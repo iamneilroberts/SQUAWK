@@ -89,6 +89,7 @@ export default function FlightSession({
   const labelsOn = useStore((s) => s.labelsOn);
   const immersive = useStore((s) => s.immersive);
   const chromeVisible = useStore((s) => s.chromeVisible);
+  const decluttered = useStore((s) => s.decluttered);
 
   const [spawn, setSpawn] = useState<SpawnResult | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -772,6 +773,7 @@ export default function FlightSession({
             immersiveApproachWarnings={immersiveApproachWarnings}
             narrow={narrow}
             tapeRange={originParams ? tapeRangesFor(originParams) : null}
+            decluttered={decluttered}
           />
           {/* The cockpit dashboard is DESKTOP-ONLY. On mobile (narrow) it never renders at all —
               phones get the minimal immersive flying view (top status bar + minimal touch

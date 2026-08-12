@@ -71,6 +71,14 @@ type State = {
    * while immersive is active. Attribution is faded via this flag, never removed from the DOM.
    */
   chromeVisible: boolean;
+  /**
+   * Manual "declutter" toggle (#57): hides informational flight chrome (HUD variant button,
+   * APP button, PILOT callsign chip, traffic labels) on demand. A view preference like
+   * immersive/chromeVisible, and deliberately SEPARATE from chromeVisible's timer-based
+   * auto-hide — this is an owner-driven choice, not idle detection, so the two compose
+   * (`!decluttered && ...`) rather than one reusing the other.
+   */
+  decluttered: boolean;
   setHome(h: { lat: number; lon: number }): void;
   setSavedCenter(center: { lat: number; lon: number } | null): void;
   setPollingIdentity(identity: PollingIdentity): void;
@@ -79,6 +87,7 @@ type State = {
   setLabelsOn(on: boolean): void;
   setImmersive(on: boolean): void;
   setChromeVisible(on: boolean): void;
+  setDeclutter(on: boolean): void;
   applyFetch(r: TrafficFetchResult): void;
   markFetchFailed(mode?: SystemMode): void;
   select(hex: string | null): void;
@@ -142,6 +151,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   labelsOn: false,
   immersive: false,
   chromeVisible: true,
+  decluttered: false,
   mode: "BROWSE",
   origin: null,
   lockedMission: null,
@@ -180,6 +190,10 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
 
   setChromeVisible(on) {
     set({ chromeVisible: on });
+  },
+
+  setDeclutter(on) {
+    set({ decluttered: on });
   },
 
   applyFetch(r) {

@@ -273,4 +273,13 @@ describe("view preferences", () => {
     useStore.getState().setBasemap("SAT");
     useStore.getState().setLabelsOn(false);
   });
+  it("starts decluttered off", () => {
+    expect(useStore.getState().decluttered).toBe(false);
+  });
+  it("toggles the declutter flag", () => {
+    useStore.getState().setDeclutter(true);
+    expect(useStore.getState().decluttered).toBe(true);
+    useStore.getState().setDeclutter(false);
+    expect(useStore.getState().decluttered).toBe(false);
+  });
 });

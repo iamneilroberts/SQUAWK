@@ -33,6 +33,8 @@ export default function ImmersiveControl({ warningActive }: { warningActive: boo
   const immersive = useStore((s) => s.immersive);
   const setImmersive = useStore((s) => s.setImmersive);
   const setChromeVisible = useStore((s) => s.setChromeVisible);
+  const decluttered = useStore((s) => s.decluttered);
+  const setDeclutter = useStore((s) => s.setDeclutter);
   const { width } = useViewport();
   const narrow = isNarrowViewport(width);
   // Auto-hide arms on ANY narrow flight, not just requested fullscreen (owner 2026-08-11:
@@ -122,6 +124,18 @@ export default function ImmersiveControl({ warningActive }: { warningActive: boo
         aria-pressed={immersive}
       >
         {immersive ? "EXIT ⤢" : "FULL ⤢"}
+      </button>
+      {/* Manual declutter (#57): a sibling chip to the left of FULL/EXIT so the two never
+          overlap (see .declutter-toggle in tokens.css). Independent of the auto-hide above —
+          this hides informational chrome (HUD toggle, APP/PILOT chips, traffic labels) on a
+          deliberate tap, not on an idle timer. */}
+      <button
+        type="button"
+        className={"immersive-toggle declutter-toggle" + (decluttered ? " declutter-toggle-on" : "")}
+        onClick={() => setDeclutter(!decluttered)}
+        aria-pressed={decluttered}
+      >
+        DCLTR
       </button>
       {showHint && (
         <div className="immersive-hint" role="note">

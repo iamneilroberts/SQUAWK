@@ -44,6 +44,7 @@ export default function Hud({
   immersiveApproachWarnings = [],
   narrow = false,
   tapeRange = null,
+  decluttered = false,
 }: {
   snapshot: HudSnapshot | null;
   attribution: string;
@@ -66,6 +67,8 @@ export default function Hud({
   narrow?: boolean;
   /** Per-class IAS/ALT tape scale (Task 2/3). Null renders the tapes' honest em-dash fallback. */
   tapeRange?: { ias: TapeRange; alt: TapeRange } | null;
+  /** Manual declutter (#57): hides the HUD-A/C layout toggle, threaded to ImmersiveHudBar. */
+  decluttered?: boolean;
 }) {
   if (snapshot === null) return null;
   const warnings = warningsFor(snapshot);
@@ -89,6 +92,7 @@ export default function Hud({
           navCue={immersiveNavCue}
           approachWarnings={immersiveApproachWarnings}
           tapeRange={tapeRange}
+          decluttered={decluttered}
         />
         <div className="hud-attribution">{attribution}</div>
       </div>

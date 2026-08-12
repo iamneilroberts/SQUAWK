@@ -190,6 +190,19 @@ describe("ImmersiveHudBar", () => {
     expect(selected).toBe("tapes");
   });
 
+  it("hides the HUD-A/C toggle when decluttered (#57) — the rail itself stays", () => {
+    const el = ImmersiveHudBar({
+      snapshot: snap(),
+      attitudeStyle: "line",
+      variant: "balanced",
+      onVariantChange: () => {},
+      decluttered: true,
+    });
+    expect(classNamesIn(el)).not.toContain("imm-hud-toggle");
+    expect(firstPropsForType(el, "button")).toBeNull();
+    expect(collectText(el).join(" ")).toContain("IAS");
+  });
+
   it("puts safety calls before approach coaching and caps the transient rail", () => {
     expect(prioritizedImmersiveWarnings(
       snap({ stalled: true, overspeed: true }),

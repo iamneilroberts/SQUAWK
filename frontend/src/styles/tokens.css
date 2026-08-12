@@ -1423,6 +1423,19 @@ body {
   top: max(75px, calc(env(safe-area-inset-top) + 71px));
 }
 
+/* ---- The DCLTR toggle (#57): reuses .immersive-toggle's look, but sits to the LEFT of
+   FULL/EXIT (same top offset) instead of stacking below it, so it never collides with the
+   ENTER/EXIT chip or the "Add to Home Screen" hint that can appear beneath it. 84px clears the
+   FULL/EXIT chip's own width (~64-72px) plus a gap. ---- */
+.declutter-toggle {
+  right: calc(max(8px, env(safe-area-inset-right)) + 84px);
+}
+.declutter-toggle-on {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: rgba(255, 176, 0, 0.12);
+}
+
 /* ---- The one-time iOS "Add to Home Screen" hint (only shown where true fullscreen is
    impossible and the app is not yet an installed PWA). Amber advisory, dismissible. ---- */
 .immersive-hint {

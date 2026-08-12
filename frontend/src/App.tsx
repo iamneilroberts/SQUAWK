@@ -218,6 +218,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
   const takeoverMessage = useUrlTakeover();
   const immersive = useStore((s) => s.immersive);
   const chromeVisible = useStore((s) => s.chromeVisible);
+  const decluttered = useStore((s) => s.decluttered);
   // Bridged up from ViewerHost's bundle, not zustand: StatusBar is a flex sibling of
   // ViewerHost here, not a Provider descendant, so it can't read viewerContext directly.
   const [terrainNote, setTerrainNote] = useState<string | null>(null);
@@ -542,7 +543,10 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
               (statusFaded ? " top-controls-faded" : "")
             }
           >
-            <PwaPanel mode={mode} />
+            {/* Declutter (#57): the APP button and the signed-in PILOT callsign chip are
+                informational, not controls — hide them on the manual DCLTR toggle. SIGN IN
+                stays reachable (a real action, not chrome) even when decluttered. */}
+            {!decluttered && <PwaPanel mode={mode} />}
             {mode === "BROWSE" && (
               <TutorialPanel progress={tutorialProgress} onStart={startTutorial} />
             )}
@@ -553,16 +557,18 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
                   {authStatus === "loading" ? "SESSION…" : "SIGN IN"}
                 </button>
               ) : (
-                <ProfilePanel
-                  profile={profile}
-                  onProfile={applyProfile}
-                  onSignedOut={() => {
-                    setProfile(null);
-                    setAuthStatus("anonymous");
-                    useStore.getState().setSavedCenter(null);
-                    useStore.getState().setPollingIdentity("anonymous");
-                  }}
-                />
+                !decluttered && (
+                  <ProfilePanel
+                    profile={profile}
+                    onProfile={applyProfile}
+                    onSignedOut={() => {
+                      setProfile(null);
+                      setAuthStatus("anonymous");
+                      useStore.getState().setSavedCenter(null);
+                      useStore.getState().setPollingIdentity("anonymous");
+                    }}
+                  />
+                )
               )}
             </div>
           </div>

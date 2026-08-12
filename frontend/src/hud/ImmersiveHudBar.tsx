@@ -261,6 +261,7 @@ export default function ImmersiveHudBar({
   navCue = null,
   approachWarnings = [],
   tapeRange = null,
+  decluttered = false,
 }: {
   snapshot: HudSnapshot;
   attitudeStyle: AttitudeStyle;
@@ -269,6 +270,8 @@ export default function ImmersiveHudBar({
   navCue?: ImmersiveHudNavCue | null;
   approachWarnings?: string[];
   tapeRange?: { ias: TapeRange; alt: TapeRange } | null;
+  /** Manual declutter (#57): hides the HUD-A/C layout toggle, an informational-only control. */
+  decluttered?: boolean;
 }) {
   const warnings = prioritizedImmersiveWarnings(snapshot, approachWarnings);
   return (
@@ -277,7 +280,7 @@ export default function ImmersiveHudBar({
         ? <BalancedRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} />
         : <TapeRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} tapeRange={tapeRange} />}
 
-      {onVariantChange !== undefined && (
+      {onVariantChange !== undefined && !decluttered && (
         <button
           type="button"
           className="imm-hud-toggle"
