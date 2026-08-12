@@ -1843,12 +1843,17 @@ body {
 
 .mobile-navwx-overlay {
   position: absolute;
-  inset: 8px 8px auto 8px;
+  /* Top clears the notch + immersive HUD bar (same offset as .immersive-toggle-active),
+     so the head row with ✕ is never hidden under the top chrome (owner: couldn't close
+     the weather overlay on mobile). Bottom stays clear of the touch controls. */
+  top: max(75px, calc(env(safe-area-inset-top) + 71px));
+  right: 8px;
+  left: 8px;
   z-index: 40;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: calc(100dvh - 96px);
+  max-height: calc(100dvh - max(75px, calc(env(safe-area-inset-top) + 71px)) - 88px);
   overflow-y: auto;
   padding: 8px;
   background: rgba(5, 7, 10, 0.9);
@@ -1856,20 +1861,29 @@ body {
   pointer-events: auto;
 }
 .mobile-navwx-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* Opaque backing so the ✕ stays legible when map/weather scroll beneath it. */
+  background: rgba(5, 7, 10, 0.9);
+  padding-bottom: 4px;
 }
 .mobile-navwx-close {
   background: transparent;
   border: 1px solid var(--amber);
   color: var(--amber);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1;
-  padding: 3px 8px;
+  min-width: 44px;
+  min-height: 36px;
+  padding: 6px 12px;
   cursor: pointer;
   pointer-events: auto;
+  touch-action: manipulation;
 }
 .mobile-navwx-map { min-height: 220px; }
 
