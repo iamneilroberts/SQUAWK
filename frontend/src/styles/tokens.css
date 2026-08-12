@@ -1215,8 +1215,9 @@ body {
   width: 52px;
   height: 46vh;
   /* Cap the length on short (landscape) viewports so the lever top never rides up under the
-     top-right EXIT toggle — keeps its top at least ~180px below the viewport top. */
-  max-height: calc(100dvh - 180px);
+     top-right control row (#63). That row now sits at safe-area+88px .. ~124px (FULL/DCLTR/MENU),
+     so a 240px reserve keeps the lever top ~150-170px down — clear of the row with a gap. */
+  max-height: calc(100dvh - 240px);
   /* Transparent/minimalist (owner refinement, #13): faint cyan outline, see-through track. */
   border: 1px solid rgba(95, 215, 224, 0.4);
   background: rgba(5, 7, 10, 0.18);
