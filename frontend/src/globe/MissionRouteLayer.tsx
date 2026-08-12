@@ -14,6 +14,7 @@ import { runwayOutline } from "../mission/guidanceGeometry";
 import { hudSnapshot } from "../hud/snapshot";
 import { routeStartPoint } from "./missionRoutePath";
 import { useViewer } from "./viewerContext";
+import { useStore } from "../state/store";
 
 export default function MissionRouteLayer({
   mission,
@@ -48,6 +49,9 @@ export default function MissionRouteLayer({
         width: 2,
         arcType: ArcType.GEODESIC,
         material: Color.CYAN.withAlpha(0.85),
+        // #61: in the exterior chase view the route line trails behind the aircraft, flickers and
+        // adds no value — hide it there. It stays in the cockpit view where it points to the target.
+        show: new CallbackProperty(() => !useStore.getState().exterior, false),
       },
     });
     const outline = runwayOutline(assignment);

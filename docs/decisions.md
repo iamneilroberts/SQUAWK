@@ -2106,3 +2106,28 @@ Residual risk (accepted): the exact pixel offsets are notch-dependent and unveri
 off-device — owner confirms the row clears the bar and MENU→QUIT works on-device after deploy.
 The `terrain.disarm()` one-way door remains; the -500 m floor and MENU are backstops, not a
 root re-arm of terrain collision (deferred).
+
+## 2026-08-12 — CF-022 — Mobile flight camera: touch drag-to-look / drag-to-orbit, pinch-zoom, orbit stays put
+
+Mobile had no camera control — the exterior orbit and cockpit look were mouse/hold-Q only.
+Added a single touch pointer handler on the flight canvas (FlightSession) that dispatches by view:
+in the cockpit a one-finger drag glances around (#9, momentary — eases back to forward on release);
+in the exterior chase view a one-finger drag orbits (#36) and a two-finger pinch zooms. All of it
+reuses the host's existing pixel-delta APIs (applyLook / applyOrbitDrag / applyOrbitZoom) — no new
+camera math. Touch/pen only (pointerType filter) so the desktop mouse + hold-Q paths never
+double-fire; the canvas gets touch-action:none during flight so the browser can't pan/zoom the page.
+The stick/throttle/buttons are pointer-events:auto DOM elements above the canvas, so a drag that
+begins on a control never reaches this listener and the flight inputs are untouched.
+
+Owner decision (2026-08-12): the exterior orbit STAYS where released (no ease-back) so a cinematic
+angle holds; each fresh entry into the exterior view still resets to the default behind-the-tail
+chase framing. This removed the setCamera ease-back (and the now-unused easeChaseToward import /
+CHASE_EASE_RATE_PER_S). Applies to desktop mouse orbit too, for consistency.
+
+#61: the cyan mission route line is hidden in the exterior view (it trails behind and flickers there,
+adds no value) via a `show` CallbackProperty gated on a new store `exterior` flag. The view mode
+lives in the camera host (a plain closure); FlightSession mirrors it into the Zustand store so React
+layers can react. Runway outline + destination cue stay (they mark the target, not a trail).
+
+Residual (owner verifies on-device): drag/look sensitivity and pinch-zoom direction are tuned blind
+(pinch-apart = zoom in, matching applyZoom's sign) and may need adjustment after real-device testing.

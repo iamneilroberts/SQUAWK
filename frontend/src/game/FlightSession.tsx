@@ -534,9 +534,14 @@ export default function FlightSession({
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code !== "KeyE" || e.ctrlKey || e.metaKey || e.altKey) return;
       hostRef.current?.toggleExterior();
+      // Mirror the host's view mode into the store so React layers (MissionRouteLayer, #61) react.
+      useStore.getState().setExterior(hostRef.current?.isExteriorActive() ?? false);
     };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      useStore.getState().setExterior(false); // leaving FLYING returns to the cockpit view
+    };
   }, [mode]);
 
   // ---- exterior view: drag to orbit, wheel to zoom (issue #4) ----
@@ -645,6 +650,91 @@ export default function FlightSession({
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
       document.removeEventListener("pointerlockchange", onPointerLockChange);
+    };
+  }, [mode, bundle]);
+
+  // ---- touch: drag the open canvas to look (cockpit) or orbit (exterior); pinch zooms the
+  // exterior (#9 look-around, #36 exterior touch-rotate). Touch/pen only — the mouse + hold-Q paths
+  // above own the desktop, so filtering pointerType keeps them from double-firing. The stick,
+  // throttle and touch-buttons are pointer-events:auto DOM elements ABOVE the canvas, so a drag that
+  // starts on a control never reaches this canvas listener and the flight inputs stay untouched.
+  useEffect(() => {
+    if (mode !== "FLYING" || !bundle) return;
+    const canvas = bundle.viewer.scene.canvas;
+    const points = new Map<number, { x: number; y: number }>();
+    let gesture: "look" | "orbit" | null = null;
+    let pinchLast = 0;
+    /** Pinch pixels → the wheel-delta scale applyOrbitZoom expects; spreading fingers zooms IN. */
+    const PINCH_TO_WHEEL = 2;
+
+    const isTouch = (e: PointerEvent) => e.pointerType === "touch" || e.pointerType === "pen";
+    const pinchDistance = () => {
+      const [a, b] = [...points.values()];
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    };
+
+    const onDown = (e: PointerEvent) => {
+      if (!isTouch(e)) return;
+      // Suppress the compatibility mouse events a touch would otherwise emit, so the desktop
+      // mouse-orbit handler can't also process this same drag (belt-and-suspenders; that handler
+      // reads movementX, ~0 for touch-compat events, so the practical double-apply is negligible).
+      e.preventDefault();
+      points.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      canvas.setPointerCapture?.(e.pointerId);
+      if (points.size === 1) {
+        if (hostRef.current?.isExteriorActive()) {
+          gesture = "orbit";
+          hostRef.current.setOrbiting(true);
+        } else {
+          gesture = "look";
+          hostRef.current?.setLookActive(true);
+        }
+      } else if (points.size === 2) {
+        pinchLast = pinchDistance(); // second finger down starts a pinch
+      }
+    };
+    const onMove = (e: PointerEvent) => {
+      const prev = points.get(e.pointerId);
+      if (prev === undefined) return;
+      const dx = e.clientX - prev.x;
+      const dy = e.clientY - prev.y;
+      points.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (points.size >= 2) {
+        if (gesture === "orbit") {
+          const d = pinchDistance();
+          if (pinchLast > 0) hostRef.current?.applyOrbitZoom((pinchLast - d) * PINCH_TO_WHEEL);
+          pinchLast = d;
+        }
+        return; // two fingers = pinch-zoom only; don't also orbit
+      }
+      if (gesture === "orbit") hostRef.current?.applyOrbitDrag(dx, dy);
+      else if (gesture === "look") hostRef.current?.applyLook(dx, dy);
+    };
+    const onUp = (e: PointerEvent) => {
+      if (!points.delete(e.pointerId)) return;
+      canvas.releasePointerCapture?.(e.pointerId);
+      if (points.size < 2) pinchLast = 0;
+      if (points.size === 0) {
+        if (gesture === "orbit") hostRef.current?.setOrbiting(false);
+        else if (gesture === "look") hostRef.current?.setLookActive(false);
+        gesture = null;
+      }
+    };
+
+    const prevTouchAction = canvas.style.touchAction;
+    canvas.style.touchAction = "none"; // we own touch drags — stop the browser panning/zooming the page
+    canvas.addEventListener("pointerdown", onDown);
+    canvas.addEventListener("pointermove", onMove);
+    canvas.addEventListener("pointerup", onUp);
+    canvas.addEventListener("pointercancel", onUp);
+    return () => {
+      canvas.style.touchAction = prevTouchAction;
+      canvas.removeEventListener("pointerdown", onDown);
+      canvas.removeEventListener("pointermove", onMove);
+      canvas.removeEventListener("pointerup", onUp);
+      canvas.removeEventListener("pointercancel", onUp);
+      hostRef.current?.setOrbiting(false);
+      hostRef.current?.setLookActive(false);
     };
   }, [mode, bundle]);
 

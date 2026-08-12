@@ -19,14 +19,10 @@ import {
   defaultOrbit,
   applyOrbitDrag,
   applyZoom,
-  easeChaseToward,
   chaseView,
   type OrbitState,
 } from "./chaseCamera";
 import { createAircraftModel, SIM_MODEL_STYLE, type AircraftModel } from "./aircraftModel";
-
-/** Re-chase ease rate (1/s): how fast the orbit returns to the default framing after a drag. */
-const CHASE_EASE_RATE_PER_S = 6;
 
 /**
  * The host owns two view-only cameras (issue #4): the shipped cockpit FPV camera and the new
@@ -47,7 +43,7 @@ export type CesiumFlightHost = FlightHost & {
   /** Flip between cockpit (FPV) and exterior (chase/orbit) views. */
   toggleExterior(): void;
   isExteriorActive(): boolean;
-  /** Begin / end an orbit drag; while not dragging, the orbit eases back to the chase framing. */
+  /** Begin / end an orbit drag; the orbit holds its last angle when released (no ease-back). */
   setOrbiting(active: boolean): void;
   /** Accumulate a drag delta into the orbit (ignored unless the exterior view is active). */
   applyOrbitDrag(dx: number, dy: number): void;
@@ -75,8 +71,9 @@ export function createCesiumFlightHost(viewer: Viewer, classId: string): CesiumF
     },
     setCamera(state, dtS) {
       if (exterior) {
-        // While not dragging, ease the orbit back to the default behind-and-above chase framing.
-        if (!orbiting) orbit = easeChaseToward(orbit, chaseDefault, dtS, CHASE_EASE_RATE_PER_S);
+        // The orbit STAYS where the player last dragged it (owner 2026-08-12) — no ease-back — so a
+        // parked cinematic angle holds. Each fresh entry into the exterior view resets to the
+        // default chase framing (see toggleExterior).
         const heading = hprFromQuat(state.attitude, state.position).headingRad;
         const view = chaseView(state.position, heading, orbit);
         viewer.camera.setView({

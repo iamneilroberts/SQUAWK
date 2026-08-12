@@ -79,6 +79,12 @@ type State = {
    * (`!decluttered && ...`) rather than one reusing the other.
    */
   decluttered: boolean;
+  /**
+   * Exterior (chase/orbit) camera active during flight (#61). The view mode itself lives in the
+   * camera host (a plain closure, not React state); FlightSession mirrors it here so React layers
+   * — e.g. MissionRouteLayer, which hides the route line in exterior view — can react to it.
+   */
+  exterior: boolean;
   setHome(h: { lat: number; lon: number }): void;
   setSavedCenter(center: { lat: number; lon: number } | null): void;
   setPollingIdentity(identity: PollingIdentity): void;
@@ -88,6 +94,7 @@ type State = {
   setImmersive(on: boolean): void;
   setChromeVisible(on: boolean): void;
   setDeclutter(on: boolean): void;
+  setExterior(on: boolean): void;
   applyFetch(r: TrafficFetchResult): void;
   markFetchFailed(mode?: SystemMode): void;
   select(hex: string | null): void;
@@ -152,6 +159,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   immersive: false,
   chromeVisible: true,
   decluttered: false,
+  exterior: false,
   mode: "BROWSE",
   origin: null,
   lockedMission: null,
@@ -194,6 +202,10 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
 
   setDeclutter(on) {
     set({ decluttered: on });
+  },
+
+  setExterior(on) {
+    set({ exterior: on });
   },
 
   applyFetch(r) {
