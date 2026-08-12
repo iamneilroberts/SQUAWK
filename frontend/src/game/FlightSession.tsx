@@ -45,6 +45,7 @@ import AssistControl from "../mission/AssistControl";
 import MissionNavCue from "../mission/MissionNavCue";
 import MissionRouteLayer from "../globe/MissionRouteLayer";
 import ApproachAssistLayer from "../globe/ApproachAssistLayer";
+import PapiLayer from "../globe/PapiLayer";
 import type {
   DebriefSubmission,
   PendingMissionResult,
@@ -722,6 +723,9 @@ export default function FlightSession({
       )}
       {lockedMission !== null && assist !== null && mode !== "ENDED" && (
         <>
+          {/* PAPI is world furniture (#23): renders at EVERY assist level, unlike the
+              assist-gated layers below — real airports don't turn their lights off. */}
+          <PapiLayer mission={lockedMission} />
           <MissionRouteLayer mission={lockedMission} assist={assist.current} />
           <ApproachAssistLayer mission={lockedMission} assist={assist.current} />
           {/* Screen-space assist chrome folds into the same video-player auto-hide as the HUD
