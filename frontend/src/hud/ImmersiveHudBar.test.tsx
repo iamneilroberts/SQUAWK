@@ -1,7 +1,18 @@
 import { describe, it, expect } from "vitest";
-import ImmersiveHudBar, { immersiveBarFields } from "./ImmersiveHudBar";
+import ImmersiveHudBar, {
+  immersiveBarFields,
+  nextImmersiveHudVariant,
+  prioritizedImmersiveWarnings,
+  relativeBearingDeg,
+  tapeTicks,
+  tapeStripOffset,
+  tapeRangesFor,
+  TAPE_WINDOW_PX,
+  type TapeRange,
+} from "./ImmersiveHudBar";
 import type { HudSnapshot } from "./snapshot";
 import { ktToMs, ftToM, fpmToMs, degToRad } from "../sim/units";
+import { EM_DASH } from "./format";
 
 /*
  * No jsdom (spec §8): call the component / helper and walk the plain-object element tree.
@@ -32,6 +43,42 @@ function collectAttr(node: unknown, key: string, out: string[] = []): string[] {
   return out;
 }
 const classNamesIn = (node: unknown) => collectAttr(node, "className").flatMap((c) => c.split(/\s+/));
+function firstPropsForType(node: unknown, wanted: string): Record<string, unknown> | null {
+  if (node === null || node === undefined || typeof node !== "object") return null;
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = firstPropsForType(child, wanted);
+      if (found !== null) return found;
+    }
+    return null;
+  }
+  const type = (node as { type?: unknown }).type;
+  const props = (node as { props?: Record<string, unknown> }).props;
+  if (type === wanted && props) return props;
+  if (typeof type === "function") {
+    return firstPropsForType((type as (p: unknown) => unknown)(props), wanted);
+  }
+  return props && "children" in props ? firstPropsForType(props.children, wanted) : null;
+}
+/** Finds the first node (any type) whose props[key] === value; used to isolate one Tape's
+ *  subtree (e.g. data-side="left") so structural assertions don't blend the IAS and ALT tapes. */
+function findNodeByAttr(node: unknown, key: string, value: unknown): unknown {
+  if (node === null || node === undefined || typeof node !== "object") return null;
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = findNodeByAttr(child, key, value);
+      if (found !== null) return found;
+    }
+    return null;
+  }
+  const type = (node as { type?: unknown }).type;
+  const props = (node as { props?: Record<string, unknown> }).props;
+  if (props && props[key] === value) return node;
+  if (typeof type === "function") {
+    return findNodeByAttr((type as (p: unknown) => unknown)(props), key, value);
+  }
+  return props && "children" in props ? findNodeByAttr(props.children, key, value) : null;
+}
 
 const snap = (o: Partial<HudSnapshot> = {}): HudSnapshot => ({
   iasMs: ktToMs(105), tasMs: ktToMs(118), altitudeM: ftToM(3500),
@@ -84,11 +131,11 @@ describe("ImmersiveHudBar", () => {
     }
   });
 
-  it("folds in the SIM identity with the amber badge (SIM-unmistakable, compactly)", () => {
+  it("folds in the SIM badge but drops the callsign and class from the live rail (UI-002)", () => {
     const text = render(snap());
     expect(text).toContain("SIM");
-    expect(text).toContain("SIM-A1B2C3");
-    expect(text).toContain("C172S");
+    expect(text).not.toContain("SIM-A1B2C3");
+    expect(text).not.toContain("C172S");
     // The badge carries the amber accent class, not a plain label — that is the unmistakability.
     expect(classNamesIn(ImmersiveHudBar({ snapshot: snap(), attitudeStyle: "line" })))
       .toContain("hud-sim-badge");
@@ -105,5 +152,168 @@ describe("ImmersiveHudBar", () => {
     // the exact six-pack string proves it delegates to AttitudeIndicator.
     const el = ImmersiveHudBar({ snapshot: snap({ rollRad: degToRad(30) }), attitudeStyle: "line" });
     expect(collectAttr(el, "transform")).toContain("rotate(-30 60 60)");
+  });
+
+  it("renders A as the balanced rail and C as the tape rail", () => {
+    const balanced = ImmersiveHudBar({ snapshot: snap(), attitudeStyle: "line", variant: "balanced" });
+    const tapes = ImmersiveHudBar({ snapshot: snap(), attitudeStyle: "line", variant: "tapes" });
+    expect(classNamesIn(balanced)).toContain("imm-bar-balanced");
+    expect(classNamesIn(tapes)).toContain("imm-bar-tapes");
+    expect(classNamesIn(tapes)).toContain("imm-tape");
+  });
+
+  it("keeps the practical systems data in C rather than making the tapes decorative", () => {
+    const text = collectText(ImmersiveHudBar({
+      snapshot: snap(),
+      attitudeStyle: "line",
+      variant: "tapes",
+      navCue: { destination: "KADS · RWY 16", bearingDeg: 298, distanceNm: 6.8 },
+    })).join(" ");
+    for (const value of ["IAS", "ALT", "VSI", "AGL", "FLP", "THR", "KADS", "DEST", "+28°"]) {
+      expect(text).toContain(value);
+    }
+  });
+
+  it("toggles A to C and C back to A through one accessible control", () => {
+    expect(nextImmersiveHudVariant("balanced")).toBe("tapes");
+    expect(nextImmersiveHudVariant("tapes")).toBe("balanced");
+    let selected = "";
+    const el = ImmersiveHudBar({
+      snapshot: snap(),
+      attitudeStyle: "line",
+      variant: "balanced",
+      onVariantChange: (variant) => { selected = variant; },
+    });
+    const button = firstPropsForType(el, "button");
+    expect(button?.["aria-label"]).toContain("switch to C compact tapes");
+    (button?.onClick as (() => void))();
+    expect(selected).toBe("tapes");
+  });
+
+  it("puts safety calls before approach coaching and caps the transient rail", () => {
+    expect(prioritizedImmersiveWarnings(
+      snap({ stalled: true, overspeed: true }),
+      ["HIGH", "NOT LINED UP"],
+    )).toEqual(["STALL", "OVERSPEED", "HIGH"]);
+  });
+
+  it("wraps destination bearing around north without inventing a long turn", () => {
+    expect(relativeBearingDeg(degToRad(350), 10)).toBeCloseTo(20);
+    expect(relativeBearingDeg(degToRad(10), 350)).toBeCloseTo(-20);
+  });
+});
+
+describe("tape geometry", () => {
+  const r: TapeRange = { min: 0, max: 200, step: 10, major: 20, pxPerUnit: 1.3 };
+
+  it("builds ticks from min to max with major flags and y offsets", () => {
+    const ticks = tapeTicks(r);
+    expect(ticks[0]).toEqual({ value: 0, major: true, y: 0 });
+    expect(ticks[1]).toEqual({ value: 10, major: false, y: 13 });
+    expect(ticks[2]).toEqual({ value: 20, major: true, y: 26 });
+    expect(ticks[ticks.length - 1].value).toBe(200);
+  });
+
+  it("centers the current value under the pointer", () => {
+    // value at min -> strip shifted up by half the window only
+    expect(tapeStripOffset(0, r)).toBeCloseTo(-TAPE_WINDOW_PX / 2);
+    // value of 100 -> (100-0)*1.3 - 22 = 108
+    expect(tapeStripOffset(100, r)).toBeCloseTo(130 - TAPE_WINDOW_PX / 2);
+  });
+
+  it("clamps out-of-range values to the strip ends", () => {
+    expect(tapeStripOffset(-50, r)).toBeCloseTo(tapeStripOffset(0, r));
+    expect(tapeStripOffset(9999, r)).toBeCloseTo(tapeStripOffset(200, r));
+  });
+
+  it("is monotonic increasing in value", () => {
+    expect(tapeStripOffset(50, r)).toBeLessThan(tapeStripOffset(60, r));
+  });
+});
+
+describe("tapeRangesFor", () => {
+  it("uses the per-class ASI face for the IAS tape (spec §6)", () => {
+    const ga = tapeRangesFor({ display: { asiMinKt: 40, asiMaxKt: 180 }, limits: { serviceCeilingM: 4100 } });
+    expect(ga.ias.min).toBe(40);
+    expect(ga.ias.max).toBe(180);
+    // ~13,451 ft ceiling -> rounded up to a clean 14,000 ft top
+    expect(ga.alt.min).toBe(0);
+    expect(ga.alt.max).toBe(14000);
+  });
+
+  it("gives an airliner a far taller altitude tape than a GA type", () => {
+    const jet = tapeRangesFor({ display: { asiMinKt: 60, asiMaxKt: 400 }, limits: { serviceCeilingM: 12500 } });
+    const ga = tapeRangesFor({ display: { asiMinKt: 40, asiMaxKt: 180 }, limits: { serviceCeilingM: 4100 } });
+    expect(jet.alt.max).toBeGreaterThan(ga.alt.max);
+    expect(jet.ias.max).toBeGreaterThan(ga.ias.max);
+  });
+
+  it("keeps tick spacing sane (major is a positive multiple of step)", () => {
+    const r = tapeRangesFor({ display: { asiMinKt: 40, asiMaxKt: 180 }, limits: { serviceCeilingM: 4100 } });
+    for (const t of [r.ias, r.alt]) {
+      expect(t.step).toBeGreaterThan(0);
+      expect(t.major % t.step).toBe(0);
+      expect(t.pxPerUnit).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("functional tapes", () => {
+  const tapeRange = tapeRangesFor({
+    display: { asiMinKt: 40, asiMaxKt: 180 }, limits: { serviceCeilingM: 4100 },
+  });
+  const withTapeSnap = (o: Partial<HudSnapshot> = {}) => snap(o);
+
+  it("shows the live IAS and ALT under the fixed pointers", () => {
+    const s = { ...withTapeSnap(), iasMs: ktToMs(115), altitudeM: ftToM(3200) };
+    const tree = ImmersiveHudBar({ snapshot: s, attitudeStyle: "ball", variant: "tapes", tapeRange });
+    const text = collectText(tree);
+    expect(text).toContain("115"); // IAS pointer
+    expect(text).toContain("3200"); // ALT pointer
+  });
+
+  it("rounds the pointer values and rebases when the snapshot changes", () => {
+    const s2 = { ...withTapeSnap(), iasMs: ktToMs(64.6), altitudeM: ftToM(999.4) };
+    const tree = ImmersiveHudBar({ snapshot: s2, attitudeStyle: "ball", variant: "tapes", tapeRange });
+    const text = collectText(tree);
+    expect(text).toContain("65");   // 64.6 kt -> 65
+    expect(text).toContain("999");  // 999.4 ft -> 999
+  });
+
+  it("renders an actual tape strip with ticks, not just a static readout", () => {
+    const s = { ...withTapeSnap(), iasMs: ktToMs(115), altitudeM: ftToM(3200) };
+    const tree = ImmersiveHudBar({ snapshot: s, attitudeStyle: "ball", variant: "tapes", tapeRange });
+    const classNames = classNamesIn(tree);
+    expect(classNames).toContain("tape-strip");
+    const iasTape = findNodeByAttr(tree, "data-side", "left");
+    const iasTickCount = classNamesIn(iasTape).filter((c) => c === "tape-tick").length;
+    expect(iasTickCount).toBeGreaterThan(1); // multiple ticks, not a single static readout
+    expect(iasTickCount).toBe(tapeTicks(tapeRange.ias).length);
+  });
+
+  it("shows EM_DASH instead of a fabricated number when no tapeRange is supplied", () => {
+    const s = { ...withTapeSnap(), iasMs: ktToMs(115), altitudeM: ftToM(3200) };
+    const tree = ImmersiveHudBar({ snapshot: s, attitudeStyle: "ball", variant: "tapes" });
+    const classNames = classNamesIn(tree);
+    expect(classNames).not.toContain("tape-strip");
+    expect(classNames.filter((c) => c === "tape-tick")).toHaveLength(0);
+    const text = collectText(tree);
+    expect(text).toContain(EM_DASH);
+    expect(text).not.toContain("115");
+    expect(text).not.toContain("3200");
+  });
+});
+
+describe("UI-002 declutter", () => {
+  it("keeps the SIM badge but drops callsign and class from the live rail", () => {
+    const s = { ...snap(), callsign: "SIM-4F2A", classLabel: "C172S" };
+    const tree = ImmersiveHudBar({
+      snapshot: s, attitudeStyle: "ball", variant: "tapes",
+      tapeRange: tapeRangesFor({ display: { asiMinKt: 40, asiMaxKt: 180 }, limits: { serviceCeilingM: 4100 } }),
+    });
+    const text = collectText(tree).join(" ");
+    expect(text).toContain("SIM");
+    expect(text).not.toContain("SIM-4F2A");
+    expect(text).not.toContain("C172S");
   });
 });

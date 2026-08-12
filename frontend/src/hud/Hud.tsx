@@ -11,7 +11,11 @@
  */
 import type { HudSnapshot } from "./snapshot";
 import type { AttitudeStyle } from "../sim/types";
-import ImmersiveHudBar from "./ImmersiveHudBar";
+import ImmersiveHudBar, {
+  type ImmersiveHudNavCue,
+  type ImmersiveHudVariant,
+  type TapeRange,
+} from "./ImmersiveHudBar";
 import {
   formatAirtime, formatAltFt, formatAoaDeg, formatClass, formatClearanceFt, formatFlaps,
   formatG, formatGear, formatHeadingDeg, formatIasKt, formatLightPhase, formatSimRate,
@@ -34,6 +38,12 @@ export default function Hud({
   immersive = false,
   faded = false,
   attitudeStyle = "line",
+  immersiveVariant = "balanced",
+  onImmersiveVariantChange,
+  immersiveNavCue = null,
+  immersiveApproachWarnings = [],
+  narrow = false,
+  tapeRange = null,
 }: {
   snapshot: HudSnapshot | null;
   attribution: string;
@@ -47,20 +57,39 @@ export default function Hud({
   /** The flown class's attitude style, threaded through to the immersive bar's mini ADI so it
    *  reuses the same six-pack geometry (line horizon vs filled ball). Ignored off immersive. */
   attitudeStyle?: AttitudeStyle;
+  immersiveVariant?: ImmersiveHudVariant;
+  onImmersiveVariantChange?(variant: ImmersiveHudVariant): void;
+  immersiveNavCue?: ImmersiveHudNavCue | null;
+  immersiveApproachWarnings?: string[];
+  /** A narrow phone viewport, even before the user taps FULL: gets the compact rail too, not the
+   *  desktop scattered-corner HUD. Does NOT gate the fade — only true immersive/fullscreen does. */
+  narrow?: boolean;
+  /** Per-class IAS/ALT tape scale (Task 2/3). Null renders the tapes' honest em-dash fallback. */
+  tapeRange?: { ias: TapeRange; alt: TapeRange } | null;
 }) {
   if (snapshot === null) return null;
   const warnings = warningsFor(snapshot);
   const simRate = formatSimRate(snapshot.simRate);
+  const showBar = immersive || narrow;
   const rootClass =
-    "hud-root" + (immersive ? " hud-immersive" : "") + (faded ? " hud-faded" : "");
+    "hud-root" + (showBar ? " hud-immersive" : "") + (immersive && faded ? " hud-faded" : "");
 
-  // Immersive mobile flight: ONE dense top bar carries the essential flight data + SIM identity +
-  // warnings and STAYS visible (it is not faded). Only the attribution keeps its auto-hide. The
+  // Immersive mobile flight (or any narrow phone, even pre-FULL): ONE dense top bar carries the
+  // essential flight data + SIM identity + warnings and STAYS visible (it is not faded) unless
+  // faded is scoped to true immersive/fullscreen. Only the attribution keeps its auto-hide. The
   // desktop / non-immersive tree below is untouched.
-  if (immersive) {
+  if (showBar) {
     return (
       <div className={rootClass}>
-        <ImmersiveHudBar snapshot={snapshot} attitudeStyle={attitudeStyle} />
+        <ImmersiveHudBar
+          snapshot={snapshot}
+          attitudeStyle={attitudeStyle}
+          variant={immersiveVariant}
+          onVariantChange={onImmersiveVariantChange}
+          navCue={immersiveNavCue}
+          approachWarnings={immersiveApproachWarnings}
+          tapeRange={tapeRange}
+        />
         <div className="hud-attribution">{attribution}</div>
       </div>
     );

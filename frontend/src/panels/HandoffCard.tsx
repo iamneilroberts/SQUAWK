@@ -7,7 +7,7 @@ import type { Contact } from "../data/types";
 import type { ClassParams } from "../sim/types";
 import type { SpawnResult } from "../takeover/spawn";
 import { disclosureLine } from "../takeover/eligibility";
-import { EM_DASH, formatCallsign, formatHeadingDeg } from "../hud/format";
+import { EM_DASH, formatCallsign, formatClass, formatHeadingDeg } from "../hud/format";
 import { mToFt, msToKt } from "../sim/units";
 import { hprFromQuat } from "../sim/quat";
 
@@ -54,6 +54,7 @@ export default function HandoffCard({
       <Row label="SPEED" value={spawn === null ? "—" : `${Math.round(msToKt(spawn.state.tasMs))} KT`} />
       <Row label="HEADING" value={heading} />
       <Row label="CALLSIGN" value={formatCallsign(contact.hex)} />
+      <Row label="AIRCRAFT CLASS" value={params === null ? EM_DASH : formatClass(params.label)} />
 
       <div className="handoff-disclosure">
         FLYING THE {spawn === null || params === null ? EM_DASH : disclosureLine(contact, params, matched)} ·

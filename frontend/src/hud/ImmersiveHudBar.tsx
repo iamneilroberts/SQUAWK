@@ -1,40 +1,77 @@
 /*
- * The single dense translucent top status bar for the mobile immersive / fullscreen flight view
- * (#13 follow-up). It REPLACES the scattered corner readout clusters in immersive mode with one
- * glance strip pinned to the top edge — the only edge the touch controls leave free (stick
- * bottom-left, throttle right, buttons bottom-centre).
+ * Runtime-selectable mobile HUD rails. "balanced" is concept A: the shortest scan path across
+ * discrete readouts. "tapes" is concept C: speed/altitude edge tapes around a compact flight
+ * director. Both occupy only the top edge, leaving the touch stick, throttle and button row alone.
  *
- * Why it is its own component and STAYS visible: this is essential flight instrumentation. Unlike
- * the attribution and the rest of the informational chrome (which keep the video-player auto-hide),
- * you must be able to read alt / speed / heading while flying, so the bar is deliberately NOT in
- * the fade set (see tokens.css). Warnings still surface here (safety).
- *
- * Honest-data + SIM rules hold compactly: every number goes through the SHARED hud/format.ts
- * formatters (unknown -> em-dash, never a zero), and the SIM identity is folded in with the amber
- * accent + SIM-<hex> callsign + class, so the big separate SIM banner can drop in immersive mode
- * without ever losing SIM-unmistakability. The attitude indicator REUSES the six-pack geometry
- * (AttitudeIndicator), so the dial and the bar can never disagree about the aeroplane's attitude.
- *
- * Hook-free on purpose (like SixPack/Hud): the test calls it as a plain function and walks the
- * returned tree without jsdom.
+ * This component stays hook-free so its layout and toggle behavior remain cheap to unit-test as a
+ * plain React tree. FlightSession owns the selected variant for the life of the flight.
  */
 import type { HudSnapshot } from "./snapshot";
 import type { AttitudeStyle } from "../sim/types";
 import AttitudeIndicator from "../dashboard/AttitudeIndicator";
 import {
-  formatAltFt, formatClass, formatClearanceFt, formatHeadingDeg,
-  formatIasKt, formatVsiFpm, warningsFor,
+  EM_DASH,
+  formatAltFt,
+  formatClearanceFt,
+  formatHeadingDeg,
+  formatIasKt,
+  formatThrottlePct,
+  formatVsiFpm,
+  warningsFor,
 } from "./format";
+import { radToDeg, mToFt, msToKt } from "../sim/units";
 
 export type BarField = { label: string; value: string; unit?: string };
+export type ImmersiveHudVariant = "balanced" | "tapes";
+export type ImmersiveHudNavCue = {
+  destination: string;
+  bearingDeg: number;
+  distanceNm: number;
+};
 
-/**
- * The dense field strip, in reading order. Pure and formatter-only, so it is unit-tested without a
- * renderer and can never disagree with the desktop HUD about what a number reads. Deliberately the
- * five essential glance fields only — AOA and G were dropped from the mobile immersive bar (owner:
- * "make it tiny, minimalist") so the strip stays a single short row on a phone. Those two remain on
- * the desktop dashboard (HudDisplay) where there is room.
- */
+export type TapeRange = { min: number; max: number; step: number; major: number; pxPerUnit: number };
+
+/** Fixed tape viewport height in px. MUST equal the .tape-window height in tokens.css. */
+export const TAPE_WINDOW_PX = 44;
+
+export function tapeTicks(range: TapeRange): { value: number; major: boolean; y: number }[] {
+  const ticks: { value: number; major: boolean; y: number }[] = [];
+  for (let v = range.min; v <= range.max; v += range.step) {
+    ticks.push({ value: v, major: v % range.major === 0, y: (v - range.min) * range.pxPerUnit });
+  }
+  return ticks;
+}
+
+export function tapeStripOffset(value: number, range: TapeRange, windowPx: number = TAPE_WINDOW_PX): number {
+  const clamped = Math.min(range.max, Math.max(range.min, value));
+  return (clamped - range.min) * range.pxPerUnit - windowPx / 2;
+}
+
+/** Pick a readable step/major/pxPerUnit for a display span, targeting ~10 ticks in the window. */
+function tapeStepsForSpan(span: number): { step: number; major: number; pxPerUnit: number } {
+  // ~10 unit-values visible across the fixed window; strip is tall enough that pxPerUnit stays > 0.
+  const rawStep = span / 20;
+  const step = rawStep <= 5 ? 5 : rawStep <= 10 ? 10 : rawStep <= 50 ? 50 : 100;
+  const major = step * 2;
+  // scale so the full span is ~ (span/step * 10)px tall — 10px between ticks
+  const pxPerUnit = 10 / step;
+  return { step, major, pxPerUnit };
+}
+
+export function tapeRangesFor(params: {
+  display: { asiMinKt: number; asiMaxKt: number };
+  limits: { serviceCeilingM: number };
+}): { ias: TapeRange; alt: TapeRange } {
+  const iasSpan = params.display.asiMaxKt - params.display.asiMinKt;
+  const iasSteps = tapeStepsForSpan(iasSpan);
+  const altMax = Math.ceil(mToFt(params.limits.serviceCeilingM) / 1000) * 1000;
+  const altSteps = tapeStepsForSpan(altMax);
+  return {
+    ias: { min: params.display.asiMinKt, max: params.display.asiMaxKt, ...iasSteps },
+    alt: { min: 0, max: altMax, ...altSteps },
+  };
+}
+
 export function immersiveBarFields(snapshot: HudSnapshot): BarField[] {
   return [
     { label: "ALT", value: formatAltFt(snapshot.altitudeM), unit: "FT" },
@@ -45,49 +82,217 @@ export function immersiveBarFields(snapshot: HudSnapshot): BarField[] {
   ];
 }
 
-export default function ImmersiveHudBar({
-  snapshot,
-  attitudeStyle,
-}: {
+export function nextImmersiveHudVariant(variant: ImmersiveHudVariant): ImmersiveHudVariant {
+  return variant === "balanced" ? "tapes" : "balanced";
+}
+
+/** Safety calls lead; approach coaching follows. Dedupe and cap the rail so it stays glanceable. */
+export function prioritizedImmersiveWarnings(
+  snapshot: HudSnapshot,
+  approachWarnings: string[] = [],
+): string[] {
+  return [...new Set([...warningsFor(snapshot), ...approachWarnings])].slice(0, 3);
+}
+
+/** Signed destination bearing relative to the nose: left negative, right positive. */
+export function relativeBearingDeg(headingRad: number, bearingDeg: number): number {
+  const headingDeg = ((radToDeg(headingRad) % 360) + 360) % 360;
+  return ((bearingDeg - headingDeg + 540) % 360) - 180;
+}
+
+function CompactField({ label, value, unit }: BarField) {
+  return (
+    <span className="imm-field">
+      <span className="imm-field-label">{label}</span>
+      <span className="imm-field-value">{value}</span>
+      {unit ? <span className="imm-field-unit">{unit}</span> : null}
+    </span>
+  );
+}
+
+function MiniAttitude({ snapshot, attitudeStyle }: {
   snapshot: HudSnapshot;
   attitudeStyle: AttitudeStyle;
 }) {
-  const fields = immersiveBarFields(snapshot);
-  const warnings = warningsFor(snapshot);
-
   return (
-    <div className="imm-bar">
-      {/* SIM identity, folded in — amber accent keeps the sim unmistakable without the big banner. */}
-      <div className="imm-bar-sim">
-        <span className="hud-sim-badge">SIM</span>
-        <span className="imm-bar-callsign">{snapshot.callsign}</span>
-        <span className="imm-bar-class">{formatClass(snapshot.classLabel)}</span>
-      </div>
+    <div className="imm-bar-adi">
+      <AttitudeIndicator
+        snapshot={snapshot}
+        attitudeStyle={attitudeStyle}
+        clipId="immAdiClip"
+        className="imm-adi-face"
+      />
+    </div>
+  );
+}
 
-      {/* Compact artificial horizon — same geometry as the six-pack ADI, small. */}
-      <div className="imm-bar-adi">
-        <AttitudeIndicator
-          snapshot={snapshot}
-          attitudeStyle={attitudeStyle}
-          clipId="immAdiClip"
-          className="imm-adi-face"
-        />
-      </div>
+/*
+ * UI-002 (owner decision): callsign and class are set-once identity, not live flight data —
+ * they belong on the spawn card and debrief, not this rail. Only the amber SIM badge stays
+ * here, so the live HUD never loses the unmistakability the badge alone provides.
+ */
+function SimIdentity(_: { snapshot: HudSnapshot }) {
+  return (
+    <span className="imm-bar-sim">
+      <span className="hud-sim-badge">SIM</span>
+    </span>
+  );
+}
 
-      <div className="imm-bar-fields">
-        {fields.map((f) => (
-          <span key={f.label} className="imm-field">
-            <span className="imm-field-label">{f.label}</span>
-            <span className="imm-field-value">{f.value}</span>
-            {f.unit ? <span className="imm-field-unit">{f.unit}</span> : null}
+function NavDirector({ snapshot, navCue, compact = false }: {
+  snapshot: HudSnapshot;
+  navCue: ImmersiveHudNavCue | null;
+  compact?: boolean;
+}) {
+  const relative = navCue === null ? null : relativeBearingDeg(snapshot.headingRad, navCue.bearingDeg);
+  const relativeText = relative === null ? null : `${relative >= 0 ? "+" : "−"}${Math.abs(Math.round(relative))}°`;
+  return (
+    <span className={compact ? "imm-director-copy imm-director-copy-compact" : "imm-director-copy"}>
+      <span className="imm-director-label">
+        {navCue === null ? "NO DESTINATION SET" : `${navCue.destination} · ${navCue.distanceNm.toFixed(1)} NM`}
+      </span>
+      <span className="imm-director-heading">HDG {formatHeadingDeg(snapshot.headingRad)}°</span>
+      {relativeText !== null && (
+        <span className="imm-director-nav">
+          <span
+            className="imm-director-arrow"
+            style={{ transform: `rotate(${Math.round(relative ?? 0)}deg)` }}
+            aria-hidden="true"
+          >↑</span>
+          DEST {relativeText}
+        </span>
+      )}
+      {compact && (
+        <span className="imm-director-secondary">
+          VSI {formatVsiFpm(snapshot.verticalSpeedMs)} · AGL {formatClearanceFt(snapshot.terrainClearanceM)}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function BalancedRail({ snapshot, attitudeStyle, navCue }: {
+  snapshot: HudSnapshot;
+  attitudeStyle: AttitudeStyle;
+  navCue: ImmersiveHudNavCue | null;
+}) {
+  return (
+    <div className="imm-bar imm-bar-balanced" data-hud-variant="balanced">
+      <SimIdentity snapshot={snapshot} />
+      <CompactField label="IAS" value={formatIasKt(snapshot.iasMs)} unit="KT" />
+      <MiniAttitude snapshot={snapshot} attitudeStyle={attitudeStyle} />
+      <NavDirector snapshot={snapshot} navCue={navCue} compact />
+      <CompactField label="ALT" value={formatAltFt(snapshot.altitudeM)} unit="FT" />
+      <CompactField label="FLP" value={snapshot.flapLabel || EM_DASH} />
+      <CompactField label="THR" value={formatThrottlePct(snapshot.throttle)} />
+    </div>
+  );
+}
+
+function Tape({ side, label, unit, value, range }: {
+  side: "left" | "right";
+  label: string;
+  unit: string;
+  value: number;
+  range: TapeRange | null;
+}) {
+  const shown = Math.round(value);
+  return (
+    <span className="imm-tape" data-side={side}>
+      <span className="imm-field-label">{label} · {unit}</span>
+      <span className="tape-window">
+        {range && (
+          <span
+            className="tape-strip"
+            style={{ height: `${(range.max - range.min) * range.pxPerUnit}px`,
+                     transform: `translateY(${tapeStripOffset(value, range)}px)` }}
+          >
+            {tapeTicks(range).map((t) => (
+              <span
+                key={t.value}
+                className={`tape-tick ${t.major ? "major" : "minor"}`}
+                style={{ bottom: `${t.y}px` }}
+              >
+                {t.major ? <span className="tt-label">{t.value}</span> : null}
+              </span>
+            ))}
           </span>
-        ))}
-      </div>
+        )}
+        <span className="tape-ptr">
+          <span className="imm-field-value">{range ? shown : EM_DASH}</span>
+        </span>
+      </span>
+    </span>
+  );
+}
+
+function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange }: {
+  snapshot: HudSnapshot;
+  attitudeStyle: AttitudeStyle;
+  navCue: ImmersiveHudNavCue | null;
+  tapeRange: { ias: TapeRange; alt: TapeRange } | null;
+}) {
+  return (
+    <div className="imm-bar imm-bar-tapes" data-hud-variant="tapes">
+      <Tape side="left" label="IAS" unit="KT" value={msToKt(snapshot.iasMs)} range={tapeRange?.ias ?? null} />
+      <span className="imm-director">
+        <MiniAttitude snapshot={snapshot} attitudeStyle={attitudeStyle} />
+        <span className="imm-director-stack">
+          <SimIdentity snapshot={snapshot} />
+          <NavDirector snapshot={snapshot} navCue={navCue} />
+          <span className="imm-director-systems">
+            <span>VSI <b>{formatVsiFpm(snapshot.verticalSpeedMs)}</b></span>
+            <span>AGL <b>{formatClearanceFt(snapshot.terrainClearanceM)}</b></span>
+            <span>FLP <b>{snapshot.flapLabel || EM_DASH}</b></span>
+            <span>THR <b>{formatThrottlePct(snapshot.throttle)}</b></span>
+          </span>
+        </span>
+      </span>
+      <Tape side="right" label="ALT" unit="FT" value={mToFt(snapshot.altitudeM)} range={tapeRange?.alt ?? null} />
+    </div>
+  );
+}
+
+export default function ImmersiveHudBar({
+  snapshot,
+  attitudeStyle,
+  variant = "balanced",
+  onVariantChange,
+  navCue = null,
+  approachWarnings = [],
+  tapeRange = null,
+}: {
+  snapshot: HudSnapshot;
+  attitudeStyle: AttitudeStyle;
+  variant?: ImmersiveHudVariant;
+  onVariantChange?(variant: ImmersiveHudVariant): void;
+  navCue?: ImmersiveHudNavCue | null;
+  approachWarnings?: string[];
+  tapeRange?: { ias: TapeRange; alt: TapeRange } | null;
+}) {
+  const warnings = prioritizedImmersiveWarnings(snapshot, approachWarnings);
+  return (
+    <div className={`imm-hud imm-hud-${variant}`}>
+      {variant === "balanced"
+        ? <BalancedRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} />
+        : <TapeRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} tapeRange={tapeRange} />}
+
+      {onVariantChange !== undefined && (
+        <button
+          type="button"
+          className="imm-hud-toggle"
+          onClick={() => onVariantChange(nextImmersiveHudVariant(variant))}
+          aria-label={`HUD layout ${variant === "balanced" ? "A balanced rail" : "C compact tapes"}; switch to ${variant === "balanced" ? "C compact tapes" : "A balanced rail"}`}
+          title={`Switch to HUD ${variant === "balanced" ? "C" : "A"}`}
+        >
+          HUD {variant === "balanced" ? "A" : "C"}
+        </button>
+      )}
 
       {warnings.length > 0 && (
-        <div className="imm-bar-warnings">
-          {warnings.map((w) => (
-            <span key={w} className="hud-warning">{w}</span>
+        <div className="imm-hud-warnings" role="status" aria-live="polite">
+          {warnings.map((warning) => (
+            <span key={warning} className="hud-warning">{warning}</span>
           ))}
         </div>
       )}

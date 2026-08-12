@@ -211,4 +211,29 @@ describe("EndCard", () => {
     expect(text).not.toContain("NaN");
     expect(text).toContain("00:00");
   });
+  it("shows the SIM callsign on the debrief when given, em-dash when absent (UI-002)", () => {
+    const withCall = collectText(
+      EndCard({
+        stats: stats(),
+        submission: accepted,
+        onRetry: () => {},
+        callsign: "SIM-4F2A",
+        onExit: () => {},
+      }),
+    ).join(" ");
+    expect(withCall).toContain("CALLSIGN");
+    expect(withCall).toContain("SIM-4F2A");
+    const without = collectText(
+      EndCard({
+        stats: stats(),
+        submission: accepted,
+        onRetry: () => {},
+        callsign: null,
+        onExit: () => {},
+      }),
+    ).join(" ");
+    expect(without).toContain("CALLSIGN");
+    expect(without).not.toContain("SIM-4F2A");
+    expect(without).toContain("—");
+  });
 });

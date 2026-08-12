@@ -141,16 +141,28 @@ function VirtualStick({
   );
 }
 
+/** Clamp+round a raw 0..1 throttle to a 0..100 fill percentage for the on-screen slider. */
+export function throttleFillPct(throttle: number): number {
+  return Math.min(100, Math.max(0, Math.round(throttle * 100)));
+}
+
 function ThrottleSlider({
-  initial,
+  throttle,
   onThrottle,
 }: {
-  initial: number;
+  /** Live throttle [0,1] from the sim. The lever mirrors it whenever it is not being dragged, so it
+   *  never shows a stale 0 while the aircraft spawned at cruise (or the keyboard moved the lever). */
+  throttle: number;
   onThrottle(t: number): void;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const active = useRef(false);
-  const [value, setValue] = useState(initial);
+  const [value, setValue] = useState(throttle);
+
+  // Follow the real throttle while the finger is off the lever; a live drag owns the value instead.
+  useEffect(() => {
+    if (!active.current) setValue(throttle);
+  }, [throttle]);
 
   const update = (clientY: number) => {
     const el = trackRef.current;
@@ -160,6 +172,8 @@ function ThrottleSlider({
     setValue(t);
     onThrottle(t);
   };
+
+  const pct = throttleFillPct(value);
 
   return (
     <div
@@ -178,8 +192,11 @@ function ThrottleSlider({
       onPointerUp={() => (active.current = false)}
       onPointerCancel={() => (active.current = false)}
     >
-      <div className="touch-throttle-fill" style={{ height: `${Math.round(value * 100)}%` }} />
-      <div className="touch-throttle-label">THR {Math.round(value * 100)}</div>
+      <div className="touch-throttle-fill" style={{ height: `${pct}%` }} />
+      <div className="touch-throttle-tick touch-throttle-tick-top" aria-hidden="true" />
+      <div className="touch-throttle-tick touch-throttle-tick-mid" aria-hidden="true" />
+      <div className="touch-throttle-tick touch-throttle-tick-bottom" aria-hidden="true" />
+      <div className="touch-throttle-label">THR {pct}%</div>
     </div>
   );
 }
@@ -188,13 +205,14 @@ export default function TouchControls({
   onStick,
   onStickRelease,
   onThrottle,
-  initialThrottle,
+  throttle,
   gearFixed,
 }: {
   onStick(roll: number, pitch: number): void;
   onStickRelease(): void;
   onThrottle(t: number): void;
-  initialThrottle: number;
+  /** Live throttle [0,1] from the sim; the lever mirrors it when not being dragged. */
+  throttle: number;
   gearFixed: boolean;
 }) {
   // If the whole overlay unmounts mid-deflection (leaving FLYING), let the stick go so a stale
@@ -204,11 +222,12 @@ export default function TouchControls({
   return (
     <div className="touch-controls">
       <VirtualStick onStick={onStick} onRelease={onStickRelease} />
-      <ThrottleSlider initial={initialThrottle} onThrottle={onThrottle} />
+      <ThrottleSlider throttle={throttle} onThrottle={onThrottle} />
       {/* Minimal transparent control set (owner refinement, #13): just gear, flaps and trim —
           rudder, afterburner, level-assist and pause were dropped from the mobile UI. Trim is a
           hold (a lever that ramps while held, matching Comma/Period on the keyboard). */}
       <div className="touch-buttons">
+        <DiscreteButton label="CAM" code="KeyE" />
         <DiscreteButton label="GEAR" code="KeyG" disabled={gearFixed} />
         <DiscreteButton label="FLP−" code="KeyV" />
         <DiscreteButton label="FLP+" code="KeyF" />

@@ -4,7 +4,7 @@
  */
 import type { DebriefSubmission } from "../debrief/types";
 import type { FlightStats } from "../game/stats";
-import { formatAirtime, formatAltFt, formatG, formatIasKt } from "../hud/format";
+import { EM_DASH, formatAirtime, formatAltFt, formatG, formatIasKt } from "../hud/format";
 import type { MissionVersionSet } from "../mission/contract";
 import {
   LANDING_SCORE_WEIGHTS,
@@ -69,11 +69,14 @@ export default function EndCard({
   stats,
   submission,
   onRetry,
+  callsign = null,
   onExit,
 }: {
   stats: FlightStats;
   submission: DebriefSubmission;
   onRetry(): void;
+  /** Set-once SIM callsign, shown on the debrief per UI-002 (identity lives off the live rail). */
+  callsign?: string | null;
   onExit(): void;
 }) {
   const accepted = submission.status === "accepted" ? submission.result : null;
@@ -114,6 +117,8 @@ export default function EndCard({
         {submission.status === "unavailable" && (
           <div className="auth-error label" role="alert">{submission.message}</div>
         )}
+        {/* SIM callsign (UI-002): identity lives on the debrief, not the live rail. */}
+        <Row label="CALLSIGN" value={callsign ?? EM_DASH} />
         <div className="debrief-grid">
           <section aria-label="Result">
             <div className="label">RESULT</div>
