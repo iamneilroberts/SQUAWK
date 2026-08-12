@@ -725,6 +725,7 @@ body {
    Only the card's own area — and its buttons — stay clickable. */
 .end-overlay {
   pointer-events: none;
+  z-index: 45;
 }
 .end-overlay .end-card {
   pointer-events: auto;
@@ -755,6 +756,17 @@ body {
 .end-card {
   width: min(760px, calc(100vw - 24px)); max-height: min(88vh, 820px);
   overflow-y: auto;
+}
+/* Pinned footer (#32): EXIT TO BROWSE stays reachable without scrolling the long debrief card.
+   Negative margins flush it to the card's own padding (16px 20px base, 12px narrow below) so it
+   spans edge-to-edge; sticky works because it stays inside .end-card's own overflow-y:auto. */
+.end-card-footer {
+  position: sticky;
+  bottom: 0;
+  margin: 4px -20px -16px;
+  padding: 12px 20px;
+  background: rgba(5, 7, 10, 0.92);
+  border-top: 1px solid rgba(95, 215, 224, 0.25);
 }
 .debrief-authority { color: var(--cyan); font-size: 11px; }
 .debrief-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
@@ -942,6 +954,15 @@ body {
   padding: 10px 12px;
   font-size: 11px;
   pointer-events: auto;
+  z-index: 34;
+}
+@media (max-width: 1023px) {
+  .traffic-card {
+    top: max(96px, calc(env(safe-area-inset-top) + 88px));
+    right: max(8px, env(safe-area-inset-right));
+    left: auto;
+    width: min(300px, calc(100vw - 32px));
+  }
 }
 
 /* ---- radar scope: PPI, own ship centred, heading up ---- */
@@ -1258,6 +1279,7 @@ body {
   .tutorial-option { grid-template-columns: 1fr; gap: 3px; }
   .debrief-grid, .debrief-components { grid-template-columns: 1fr; gap: 8px; }
   .end-card { max-height: calc(100dvh - 24px); padding: 12px; }
+  .end-card-footer { margin: 4px -12px -12px; padding: 10px 12px; }
 
   .quick-start-help {
     top: max(8px, env(safe-area-inset-top));
@@ -1331,8 +1353,8 @@ body {
 
 /* ---- Transparent/minimalist touch buttons: a faint cyan outline over the view, not a panel. ---- */
 .touch-btn-ghost {
-  border: 1px solid rgba(95, 215, 224, 0.4);
-  background: transparent;
+  border: 1px solid rgba(95, 215, 224, 0.55);
+  background: rgba(5, 7, 10, 0.72);
   color: var(--cyan);
   opacity: 0.72;
   font-family: var(--mono);

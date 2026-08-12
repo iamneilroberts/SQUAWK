@@ -154,9 +154,11 @@ export default function EndCard({
             RETRY RESULT
           </button>
         )}
-        <button className="control-button" onClick={onExit}>
-          EXIT TO BROWSE
-        </button>
+        <div className="end-card-footer">
+          <button className="control-button" onClick={onExit}>
+            EXIT TO BROWSE
+          </button>
+        </div>
       </div>
     </div>
   );
