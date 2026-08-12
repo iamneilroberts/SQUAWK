@@ -217,6 +217,21 @@ export function consumeAuthToken(token: string): Promise<void> {
   return promise;
 }
 
+const AUTH_CODE = /^\d{6}$/;
+
+export function verifyAuthCode(email: string, code: string): Promise<void> {
+  if (!AUTH_CODE.test(code)) {
+    return Promise.reject(new AuthClientError(400, "INVALID_REQUEST"));
+  }
+  return postJson<{ csrfToken: string }>(
+    "/api/auth/verify-code",
+    { email, code },
+    false,
+  ).then((data) => {
+    csrfToken = data.csrfToken;
+  });
+}
+
 async function requestCurrentProfile(): Promise<SessionProfile | null> {
   const response = await fetch("/api/me", { credentials: "same-origin" });
   if (response.status === 401) {

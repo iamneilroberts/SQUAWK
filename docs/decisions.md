@@ -2031,3 +2031,24 @@ The mission route line (#50) starts at the live aircraft position via CallbackPr
 (contact position pre-spawn fallback) so guidance never points behind the aircraft. The
 approach surface (#24) replaced the corridor edge polylines; approachGuidance() still returns
 corridorEdges (pure API unchanged) — only the layer stopped drawing them.
+
+## 2026-08-12 — #40 (Task 3) — SignInSheet code entry: interpretive calls
+
+Implemented the in-place 6-digit code step (spec §4). Non-obvious calls:
+- **"Existing re-send affordance" = the sheet's already-present × close button**, not a new
+  button. Closing and re-opening the sheet re-triggers a fresh `SEND CODE` request; nothing
+  new was added so as not to invent UI beyond what the sheet already has.
+- **No separate rate-limited copy.** `verifyAuthCode` in `session.ts` returns an `AuthClientError`
+  whose `status`/`code` distinguish 401 `AUTH_CODE_INVALID` from 429 `RATE_LIMITED` (available
+  to any future caller), but the sheet's `code-error` state shows the same "CODE INVALID OR
+  EXPIRED." for both — spec §4 only specifies one message for wrong/expired codes and doesn't
+  request a distinct rate-limit state.
+- **No `SignInSheet.test.tsx`.** The repo has no RTL/jsdom harness (confirmed: no
+  `@testing-library/*` dependency, no `environment: "jsdom"` in `vitest.config.ts`, and no
+  existing test file for any hook-based component under `src/auth/`), and adding one would be
+  a new dependency (ground rule #3). Per the task brief's fallback, the new pure logic
+  (`verifyAuthCode`) is pinned in `session.test.ts` instead; the component wiring is covered by
+  `tsc --noEmit` plus manual review.
+- **Post-verify `loadCurrentProfile() === null`** (session cookie didn't take) falls back to the
+  sheet's generic `error` state ("SIGN-IN IS TEMPORARILY UNAVAILABLE.") rather than `code-error`,
+  mirroring `AuthReturn`'s `onFailure` treatment of the same edge case.

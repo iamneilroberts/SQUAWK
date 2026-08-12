@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import { requestMagicLink } from "./session";
+import {
+  loadCurrentProfile,
+  requestMagicLink,
+  verifyAuthCode,
+  type SessionProfile,
+} from "./session";
 
 type TurnstileApi = {
   render(
@@ -43,17 +48,36 @@ function loadTurnstile(): Promise<TurnstileApi> {
   return scriptRequest;
 }
 
+type SheetState =
+  | "ready"
+  | "sending"
+  | "sent"
+  | "verifying"
+  | "code-error"
+  | "error"
+  | "done";
+
+const CODE_ENTRY_STATES: ReadonlySet<SheetState> = new Set([
+  "sent",
+  "verifying",
+  "code-error",
+  "done",
+]);
+
 export default function SignInSheet({
   siteKey,
   onClose,
+  onAuthenticated,
 }: {
   siteKey: string | null;
   onClose: () => void;
+  onAuthenticated: (profile: SessionProfile) => void;
 }) {
   const challengeHost = useRef<HTMLDivElement>(null);
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [challengeToken, setChallengeToken] = useState<string | null>(null);
-  const [state, setState] = useState<"ready" | "sending" | "sent" | "error">("ready");
+  const [state, setState] = useState<SheetState>("ready");
 
   useEffect(() => {
     if (siteKey === null || challengeHost.current === null) return;
@@ -88,9 +112,29 @@ export default function SignInSheet({
     setState("sending");
     try {
       await requestMagicLink(email, challengeToken);
+      setCode("");
       setState("sent");
     } catch {
       setState("error");
+    }
+  }
+
+  async function verify(event: FormEvent): Promise<void> {
+    event.preventDefault();
+    if (!/^\d{6}$/.test(code) || state === "verifying") return;
+    setState("verifying");
+    try {
+      await verifyAuthCode(email, code);
+      const profile = await loadCurrentProfile();
+      if (profile === null) {
+        setState("error");
+        return;
+      }
+      setState("done");
+      onAuthenticated(profile);
+      onClose();
+    } catch {
+      setState("code-error");
     }
   }
 
@@ -101,13 +145,37 @@ export default function SignInSheet({
           <span className="label">SECURE HANDOFF</span>
           <button className="auth-close" onClick={onClose} aria-label="Close sign in">×</button>
         </div>
-        {state === "sent" ? (
-          <p className="auth-copy" role="status">
-            IF THE ADDRESS CAN SIGN IN, A LINK WILL ARRIVE SHORTLY.
-          </p>
+        {CODE_ENTRY_STATES.has(state) ? (
+          <form onSubmit={(event) => void verify(event)}>
+            <p className="auth-copy" role="status">
+              ENTER THE 6-DIGIT CODE FROM THE EMAIL.
+            </p>
+            <label className="label" htmlFor="auth-code">CODE</label>
+            <input
+              id="auth-code"
+              className="auth-input"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              required
+              maxLength={6}
+              value={code}
+              onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+            />
+            {state === "code-error" && (
+              <p className="auth-error label">CODE INVALID OR EXPIRED.</p>
+            )}
+            <button
+              className="control-button w-full"
+              type="submit"
+              disabled={!/^\d{6}$/.test(code) || state === "verifying"}
+            >
+              {state === "verifying" ? "VERIFYING…" : "VERIFY CODE"}
+            </button>
+          </form>
         ) : (
           <form onSubmit={(event) => void submit(event)}>
-            <p className="auth-copy">EMAIL A ONE-USE LINK TO CONTINUE THIS BRIEFING.</p>
+            <p className="auth-copy">EMAIL A ONE-TIME CODE TO CONTINUE THIS BRIEFING.</p>
             <label className="label" htmlFor="auth-email">EMAIL</label>
             <input
               id="auth-email"
@@ -131,7 +199,7 @@ export default function SignInSheet({
               type="submit"
               disabled={challengeToken === null || state === "sending"}
             >
-              {state === "sending" ? "SENDING…" : "SEND SIGN-IN LINK"}
+              {state === "sending" ? "SENDING…" : "SEND CODE"}
             </button>
           </form>
         )}

@@ -580,6 +580,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
             <SignInSheet
               siteKey={turnstileSiteKey}
               onClose={() => setSignInOpen(false)}
+              onAuthenticated={authReturned}
             />
           )}
         </div>
