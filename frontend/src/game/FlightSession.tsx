@@ -773,7 +773,7 @@ export default function FlightSession({
   // Mobile immersive/fullscreen flight (#13). immersiveActive gates every declutter; `faded` is the
   // video-player auto-hide of the informational overlays. warningActive keeps a live annunciator
   // visible through the fade (safety) — same warningsFor the HUD renders, so they never disagree.
-  const immersiveActive = isImmersiveActive(immersive, narrow, mode);
+  const immersiveActive = isImmersiveActive(immersive, mode);
   // Fade on ANY narrow flight, not just requested fullscreen (owner declutter 2026-08-11).
   const faded = (immersiveActive || (narrow && mode === "FLYING")) && !chromeVisible;
   const warningActive = snapshot ? warningsFor(snapshot).length > 0 : false;
@@ -868,9 +868,10 @@ export default function FlightSession({
           />
           {/* The cockpit dashboard is DESKTOP-ONLY. On mobile (narrow) it never renders at all —
               phones get the minimal immersive flying view (top status bar + minimal touch
-              controls + auto-hide), no multi-panel dashboard clutter (owner directive). It also
-              stays hidden in immersive mode, and returns on desktop non-immersive flight. */}
-          {!immersiveActive && !narrow && <DashboardStrip snapshot={snapshot} />}
+              controls + auto-hide), no multi-panel dashboard clutter (owner directive). On
+              desktop it ALWAYS renders, immersive or not (owner 2026-08-12: desktop immersive
+              adds the improved HUD bar but KEEPS the glass cockpit — "keep both"). */}
+          {!narrow && <DashboardStrip snapshot={snapshot} />}
         </>
       )}
       {/* ENDED is deliberately excluded: the end card owns the screen and the mouse is handed
@@ -893,9 +894,14 @@ export default function FlightSession({
             throttle={snapshot?.throttle ?? 0}
             gearFixed={(snapshot?.gear ?? "fixed") === "fixed"}
           />
-          <ImmersiveControl warningActive={warningActive} onMenu={pauseFlight} />
           <MobileNavWx snapshot={snapshot} />
         </>
+      )}
+      {/* The immersive control row (FULL/EXIT · DCLTR · MENU) mounts on BOTH platforms while
+          FLYING: mobile as before, desktop so the player can opt into immersive (owner
+          2026-08-12). TouchControls / MobileNavWx above stay mobile-only. */}
+      {mode === "FLYING" && (
+        <ImmersiveControl warningActive={warningActive} onMenu={pauseFlight} />
       )}
       {mode === "PAUSED" && tutorial !== null && activeLesson !== null && (
         <TeachingOverlay

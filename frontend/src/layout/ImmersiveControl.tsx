@@ -18,7 +18,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "../state/store";
-import { showImmersiveToggle, overlaysVisible } from "./immersive";
+import { isImmersiveActive, showImmersiveToggle, overlaysVisible } from "./immersive";
 import {
   requestAppFullscreen, exitAppFullscreen, fullscreenSupported, isStandalone, shouldShowInstallHint,
 } from "./fullscreen";
@@ -39,9 +39,11 @@ export default function ImmersiveControl(
   const setDeclutter = useStore((s) => s.setDeclutter);
   const { width } = useViewport();
   const narrow = isNarrowViewport(width);
-  // Auto-hide arms on ANY narrow flight, not just requested fullscreen (owner 2026-08-11:
-  // clutter never faded in a plain browser tab because the fade was fullscreen-gated).
-  const autoHideActive = narrow && mode === "FLYING";
+  // Auto-hide arms on ANY narrow flight (owner 2026-08-11: clutter never faded in a plain browser
+  // tab because the fade was fullscreen-gated), AND on desktop once immersive is requested (owner
+  // 2026-08-12: desktop immersive is an opt-in that also declutters). Desktop non-immersive stays
+  // untouched — isImmersiveActive is false there, so the chrome never auto-hides.
+  const autoHideActive = (narrow && mode === "FLYING") || isImmersiveActive(immersive, mode);
 
   const [hintDismissed, setHintDismissed] = useState(false);
 
@@ -72,7 +74,10 @@ export default function ImmersiveControl(
     // Enter fully visible, then let the idle clock fade it.
     bump();
     // Any tap on the flight surface (canvas, stick, throttle, buttons) counts as interaction.
+    // mousemove keeps desktop chrome up while the mouse is active (owner 2026-08-12) — touch
+    // devices don't fire it continuously, so mobile fading is unchanged.
     window.addEventListener("pointerdown", bump);
+    window.addEventListener("mousemove", bump);
     const id = setInterval(() => {
       setChromeVisible(
         overlaysVisible("FLYING", Date.now() - lastInteractionRef.current, warnRef.current),
@@ -80,6 +85,7 @@ export default function ImmersiveControl(
     }, AUTOHIDE_POLL_MS);
     return () => {
       window.removeEventListener("pointerdown", bump);
+      window.removeEventListener("mousemove", bump);
       clearInterval(id);
       setChromeVisible(true);
     };
@@ -106,7 +112,7 @@ export default function ImmersiveControl(
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
-  if (!showImmersiveToggle(narrow, mode)) return null;
+  if (!showImmersiveToggle(mode)) return null;
 
   const onEnter = () => {
     setImmersive(true);

@@ -2160,3 +2160,24 @@ Four-part fix:
 Gate: typecheck + 1223 tests (+9) + lint green. Residual (owner verifies on-device): whether takeover
 now succeeds reliably, and whether the wrapped chip cluster fully clears the list on a real notched
 phone (piece 4 was only verified in an isolated CSS harness, no live Chrome available here).
+
+## 2026-08-12 — CF-024 — Improved HUD + declutter available on desktop (opt-in, keep the glass cockpit)
+
+Owner ask: bring the mobile "improved HUD" (ImmersiveHudBar A/C) + declutter (video-player auto-hide)
+to the DESKTOP browser. Decision (owner 2026-08-12): desktop immersive is an OPT-IN toggle that ADDS
+the improved HUD bar + declutter but KEEPS the glass cockpit dashboard visible ("keep both") — unlike
+mobile, which hides the dashboard.
+
+The immersive gate was mobile-only via a `narrow` check. Decoupled it: `isImmersiveActive(requested,
+mode)` and `showImmersiveToggle(mode)` dropped the `narrow` param (mobile behaviour is unchanged
+because `narrow` was always true there). The glass-cockpit visibility now keys off `narrow` alone
+(`!narrow && <DashboardStrip>`) so desktop always shows it, immersive or not; mobile never does.
+ImmersiveControl was pulled out of the mobile-only narrow render block into its own `FLYING` block so
+the FULL/DCLTR/MENU chips mount on desktop too (TouchControls/MobileNavWx stay mobile-only). The
+auto-hide arms on desktop-immersive and now also resets on `mousemove` (desktop mice don't fire
+pointerdown continuously; touch is unaffected since it doesn't emit mousemove). The improved HUD bar
+(top edge) and the glass cockpit strip (bottom edge) occupy opposite edges — no catastrophic overlap.
+
+Note: on desktop non-immersive FLYING the FULL/DCLTR/MENU chips now appear top-right (the opt-in entry
+point) at top:96px; they clear the classic HUD on normal viewports but could approach the right
+readouts on a very short window — owner verifies on-device.

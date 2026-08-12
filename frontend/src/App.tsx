@@ -235,7 +235,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
   const browseDrawer = narrow && mode === "BROWSE";
   // Mobile immersive/fullscreen flight (#13): collapse the StatusBar to feed-status + attribution,
   // and fade it with the informational chrome while the video-player auto-hide is active.
-  const immersiveActive = isImmersiveActive(immersive, narrow, mode);
+  const immersiveActive = isImmersiveActive(immersive, mode);
   // Mobile flight = any narrow FLYING viewport; drives the chrome auto-hide + funnel-chip
   // repositioning even before the player requests true fullscreen (owner declutter 2026-08-11).
   const mobileFlight = narrow && mode === "FLYING";

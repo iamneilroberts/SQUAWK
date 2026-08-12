@@ -15,22 +15,25 @@
 import type { Mode } from "../game/machine";
 
 /**
- * Effective immersive mode: the player asked for it (the toggle) AND the layout is one where it
- * makes sense — a narrow viewport actively FLYING. Desktop (`narrow === false`) and every
- * non-FLYING mode fall through to false, so the normal chrome always renders there. This is the
- * single gate the whole feature keys off, so desktop and browse stay byte-for-byte unchanged.
+ * Effective immersive mode: the player asked for it (the toggle) AND is actively FLYING. This
+ * means "improved HUD bar + declutter (auto-hide chrome) active", and it now applies on BOTH
+ * platforms (owner 2026-08-12: desktop immersive is an opt-in toggle). It deliberately does NOT
+ * decide whether the glass cockpit dashboard hides — that stays a `narrow` (mobile-only) call at
+ * the DashboardStrip gate, so desktop keeps BOTH the improved bar and the cockpit. Every
+ * non-FLYING mode falls through to false, so browse/countdown/paused/ended keep full chrome.
  */
-export function isImmersiveActive(requested: boolean, narrow: boolean, mode: Mode): boolean {
-  return requested && narrow && mode === "FLYING";
+export function isImmersiveActive(requested: boolean, mode: Mode): boolean {
+  return requested && mode === "FLYING";
 }
 
 /**
- * Whether to offer the immersive toggle button at all: only on a narrow viewport while FLYING.
- * Desktop never shows it; browse never shows it. (Kept separate from isImmersiveActive so the
+ * Whether to offer the immersive toggle button at all: while FLYING, on either platform. Mobile
+ * has always shown it; desktop now shows it too so the player can opt in (owner 2026-08-12).
+ * Browse/countdown/paused/ended never show it. (Kept separate from isImmersiveActive so the
  * ENTER button can appear before immersive is requested, when `requested` is still false.)
  */
-export function showImmersiveToggle(narrow: boolean, mode: Mode): boolean {
-  return narrow && mode === "FLYING";
+export function showImmersiveToggle(mode: Mode): boolean {
+  return mode === "FLYING";
 }
 
 /** After this long with no touch interaction, the informational overlays fade (video pattern). */
