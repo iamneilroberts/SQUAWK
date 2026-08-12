@@ -1453,6 +1453,12 @@ body {
   background: rgba(255, 176, 0, 0.12);
 }
 
+/* ---- MENU / abort (#58): the mobile pause valve. Sits to the LEFT of DCLTR in the same top row
+   (168px = two chip-widths clears both FULL/EXIT and DCLTR). Reuses .immersive-toggle's look. ---- */
+.menu-toggle {
+  right: calc(max(8px, env(safe-area-inset-right)) + 168px);
+}
+
 /* ---- The one-time iOS "Add to Home Screen" hint (only shown where true fullscreen is
    impossible and the app is not yet an installed PWA). Amber advisory, dismissible. ---- */
 .immersive-hint {

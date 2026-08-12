@@ -498,23 +498,24 @@ export default function FlightSession({
     tutorial,
   ]);
 
+  // Pause from FLYING: stop the physics loop and move the machine to PAUSED. Shared by desktop
+  // Escape, the auto-pause on tab-hide, and the mobile MENU button (#58 — the mobile abort valve;
+  // PauseOverlay then offers RESUME or QUIT TO BROWSE). No-op unless currently FLYING.
+  const pauseFlight = useCallback(() => {
+    if (useStore.getState().mode !== "FLYING") return;
+    loopRef.current?.pause();
+    setResumeArmed(false);
+    useStore.getState().fire("PAUSE");
+  }, []);
+
   // ---- Esc pauses; visibilitychange auto-pauses (spec §5, §6) ----
   useEffect(() => {
     if (mode !== "FLYING" && mode !== "PAUSED") return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code !== "Escape") return;
-      if (useStore.getState().mode === "FLYING") {
-        loopRef.current?.pause();
-        setResumeArmed(false);
-        useStore.getState().fire("PAUSE");
-      }
+      if (e.code === "Escape") pauseFlight();
     };
     const onVisibility = () => {
-      if (document.hidden && useStore.getState().mode === "FLYING") {
-        loopRef.current?.pause();
-        setResumeArmed(false);
-        useStore.getState().fire("PAUSE");
-      }
+      if (document.hidden) pauseFlight();
     };
     window.addEventListener("keydown", onKeyDown);
     document.addEventListener("visibilitychange", onVisibility);
@@ -522,7 +523,7 @@ export default function FlightSession({
       window.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [mode]);
+  }, [mode, pauseFlight]);
 
   // ---- KeyE toggles the exterior chase/orbit camera (issue #4) ----
   // View-only, off by default: the toggle LOGIC lives in the host (cesiumFlightHost), so a future
@@ -802,7 +803,7 @@ export default function FlightSession({
             throttle={snapshot?.throttle ?? 0}
             gearFixed={(snapshot?.gear ?? "fixed") === "fixed"}
           />
-          <ImmersiveControl warningActive={warningActive} />
+          <ImmersiveControl warningActive={warningActive} onMenu={pauseFlight} />
           <MobileNavWx snapshot={snapshot} />
         </>
       )}

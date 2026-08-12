@@ -28,7 +28,9 @@ import { isNarrowViewport } from "./viewport";
 /** How often the auto-hide re-checks the idle clock. 500 ms is well finer than the 3 s timeout. */
 const AUTOHIDE_POLL_MS = 500;
 
-export default function ImmersiveControl({ warningActive }: { warningActive: boolean }) {
+export default function ImmersiveControl(
+  { warningActive, onMenu }: { warningActive: boolean; onMenu: () => void },
+) {
   const mode = useStore((s) => s.mode);
   const immersive = useStore((s) => s.immersive);
   const setImmersive = useStore((s) => s.setImmersive);
@@ -136,6 +138,18 @@ export default function ImmersiveControl({ warningActive }: { warningActive: boo
         aria-pressed={decluttered}
       >
         DCLTR
+      </button>
+      {/* MENU (#58): the mobile abort valve. Fires the same PAUSE as desktop Escape, so
+          PauseOverlay offers RESUME or QUIT TO BROWSE. A control chip (not informational), so it
+          sits with FULL/EXIT/DCLTR and is never hidden by declutter or the idle auto-hide — a
+          player who falls through un-sampled terrain must always be able to get out. */}
+      <button
+        type="button"
+        className="immersive-toggle menu-toggle"
+        onClick={onMenu}
+        aria-label="Pause menu"
+      >
+        MENU
       </button>
       {showHint && (
         <div className="immersive-hint" role="note">
