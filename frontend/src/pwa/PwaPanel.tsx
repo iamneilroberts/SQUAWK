@@ -70,10 +70,16 @@ export default function PwaPanel({
             {!pwa.standalone && !pwa.installAvailable && (
               <p className="pwa-copy">On iPhone/iPad: Share → Add to Home Screen. On desktop, use the browser install icon.</p>
             )}
-            {!pwa.fullscreen && (
+            {/* Only offer the button where it actually works. iOS Safari has no
+                Element.requestFullscreen, so it was a silent no-op there (#77) — hide it and let the
+                Add-to-Home-Screen guidance above be the real iOS fullscreen path. */}
+            {!pwa.fullscreen && pwa.canFullscreen && (
               <button className="control-button" type="button" onClick={() => void requestAppFullscreen()}>
                 ENTER FULLSCREEN
               </button>
+            )}
+            {!pwa.fullscreen && !pwa.canFullscreen && !pwa.standalone && (
+              <p className="pwa-copy">This browser can't fullscreen a web app — Add to Home Screen for a fullscreen, standalone launch.</p>
             )}
             {results.pendingCount > 0 && (
               <button className="control-button" type="button" disabled={!pwa.online || results.syncing}

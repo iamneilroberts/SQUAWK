@@ -1,3 +1,5 @@
+import { fullscreenSupported } from "../layout/fullscreen";
+
 export type InstallPromptEvent = Event & {
   prompt(): Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -9,6 +11,8 @@ export type PwaSnapshot = {
   standalone: boolean;
   landscape: boolean;
   fullscreen: boolean;
+  /** Whether Element.requestFullscreen exists — FALSE on iOS Safari, where the button is a no-op. */
+  canFullscreen: boolean;
   waiting: boolean;
   online: boolean;
 };
@@ -24,6 +28,7 @@ let snapshot: PwaSnapshot = {
   standalone: false,
   landscape: true,
   fullscreen: false,
+  canFullscreen: typeof document !== "undefined" && fullscreenSupported(document.documentElement),
   waiting: false,
   online: typeof navigator === "undefined" ? true : navigator.onLine,
 };
@@ -42,6 +47,7 @@ function readSnapshot(): PwaSnapshot {
     standalone: standalone(),
     landscape: window.matchMedia("(orientation: landscape)").matches,
     fullscreen: document.fullscreenElement !== null,
+    canFullscreen: fullscreenSupported(document.documentElement),
     waiting: waitingWorker !== null,
     online: navigator.onLine,
   };
