@@ -38,15 +38,18 @@ function points(value: number): string {
 
 function ScoreBreakdown({ components }: { components: LandingScoreComponents }) {
   return (
-    <div className="debrief-components" aria-label="Score components">
-      {(Object.keys(COMPONENT_LABELS) as (keyof LandingScoreComponents)[]).map((key) => (
-        <Row
-          key={key}
-          label={COMPONENT_LABELS[key]}
-          value={`${points(components[key])} / ${LANDING_SCORE_WEIGHTS[key]}`}
-        />
-      ))}
-    </div>
+    <details className="debrief-breakdown">
+      <summary className="label">SCORE BREAKDOWN</summary>
+      <div className="debrief-components" aria-label="Score components">
+        {(Object.keys(COMPONENT_LABELS) as (keyof LandingScoreComponents)[]).map((key) => (
+          <Row
+            key={key}
+            label={COMPONENT_LABELS[key]}
+            value={`${points(components[key])} / ${LANDING_SCORE_WEIGHTS[key]}`}
+          />
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -71,6 +74,7 @@ export default function EndCard({
   onRetry,
   callsign = null,
   onExit,
+  onSignIn,
 }: {
   stats: FlightStats;
   submission: DebriefSubmission;
@@ -78,10 +82,13 @@ export default function EndCard({
   /** Set-once SIM callsign, shown on the debrief per UI-002 (identity lives off the live rail). */
   callsign?: string | null;
   onExit(): void;
+  /** Opens sign-in from an instant flight's SIGN IN TO RANK action (B5); absent = no button. */
+  onSignIn?(): void;
 }) {
   const accepted = submission.status === "accepted" ? submission.result : null;
   const preview = submission.status === "submitting" || submission.status === "failed" ||
-    submission.status === "queued" || submission.status === "tutorial"
+    submission.status === "queued" || submission.status === "tutorial" ||
+    submission.status === "instant"
     ? submission.preview
     : null;
   const evaluation = accepted ?? preview?.evaluation ?? null;
@@ -92,6 +99,8 @@ export default function EndCard({
   const versions = accepted?.versions ?? preview?.versions ?? null;
   const authority = submission.status === "accepted"
     ? "AUTHORITATIVE — WORKER VERIFIED"
+    : submission.status === "instant"
+      ? "INSTANT FLIGHT — LOCAL AND UNRANKED"
     : submission.status === "tutorial"
       ? "TUTORIAL — LOCAL AND UNRANKED"
       : submission.status === "queued"
@@ -162,6 +171,11 @@ export default function EndCard({
         {submission.status === "failed" && submission.retryable && (
           <button className="control-button" type="button" onClick={onRetry}>
             RETRY RESULT
+          </button>
+        )}
+        {submission.status === "instant" && onSignIn && (
+          <button className="control-button debrief-sign-in" type="button" onClick={onSignIn}>
+            SIGN IN TO RANK THIS FLIGHT
           </button>
         )}
         <div className="end-card-footer">

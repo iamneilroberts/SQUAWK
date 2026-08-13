@@ -194,6 +194,52 @@ describe("EndCard", () => {
     expect(text).toContain("NOT RANKED");
     expect(text).not.toContain("AUTHORITATIVE — WORKER VERIFIED");
   });
+  it("scores an instant flight locally, keeps it unranked, and offers SIGN IN TO RANK", () => {
+    const submission: DebriefSubmission = {
+      status: "instant",
+      preview: {
+        classId: "b738",
+        versions,
+        highestAssist: "OFF",
+        evaluation: {
+          outcome: "landed",
+          failure: null,
+          measurements: null as never,
+          score: { total: 84, components: accepted.result.components! },
+        },
+      },
+    };
+    const text = collectText(EndCard({
+      stats: stats({ classification: "LANDED" }),
+      submission,
+      onRetry: () => {},
+      onExit: () => {},
+      onSignIn: () => {},
+    })).join(" ");
+    expect(text).toContain("INSTANT FLIGHT — LOCAL AND UNRANKED");
+    expect(text).toContain("84"); // local preview score is shown
+    expect(text).toContain("NOT RANKED");
+    expect(text).toContain("SIGN IN TO RANK THIS FLIGHT");
+    expect(text).not.toContain("AUTHORITATIVE — WORKER VERIFIED");
+  });
+  it("omits the SIGN IN TO RANK action when no sign-in handler is provided", () => {
+    const submission: DebriefSubmission = {
+      status: "instant",
+      preview: {
+        classId: "b738",
+        versions,
+        highestAssist: "OFF",
+        evaluation: {
+          outcome: "landed",
+          failure: null,
+          measurements: null as never,
+          score: { total: 84, components: accepted.result.components! },
+        },
+      },
+    };
+    const text = render(stats(), submission);
+    expect(text).not.toContain("SIGN IN TO RANK");
+  });
   it("does not invent a debrief when landing evidence is unavailable", () => {
     const text = render(stats(), {
       status: "unavailable",

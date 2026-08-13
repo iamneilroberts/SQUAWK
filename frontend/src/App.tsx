@@ -497,6 +497,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
               coachingEnabled={profile?.tutorialState === "complete" && profile.coachingEnabled}
               onTutorialComplete={completeTutorial}
               onCoachingComplete={completeCoaching}
+              onSignInToRank={() => setSignInOpen(true)}
             />
           </ViewerHost>
           {mode === "BROWSE" && (

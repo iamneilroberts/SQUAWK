@@ -74,10 +74,13 @@ export default function FlightSession({
   coachingEnabled = false,
   onTutorialComplete,
   onCoachingComplete,
+  onSignInToRank,
 }: {
   coachingEnabled?: boolean;
   onTutorialComplete?(classId: "c172s" | "b738" | "f5e"): void;
   onCoachingComplete?(): void;
+  /** Opens the sign-in sheet from the instant-flight debrief's SIGN IN TO RANK action (B5). */
+  onSignInToRank?(): void;
 }) {
   const bundle = useViewer();
   const mode = useStore((s) => s.mode);
@@ -432,15 +435,21 @@ export default function FlightSession({
                 useStore.getState().fire("IMPACT");
                 return;
               }
-              // Instant anonymous flight (B3): local and unranked — never submits to the server.
-              // B5 replaces this message with the scored, trimmed EndCard + SIGN IN TO RANK.
+              // Instant anonymous flight (B5): score it locally (same evaluation the tutorial
+              // shows) but NEVER submit — it is unranked until the player signs in. Mirrors the
+              // tutorial branch; the EndCard offers SIGN IN TO RANK for this status.
               if (instantFlight) {
                 pendingResultRef.current = null;
                 activeLessonRef.current = null;
                 setActiveLesson(null);
                 setDebrief({
-                  status: "unavailable",
-                  message: "INSTANT FLIGHT — LOCAL AND UNRANKED. SIGN IN TO RANK.",
+                  status: "instant",
+                  preview: {
+                    classId: lockedMission.classId,
+                    versions: lockedMission.versions,
+                    highestAssist,
+                    evaluation: landingResult.evaluation,
+                  },
                 });
                 useStore.getState().fire("IMPACT");
                 return;
@@ -935,6 +944,7 @@ export default function FlightSession({
           onRetry={retryResult}
           callsign={snapshot?.callsign ?? null}
           onExit={() => leaveToBrowse("EXIT_END")}
+          onSignIn={onSignInToRank}
         />
       )}
     </>

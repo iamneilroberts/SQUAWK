@@ -832,6 +832,18 @@ body {
 .debrief-components { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
 .debrief-versions { border-top: 1px solid var(--grid); padding-top: 8px; }
 .debrief-versions summary { color: var(--cyan); cursor: pointer; }
+.debrief-breakdown { border-top: 1px solid var(--grid); padding-top: 8px; }
+.debrief-breakdown summary { color: var(--cyan); cursor: pointer; }
+.debrief-breakdown .debrief-components { margin-top: 8px; }
+/* SIGN IN TO RANK: amber, the one post-flight save an anonymous instant flight offers (B5). */
+.debrief-sign-in {
+  width: 100%;
+  margin-top: 10px;
+  justify-content: center;
+  border-color: var(--amber);
+  color: var(--amber);
+}
+.debrief-sign-in:hover { background: rgba(255, 176, 0, 0.12); }
 
 /* ---- six-pack: analog dials, 1px strokes, cyan nominal / amber abnormal ---- */
 .six-pack {
