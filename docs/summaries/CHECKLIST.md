@@ -62,8 +62,10 @@ flow-mock (FLY NOW start card + trimmed debrief); 3 anon flights then require si
 
 ## STILL PENDING
 - [ ] #47 default (non-immersive) desktop HUD destination indicator.
-- [ ] verify + close #65 (mouse-look) and #61 (exterior trail flicker).
+- [x] verify + close #65 (mouse-look) and #61 (exterior trail flicker) — VERIFIED on b08ce861, closed.
 - [ ] B5 optional polish: mock's exact 3-stat trim + FLY AGAIN button.
+
+## Issues filed 2026-08-13: #66 (local/staging feed), #67 (mini-2D map on WX/radar), #68 (initial 3D-tilt wow).
 
 ## Issue triage 2026-08-13 — CLOSED #64 #58 #63 #43 #32 #26 #9 #36 (fixed-batch, 51→43 open).
 
