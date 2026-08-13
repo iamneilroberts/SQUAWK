@@ -1075,16 +1075,25 @@ body {
 .traffic-tag-line { color: var(--text); opacity: 0.75; }
 .traffic-tag-mil { color: var(--amber); border-left-color: var(--amber); }
 .traffic-tag-ghost { opacity: 0.55; border-left-style: dashed; }
-/* Bare marker: same x/y anchor as .traffic-tag, no label box — just a dot for declutter. */
+/* Bare marker: same x/y anchor as .traffic-tag, no label box — just a dot for declutter.
+   #59: the button wraps only the 14px dot, so its tap target was ~14px — non-nearest traffic was
+   effectively untappable on a phone. Give it a 44px invisible hit area centred on the contact
+   (touch-target minimum) while the dot stays small. */
 .traffic-tag-bare {
   position: absolute;
   transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
   border: none;
   background: transparent;
   color: var(--cyan);
   padding: 0;
   cursor: pointer;
   pointer-events: auto;
+  touch-action: manipulation;
 }
 .traffic-tag-bare.traffic-tag-mil { color: var(--amber); }
 .traffic-tag-bare.traffic-tag-ghost { opacity: 0.55; }
