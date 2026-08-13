@@ -115,6 +115,27 @@ export default function MissionTray({
             <span>Assists</span><strong>{profile === null ? "FULL" : assistModeFromPreference(profile.defaultAssist)}</strong>
           </div>
 
+          {/* TAKE CONTROLS sits directly under the grid, ABOVE the eligible-airports list, so the
+              primary action is always on-screen without scrolling; the (optional) alternatives list
+              below can scroll harmlessly (owner 2026-08-13). */}
+          <button
+            type="button"
+            className="control-button mission-take-controls"
+            data-testid="mission-take-controls"
+            onClick={onTakeControls}
+            disabled={commitState.status === "preparing" || commitState.status === "locking" || commitState.status === "locked" || commitState.status === "reconfirm"}
+          >
+            {commitState.status === "preparing"
+              ? "Checking fresh traffic…"
+              : commitState.status === "locking"
+                ? "Locking mission…"
+              : commitState.status === "locked"
+                  ? "Mission locked"
+                  : commitState.status === "error" && commitState.retry !== undefined
+                    ? "Retry mission lock"
+                  : "Take controls"}
+          </button>
+
           {(commitState.status === "idle" ||
             (commitState.status === "error" && commitState.retry === undefined)) && (
             <AlternativeAirports
@@ -145,24 +166,6 @@ export default function MissionTray({
               <div className="mission-state-note">SIMULATOR HANDOFF CONTINUES IN TASK 10.</div>
             </div>
           )}
-
-          <button
-            type="button"
-            className="control-button mission-take-controls"
-            data-testid="mission-take-controls"
-            onClick={onTakeControls}
-            disabled={commitState.status === "preparing" || commitState.status === "locking" || commitState.status === "locked" || commitState.status === "reconfirm"}
-          >
-            {commitState.status === "preparing"
-              ? "Checking fresh traffic…"
-              : commitState.status === "locking"
-                ? "Locking mission…"
-              : commitState.status === "locked"
-                  ? "Mission locked"
-                  : commitState.status === "error" && commitState.retry !== undefined
-                    ? "Retry mission lock"
-                  : "Take controls"}
-          </button>
         </>
       )}
     </aside>

@@ -583,10 +583,20 @@ body {
   z-index: 35;
   width: min(470px, calc(100% - 24px));
   max-height: calc(100% - 64px);
+  /* Flex column so heading/disclosure/grid/TAKE CONTROLS stay pinned and only the tall
+     eligible-airports list gives (owner 2026-08-13: briefing was small + scrolled the button
+     off). overflow-y:auto is the safety fallback if even the fixed parts exceed the card. */
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   padding: 12px 14px;
   pointer-events: auto;
 }
+.mission-tray-heading,
+.mission-disclosure,
+.mission-grid,
+.mission-state,
+.mission-take-controls { flex: none; }
 .mission-disclosure {
   margin: 10px 0;
   padding: 6px 8px;
@@ -1467,6 +1477,11 @@ body {
   .pwa-panel,
   .quick-start { background: rgba(5, 7, 10, 0.98); }
   .mission-alternative { min-height: 44px; align-items: center; }
+  /* Button is pinned above; the eligible-airports list absorbs the leftover height and scrolls
+     inside itself, so the whole card never needs to scroll to reach TAKE CONTROLS (owner
+     2026-08-13). */
+  .mission-alternatives { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+  .mission-alternative-list { flex: 1 1 auto; max-height: none; }
 
   /* HUD shrinks to fit: readouts via a clamp() that tops out at the desktop size, gaps tighten.
      The SIM banner, warnings, heading and attribution are never dropped (spec §2.2 / §4). */
