@@ -1,0 +1,74 @@
+{
+  "id": "tprop",
+  "label": "TPROP",
+  "modelNote": "KING AIR-CLASS MODEL",
+  "massKg": 5700,
+  "wingAreaM2": 28.8,
+  "wingSpanM": 17.65,
+  "aspectRatio": 10.8,
+  "aero": {
+    "cl0": 0.30, "clAlphaPerRad": 5.5, "stallAlphaRad": 0.28, "postStallDecayRad": 0.16,
+    "cd0": 0.028, "gearDragCd0": 0.02, "speedbrakeCd0": 0.0, "oswaldE": 0.80, "cyBeta": -0.70
+  },
+  "control": {
+    "rollRateMaxRadS": 0.7, "pitchRateMaxRadS": 0.30, "yawRateMaxRadS": 0.18,
+    "rollDampingPerS": 3.0, "pitchDampingPerS": 2.5, "yawDampingPerS": 2.0,
+    "pitchStiffnessPerS2": 3.0, "yawStiffnessPerS2": 2.2, "refDynamicPressurePa": 3500,
+    "trimAlphaCenterRad": 0.03, "trimAlphaRangeRad": 0.14
+  },
+  "propulsion": {
+    "maxPowerW": 1566000, "lapseModel": "turboprop", "propEfficiency": 0.85,
+    "propPeakSpeedMs": 100, "afterburnerFactor": 1.0,
+    "turbopropCornerM": 6858, "turbopropLapseExp": 2.5
+  },
+  "limits": {
+    "vneIasMs": 135.3, "vnoIasMs": 126.0, "vfeIasMs": 80.8, "gLimitPos": 3.1,
+    "gLimitNeg": -1.2, "serviceCeilingM": 10668, "mmo": 0.58, "vleIasMs": 94.7
+  },
+  "flaps": [
+    { "label": "0", "dCL0": 0.0, "dStallAlphaRad": 0.0, "dCD0": 0.0 },
+    { "label": "APPR", "dCL0": 0.4, "dStallAlphaRad": -0.03, "dCD0": 0.02 },
+    { "label": "FULL", "dCL0": 0.8, "dStallAlphaRad": -0.07, "dCD0": 0.06 }
+  ],
+  "gear": "retractable",
+  "display": { "asiMinKt": 40, "asiMaxKt": 300, "attitudeStyle": "line" },
+  "sources": {
+    "massKg": "TUNING KNOB (cruise/climb) — 5.7 t mid-mission weight (King Air 350 MTOW 6.804 t / 15,000 lb). Pinned by the FL280 cruise trim + sea-level climb tests. Source verification pending (POH).",
+    "wingAreaM2": "TUNING KNOB — 28.8 m^2 (~310 sq ft published King Air 350 wing area); wing loading ~198 kg/m^2 at 5.7 t. Source verification pending.",
+    "wingSpanM": "17.65 m (57 ft 11 in published King Air 350 span). Source verification pending; consistent with aspectRatio: b^2/S = 17.65^2/28.8 = 10.8.",
+    "aspectRatio": "10.8 — high-AR straight turboprop wing (efficient cruise, a King Air signature); b^2/S = 17.65^2/28.8 = 10.8.",
+    "cl0": "TUNING KNOB (cruise trim + stall band) — 0.30 zero-AoA lift for a straight high-AR wing.",
+    "clAlphaPerRad": "TUNING KNOB (stall band) — 5.5/rad, a straight high-AR wing lift slope (steeper than a swept jet's). Pinned by the sea-level clean-stall-speed band test (75-90 kt).",
+    "stallAlphaRad": "TUNING KNOB (stall band) — 16.0 deg (0.28 rad) clean critical AoA; CLmax_clean = 0.30 + 5.5*0.28 = 1.84. Pinned alongside clAlphaPerRad by the stall-speed band test.",
+    "postStallDecayRad": "TUNING KNOB — 0.16 rad fade width past the break, matching the c172/b738/f5e pattern.",
+    "cd0": "TUNING KNOB (cruise TAS + SL climb + service ceiling) — 0.028, a realistic clean turboprop parasite-drag coefficient (props/exposed gear bays are draggier than a clean jet). Pinned with maxPowerW + the lapse corner by the FL280-cruise + SL-climb + 35,000 ft-ceiling triple. Source verification pending.",
+    "gearDragCd0": "TUNING KNOB — 0.02 retractable main/nose gear increment.",
+    "speedbrakeCd0": "0.0 — the King Air 350 has NO airbrake/spoiler, so this increment is honestly zero and the KeyB speedbrake toggle is inert for this class (validated with num(), not positive(), so 0 is legal).",
+    "oswaldE": "TUNING KNOB — 0.80, typical for a straight high-AR wing.",
+    "cyBeta": "TUNING KNOB — -0.70/rad twin-turboprop side-force slope.",
+    "rollRateMaxRadS": "TUNING KNOB — ~40 deg/s, unhurried turboprop roll (faster than the 737, slower than the bizjet).",
+    "pitchRateMaxRadS": "TUNING KNOB — ~17 deg/s.",
+    "yawRateMaxRadS": "TUNING KNOB — ~10 deg/s.",
+    "damping/stiffness": "TUNING KNOBS — pitch omega_n = sqrt(3.0) = 1.73 rad/s, zeta = 2.5/(2*1.73) = 0.72 (well damped).",
+    "refDynamicPressurePa": "TUNING KNOB — 3500 Pa (below the jets' 6000-6500): a slower turboprop reaches full control authority at its own lower speed band.",
+    "trimAlphaCenterRad": "TUNING KNOB — 1.7 deg, near cruise AoA so trim near centre is roughly hands-off cruise.",
+    "trimAlphaRangeRad": "TUNING KNOB — +-8.0 deg trim authority, enough to trim from approach AoA to cruise AoA (verified by the trimmed-level-flight test).",
+    "propulsion": "TUNING KNOBS — 2x flat-rated turboprop via the shared power-limited-PROP formula T=eta*P/max(V,propPeakSpeedMs) (SAME formula as the C172, NOT the flat-rated-turbofan constant-thrust form): propPeakSpeedMs 100 m/s sits BELOW cruise TAS (~160 m/s), so thrust falls with speed like a real prop, and ramps prop efficiency in the climb. maxPowerW 1.566 MW = 2x 1,050 shp flat-rated (PT6A-60A-class). eta*P/peak = 0.85*1.566e6/100 = 13.3 kN full-throttle static-band thrust; T/W ~0.24 at 5.7 t. afterburnerFactor 1.0 (none). lapseModel: see the lapse-model decision below — starts 'piston', changed to 'turboprop' in Step 6 if the ceiling test requires. Source verification pending (PT6A-60A flat-rated shp + critical altitude).",
+    "propPeakSpeedMs": "TUNING KNOB (climb + cruise) — 100 m/s (194 kt): below cruise TAS so cruise thrust falls with speed (real prop), above best-climb TAS so the efficiency ramp caps SL climb to a plausible rate. One of the two least-certain numbers (with maxPowerW).",
+    "propEfficiency": "0.85 — the eta in T = eta*P/max(V,peak), matching the other classes; kept near 1 so maxPowerW carries the tuning.",
+    "lapseModel": "\"turboprop\" — DECISION MADE BY MEASUREMENT (decisions.md TP-001). Started 'piston' and measured: at the honest 1.566 MW (which gives a real ~2723 fpm SL climb) piston (Gagg-Ferrar) lapse retains only ~33% shaft power at FL280 and ~22% at FL350, so cruise starved to 205 kt (needs >270) AND best climb at 35,000 ft was -257 fpm (no ceiling — cannot hold altitude). Forcing cruise into band under piston needs ~2.6 MW, which then gives an absurd ~5814 fpm SL climb (real King Air ~2731) and only marginally rescues the ceiling to +419 fpm — i.e. piston cannot yield an honest King Air at ANY single power. So an additive 'turboprop' lapse (forces.ts turbopropPowerLapse: flat-rated SHAFT power to turbopropCornerM, then (sigma/sigmaCorner)^turbopropLapseExp) was added; piston/turbofan/none stay byte-identical.",
+    "afterburnerFactor": "1.0 — turboprop, no afterburner.",
+    "turbopropCornerM": "TUNING KNOB (cruise + ceiling) — 6858 m (~FL225) flat-rating critical altitude for the shared turboprop lapse (forces.ts turbopropPowerLapse defaults to TURBOPROP_CORNER_M = 6096 m / FL200 when omitted). Full flat-rated shaft power at/below it, density falloff above. Pinned with turbopropLapseExp by the FL280-cruise + 35,000 ft-ceiling pair: the default FL200 corner + exp gave 1446 fpm at FL350 (no real ceiling), so this class overrides both. PT6A-60A-class critical altitude, source verification pending.",
+    "turbopropLapseExp": "TUNING KNOB (ceiling) — 2.5, the stratospheric shaft-power falloff exponent above the corner (turbofan uses 1.0 = power tracks density). An unaugmented turboprop loses power faster than density at high altitude (compounding mass-flow and thermal-efficiency losses; the King Air's certified ceiling is also partly cabin-pressure limited, folded here into the power lapse), so a steeper exponent is what makes the certified FL350 service ceiling a REAL ~217 fpm barrier instead of a 1446 fpm non-ceiling. Pinned with turbopropCornerM by the ceiling test; not a published figure.",
+    "limits.vneIasMs": "Vmo ~263 KIAS = 135.3 m/s (King Air 350). Source verification pending.",
+    "limits.vnoIasMs": "~245 KIAS = 126.0 m/s display caution reference below Vmo. Source verification pending.",
+    "limits.vfeIasMs": "~157 KIAS = 80.8 m/s full-flap placard (most-restrictive detent); display only. Source verification pending.",
+    "mmo": "0.58 — King Air 350 Mmo. At FL280 cruise (~M0.51) it does not bind. Source verification pending.",
+    "vleIasMs": "~184 KIAS = 94.7 m/s Vle/Vlo placard; display only. Source verification pending.",
+    "gLimits": "+3.1 / -1.2 — commuter-category turboprop clean flight-envelope limits (King Air is FAR 23 commuter category, ~+3.17/-1.27 at MTOW). Pinned by the g-clamp envelope test. Source verification pending.",
+    "serviceCeilingM": "10,668 m (35,000 ft) — King Air 350 certified service ceiling. Made honest in-model by the turboprop lapse (turbopropCornerM 6858 + turbopropLapseExp 2.5): full-throttle best climb there measures ~217 fpm — a real barely-climbing ceiling inside the test's 0-500 fpm band, reached because the steep stratospheric shaft-power falloff runs the climb out at the certified altitude. Source verification pending.",
+    "flaps": "0/APPR/FULL — simplified King Air schedule; dCL0/dStallAlpha/dCD0 are TUNING KNOBS giving monotonically falling stall speeds and rising drag.",
+    "display": "ASI 40-300 kt spans the turboprop band; attitudeStyle line (steam-gauge horizon, like the C172 — a King Air panel reads closer to the GA six-pack than an EFIS disc). ATTITUDE_STYLES in params.ts accepts only line|ball, so the six-pack intent is carried by 'line' here; the dashboard PRIMARY (six-pack vs EFIS) is chosen in Task 2's dashboard/profiles.ts, not this file.",
+    "gear": "retractable — King Air 350 has retractable tricycle gear."
+  }
+}

@@ -2445,3 +2445,46 @@ flat-rated approximation), and `turbofanCornerM` are all TUNING KNOBS. **Citatio
 performance figures (thrust, wing geometry, exact placards) still need source verification** — flagged
 "source verification pending" in `biz.json` `sources`, not silently invented. The new `biz` leaderboard
 board starts empty (honest — no biz flights scored yet).
+
+## 2026-08-13 — TP-001 · King Air-class turboprop (`tprop`): additive `turboprop` power lapse, decided by measurement
+
+Added a `tprop` (Beechcraft King Air 350 / B300-class twin turboprop) flight model — the 2nd of three
+new archetypes after `biz`. Built data-not-branches: a new `params/tprop.json` drives the SAME
+Cesium-free 6-DOF model as the other classes via the shared power-limited-PROP thrust
+`T=η·P/max(V,propPeakSpeedMs)` (the C172's formula, NOT the flat-rated-turbofan constant-thrust form),
+with 2× flat-rated turbines (`maxPowerW` 1.566 MW ≈ 2×1,050 shp), retractable gear, no afterburner.
+
+**The lapse-model decision (made by measurement, TDD).** The powerplant altitude lapse is DATA
+(`propulsion.lapseModel`), so a new class is normally just a JSON file. `tprop` started with the
+existing `"piston"` lapse and the envelope test measured whether that could produce an honest King Air:
+
+- At the honest 1.566 MW (which gives a real ~2723 fpm sea-level climb, matching the King Air's ~2731),
+  piston (Gagg-Ferrar) lapse retains only ~33% shaft power at FL280 and ~22% at FL350. Result: cruise
+  **starved to 205 kt** (needs 270–345) and best climb at 35,000 ft **-257 fpm** — no ceiling, the model
+  cannot even hold altitude there.
+- Forcing cruise into band under piston needs ~2.6 MW, which then gives an **absurd ~5814 fpm** sea-level
+  climb and only marginally rescues the ceiling (+419 fpm). So piston lapse **cannot yield an honest King
+  Air at any single power** — a stronger result than the brief anticipated (it expected only the ceiling
+  to fail).
+
+So a new **additive `turboprop` lapse** was added (`forces.ts turbopropPowerLapse`): flat-rated SHAFT
+power to a corner altitude, then `(σ/σ_corner)^exp` above it — structurally identical to
+`turbofanPowerLapse` but applied to P (a turboprop is a power-limited prop) rather than T. It is purely
+additive: `piston`/`turbofan`/`none` are byte-identical (all other envelope tests unchanged, 180/180
+green). Corner and exponent are per-class-overridable DATA (`propulsion.turbopropCornerM` /
+`turbopropLapseExp`), defaulting to FL200 / exp 1.0 when omitted, mirroring the `turbofanCornerM`
+precedent (TP follows AF-002 / the biz per-class-corner decision).
+
+**Tuning knobs.** `tprop` overrides `turbopropCornerM: 6858` (~FL225) and `turbopropLapseExp: 2.5`.
+The steep exponent (turbofan uses 1.0) is what makes the certified FL350 service ceiling a REAL ~217 fpm
+barrier instead of a 1446 fpm non-ceiling — an unaugmented turboprop loses power faster than density at
+altitude (compounding mass-flow/thermal-efficiency losses; the King Air's ceiling is also partly
+cabin-pressure limited, folded into the lapse). Both are TUNING KNOBS pinned by the FL280-cruise +
+35,000 ft-ceiling pair, not sourced figures. Measured envelope: cruise ~285 kt TAS @ FL280, SL climb
+~2723 fpm, ceiling climb ~217 fpm, clean stall in the ~75–90 kt band, +3.1 g clamp. `maxPowerW`,
+`propPeakSpeedMs`, `cd0`, and the two turboprop-lapse knobs are the least-certain numbers — **PT6A-60A
+flat-rated shp + critical altitude and King Air 350 published geometry/placards still need source
+verification**, flagged "source verification pending" in `tprop.json` `sources`.
+
+`display.attitudeStyle` is `"line"` (the validator accepts only `line`|`ball`); the six-pack-vs-EFIS
+dashboard choice is deferred to Task 2's `dashboard/profiles.ts`, not this params file.

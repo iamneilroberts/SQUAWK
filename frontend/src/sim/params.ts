@@ -8,6 +8,7 @@ import c172Raw from "../params/c172.json";
 import b738Raw from "../params/b738.json";
 import f5eRaw from "../params/f5e.json";
 import bizRaw from "../params/biz.json";
+import tpropRaw from "../params/tprop.json";
 
 function asRecord(value: unknown, path: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -44,7 +45,7 @@ function str(obj: Record<string, unknown>, key: string, path: string): string {
  * piston engine, and defaulting to "piston" would bake a light-single assumption into every
  * future class. Keep this list in step with `POWER_LAPSE_MODELS` in forces.ts.
  */
-const LAPSE_MODELS: readonly LapseModel[] = ["piston", "none", "turbofan"];
+const LAPSE_MODELS: readonly LapseModel[] = ["piston", "none", "turbofan", "turboprop"];
 
 function lapseModel(obj: Record<string, unknown>, path: string): LapseModel {
   const v = str(obj, "lapseModel", path);
@@ -154,6 +155,15 @@ export function validateClassParams(raw: unknown): ClassParams {
       ...(propulsion.turbofanLapseExp === undefined
         ? {}
         : { turbofanLapseExp: positive(propulsion, "turbofanLapseExp", "params.propulsion") }),
+      // Optional per-class turboprop flat-rating overrides, mirroring the turbofan pair above.
+      // Absent → left undefined, and turbopropPowerLapse falls back to the shared TURBOPROP_CORNER_M /
+      // TURBOPROP_LAPSE_EXP defaults. Only read when lapseModel="turboprop".
+      ...(propulsion.turbopropCornerM === undefined
+        ? {}
+        : { turbopropCornerM: positive(propulsion, "turbopropCornerM", "params.propulsion") }),
+      ...(propulsion.turbopropLapseExp === undefined
+        ? {}
+        : { turbopropLapseExp: positive(propulsion, "turbopropLapseExp", "params.propulsion") }),
     },
     limits: {
       vneIasMs: positive(limits, "vneIasMs", "params.limits"),
@@ -208,6 +218,14 @@ export function loadBiz(): ClassParams {
   return cachedBiz;
 }
 
+let cachedTprop: ClassParams | null = null;
+
+/** The King Air-class turboprop class (power-limited prop, turbine altitude lapse). */
+export function loadTprop(): ClassParams {
+  if (cachedTprop === null) cachedTprop = validateClassParams(tpropRaw);
+  return cachedTprop;
+}
+
 /** Resolve a class id (from resolveClass) to its validated params. Unknown id is a bug, not data. */
 export function loadClassById(id: string): ClassParams {
   switch (id) {
@@ -215,6 +233,7 @@ export function loadClassById(id: string): ClassParams {
     case "b738": return loadB738();
     case "f5e": return loadF5e();
     case "biz": return loadBiz();
+    case "tprop": return loadTprop();
     default: throw new Error(`unknown class id: ${id}`);
   }
 }

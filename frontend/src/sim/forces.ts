@@ -131,6 +131,30 @@ export function turbofanPowerLapse(
 }
 
 /**
+ * Flat-rated turboprop SHAFT-POWER lapse. A free-turbine turboprop holds close to its flat-rated
+ * shaft power from sea level up to a critical (corner) altitude, then loses power with density in
+ * the stratosphere — exactly turbofanPowerLapse's shape, but on P (shaft power) not T (thrust),
+ * because a turboprop is a power-limited PROP (thrust still comes from T = eta*P/max(V,peak)). The
+ * piston (Gagg-Ferrar) lapse would retain only ~22% of power at FL350, giving the King Air a
+ * far-too-low ceiling; the turbine holds power much better, so its ceiling is real at ~FL350.
+ * Corner altitude / exponent are per-class-overridable DATA (propulsion.turbopropCornerM /
+ * turbopropLapseExp); the constants below are the defaults. decisions.md TP-001.
+ */
+export const TURBOPROP_CORNER_M = 6096; // ~FL200, PT6A-class flat-rating critical altitude
+export const TURBOPROP_LAPSE_EXP = 1.0;
+
+export function turbopropPowerLapse(
+  altitudeM: number,
+  cornerM: number = TURBOPROP_CORNER_M,
+  lapseExp: number = TURBOPROP_LAPSE_EXP,
+): number {
+  if (altitudeM <= cornerM) return 1;
+  const sigma = isaDensity(altitudeM) / RHO_SL;
+  const sigmaCorner = isaDensity(cornerM) / RHO_SL;
+  return Math.pow(sigma / sigmaCorner, lapseExp);
+}
+
+/**
  * Which lapse a powerplant obeys is DATA (`propulsion.lapseModel`), not a class branch:
  * the piston lapse above is a C172 fact, and applying it to a flat-rated turbofan would be
  * an invisible piston assumption baked into a supposedly class-agnostic core. The jet classes
@@ -142,6 +166,7 @@ export const POWER_LAPSE_MODELS: Record<LapseModel, (altitudeM: number, params: 
   piston: (h) => pistonPowerLapse(h),
   none: () => 1,
   turbofan: (h, p) => turbofanPowerLapse(h, p.propulsion.turbofanCornerM, p.propulsion.turbofanLapseExp),
+  turboprop: (h, p) => turbopropPowerLapse(h, p.propulsion.turbopropCornerM, p.propulsion.turbopropLapseExp),
 };
 
 /**

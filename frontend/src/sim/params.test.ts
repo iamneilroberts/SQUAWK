@@ -118,7 +118,7 @@ describe("validateClassParams", () => {
     const p = loadC172();
     const bad = {
       ...(p as unknown as Record<string, unknown>),
-      propulsion: { ...p.propulsion, lapseModel: "turboprop" },
+      propulsion: { ...p.propulsion, lapseModel: "rocket" },
     };
     expect(() => validateClassParams(bad)).toThrow(/lapseModel must be one of/);
   });

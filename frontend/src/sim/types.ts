@@ -16,7 +16,7 @@ export type Quat = { x: number; y: number; z: number; w: number };
  * band this sim flies. Every model here has an entry in `POWER_LAPSE_MODELS` in forces.ts,
  * and `validateClassParams` rejects any other value at load time.
  */
-export type LapseModel = "piston" | "none" | "turbofan";
+export type LapseModel = "piston" | "none" | "turbofan" | "turboprop";
 
 /** ASI face style is data: C172 keeps its minimalist line horizon, jets get a filled ball. */
 export type AttitudeStyle = "line" | "ball";
@@ -116,6 +116,15 @@ export type ClassParams = {
     turbofanCornerM?: number;
     /** Turbofan stratospheric lapse exponent. Optional; defaults to TURBOFAN_LAPSE_EXP (1.0). */
     turbofanLapseExp?: number;
+    /**
+     * Turboprop flat-rating corner altitude (m): full flat-rated SHAFT power at/below it, density
+     * lapse above. Optional — omitted classes use the shared TURBOPROP_CORNER_M default (FL200).
+     * Only read when lapseModel="turboprop" (a free-turbine turboprop holds shaft power with
+     * altitude far better than a piston, so its ceiling is real; see forces.ts turbopropPowerLapse).
+     */
+    turbopropCornerM?: number;
+    /** Turboprop stratospheric shaft-power lapse exponent. Optional; defaults to TURBOPROP_LAPSE_EXP (1.0). */
+    turbopropLapseExp?: number;
   };
   limits: {
     vneIasMs: number;
