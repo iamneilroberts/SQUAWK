@@ -53,6 +53,37 @@ function ScoreBreakdown({ components }: { components: LandingScoreComponents }) 
   );
 }
 
+/*
+ * Instant-flight highlight (B5 polish). A trimmed debrief leads with the outcome big, then the
+ * three stats a casual pilot actually reads — how long, how far, how high. The full RESULT /
+ * FLIGHT SUMMARY grid still follows below for anyone who wants the detail; this is the headline.
+ */
+function InstantHero({ stats }: { stats: FlightStats }) {
+  return (
+    <div className="debrief-hero" aria-label="Instant flight summary">
+      <div className="debrief-hero-outcome">{stats.classification}</div>
+      <div className="debrief-hero-stats">
+        <div className="debrief-hero-stat">
+          <span className="debrief-hero-value">{formatAirtime(stats.airtimeS)}</span>
+          <span className="label">AIRTIME</span>
+        </div>
+        <div className="debrief-hero-stat">
+          <span className="debrief-hero-value">
+            {(stats.distanceM / M_PER_NM).toFixed(1)}<span className="debrief-hero-unit"> NM</span>
+          </span>
+          <span className="label">DISTANCE</span>
+        </div>
+        <div className="debrief-hero-stat">
+          <span className="debrief-hero-value">
+            {formatAltFt(stats.maxAltitudeM)}<span className="debrief-hero-unit"> FT</span>
+          </span>
+          <span className="label">MAX ALT</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Versions({ versions }: { versions: MissionVersionSet }) {
   return (
     <details className="debrief-versions">
@@ -75,6 +106,7 @@ export default function EndCard({
   callsign = null,
   onExit,
   onSignIn,
+  onFlyAgain,
 }: {
   stats: FlightStats;
   submission: DebriefSubmission;
@@ -84,7 +116,10 @@ export default function EndCard({
   onExit(): void;
   /** Opens sign-in from an instant flight's SIGN IN TO RANK action (B5); absent = no button. */
   onSignIn?(): void;
+  /** Restarts a fresh instant flight from the debrief (B5 FLY AGAIN); absent = no button. */
+  onFlyAgain?(): void;
 }) {
+  const isInstant = submission.status === "instant";
   const accepted = submission.status === "accepted" ? submission.result : null;
   const preview = submission.status === "submitting" || submission.status === "failed" ||
     submission.status === "queued" || submission.status === "tutorial" ||
@@ -127,6 +162,7 @@ export default function EndCard({
       <div className="panel end-card" role="dialog" aria-label="Flight debrief">
         <div className="label handoff-title">DEBRIEF — {stats.classification}</div>
         <div className="debrief-authority" aria-live="polite">{authority}</div>
+        {isInstant && <InstantHero stats={stats} />}
         {submission.status === "failed" && (
           <div className="auth-error label" role="alert">{submission.message}</div>
         )}
@@ -173,7 +209,12 @@ export default function EndCard({
             RETRY RESULT
           </button>
         )}
-        {submission.status === "instant" && onSignIn && (
+        {isInstant && onFlyAgain && (
+          <button className="control-button debrief-fly-again" type="button" onClick={onFlyAgain}>
+            FLY AGAIN
+          </button>
+        )}
+        {isInstant && onSignIn && (
           <button className="control-button debrief-sign-in" type="button" onClick={onSignIn}>
             SIGN IN TO RANK THIS FLIGHT
           </button>

@@ -674,23 +674,31 @@ body {
 .assist-control small { grid-column: 1 / -1; opacity: 0.72; }
 .assist-control-off { border-color: rgba(95, 215, 224, 0.5); }
 
-.mission-nav-cue {
+/* Desktop destination indicator (#47) — top-center, tucked under the HDG readout. Uses the same
+   .hud-scrim backing/border as the corner clusters, so it reads over bright sky and matches the
+   HUD language. Amber for the heading-relative pointer (a directive), cyan for the ident/range. */
+.hud-destination {
   position: absolute;
-  z-index: 31;
-  top: 4.5rem;
-  left: 11rem;
+  top: 78px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  gap: 0.75rem;
-  align-items: baseline;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid rgba(95, 215, 224, 0.62);
-  background: rgba(2, 8, 11, 0.82);
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
   color: var(--cyan);
-  font-family: var(--mono);
-  letter-spacing: 0.06em;
   pointer-events: none;
 }
-.mission-nav-cue strong { color: var(--amber); }
+.hud-destination-dest { font-weight: 700; letter-spacing: 0.14em; }
+.hud-destination-dist { opacity: 0.85; }
+.hud-destination-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--amber);
+}
+.hud-destination-arrow { display: inline-block; font-weight: 700; }
 .mission-reconfirm {
   margin-top: 12px;
   padding: 9px;
@@ -844,6 +852,39 @@ body {
   color: var(--amber);
 }
 .debrief-sign-in:hover { background: rgba(255, 176, 0, 0.12); }
+
+/* Instant-flight highlight (B5): big outcome + a 3-stat grid lead the trimmed debrief. */
+.debrief-hero {
+  margin: 10px 0 4px;
+  padding: 12px;
+  border: 1px solid var(--grid);
+  background: rgba(5, 7, 10, 0.5);
+  text-align: center;
+}
+.debrief-hero-outcome {
+  font-size: 28px;
+  letter-spacing: 0.16em;
+  color: var(--cyan);
+}
+.debrief-hero-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+.debrief-hero-stat { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.debrief-hero-value { font-size: 20px; color: var(--text); }
+.debrief-hero-unit { font-size: 11px; opacity: 0.7; }
+/* FLY AGAIN: the primary one-tap restart — filled cyan, matching the FLY NOW start card. */
+.debrief-fly-again {
+  width: 100%;
+  margin-top: 10px;
+  justify-content: center;
+  border-color: var(--cyan);
+  background: rgba(95, 215, 224, 0.16);
+  color: var(--cyan);
+}
+.debrief-fly-again:hover { background: rgba(95, 215, 224, 0.26); }
 
 /* ---- six-pack: analog dials, 1px strokes, cyan nominal / amber abnormal ---- */
 .six-pack {
@@ -1814,15 +1855,13 @@ body {
 
 @media (max-width: 767px) {
   /* The A/C rail, its secondary row, AND the relocated control chips (FULL/EXIT · DCLTR · MENU at
-     safe-area+88px, 36px tall → bottom ~124px) occupy the top band. Keep mission controls below
-     all of it (#26) so mission-nav-cue no longer collides with the right-anchored chips; the
-     joystick/throttle remain anchored to the bottom and are intentionally untouched. */
-  .assist-control,
-  .mission-nav-cue {
+     safe-area+88px, 36px tall → bottom ~124px) occupy the top band. Keep the assist control below
+     all of it (#26) so it no longer collides with the right-anchored chips; the joystick/throttle
+     remain anchored to the bottom and are intentionally untouched. */
+  .assist-control {
     top: max(132px, calc(env(safe-area-inset-top) + 128px));
+    left: max(8px, env(safe-area-inset-left));
   }
-  .assist-control { left: max(8px, env(safe-area-inset-left)); }
-  .mission-nav-cue { right: max(8px, env(safe-area-inset-right)); left: auto; }
 }
 
 @media (max-width: 360px) {

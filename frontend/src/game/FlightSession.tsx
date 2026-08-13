@@ -43,7 +43,6 @@ import { releaseMissionLease, submitMissionResult } from "../mission/api";
 import { buildMissionResultPackage } from "../mission/resultPackage";
 import { assistFeatures, assistModeFromPreference, missionNavigationCue } from "../mission/assists";
 import AssistControl from "../mission/AssistControl";
-import MissionNavCue from "../mission/MissionNavCue";
 import MissionRouteLayer from "../globe/MissionRouteLayer";
 import ApproachAssistLayer from "../globe/ApproachAssistLayer";
 import PapiLayer from "../globe/PapiLayer";
@@ -75,12 +74,16 @@ export default function FlightSession({
   onTutorialComplete,
   onCoachingComplete,
   onSignInToRank,
+  onFlyAgain,
 }: {
   coachingEnabled?: boolean;
   onTutorialComplete?(classId: "c172s" | "b738" | "f5e"): void;
   onCoachingComplete?(): void;
   /** Opens the sign-in sheet from the instant-flight debrief's SIGN IN TO RANK action (B5). */
   onSignInToRank?(): void;
+  /** Restarts a fresh instant flight from the debrief's FLY AGAIN action (B5). App re-runs its
+   *  take-controls pick after this session tears down; here we just do the teardown. */
+  onFlyAgain?(): void;
 }) {
   const bundle = useViewer();
   const mode = useStore((s) => s.mode);
@@ -864,7 +867,8 @@ export default function FlightSession({
               destination pointer instead (owner: clean portrait view). */}
           {!narrow && (
             <div className={"mission-chrome" + (faded ? " mission-chrome-faded" : "")}>
-              <MissionNavCue mission={lockedMission} assist={assist.current} />
+              {/* The destination cue now lives at the top of the HUD (Hud.tsx HudDestinationCue,
+                  #47) — a single heading-relative indicator that also covers instant flight. */}
               <AssistControl />
             </div>
           )}
@@ -954,6 +958,16 @@ export default function FlightSession({
           callsign={snapshot?.callsign ?? null}
           onExit={() => leaveToBrowse("EXIT_END")}
           onSignIn={onSignInToRank}
+          onFlyAgain={
+            onFlyAgain
+              ? () => {
+                  // Tear the current flight down (camera handoff, loop disposal, back to BROWSE),
+                  // then let App pick the next contact and start a fresh instant flight.
+                  leaveToBrowse("EXIT_END");
+                  onFlyAgain();
+                }
+              : undefined
+          }
         />
       )}
     </>

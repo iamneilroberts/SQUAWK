@@ -2231,3 +2231,30 @@ Hence a pointer-only exception in FlightSession rather than defaulting instant f
 assist (which would render broken runway visuals). The label drops the "RWY --" segment for instant
 flights (airport ident only). Ranked/tutorial behaviour is unchanged. The broader #47 ask — a
 destination indicator in the DEFAULT (non-immersive) desktop HUD — remains open.
+
+## 2026-08-13 — Desktop HUD destination indicator (#47) + instant debrief polish (B5)
+
+**#47 desktop pointer.** The scattered desktop HUD had no equivalent of the mobile bar's
+NavDirector, so instant flight showed no destination cue on desktop. Added `HudDestinationCue` to
+the DEFAULT (non-immersive) Hud tree — top-center under the HDG readout — driven by the SAME
+`immersiveNavCue` prop the bar already receives (populated for instant flight and any
+destinationCue-assist ranked flight). It names the airport, its range, and an arrow rotated to the
+destination's bearing RELATIVE to the nose (reusing `relativeBearingDeg`), matching the mobile
+NavDirector. Renders nothing when there is no assignment (no persistent "NO DESTINATION" chip on
+desktop — the desktop HUD is already dense). This SUPERSEDES `mission/MissionNavCue.tsx` (removed):
+that chrome cue used the same `missionNavigationCue` data but (a) was assist-gated so it never lit
+for instant flight, (b) showed only bearing°/NM with no heading-relative arrow, and (c) on desktop
+immersive it double-rendered alongside the bar's NavDirector. Removing it also fixes that pre-existing
+double. Ranked flights now get the arrow-based top cue instead of the old chrome bearing readout.
+
+**B5 FLY AGAIN + hero.** The instant debrief now leads with a big outcome + a 3-stat highlight
+(AIRTIME · DISTANCE · MAX ALT) and offers a filled-cyan FLY AGAIN button — both instant-only and
+ADDITIVE (the full ranked EndCard layout and its locking tests are untouched). FLY AGAIN restarts a
+fresh instant flight: FlightSession tears the current flight down via the normal
+`leaveToBrowse("EXIT_END")` (camera handoff + loop disposal + clearSession → BROWSE), then calls an
+App-provided `flyAgain`, which defers one tick (`setTimeout(…, 0)`) so the browse-state commit lands
+before re-running `takeControls` (via a latest-value ref). `takeControls` then re-flies the still-
+selected contact if present, else the nearest flyable. Deferring-through-teardown rather than
+restarting in place avoids leaking the Cesium camera/loop. NOT YET LIVE-VERIFIED (deploy held for
+owner signoff) — unit-tested at the EndCard layer; the App→FlightSession restart path needs an
+eyeball on prod before trust.

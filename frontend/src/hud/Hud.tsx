@@ -12,6 +12,7 @@
 import type { HudSnapshot } from "./snapshot";
 import type { AttitudeStyle } from "../sim/types";
 import ImmersiveHudBar, {
+  relativeBearingDeg,
   type ImmersiveHudNavCue,
   type ImmersiveHudVariant,
   type TapeRange,
@@ -21,6 +22,40 @@ import {
   formatG, formatGear, formatHeadingDeg, formatIasKt, formatLightPhase, formatSimRate,
   formatTasKt, formatThrottlePct, formatVsiFpm, warningsFor,
 } from "./format";
+
+/*
+ * Desktop destination indicator (#47). The scattered desktop HUD had no equivalent of the mobile
+ * bar's NavDirector; this top-center cue names the assigned airport, its range, and an arrow that
+ * points where the destination is RELATIVE to the nose (left/right of current heading). Driven by
+ * the same immersiveNavCue the bar uses — so it lights up for instant flight (ungated) and for any
+ * ranked flight whose assist level includes the destination cue. Renders nothing when there is no
+ * assigned destination, so the desktop view stays clean (no persistent "NO DESTINATION" chip).
+ */
+function HudDestinationCue({
+  snapshot,
+  navCue,
+}: {
+  snapshot: HudSnapshot;
+  navCue: ImmersiveHudNavCue | null;
+}) {
+  if (navCue === null) return null;
+  const relative = relativeBearingDeg(snapshot.headingRad, navCue.bearingDeg);
+  const relativeText = `${relative >= 0 ? "+" : "−"}${Math.abs(Math.round(relative))}°`;
+  return (
+    <div className="hud-destination hud-scrim" aria-label="Assigned destination guidance">
+      <span className="hud-destination-dest">{navCue.destination}</span>
+      <span className="hud-destination-dist">{navCue.distanceNm.toFixed(1)} NM</span>
+      <span className="hud-destination-nav">
+        <span
+          className="hud-destination-arrow"
+          style={{ transform: `rotate(${Math.round(relative)}deg)` }}
+          aria-hidden="true"
+        >↑</span>
+        DEST {relativeText}
+      </span>
+    </div>
+  );
+}
 
 function Readout({ label, value, unit }: { label: string; value: string; unit?: string }) {
   return (
@@ -127,6 +162,8 @@ export default function Hud({
         <span className="hud-readout-label">HDG</span>
         <span className="hud-heading-value">{formatHeadingDeg(snapshot.headingRad)}</span>
       </div>
+
+      <HudDestinationCue snapshot={snapshot} navCue={immersiveNavCue} />
 
       <div className="hud-bottom">
         <span>THR {formatThrottlePct(snapshot.throttle)}</span>

@@ -61,9 +61,19 @@ flow-mock (FLY NOW start card + trimmed debrief); 3 anon flights then require si
 - [x] (c) C3 instant destination pointer — see HUD above.
 
 ## STILL PENDING
-- [ ] #47 default (non-immersive) desktop HUD destination indicator.
+- [x] #47 default (non-immersive) desktop HUD destination indicator — HudDestinationCue in Hud.tsx
+      (top-center, airport · NM · heading-relative arrow), driven by immersiveNavCue; supersedes +
+      removes mission/MissionNavCue.tsx. Gate green (1290 tests). COMMITTED, NOT DEPLOYED (owner signoff).
 - [x] verify + close #65 (mouse-look) and #61 (exterior trail flicker) — VERIFIED on b08ce861, closed.
-- [ ] B5 optional polish: mock's exact 3-stat trim + FLY AGAIN button.
+- [x] B5 polish: instant debrief hero (big outcome + AIRTIME/DISTANCE/MAX ALT) + FLY AGAIN button
+      (restarts a fresh instant flight via App flyAgain). Additive, instant-only. Gate green.
+      COMMITTED, NOT DEPLOYED. ⚠️ FLY AGAIN restart path NOT live-verified — eyeball on prod first.
+
+## Filed this session (mobile walkthrough): #69 pick-plane search zoom · #70 free-flight modal bottom
+## overlap · #71 provisional-mission card mobile display · #72 cockpit preview video/drop + stale
+## copy · #73 in-flight airport-label declutter (distance cap) · #74 immersive attribution fade.
+
+## C1 (client anon cap) and C2 (worker IP tripwire) remain — not started this session.
 
 ## Issues filed 2026-08-13: #66 (local/staging feed), #67 (mini-2D map on WX/radar), #68 (initial 3D-tilt wow).
 

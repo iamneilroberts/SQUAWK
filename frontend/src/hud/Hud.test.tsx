@@ -192,6 +192,48 @@ describe("Hud", () => {
     });
   });
 
+  // ---- Desktop destination indicator (#47): the scattered desktop HUD had no equivalent of
+  // the mobile bar's NavDirector. A top-center cue names the assigned airport, its range, and a
+  // heading-relative arrow. Driven by the same immersiveNavCue the bar uses (populated for instant
+  // flight and any destinationCue-assist ranked flight), so it covers instant flight too. ----
+  describe("desktop destination cue (#47)", () => {
+    const has = (classes: string[], token: string) =>
+      classes.some((c) => c.split(/\s+/).includes(token));
+    // heading 270°, destination due north (bearing 0°) → 90° to the right of the nose.
+    const navCue = { destination: "KGPT", bearingDeg: 0, distanceNm: 22.4 };
+
+    it("names the airport, range and heading-relative bearing on the desktop HUD", () => {
+      const text = collectText(
+        Hud({ snapshot: snap({ headingRad: degToRad(270) }), attribution: "", immersiveNavCue: navCue }),
+      ).join(" ");
+      expect(text).toContain("KGPT");
+      expect(text).toContain("22.4"); // NM
+      expect(text).toContain("DEST");
+      expect(text).toContain("+90"); // relative bearing, destination to the right
+    });
+
+    it("shows a rotating arrow element for the destination direction", () => {
+      const classes = collectClasses(
+        Hud({ snapshot: snap(), attribution: "", immersiveNavCue: navCue }),
+      );
+      expect(has(classes, "hud-destination-arrow")).toBe(true);
+    });
+
+    it("renders no destination cue when there is no assigned destination (honest, no clutter)", () => {
+      const classes = collectClasses(
+        Hud({ snapshot: snap(), attribution: "", immersiveNavCue: null }),
+      );
+      expect(has(classes, "hud-destination")).toBe(false);
+    });
+
+    it("does not duplicate the cue in the immersive bar tree (the bar carries its own NavDirector)", () => {
+      const classes = collectClasses(
+        Hud({ snapshot: snap(), attribution: "", immersive: true, immersiveNavCue: navCue }),
+      );
+      expect(has(classes, "hud-destination")).toBe(false);
+    });
+  });
+
   // ---- Always-narrow rail (mobile-rich-hud task 5): a narrow phone gets the compact rail
   // even before the user taps FULL. Immersive/fullscreen still drives the auto-hide fade. ----
   describe("always-narrow rail", () => {

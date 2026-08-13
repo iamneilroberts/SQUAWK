@@ -402,6 +402,16 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
       });
   }, [airports, authStatus, briefing.state, commitPreparation, missionCommit, selectedHex, home, savedCenter, contacts]);
 
+  // FLY AGAIN (B5): the instant-flight debrief restarts a fresh flight. FlightSession has already
+  // torn the old flight down and returned to BROWSE by the time this runs; we defer one tick so
+  // that state commits, then re-run take-controls (same selected contact if still selected, else
+  // the nearest flyable). A ref keeps this pointing at the latest take-controls closure.
+  const takeControlsRef = useRef(takeControls);
+  takeControlsRef.current = takeControls;
+  const flyAgain = useCallback(() => {
+    window.setTimeout(() => takeControlsRef.current(), 0);
+  }, []);
+
   const startTutorial = useCallback((classId: AircraftClassId) => {
     const definition = tutorialDefinitionForClass(classId);
     const started = useStore.getState().startTutorial(
@@ -498,6 +508,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
               onTutorialComplete={completeTutorial}
               onCoachingComplete={completeCoaching}
               onSignInToRank={() => setSignInOpen(true)}
+              onFlyAgain={flyAgain}
             />
           </ViewerHost>
           {mode === "BROWSE" && (

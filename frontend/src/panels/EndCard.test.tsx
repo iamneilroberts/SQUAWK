@@ -17,6 +17,22 @@ function collectText(node: unknown, out: string[] = []): string[] {
   return out;
 }
 
+function collectClasses(node: unknown, out: string[] = []): string[] {
+  if (node === null || node === undefined || typeof node !== "object") return out;
+  if (Array.isArray(node)) { for (const c of node) collectClasses(c, out); return out; }
+  const type = (node as { type?: unknown }).type;
+  const props = (node as { props?: unknown }).props as
+    | { className?: unknown; children?: unknown } | undefined;
+  if (typeof type === "function") return collectClasses((type as (p: unknown) => unknown)(props), out);
+  if (props) {
+    if (typeof props.className === "string") out.push(props.className);
+    if ("children" in props) collectClasses(props.children, out);
+  }
+  return out;
+}
+const hasClass = (classes: string[], token: string) =>
+  classes.some((c) => c.split(/\s+/).includes(token));
+
 const stats = (o: Partial<FlightStats> = {}): FlightStats => ({
   airtimeS: 185,
   distanceM: 12_500,
@@ -240,6 +256,65 @@ describe("EndCard", () => {
     const text = render(stats(), submission);
     expect(text).not.toContain("SIGN IN TO RANK");
   });
+  // ---- Instant-flight debrief polish (B5): a big outcome + a 3-stat highlight lead the card,
+  // and FLY AGAIN offers a one-tap restart. Additive + instant-only — the ranked layout is
+  // unchanged (the tests above still lock it). ----
+  const instantSubmission = (): DebriefSubmission => ({
+    status: "instant",
+    preview: {
+      classId: "b738",
+      versions,
+      highestAssist: "OFF",
+      evaluation: {
+        outcome: "landed",
+        failure: null,
+        measurements: null as never,
+        score: { total: 84, components: accepted.result.components! },
+      },
+    },
+  });
+
+  it("leads an instant debrief with a big outcome and a 3-stat highlight", () => {
+    const el = EndCard({
+      stats: stats({ classification: "LANDED", airtimeS: 185, distanceM: 18_520, maxAltitudeM: ftToM(5200) }),
+      submission: instantSubmission(),
+      onRetry: () => {},
+      onExit: () => {},
+      onSignIn: () => {},
+    });
+    expect(hasClass(collectClasses(el), "debrief-hero")).toBe(true);
+    const text = collectText(el).join(" ");
+    expect(text).toContain("LANDED"); // big outcome
+    expect(text).toContain("AIRTIME");
+    expect(text).toContain("DISTANCE");
+    expect(text).toContain("MAX ALT");
+    expect(text).toContain("10.0"); // 18 520 m distance = 10.0 NM
+  });
+
+  it("offers FLY AGAIN on an instant debrief when a handler is provided", () => {
+    const text = collectText(EndCard({
+      stats: stats(), submission: instantSubmission(),
+      onRetry: () => {}, onExit: () => {}, onFlyAgain: () => {},
+    })).join(" ");
+    expect(text).toContain("FLY AGAIN");
+  });
+
+  it("omits FLY AGAIN when no handler is provided", () => {
+    const text = collectText(EndCard({
+      stats: stats(), submission: instantSubmission(), onRetry: () => {}, onExit: () => {},
+    })).join(" ");
+    expect(text).not.toContain("FLY AGAIN");
+  });
+
+  it("shows no instant hero or FLY AGAIN on a ranked (accepted) debrief", () => {
+    const el = EndCard({
+      stats: stats(), submission: accepted,
+      onRetry: () => {}, onExit: () => {}, onFlyAgain: () => {},
+    });
+    expect(hasClass(collectClasses(el), "debrief-hero")).toBe(false);
+    expect(collectText(el).join(" ")).not.toContain("FLY AGAIN");
+  });
+
   it("does not invent a debrief when landing evidence is unavailable", () => {
     const text = render(stats(), {
       status: "unavailable",
