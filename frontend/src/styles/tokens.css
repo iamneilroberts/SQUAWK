@@ -2206,3 +2206,19 @@ body {
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* ---- #48 control-state mini-instruments ------------------------------------------- */
+.control-icon { display: block; width: 40px; height: 38px; overflow: visible; }
+.control-icon line, .control-icon path, .control-icon polygon, .control-icon circle { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.control-icon .ci-cy { stroke: var(--cyan); stroke-width: 1.4; }
+.control-icon .ci-am { stroke: var(--amber); stroke-width: 1.4; }
+.control-icon .ci-gr { stroke: var(--grid); stroke-width: 1; }
+.control-icon .ci-cyf { fill: var(--cyan); stroke: none; }
+.control-icon .ci-amf { fill: var(--amber); stroke: none; }
+.control-icon .ci-dash { stroke-dasharray: 2 2; }
+.control-icon-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.control-icon-label { font-size: 8.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text); opacity: 0.55; white-space: nowrap; }
+.control-icon-value { font-size: 10.5px; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.control-icon-value.tone-cyan { color: var(--cyan); }
+.control-icon-value.tone-amber { color: var(--amber); }
+.control-icon-value.tone-dim { color: var(--text); opacity: 0.5; }
