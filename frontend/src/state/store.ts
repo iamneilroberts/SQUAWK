@@ -121,6 +121,13 @@ type State = {
    * stay gated on `tutorial !== null` alone.
    */
   freeFlight: boolean;
+  /**
+   * True for an anonymous INSTANT flight (B3): fly-first / sign-in-later. Like `freeFlight` it is
+   * entirely client-side — no traffic/API polling, lease, or result submission — but its debrief is
+   * a scored, trimmed EndCard with SIGN IN TO RANK, not free flight's "no result" message. Kept as
+   * a distinct flag (not `freeFlight: true`) so those two debrief paths never blur.
+   */
+  instantFlight: boolean;
   assist: AssistState | null;
   endStats: FlightStats | null;
   /**
@@ -134,6 +141,7 @@ type State = {
   startLockedMission(mission: LockedMissionView): boolean;
   startTutorial(mission: LockedMissionView, tutorial: TutorialRun): boolean;
   startFreeFlight(mission: LockedMissionView): boolean;
+  startInstantFlight(mission: LockedMissionView): boolean;
   setAssistMode(mode: AssistMode): void;
   setEndStats(s: FlightStats | null): void;
   /** Clears the session payload without touching the mode. */
@@ -194,6 +202,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   lockedMission: null,
   tutorial: null,
   freeFlight: false,
+  instantFlight: false,
   assist: null,
   endStats: null,
 
@@ -346,6 +355,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       lockedMission: mission,
       tutorial: null,
       freeFlight: false,
+      instantFlight: false,
       origin: { hex: mission.contact.hex, snapshot: mission.contact },
       assist: initialAssistState(assistModeFromPreference(mission.assist)),
       endStats: null,
@@ -365,6 +375,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       lockedMission: mission,
       tutorial,
       freeFlight: false,
+      instantFlight: false,
       origin: { hex: mission.contact.hex, snapshot: mission.contact },
       assist: initialAssistState("FULL"),
       endStats: null,
@@ -386,6 +397,31 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       lockedMission: mission,
       tutorial: null,
       freeFlight: true,
+      instantFlight: false,
+      origin: { hex: mission.contact.hex, snapshot: mission.contact },
+      assist: initialAssistState(assistModeFromPreference(mission.assist)),
+      endStats: null,
+      contacts: new Map(),
+      selectedHex: null,
+      selectionLocked: false,
+    });
+    return true;
+  },
+
+  startInstantFlight(mission) {
+    const currentMode = get().mode;
+    const next = nextMode(currentMode, "TAKE_CONTROLS");
+    if (currentMode !== "BROWSE" || next !== "COUNTDOWN" || mission.status !== "locked") {
+      return false;
+    }
+    // Anonymous instant flight: local like free flight (no polling/lease/submission) but a distinct
+    // flag so its scored, trimmed debrief never routes through free flight's "no result" path.
+    set({
+      mode: next,
+      lockedMission: mission,
+      tutorial: null,
+      freeFlight: false,
+      instantFlight: true,
       origin: { hex: mission.contact.hex, snapshot: mission.contact },
       assist: initialAssistState(assistModeFromPreference(mission.assist)),
       endStats: null,
@@ -412,6 +448,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       lockedMission: null,
       tutorial: null,
       freeFlight: false,
+      instantFlight: false,
       assist: null,
       endStats: null,
       selectionLocked: false,
@@ -426,6 +463,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       lockedMission: null,
       tutorial: null,
       freeFlight: false,
+      instantFlight: false,
       assist: null,
       endStats: null,
       selectionLocked: false,
@@ -517,7 +555,7 @@ export function startTrafficPolling(options: TrafficPollingOptions = {}): () => 
     if (stopped || inFlight || !visibility.isVisible()) return;
     inFlight = true;
     const session = useStore.getState();
-    if (session.tutorial !== null || session.freeFlight) {
+    if (session.tutorial !== null || session.freeFlight || session.instantFlight) {
       inFlight = false;
       schedule(delayMs());
       return;

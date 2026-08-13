@@ -193,6 +193,35 @@ describe("session state", () => {
     useStore.getState().startLockedMission(lockedMission());
     expect(useStore.getState().freeFlight).toBe(false);
   });
+  it("startInstantFlight starts from BROWSE, sets instantFlight (not freeFlight) and clears contacts (B3)", () => {
+    useStore.getState().resetSession();
+    useStore.getState().applyFetch(trafficResult([contact("abc123")]));
+    const mission = lockedMission("none");
+    expect(useStore.getState().startInstantFlight(mission)).toBe(true);
+    const s = useStore.getState();
+    expect(s.mode).toBe("COUNTDOWN");
+    expect(s.instantFlight).toBe(true);
+    // Instant is its own mode: NOT freeFlight (its debrief is scored + trimmed, not "unavailable").
+    expect(s.freeFlight).toBe(false);
+    expect(s.tutorial).toBeNull();
+    expect(s.lockedMission).toBe(mission);
+    expect(s.contacts.size).toBe(0);
+    expect(s.selectedHex).toBeNull();
+    // A second start is refused: no longer in BROWSE.
+    expect(useStore.getState().startInstantFlight(mission)).toBe(false);
+  });
+  it("resetSession and other start actions clear the instantFlight flag (B3)", () => {
+    useStore.getState().resetSession();
+    useStore.getState().startInstantFlight(lockedMission("none"));
+    expect(useStore.getState().instantFlight).toBe(true);
+    useStore.getState().resetSession();
+    expect(useStore.getState().instantFlight).toBe(false);
+    useStore.getState().startFreeFlight(lockedMission("none"));
+    expect(useStore.getState().instantFlight).toBe(false);
+    useStore.getState().resetSession();
+    useStore.getState().startLockedMission(lockedMission());
+    expect(useStore.getState().instantFlight).toBe(false);
+  });
   it("tracks highest assist monotonically for the locked flight", () => {
     useStore.getState().resetSession();
     useStore.getState().startLockedMission(lockedMission("none"));
