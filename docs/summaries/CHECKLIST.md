@@ -81,7 +81,7 @@ flow-mock (FLY NOW start card + trimmed debrief); 3 anon flights then require si
 - [~] #71 mission card — condensed disclosure + opaque bg (kills header/Cesium bleed-THROUGH). REMAINING:
       Cesium credit renders ON TOP (z-index) + tall card top-overlap — need a real-device/Chrome pass.
 _Panel preference saved: avoid scrolling; condense text to fit (memory adsb-game-panels-avoid-scrolling)._
-_Batches gate green: typecheck, 1287 unit, lint 5/8. COMMITTED, NOT DEPLOYED — held for owner review._
+_DEPLOYED 2026-08-13 @ Version 7aa2a252 (HEAD fa0ab90). Gate green: typecheck, 1287 unit, lint 5/8._
 
 ## C1 (client anon cap) and C2 (worker IP tripwire) — DEFERRED by owner (behind-the-scenes admin).
 
