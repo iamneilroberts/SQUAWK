@@ -21,16 +21,19 @@ import {
   NAV_RADIUS_PX, NAV_RANGE_PRESETS_NM, airportBlips, navContacts, navStatus,
 } from "./navMath";
 import { NavWeatherLayer } from "./NavWeatherLayer";
+import { NavBasemapLayer } from "./NavBasemapLayer";
 import {
   radarChipText, resolveZoom, RAINVIEWER_CREDIT, type NavWeatherState,
 } from "./navWeatherMath";
+
+const ESRI_IMAGERY_CREDIT = "IMAGERY © ESRI";
 
 const SIZE = NAV_RADIUS_PX * 2 + 16; // a little bezel outside the outer ring
 const C = SIZE / 2;
 
 export default function NavMap({
   snapshot, airports, contacts, feedStatus, ghostHex, navRangeNm, feedRadiusNm, onRangeChange,
-  showRadar = false, navWeather = { kind: "no-position" },
+  showRadar = false, navWeather = { kind: "no-position" }, showBasemap = false,
 }: {
   snapshot: HudSnapshot | null;
   airports: Airport[];
@@ -42,6 +45,9 @@ export default function NavMap({
   onRangeChange(nm: number): void;
   showRadar?: boolean;
   navWeather?: NavWeatherState;
+  /** Satellite basemap under the nav marks (#67). Off by default so NavMap stays a pure tree for
+   *  its non-jsdom test (the basemap layer is hook-ful, like NavWeatherLayer). */
+  showBasemap?: boolean;
 }) {
   const status = navStatus(feedStatus);
   const coverage = coverageNote(navRangeNm, feedRadiusNm);
@@ -55,6 +61,7 @@ export default function NavMap({
   const radarCoarse = own === null ? false : resolveZoom(navRangeNm, own.latDeg, NAV_RADIUS_PX).capped;
   const radarChip = showRadar ? radarChipText(navWeather, Date.now(), radarCoarse) : null;
   const showRadarLayer = showRadar && own !== null && navWeather.kind === "ok";
+  const showBasemapLayer = showBasemap && own !== null;
   // Nominal precip age reads cyan (live data); any warning (offline/stale/coarse) reads amber.
   const radarNominal =
     radarChip !== null && navWeather.kind === "ok" && !radarChip.includes("STALE") && !radarChip.includes("COARSE");
@@ -62,6 +69,19 @@ export default function NavMap({
   return (
     <div className="navmap">
       <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="navmap-face" role="img">
+        {/* Satellite basemap (#67): the very bottom layer, under the rings/precip/marks, clipped to
+            the circle by the warp. own !== null (in flight) here via showBasemapLayer. */}
+        {showBasemapLayer && own !== null && (
+          <foreignObject
+            x={C - NAV_RADIUS_PX}
+            y={C - NAV_RADIUS_PX}
+            width={NAV_RADIUS_PX * 2}
+            height={NAV_RADIUS_PX * 2}
+            className="navmap-basemap"
+          >
+            <NavBasemapLayer own={own} navRangeNm={navRangeNm} />
+          </foreignObject>
+        )}
         {ringsFor(navRangeNm).map((ring) => (
           <g key={ring.labelNm}>
             <circle cx={C} cy={C} r={ring.radiusPx} className="navmap-ring" />
@@ -142,6 +162,7 @@ export default function NavMap({
         {radarChip !== null && (
           <span className={radarNominal ? "navmap-status navmap-status-wx" : "navmap-status"}>{radarChip}</span>
         )}
+        {showBasemapLayer && <span className="navmap-attribution">{ESRI_IMAGERY_CREDIT}</span>}
         {showRadarLayer && <span className="navmap-attribution">{RAINVIEWER_CREDIT}</span>}
       </div>
 

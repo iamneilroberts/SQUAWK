@@ -2365,3 +2365,15 @@ The two-step resume (RESUME arms → "CLICK THE GLOBE TO RESUME" → canvas clic
 desktop Esc drops pointer lock and Chrome rate-limits re-locking, so re-lock needs a real canvas
 click. Touch has no pointer lock, so on `narrow` RESUME now resumes directly (resumeFlight); the
 armed "click the globe" state never shows on mobile. Desktop still arms.
+
+## 2026-08-13 — Satellite basemap on the nav face (#67)
+
+Owner wants the NAV/WX face to sit on a real map, not black. Extracted the precip overlay's
+tile-warp into navTileWarp.ts (warpTilesToNavCircle, parameterised by a tileUrl closure + zoom cap;
+precip behaviour byte-identical) and added NavBasemapLayer feeding Esri World Imagery tiles through
+the same warp — the bottom layer of the nav circle, dimmed (alpha .62) so the cyan marks stay
+legible, IMAGERY © ESRI shown on the face. Keyless/browser-direct like RainViewer; a taint or failed
+tiles bail to transparent (black face), never a substituted picture. resolveZoom gained an optional
+maxZ (default RADAR_MAX_Z keeps precip unchanged; basemap uses 12 for a crisp close-range image).
+NavBasemapLayer is HOOK-FREE (callback ref, not useEffect) so NavMap stays walkable by its non-jsdom
+test; gated behind a showBasemap prop (on for MobileNavWx + UnifiedGlass). Browser-verified.

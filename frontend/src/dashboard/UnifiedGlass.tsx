@@ -135,6 +135,7 @@ export function UnifiedGlassBody({
               onRangeChange={onNavRangeChange}
               showRadar={showWeather}
               navWeather={navWeather}
+              showBasemap
             />
           </div>
         </div>

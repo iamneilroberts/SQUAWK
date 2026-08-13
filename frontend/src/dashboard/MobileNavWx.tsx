@@ -94,6 +94,7 @@ export default function MobileNavWx(
           onRangeChange={setNavRangeNm}
           showRadar
           navWeather={navWeather}
+          showBasemap
         />
       </div>
       <div className="mobile-navwx-wx">

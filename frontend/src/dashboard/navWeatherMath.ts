@@ -135,7 +135,12 @@ export function navPixelToWorldPixel(o: {
  * needlessly huge nor upscaled. `capped` is true when the ideal zoom exceeds RADAR_MAX_Z (small
  * range) — the overlay is then genuinely coarser than the face and the chip says COARSE.
  */
-export function resolveZoom(navRangeNm: number, latDeg: number, radiusPx: number): {
+export function resolveZoom(
+  navRangeNm: number,
+  latDeg: number,
+  radiusPx: number,
+  maxZ: number = RADAR_MAX_Z,
+): {
   z: number;
   capped: boolean;
 } {
@@ -144,7 +149,9 @@ export function resolveZoom(navRangeNm: number, latDeg: number, radiusPx: number
   // want mercatorMetersPerPx = latRes / (tileSize·2^z) <= navMetersPerPx
   const idealZ = Math.log2(latRes / (RADAR_TILE_SIZE * navMetersPerPx));
   const wanted = Math.max(0, Math.ceil(idealZ));
-  return { z: Math.min(RADAR_MAX_Z, wanted), capped: wanted > RADAR_MAX_Z };
+  // `maxZ` defaults to RADAR_MAX_Z so the precip overlay is unchanged; the satellite basemap passes
+  // a higher cap for a crisp image (Esri World Imagery goes far deeper than the radar tiles do).
+  return { z: Math.min(maxZ, wanted), capped: wanted > maxZ };
 }
 
 // ---- RainViewer manifest / tile-URL layer ---------------------------------------------------
