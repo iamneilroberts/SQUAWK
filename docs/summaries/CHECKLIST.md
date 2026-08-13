@@ -14,7 +14,8 @@ Spec: `docs/superpowers/specs/2026-08-13-multi-aircraft-type-flight-models-desig
 - [x] Task 1: `params/biz.json` + `loadBiz` + envelope test — plus owner-approved per-class turbofan corner (`4d6ff5c`+`c1c0a25`). Plausible: M0.769 @ FL430, 2949 fpm SL climb, real 45,000 ft ceiling.
 - [x] Task 2: mission profile + EFIS dashboard profile + model dims (`e46fe72`, string-keyed)
 - [x] Task 3: `AircraftClassId` union flip + all consumers + biz-types resolution + worker validators (`809dec9`+`e3d3316`)
-- [ ] Task 4: decision log + full gate + DEPLOY (owner-authorized) + owner device-verify
+- [x] Task 4: decision log + full gate + FINAL REVIEW + DEPLOYED (Version 3a56c4f9, mongols-rich-hud @ 21b14d5, pushed). Prod smoke green incl. /api/leaderboards?class=biz 200.
+- [ ] Owner device-verify: find a live Citation/Gulfstream contact → takeover-eligible, cruises ~M0.78, twinjet silhouette, debrief records a `biz` mission
 - [ ] tprop + heavy archetypes (same pattern, after biz) — future plans
 
 _Updated: 2026-08-13 — bizjet (Tasks 1–3 shipped; Task 4 gate green, deploying)_
