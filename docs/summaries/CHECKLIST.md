@@ -1,30 +1,26 @@
-# Checklist — mobile UI polish finish + multi-aircraft-type flight models
+# Checklist — UI triage + speedbrake shipped; #48 icons + bizjet epic next
 
-_Updated: 2026-08-13 — mongols-rich-hud. Live prod @ HEAD 9f78531, Version 5956e755._
-_Full handoff: shared coord dir → handoffs/pause-2026-08-13-ui-polish-aircraft-types.md_
+_Updated: 2026-08-13 (afternoon) — mongols-rich-hud. Live prod @ HEAD 1bebfbf, Version 89be9624._
+_Full handoff: shared coord dir → handoffs/pause-2026-08-13-triage-speedbrake-next.md_
 
 Deploy = `cd frontend && npm run deploy:production` then `git push`.
 Gate = `cd frontend && npm run typecheck && npm run test:unit && npm run lint` (≤8 warns; 5 pre-existing).
-Suite 1281 green. THIS IS LIVE PROD — commit/deploy discipline; owner verifies each deploy on iPhone.
+Suite 1286 green. THIS IS LIVE PROD — commit/deploy discipline; owner verifies each deploy on iPhone.
 
 ## Done + deployed this session
-- [x] #47 desktop HUD dest indicator + B5 instant hero/FLY AGAIN (Version 07a0984a)
-- [x] #69 search zoom · #72 drop cockpit preview · #73 airport label range cap
-- [x] #74/#75 immersive chrome auto-hide → REDESIGNED: hide-while-flying + MENU reveals all
-- [x] #70/#71 free-flight modal + mission card fit/bleed-through
-- [x] Cesium credit widget HIDDEN (keyless; attribution in StatusBar)
-- [x] One-tap resume on touch (RESUME direct; "click globe" is desktop-only)
-- [x] #76 handoff card fits width + z-index · #77 iOS ENTER FULLSCREEN gated
-- [x] #67 satellite basemap under NAV/WX (Esri, hook-free NavBasemapLayer, shared warp)
-- [x] HUD C default · SIGN IN clear of ALT · mission grid 2-col ≤380px (Version 5956e755)
+- [x] #56 provisional card: TAKE CONTROLS pinned above eligible-airports list (Version 51c3f064)
+- [x] Bucket A: closed 20 shipped-but-open issues (#56 #69–77 #67 #31 #33 #41 #55 #28 #29 #6 #21 #34)
+- [x] #60 NAV/WX docked as compact panel in landscape · #59 44px tap target on bare traffic (Version bb915f2b)
+- [x] #51 speedbrake control — B=boards, afterburner→R, mobile BRK button, SPD BRK/BRK OUT HUD (Version 89be9624)
+- [x] Filed #79 (prettify controls cheat-sheet)
 
-## Pending
-- [ ] Owner verify Version 5956e755 on device (HUD C, sign-in, mission fit, #67 basemap imagery)
-- [ ] "cesium border still seems oversized" — AMBIGUOUS; get a screenshot before fixing
-- [ ] Mission briefing may still scroll if ELIGIBLE AIRPORTS list long — condense further if reported
-- [ ] #67 basemap live-verify (Esri CORS — bails to black if tainted; proxy via worker if so)
-- [ ] FLY AGAIN restart (B5) still not live-verified end-to-end
-- [ ] #77 FULL immersive toggle still over-promises on iOS (minor relabel)
-- [ ] EPIC: multi-aircraft-type flight models — resolveClass (takeover/eligibility.ts:33) maps t→3 classes;
-      broaden buckets + add archetype param files + maybe parametric adsbdb scaling. START WITH BRAINSTORMING.
-- [ ] Deferred by owner: #66 feed cfg · #68 3D-tilt wow · #78 desktop dashboard realism · C1 client cap · C2 IP tripwire
+## Pending (owner's order: #48 first, then bizjet)
+- [ ] Owner device-verify Version 89be9624: #60 landscape, #59 far-traffic tap, #51 dive+BRK
+- [ ] **#48 graphic control-state indicators (icons for gear/flaps/trim/throttle/speedbrake).**
+      Owner asked to brainstorm — START WITH `superpowers:brainstorming`, NOT code. Absorbs the #51 text indicators.
+- [ ] **Bizjet epic** — plan READY: docs/superpowers/plans/2026-08-13-bizjet-flight-model.md.
+      4 TDD tasks, biz (Citation-class) first, then tprop + heavy. New classes also need a speedbrakeCd0.
+- [ ] #57 — confirm center-clear on device, close if good
+- [ ] #79 — cheat-sheet prettify
+- [ ] Maybe file: landing overrun / stopping-distance (wheel brakes + reversers) if owner wants it
+- [ ] Deferred (D): #2 #30 #35 #38 #39 #44 #45 #49 #66 #68 #78 + others
