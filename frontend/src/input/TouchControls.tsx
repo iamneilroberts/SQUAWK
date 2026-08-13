@@ -28,6 +28,7 @@ import {
 } from "./analog";
 import ControlIcon from "../hud/controls/ControlIcon";
 import type { HudSnapshot } from "../hud/snapshot";
+import { EM_DASH } from "../hud/format";
 
 /** Radial deadzone as a fraction of the pad radius — a first guess; owner-tunable on device. */
 const STICK_DEADZONE = 0.12;
@@ -283,6 +284,8 @@ export default function TouchControls({
   // analog target can't linger; the buttons synthesize their own keyup on release already.
   useEffect(() => () => onStickRelease(), [onStickRelease]);
 
+  const trimBadge = trimBadgeText(snapshot?.trim);
+
   return (
     <div className="touch-controls">
       <VirtualStick onStick={onStick} onRelease={onStickRelease} />
@@ -311,15 +314,13 @@ export default function TouchControls({
           stateAmber={snapshot?.speedbrake === true}
         />
         <DiscreteButton label="FLP−" code="KeyV" />
-        <DiscreteButton label="FLP+" code="KeyF" badge={snapshot?.flapLabel ?? "—"} />
+        <DiscreteButton label="FLP+" code="KeyF" badge={snapshot?.flapLabel ?? EM_DASH} />
         <HoldButton label="TRM▼" code="Comma" />
         <HoldButton
           label="TRM▲"
           code="Period"
           badge={
-            trimBadgeText(snapshot?.trim) && (
-              <span className="touch-btn-badge-amber">{trimBadgeText(snapshot?.trim)}</span>
-            )
+            trimBadge && <span className="touch-btn-badge-amber">{trimBadge}</span>
           }
         />
       </div>

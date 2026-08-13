@@ -1,18 +1,19 @@
-# Checklist — #48 control-state indicators + mobile polish
+# Bizjet flight-model epic — checklist
 
-DEPLOYED to fly.voygent.app @ 6522177 (Version c432c4c2). Branch mongols-rich-hud.
-SDD ledger: `.superpowers/sdd/2026-08-13-control-state-indicators/progress.md`.
+Branch `bizjet` off `mongols-rich-hud` (9882e86 == live prod). #48 SHIPPED + closed.
+Plan: `docs/superpowers/plans/2026-08-13-bizjet-flight-model.md`
+Spec: `docs/superpowers/specs/2026-08-13-multi-aircraft-type-flight-models-design.md`
 
-- [x] Phase 1 — desktop icons on 3 surfaces (6 TDD tasks + review + fix). Version 1340ba86.
-- [x] Phase 2 — mobile state moved to touch buttons (HUD icon row reverted). Version 61fca26e.
-- [x] Phase 3 — MENU→bottom-left; HUD systems line trimmed to VSI/AGL. Version f08fc681.
-- [x] Phase 4 — MENU above throttle (clears SIGN IN); shorter portrait throttle; HUD A/C toggle hidden during warnings. Version ef892aef.
-- [x] LEVEL button (#5) — disappearing beginner return-to-level (appears off-level >~10°, taps existing KeyL). Version c432c4c2.
-- [x] Closed on owner device-verify: #60 #59 #57.
-- [ ] **Owner final on-device pass: LEVEL button + Phase 4 (MENU/throttle/toggle). Then close #48 + #7.**
+## Lead-in: deferred #48 cleanups (do first)
+- [ ] #1 Extract shared `ControlStateRow` across `ControlState.tsx` + `Hud.tsx` HudControlRow + add tone-threshold test (throttle>0.92→amber, NEUTRAL→dim)
+- [ ] #2 Null-flap-glyph: gate flap droop on `known(flapDetentIndex)`
+- [ ] #3 EM_DASH: replace hardcoded `"—"` with shared `EM_DASH` constant (3 rows)
+- [ ] #4 `TouchControls.tsx`: hoist double `trimBadgeText(snapshot?.trim)` call to a const
 
-Deferred (bizjet lead-in): extract shared ControlStateRow across 3 desktop surfaces + tone-boundary test; null-flap-glyph hide; EM_DASH literal; TouchControls trimBadgeText double-call.
+## Bizjet epic (SDD, fresh subagent per task, review between)
+- [ ] Task 1: `params/biz.json` + `loadBiz()`/`case "biz"` in `sim/params.ts` + `sim/biz-envelope.test.ts` (include `aero.speedbrakeCd0`; cruise ~M0.78 @ FL430; source every non-GA number)
+- [ ] Tasks 2–4: compiler-guided `AircraftClassId` union flip + fill consumers
+- [ ] tprop + heavy archetypes (same pattern, after biz)
+- [ ] Owner device-verify + deploy each phase
 
-Next after #48 sign-off: bizjet epic (`docs/superpowers/plans/2026-08-13-bizjet-flight-model.md`).
-
-_Updated: 2026-08-13 — mongols-rich-hud @ 6522177 (all mobile polish + LEVEL deployed, awaiting final sign-off)_
+_Updated: 2026-08-13 — bizjet_

@@ -45,7 +45,9 @@ export default function ControlIcon({
     );
   }
   if (kind === "flaps") {
-    const end = flapDroopEnd(snapshot?.flapDetentIndex ?? 0, snapshot?.flapDetentCount ?? 1);
+    // Pass the raw nullable detent through so flapDroopEnd's own known()-guard hides the droop on an
+    // unknown snapshot, matching the throttle/trim/gear glyphs (they all blank their dynamic part).
+    const end = flapDroopEnd(snapshot?.flapDetentIndex ?? null, snapshot?.flapDetentCount ?? null);
     return frame(
       <>
         <line className={CY} x1="7" y1="17" x2="27" y2="17" />
