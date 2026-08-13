@@ -40,6 +40,7 @@ import TutorialPanel from "./tutorial/TutorialPanel";
 import FreeFlightPanel from "./freeflight/FreeFlightPanel";
 import { buildFreeFlightMission } from "./freeflight/freeFlight";
 import { buildInstantMission } from "./takeover/instantMission";
+import { nearestFlyableContact } from "./takeover/pickFlyable";
 import { loadAirports } from "./data/airports";
 import {
   buildTutorialMission,
@@ -86,6 +87,8 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
   const mode = useStore((s) => s.mode);
   const contacts = useStore((s) => s.contacts);
   const selectedHex = useStore((s) => s.selectedHex);
+  const home = useStore((s) => s.home);
+  const savedCenter = useStore((s) => s.savedCenter);
   const lockedMission = useStore((s) => s.lockedMission);
   const feedStatus = useStore((s) => s.feedStatus);
   const providerAvailable = useStore((s) => s.providerAvailable);
@@ -315,7 +318,29 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
   const airports = useMemo(() => loadAirports(), []);
 
   const takeControls = useCallback(() => {
-    if (briefing.state.status !== "ready") return;
+    if (briefing.state.status !== "ready") {
+      // B4: nothing selected → auto-pick the nearest flyable contact (spec one-click start). If a
+      // contact IS selected but its briefing is still loading, just wait. Center on HOME, else the
+      // saved map center; without either we cannot rank by distance, so fall through to no-op.
+      if (selectedHex !== null) return;
+      const center = home ?? savedCenter;
+      if (center === null) return;
+      const nearest = nearestFlyableContact([...contacts.values()], center.lat, center.lon);
+      if (nearest === null) return;
+      if (authStatus !== "authenticated") {
+        // Anon: fly it now, instant + unranked — no selection/briefing round-trip.
+        try {
+          const mission = buildInstantMission(nearest, airports, { missionId: crypto.randomUUID() });
+          if (useStore.getState().startInstantFlight(mission)) return;
+        } catch {
+          // Unsupported/no-airport: leave selection untouched.
+        }
+        return;
+      }
+      // Authed: select it so the ranked briefing loads; the player confirms with a second press.
+      useStore.getState().select(nearest.hex);
+      return;
+    }
     if (authStatus !== "authenticated") {
       // Fly-first / sign-in-later (B3): anonymous users get an instant, unranked flight on the
       // selected contact — no prepare/lock/sign-in/reload bounce. Signed-in users keep the ranked
@@ -375,7 +400,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
         if (missionOperation.current !== operation) return;
         setMissionCommit({ status: "error", message: missionErrorMessage(error) });
       });
-  }, [airports, authStatus, briefing.state, commitPreparation, missionCommit]);
+  }, [airports, authStatus, briefing.state, commitPreparation, missionCommit, selectedHex, home, savedCenter, contacts]);
 
   const startTutorial = useCallback((classId: AircraftClassId) => {
     const definition = tutorialDefinitionForClass(classId);
