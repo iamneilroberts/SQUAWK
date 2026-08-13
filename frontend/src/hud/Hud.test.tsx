@@ -91,8 +91,9 @@ describe("Hud", () => {
     expect(text).toContain("3.0"); // AoA
     expect(text).toContain("+1.0"); // g
     expect(text).toContain("60%"); // throttle
-    expect(text).toContain("FLAPS 10");
-    expect(text).toContain("GEAR FIXED");
+    expect(text).toContain("FLP"); // flaps icon cell label
+    expect(text).toContain("10"); // flap value
+    expect(text).toContain("GEAR"); // gear icon cell label (icon-only, no text value)
     expect(text).toContain("01:05"); // airtime
   });
   it("shows the current sky light phase, tracking the time-aware lighting (issue #14)", () => {

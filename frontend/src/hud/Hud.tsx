@@ -18,10 +18,11 @@ import ImmersiveHudBar, {
   type TapeRange,
 } from "./ImmersiveHudBar";
 import {
-  formatAirtime, formatAltFt, formatAoaDeg, formatClass, formatClearanceFt, formatFlaps,
-  formatG, formatGear, formatHeadingDeg, formatIasKt, formatLightPhase, formatSimRate,
-  formatTasKt, formatThrottlePct, formatVsiFpm, warningsFor,
+  formatAirtime, formatAltFt, formatAoaDeg, formatClass, formatClearanceFt,
+  formatG, formatHeadingDeg, formatIasKt, formatLightPhase, formatSimRate,
+  formatTasKt, formatThrottlePct, formatTrim, formatVsiFpm, warningsFor,
 } from "./format";
+import ControlIconCell from "./controls/ControlIconCell";
 
 /*
  * Desktop destination indicator (#47). The scattered desktop HUD had no equivalent of the mobile
@@ -64,6 +65,31 @@ function Readout({ label, value, unit }: { label: string; value: string; unit?: 
       <span className="hud-readout-value">{value}</span>
       {unit ? <span className="hud-readout-unit">{unit}</span> : null}
     </div>
+  );
+}
+
+/*
+ * Desktop HUD bottom strip control-state cells (#48). Mirrors the glass strip's value/tone
+ * logic exactly (throttle amber above 92%, trim dim when neutral, gear icon-only, speedbrake
+ * amber "OUT" when deployed, gated by hasSpeedbrake) so the two surfaces stay consistent.
+ * Hook-free so it is directly testable without rendering the store-reading Hud component.
+ */
+export function HudControlRow({ snapshot }: { snapshot: HudSnapshot | null }) {
+  const throttle = snapshot?.throttle ?? null;
+  const trimText = formatTrim(snapshot?.trim ?? null);
+  return (
+    <>
+      <ControlIconCell kind="throttle" snapshot={snapshot} label="THR"
+        value={formatThrottlePct(throttle)} valueTone={throttle != null && throttle > 0.92 ? "amber" : "cyan"} />
+      <ControlIconCell kind="flaps" snapshot={snapshot} label="FLP" value={snapshot?.flapLabel ?? "—"} />
+      <ControlIconCell kind="trim" snapshot={snapshot} label="TRM" value={trimText}
+        valueTone={trimText === "NEUTRAL" ? "dim" : "cyan"} />
+      <ControlIconCell kind="gear" snapshot={snapshot} label="GEAR" />
+      {snapshot?.hasSpeedbrake && (
+        <ControlIconCell kind="speedbrake" snapshot={snapshot} label="SPD BRK"
+          value={snapshot?.speedbrake ? "OUT" : null} valueTone="amber" />
+      )}
+    </>
   );
 }
 
@@ -167,10 +193,7 @@ export default function Hud({
       <HudDestinationCue snapshot={snapshot} navCue={immersiveNavCue} />
 
       <div className="hud-bottom">
-        <span>THR {formatThrottlePct(snapshot.throttle)}</span>
-        <span>{formatFlaps(snapshot.flapLabel)}</span>
-        <span>{formatGear(snapshot.gear, snapshot.gearPosition)}</span>
-        {snapshot.speedbrake ? <span className="hud-warning">SPD BRK</span> : null}
+        <HudControlRow snapshot={snapshot} />
         <span>{formatLightPhase(snapshot.lightPhase)}</span>
       </div>
 
