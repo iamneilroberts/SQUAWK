@@ -262,6 +262,7 @@ export default function ImmersiveHudBar({
   approachWarnings = [],
   tapeRange = null,
   decluttered = false,
+  toggleFaded = false,
 }: {
   snapshot: HudSnapshot;
   attitudeStyle: AttitudeStyle;
@@ -272,6 +273,9 @@ export default function ImmersiveHudBar({
   tapeRange?: { ias: TapeRange; alt: TapeRange } | null;
   /** Manual declutter (#57): hides the HUD-A/C layout toggle, an informational-only control. */
   decluttered?: boolean;
+  /** Immersive auto-hide (#75): fade the HUD-A/C toggle with the rest of the chrome while flying.
+   *  The instrument rail itself stays — only this layout-picker button hides. */
+  toggleFaded?: boolean;
 }) {
   const warnings = prioritizedImmersiveWarnings(snapshot, approachWarnings);
   return (
@@ -283,7 +287,7 @@ export default function ImmersiveHudBar({
       {onVariantChange !== undefined && !decluttered && (
         <button
           type="button"
-          className="imm-hud-toggle"
+          className={"imm-hud-toggle" + (toggleFaded ? " imm-hud-toggle-faded" : "")}
           onClick={() => onVariantChange(nextImmersiveHudVariant(variant))}
           aria-label={`HUD layout ${variant === "balanced" ? "A balanced rail" : "C compact tapes"}; switch to ${variant === "balanced" ? "C compact tapes" : "A balanced rail"}`}
           title={`Switch to HUD ${variant === "balanced" ? "C" : "A"}`}

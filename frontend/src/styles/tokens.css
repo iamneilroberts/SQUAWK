@@ -70,6 +70,13 @@ body {
    fit the console aesthetic. In immersive flight it fades with the rest of the chrome (#74) and
    reappears on any tap (same standard as the StatusBar attribution), so it is never PERMANENTLY
    hidden; on every other screen it stays fully visible. */
+.cesium-viewer-bottom {
+  /* The credit sat OVER app panels/buttons (Cesium mounts it late in the DOM at a high effective
+     stack) — it obscured TAKE CONTROLS / SELECT and painted through cards (#71, #76). Pin it to a
+     low z-index so it stays above the globe but BELOW every app panel/button (z 5+): visible on the
+     open globe, never covering the UI. */
+  z-index: 1;
+}
 .cesium-viewer-bottom,
 .cesium-widget-credits {
   font-family: var(--mono);
@@ -292,6 +299,15 @@ body.immersive-chrome-faded .cesium-widget-credits { opacity: 0; pointer-events:
 /* ---- free flight (#29) ---- */
 .freeflight-field { display: grid; gap: 6px; margin-top: 12px; font-size: 11px; }
 .freeflight-class[aria-pressed="true"] { border-color: var(--cyan); color: var(--cyan); }
+/* Class picker as a compact 3-across row (not three tall stacked buttons) so the whole FREE FLIGHT
+   panel fits without scrolling to reach TAKE CONTROLS (#70, owner: avoid scroll / condense). */
+.freeflight-panel .tutorial-options { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.freeflight-class {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 4px; line-height: 1.2; text-align: center;
+}
+.freeflight-class-name { font-weight: 600; }
+.freeflight-class-model { font-size: 10px; opacity: 0.8; }
 .freeflight-panel > .control-button { width: 100%; margin-top: 14px; justify-content: center; }
 
 .teaching-overlay {
@@ -1854,6 +1870,10 @@ body.immersive-chrome-faded .cesium-widget-credits { opacity: 0; pointer-events:
   touch-action: manipulation;
   cursor: pointer;
 }
+.imm-hud-toggle { transition: opacity 0.5s ease; }
+/* #75: the HUD-A/C layout toggle fades with the chrome while flying (informational, not a control
+   you touch mid-flight). Tap MENU to pause and reveal it. */
+.imm-hud-toggle-faded { opacity: 0; pointer-events: none; }
 .imm-hud-toggle:active { background: rgba(95, 215, 224, 0.14); }
 .imm-hud-toggle:focus-visible,
 .immersive-toggle:focus-visible {

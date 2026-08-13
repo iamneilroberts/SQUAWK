@@ -128,6 +128,7 @@ export default function Hud({
           approachWarnings={immersiveApproachWarnings}
           tapeRange={tapeRange}
           decluttered={decluttered}
+          toggleFaded={faded}
         />
         <div className="hud-attribution">{attribution}</div>
       </div>

@@ -16,17 +16,14 @@
  *     idle period and reappear on any tap; a live warning or leaving FLYING forces them back. The
  *     decision is the pure overlaysVisible(); this only supplies the clock and the interaction.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "../state/store";
-import { isImmersiveActive, showImmersiveToggle, overlaysVisible } from "./immersive";
+import { isImmersiveActive, showImmersiveToggle } from "./immersive";
 import {
   requestAppFullscreen, exitAppFullscreen, fullscreenSupported, isStandalone, shouldShowInstallHint,
 } from "./fullscreen";
 import { useViewport } from "./useViewport";
 import { isNarrowViewport } from "./viewport";
-
-/** How often the auto-hide re-checks the idle clock. 500 ms is well finer than the 3 s timeout. */
-const AUTOHIDE_POLL_MS = 500;
 
 export default function ImmersiveControl(
   { warningActive, onMenu, faded = false }:
@@ -58,48 +55,15 @@ export default function ImmersiveControl(
     );
   const showHint = immersive && shouldShowInstallHint(supported, standalone) && !hintDismissed;
 
-  // ---- auto-hide: keep the idle clock and fade the informational overlays (video pattern) ----
-  const lastInteractionRef = useRef(Date.now());
-  const warnRef = useRef(warningActive);
-  warnRef.current = warningActive;
-
+  // ---- chrome auto-hide, redesigned (owner 2026-08-13) ----
+  // In a flight game the pilot is CONSTANTLY touching the stick/throttle, so the old "reveal on any
+  // tap" idle timer meant the chrome never stayed hidden while flying. New rule: while actively
+  // FLYING the chrome is HIDDEN; MENU (below) is the one control that never fades, and tapping it
+  // PAUSES — which flips mode off FLYING and reveals everything. A live warning also forces it back
+  // (safety). No pointer listeners, so flight input never disturbs the fade.
   useEffect(() => {
-    if (!autoHideActive) {
-      setChromeVisible(true);
-      return;
-    }
-    const bump = () => {
-      lastInteractionRef.current = Date.now();
-      setChromeVisible(true);
-    };
-    // Enter fully visible, then let the idle clock fade it.
-    bump();
-    // Any tap on the flight surface (canvas, stick, throttle, buttons) counts as interaction.
-    // mousemove keeps desktop chrome up while the mouse is active (owner 2026-08-12) — touch
-    // devices don't fire it continuously, so mobile fading is unchanged.
-    window.addEventListener("pointerdown", bump);
-    window.addEventListener("mousemove", bump);
-    const id = setInterval(() => {
-      setChromeVisible(
-        overlaysVisible("FLYING", Date.now() - lastInteractionRef.current, warnRef.current),
-      );
-    }, AUTOHIDE_POLL_MS);
-    return () => {
-      window.removeEventListener("pointerdown", bump);
-      window.removeEventListener("mousemove", bump);
-      clearInterval(id);
-      setChromeVisible(true);
-    };
-  }, [autoHideActive, setChromeVisible]);
-
-  // A warning appearing must reveal the chrome immediately (before the next poll) AND reset the
-  // idle window so it lingers after the warning clears — treat it as an interaction.
-  useEffect(() => {
-    if (autoHideActive && warningActive) {
-      lastInteractionRef.current = Date.now();
-      setChromeVisible(true);
-    }
-  }, [autoHideActive, warningActive, setChromeVisible]);
+    setChromeVisible(!autoHideActive || mode !== "FLYING" || warningActive);
+  }, [autoHideActive, mode, warningActive, setChromeVisible]);
 
   // Cesium's credit widget lives OUTSIDE the React tree (the viewer mounts its own DOM), so it
   // can't take a `faded` prop. Toggle a body class the CSS keys off, matching the same auto-hide
@@ -157,15 +121,13 @@ export default function ImmersiveControl(
       >
         DCLTR
       </button>
-      {/* MENU (#58): the mobile abort valve. Fires the same PAUSE as desktop Escape, so
-          PauseOverlay offers RESUME or QUIT TO BROWSE. It joins the idle auto-hide with the rest
-          of the control row (#75, owner 2026-08-13) — but the escape stays one-tap-reachable:
-          any tap reveals the chrome (window pointerdown → chromeVisible), so a player who falls
-          through un-sampled terrain taps once to bring MENU back, then taps it. Manual DCLTR still
-          never hides it — that toggle is for informational chrome, not this control row. */}
+      {/* MENU (#58, owner 2026-08-13): the ONE control that never fades. Everything else in this
+          row (FULL/EXIT · DCLTR), the NAV/WX chip and the HUD-A/C toggle hide while flying; MENU
+          stays so the pilot always has a way in. Tapping it PAUSES (mode off FLYING), which reveals
+          all the faded chrome for use while stopped. It's the abort valve too — one tap out. */}
       <button
         type="button"
-        className={"immersive-toggle menu-toggle" + (faded ? " immersive-toggle-faded" : "")}
+        className="immersive-toggle menu-toggle"
         onClick={onMenu}
         aria-label="Pause menu"
       >

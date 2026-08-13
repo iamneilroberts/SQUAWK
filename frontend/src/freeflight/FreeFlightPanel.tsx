@@ -3,10 +3,10 @@ import { useState } from "react";
 import type { AircraftClassId } from "../mission/types";
 import { FREE_FLIGHT_CLASSES } from "./freeFlight";
 
-const CLASS_ORDER: { id: AircraftClassId; label: string }[] = [
-  { id: "c172s", label: "LIGHT — C172S" },
-  { id: "b738", label: "AIRLINER — B738" },
-  { id: "f5e", label: "FIGHTER — F-5E" },
+const CLASS_ORDER: { id: AircraftClassId; name: string; model: string }[] = [
+  { id: "c172s", name: "LIGHT", model: "C172S" },
+  { id: "b738", name: "AIRLINER", model: "B738" },
+  { id: "f5e", name: "FIGHTER", model: "F-5E" },
 ];
 
 /**
@@ -62,7 +62,8 @@ export default function FreeFlightPanel({
                   aria-pressed={option.id === classId}
                   onClick={() => pickClass(option.id)}
                 >
-                  {option.label}
+                  <span className="freeflight-class-name">{option.name}</span>
+                  <span className="freeflight-class-model">{option.model}</span>
                 </button>
               ))}
             </div>

@@ -2316,3 +2316,26 @@ condensing text." Applied to the two reported modals:
   card. REMAINING (needs a real-device/Chrome pass, not blind CSS): the Cesium ion credit renders
   ON TOP of the card (its z-index likely exceeds the card's 35) and the tall card can still overlap
   the top header — both are geometry/stacking fixes best done while watching the result.
+
+## 2026-08-13 — Immersive fade redesign + Cesium credit z-index + free-flight fit (owner live QA)
+
+**Fade redesign (supersedes the #75 idle-timer).** Owner: "touch to unfade won't work, brings them
+back as I fly." Correct — in a flight game the pilot constantly touches the stick/throttle, so the
+old "reveal on any pointerdown" idle timer meant chrome never stayed hidden. New model: while
+mode === FLYING the chrome is HIDDEN; MENU is the ONE control that never fades; tapping MENU pauses
+(mode off FLYING) which reveals everything for use while stopped. A live warning still forces it
+back. Removed the 3s idle timer + pointerdown/mousemove listeners + AUTOHIDE_POLL_MS; chromeVisible
+is now just `!autoHideActive || mode !== "FLYING" || warningActive`. Also faded the HUD-A/C layout
+toggle (informational, threaded as toggleFaded through Hud → ImmersiveHudBar). overlaysVisible /
+CHROME_IDLE_TIMEOUT_MS in immersive.ts are now unused by the app (still unit-tested) — leave for a
+followup cleanup.
+
+**Cesium credit z-index.** The Cesium ion credit painted OVER app panels/buttons (obscured TAKE
+CONTROLS / SELECT, bled through the mission #71 and handoff #76 cards) because Cesium mounts it late
+in the DOM at a high effective stack. Pinned `.cesium-viewer-bottom { z-index: 1 }` so it stays
+above the globe but below every app panel/button (z 5+). Single root fix for the overlay cluster.
+
+**Free-flight fit (#70 round 2).** After the condense + opaque-bg pass, TAKE CONTROLS was still
+below the fold because the three FULL-WIDTH stacked class buttons ate ~210px. Reworked the class
+picker into a compact 3-across row of two-line buttons (NAME over MODEL), saving ~140px so the
+centered modal fits without scrolling.
