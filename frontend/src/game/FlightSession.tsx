@@ -114,8 +114,9 @@ export default function FlightSession({
   });
   const [activeLesson, setActiveLesson] = useState<TutorialLesson | null>(null);
   /** Which immersive rail (A balanced / C tapes) the player selected; held for the flight. */
+  // HUD C (compact tapes) is the default rail (owner 2026-08-13); the toggle switches to HUD A.
   const [immersiveHudVariant, setImmersiveHudVariant] =
-    useState<ImmersiveHudVariant>("balanced");
+    useState<ImmersiveHudVariant>("tapes");
 
   // Touch analog axes (mobile sub-feature 2, Option B). A single mutable object the flight loop
   // reads once per tick via the `analog` provider; the touch stick/throttle write into it. Stays

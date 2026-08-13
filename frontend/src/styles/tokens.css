@@ -1494,8 +1494,10 @@ body {
 
 @media (max-width: 380px) {
   .contact-filters { grid-template-columns: 1fr; }
-  .mission-grid { grid-template-columns: 1fr; gap: 2px; }
-  .mission-grid > strong { margin-bottom: 4px; }
+  /* Keep label+value on ONE line (2-col) even on the smallest phones so the briefing is half as
+     tall and fits without scrolling (#71 follow-up, owner: avoid scroll). Values still wrap inside
+     their column (minmax(0,1fr) + overflow-wrap), so nothing clips horizontally. */
+  .mission-grid { gap: 3px 10px; }
   .mission-alternative { flex-direction: column; gap: 2px; }
   .top-controls { flex-direction: column-reverse; align-items: flex-end; }
   .leaderboard-filters { grid-template-columns: 1fr; gap: 0; }
@@ -2126,7 +2128,10 @@ body {
    at safe-area+132px stops the tappable PILOT/APP chips from overlapping — and stealing taps from
    — the FULL button (#26 follow-up). Folded into the chrome auto-hide like the rest. */
 .top-controls-immersive {
-  top: max(140px, calc(env(safe-area-inset-top) + 132px));
+  /* Clear the FULL rich HUD bar (tapes rail + director stack ≈ 220px), so SIGN IN / APP no longer
+     land on top of the ALT tape at the bar's right edge (owner 2026-08-13). These fade while flying
+     and only show when paused, so sitting lower is fine. */
+  top: max(232px, calc(env(safe-area-inset-top) + 224px));
   transition: opacity 0.5s ease;
 }
 .top-controls-faded { opacity: 0; pointer-events: none; }
