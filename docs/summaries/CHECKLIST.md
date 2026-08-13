@@ -1,114 +1,30 @@
-# Checklist — streamline starting + debrief (big phase)
+# Checklist — mobile UI polish finish + multi-aircraft-type flight models
 
-_Updated: 2026-08-12 — mongols-rich-hud. B2+B3+B4 DEPLOYED @ Version 59a11f21 (HEAD c0885ea, pushed).
-Anon instant flight LIVE-VERIFIED on prod. B3c + B5 + C1-C3 remain._
-_Local/staging can't fetch traffic (provider vars only in env.production) → issue #66; verify on prod._
+_Updated: 2026-08-13 — mongols-rich-hud. Live prod @ HEAD 9f78531, Version 5956e755._
+_Full handoff: shared coord dir → handoffs/pause-2026-08-13-ui-polish-aircraft-types.md_
 
-Decisions: fly-first/sign-in-later (anonymous instant, UNRANKED v1); signed-in users get the
-existing ranked prepare/lock path de-frictioned; default = nearest flyable live contact; screens per
-flow-mock (FLY NOW start card + trimmed debrief); 3 anon flights then require sign-in + IP tripwire.
+Deploy = `cd frontend && npm run deploy:production` then `git push`.
+Gate = `cd frontend && npm run typecheck && npm run test:unit && npm run lint` (≤8 warns; 5 pre-existing).
+Suite 1281 green. THIS IS LIVE PROD — commit/deploy discipline; owner verifies each deploy on iPhone.
 
-## DONE + DEPLOYED (Version e880f5bc)
-- [x] Guide line steady — depthFailMaterial on route/runway/gate polylines (f646be9)
-- [x] Portrait rotate modal removed; fading AppModeHint + APP button off flight screen (3e7c302)
-- [x] Intro card fits (max-height/overflow-y) (f646be9)
+## Done + deployed this session
+- [x] #47 desktop HUD dest indicator + B5 instant hero/FLY AGAIN (Version 07a0984a)
+- [x] #69 search zoom · #72 drop cockpit preview · #73 airport label range cap
+- [x] #74/#75 immersive chrome auto-hide → REDESIGNED: hide-while-flying + MENU reveals all
+- [x] #70/#71 free-flight modal + mission card fit/bleed-through
+- [x] Cesium credit widget HIDDEN (keyless; attribution in StatusBar)
+- [x] One-tap resume on touch (RESUME direct; "click globe" is desktop-only)
+- [x] #76 handoff card fits width + z-index · #77 iOS ENTER FULLSCREEN gated
+- [x] #67 satellite basemap under NAV/WX (Esri, hook-free NavBasemapLayer, shared warp)
+- [x] HUD C default · SIGN IN clear of ALT · mission grid 2-col ≤380px (Version 5956e755)
 
-## DONE (not yet wired/deployed)
-- [x] B1. `takeover/pickFlyable.ts` nearestFlyableContact (3eee033)
-
-## TODO — instant anonymous flight
-- [x] B2. Instant mission builder — `takeover/instantMission.ts:buildInstantMission(contact, airports,
-      opts?, lockedAt?)` → SIM unranked LockedMissionView from a REAL Contact (class via resolveClass,
-      alt_geom/track via shared spawn) + nearest airport (world index) as destination. Pure, TDD, 8
-      tests. Throws on unsupported contact / no airports. NOT yet wired into the store/flow (B3).
-- [~] B3. TAKE CONTROLS rewire — CORE DONE + DEPLOYED + LIVE-VERIFIED. Anon `takeControls` →
-      buildInstantMission(selected contact) → startInstantFlight; no prepare/lock/sign-in/bounce.
-      New store flag `instantFlight`; FlightSession `local = freeFlight||instantFlight` guards all
-      server lease/keepalive/submit; instant ends with a local unranked message (scored EndCard = B5).
-      ✅ VERIFIED on prod (Version 59a11f21): anon took over a real CRJ7 (JIA5312) at its actual
-      176KT/1781FT, NO sign-in bounce, clean FPV + HUD, clean QUIT teardown, no console errors.
-      REMAINING (B3c): redesign `briefing/QuickStartNotice.tsx` into the "FLY NOW" start card — the
-      intro card still shows the OLD "sign in when ready to fly" copy, now contradicted by fly-first.
-      NOTE: instant flight HUD shows "NO DESTINATION SET" — the immersive HUD isn't reading the
-      instant mission's nearest-airport assignment; fold into C3 (airport bearing pointers).
-- [x] B4. No-selection TAKE CONTROLS → nearestFlyableContact (dec4a67). Center = home ?? savedCenter;
-      anon flies it instantly, authed selects it for the ranked briefing. No-op when selected-but-
-      loading or no center/flyable available.
-- [x] B5. Instant-flight debrief (d101b34). New `instant` DebriefSubmission status → EndCard shows a
-      LOCALLY SCORED, unranked debrief (same landing evaluation as tutorial; never submitted),
-      authority "INSTANT FLIGHT — LOCAL AND UNRANKED", amber SIGN IN TO RANK THIS FLIGHT
-      (onSignIn→sign-in sheet), ScoreBreakdown collapsed behind ▸details. 2 EndCard tests.
-      NOTE: kept the full ranked EndCard layout intact (its tests lock it); the mock's 3-stat visual
-      trim / FLY AGAIN button not done — optional polish follow-up.
-
-## TODO — anon abuse controls (NEEDS DECISION on tripwire mechanism)
-- [ ] C1. Client cap: localStorage anon-flight count; 4th → require sign-in (block instant path).
-- [ ] C2. IP tripwire (worker): count anon flight-starts by CF-Connecting-IP, fail-open. Mechanism TBD
-      (Rate Limit binding vs KV counter vs DO). Client beacons on anon flight start; over-threshold →
-      require sign-in. Does NOT gate the current flight on the network (optimistic + fail-open).
-
-## HUD
-- [x] C3 (instant-flight part) / #47. Instant flight destination pointer fixed (51a9574, deployed
-      b08ce861) — ungated `immersiveNavCue` for instantFlight; shows "KGPT · 22.4 NM" + DEST arrow,
-      verified live. Decision logged. STILL OPEN in #47: destination indicator in the DEFAULT
-      (non-immersive) desktop HUD.
-
-## DONE (owner sequence a→handoff→b→c, 2026-08-13)
-- [x] (a) triage: closed #64 #58 #63 #43 #32 #26 #9 #36 (51→43 open); commented #65 #61 #47 #66.
-- [x] handoff: pause-2026-08-13-instant-flight-shipped.md
-- [x] (b) B5 debrief verify: instant flight entry verified live (A20N airliner takeover, no bounce);
-      debrief scored EndCard + SIGN IN TO RANK unit-tested; owner confirmed crash→debrief mechanism.
-- [x] (c) C3 instant destination pointer — see HUD above.
-
-## STILL PENDING
-- [x] #47 default (non-immersive) desktop HUD destination indicator — HudDestinationCue in Hud.tsx
-      (top-center, airport · NM · heading-relative arrow), driven by immersiveNavCue; supersedes +
-      removes mission/MissionNavCue.tsx. Gate green (1290 tests). COMMITTED, NOT DEPLOYED (owner signoff).
-- [x] verify + close #65 (mouse-look) and #61 (exterior trail flicker) — VERIFIED on b08ce861, closed.
-- [x] B5 polish: instant debrief hero (big outcome + AIRTIME/DISTANCE/MAX ALT) + FLY AGAIN button
-      (restarts a fresh instant flight via App flyAgain). Additive, instant-only. Gate green.
-      DEPLOYED 2026-08-13 @ Version 07a0984a (commit bfff644). ⚠️ FLY AGAIN restart path still needs
-      an eyeball on prod (unit-tested only) — fly an instant flight → debrief → tap FLY AGAIN.
-
-## UX issue batch (mobile walkthrough 2026-08-13) — HOLDING DEPLOY for owner
-- [x] #69 pick-plane search zoom — inputs 16px at <=1023px (iOS focus-zoom fix). CSS-only.
-- [x] #72 cockpit preview — DROPPED (owner chose drop over video); removed CockpitPreview + stale copy.
-- [x] #74 immersive attribution/Cesium-credit fade — credit joins the auto-hide (text attribution already faded).
-- [x] #75 immersive buttons fade — FULL/EXIT · DCLTR · MENU + NAV/WX chip fade with idle; tap reveals.
-      Kept always-on: HUD bar, stick, throttle, warnings. Flight chips (CAM/GEAR/FLP/TRM) NOT faded.
-- [x] #73 in-flight airport-label declutter — AIRPORT_MAX_RANGE_NM=80 cap below the large-only tier. Committed ce754a6.
-- [~] #70 free-flight modal — condensed intro copy + mobile height-bound + opaque bg. TAKE CONTROLS reachable.
-- [~] #71 mission card — condensed disclosure + opaque bg (kills header/Cesium bleed-THROUGH). REMAINING:
-      Cesium credit renders ON TOP (z-index) + tall card top-overlap — need a real-device/Chrome pass.
-_Panel preference saved: avoid scrolling; condense text to fit (memory adsb-game-panels-avoid-scrolling)._
-_DEPLOYED 2026-08-13 @ Version 7aa2a252 (HEAD fa0ab90). Gate green: typecheck, 1287 unit, lint 5/8._
-
-## Live-QA round 2 (owner on iPhone, 2026-08-13) — ALL DEPLOYED
-- [x] Immersive fade REDESIGN: touch-to-reveal fought flying → now chrome hides while FLYING; MENU is
-      the one always-visible control; tapping MENU pauses + reveals all. HUD-A/C toggle fades too.
-- [x] Cesium credit widget HIDDEN (keyless app; attribution already in StatusBar) — was covering UI + half the screen.
-- [x] #76 handoff card: fixed 460px → min(460px, 100vw-24px) + z-index:20 (no edge clip, no credit cover).
-- [x] #70 free-flight round 2: class picker → compact 3-across row so TAKE CONTROLS fits (no scroll).
-- [x] One-tap resume on touch: RESUME resumes directly; "click the globe" is desktop pointer-lock only.
-- [x] #77 iOS ENTER FULLSCREEN no-op: button hidden where unsupported + Add-to-Home-Screen note.
-- [x] #71 RESOLVED by the above (opaque bg + credit hidden killed both bleed-through and overlap).
-- [x] Cleanup: removed the dead overlaysVisible/CHROME_IDLE_TIMEOUT_MS idle-timer + tests.
-_Deploys this round: 531c8407 → 8aafd660 → be1fc2c4 → b8b96022 (+ pending cleanup commit)._
-
-## C1 (client anon cap) and C2 (worker IP tripwire) — DEFERRED by owner (behind-the-scenes admin).
-
-## Issues filed 2026-08-13: #66 (local/staging feed), #67 (mini-2D map on WX/radar), #68 (initial 3D-tilt wow).
-
-## Issue triage 2026-08-13 — CLOSED #64 #58 #63 #43 #32 #26 #9 #36 (fixed-batch, 51→43 open).
-
-## KEY MAP (from explorer)
-- Mode machine: `game/machine.ts:13` (BROWSE/COUNTDOWN/FLYING/PAUSED/ENDED); store `state/store.ts`
-  `fire()` + `startLockedMission`(:338)/`startTutorial`(:357)/`startFreeFlight`(:378).
-- takeControls: `App.tsx:312`; sign-in gate :314-326 (saveProvisionalBriefing + setSignInOpen).
-- Bounce root cause: magic-link reload captured pre-mount `main.tsx:6` → resets in-memory state;
-  sessionStorage only reseeds the SELECTION not the flow. Anonymous-instant path avoids it entirely.
-- Free flight template: `freeflight/freeFlight.ts:101` buildFreeFlightMission (zero fetch/auth/lock).
-- EndCard: `panels/EndCard.tsx` (grid :132-158, ScoreBreakdown :39-51, Versions :53-66).
-
-## Ship
-- [ ] Gate green → live-verify (instant flight + anon cap) → owner signoff → deploy
+## Pending
+- [ ] Owner verify Version 5956e755 on device (HUD C, sign-in, mission fit, #67 basemap imagery)
+- [ ] "cesium border still seems oversized" — AMBIGUOUS; get a screenshot before fixing
+- [ ] Mission briefing may still scroll if ELIGIBLE AIRPORTS list long — condense further if reported
+- [ ] #67 basemap live-verify (Esri CORS — bails to black if tainted; proxy via worker if so)
+- [ ] FLY AGAIN restart (B5) still not live-verified end-to-end
+- [ ] #77 FULL immersive toggle still over-promises on iOS (minor relabel)
+- [ ] EPIC: multi-aircraft-type flight models — resolveClass (takeover/eligibility.ts:33) maps t→3 classes;
+      broaden buckets + add archetype param files + maybe parametric adsbdb scaling. START WITH BRAINSTORMING.
+- [ ] Deferred by owner: #66 feed cfg · #68 3D-tilt wow · #78 desktop dashboard realism · C1 client cap · C2 IP tripwire
