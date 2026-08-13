@@ -14,13 +14,24 @@
  * the default export reads the store + HUD snapshot and gates on mode.
  */
 import { useSyncExternalStore } from "react";
+import { Cartesian3, SceneTransforms } from "cesium";
 import type { Contact } from "../data/types";
 import { useStore } from "../state/store";
+import { useViewer } from "../globe/viewerContext";
 import { hudSnapshot } from "../hud/snapshot";
 import { EM_DASH } from "../hud/format";
 import { contactHeightM } from "../data/contactGeo";
 import { mToFt } from "../sim/units";
 import { bearingDeg, rangeNm } from "../dashboard/geoRange";
+import {
+  calloutAnchor,
+  CALLOUT_PANEL_SIZE,
+  CALLOUT_MARGINS_DESKTOP,
+  CALLOUT_MARGINS_MOBILE,
+} from "./calloutAnchor";
+
+/** Matches the tokens.css `.identify-callout` mobile breakpoint (max-width: 1023px). */
+const MOBILE_BREAKPOINT_PX = 1024;
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -40,10 +51,12 @@ function altLine(c: Contact): string {
   return h === null ? EM_DASH : `${Math.round(mToFt(h))} FT`;
 }
 
-export function IdentifiedContactBody({ contact, own, onClose }: {
+export function IdentifiedContactBody({ contact, own, onClose, style }: {
   contact: Contact;
   own: { latDeg: number; lonDeg: number } | null;
   onClose(): void;
+  /** Screen position (#86 anchor-to-target); omitted in tests, which don't check layout. */
+  style?: { left: string; top: string };
 }) {
   const callsign = contact.flight?.trim();
   const rangeStr = own === null
@@ -55,7 +68,7 @@ export function IdentifiedContactBody({ contact, own, onClose }: {
         .padStart(3, "0")}°`;
 
   return (
-    <div className="identify-callout panel">
+    <div className="identify-callout panel" style={style}>
       <div className="label handoff-title">CONTACT</div>
       <Row label="CALLSIGN" value={orDash(callsign ? callsign : null)} />
       <Row label="HEX" value={contact.hex.toUpperCase()} />
@@ -74,6 +87,7 @@ export default function IdentifiedContactCallout() {
   const identifiedHex = useStore((s) => s.identifiedHex);
   const contact = useStore((s) => (identifiedHex === null ? undefined : s.contacts.get(identifiedHex)));
   const snapshot = useSyncExternalStore(hudSnapshot.subscribe, hudSnapshot.get, hudSnapshot.get);
+  const bundle = useViewer();
 
   // Belt-and-braces gate: the mount site already limits this to FLYING/PAUSED, but self-gating
   // keeps the component honest if it is ever mounted elsewhere.
@@ -82,11 +96,40 @@ export default function IdentifiedContactCallout() {
   if (identifiedHex === null || contact === undefined) return null;
 
   const own = snapshot === null ? null : { latDeg: snapshot.latDeg, lonDeg: snapshot.lonDeg };
+
+  // Anchor the panel next to the tapped target (#86), reusing the exact world -> window
+  // projection pattern from globe/TrafficOverlay.tsx: reject points behind the camera via the
+  // dot product, then SceneTransforms for the pixel position. `contactHeightM` is the same
+  // alt_geom rule the billboard/ALT row use; a contact without alt_geom is placed at the
+  // ellipsoid surface (height 0) as a best-effort anchor rather than not projecting at all —
+  // the panel still needs somewhere honest to point, even though ALT itself will read em-dash.
+  let projected: { x: number; y: number } | null = null;
+  const scene = bundle?.viewer.scene ?? null;
+  if (scene !== null) {
+    const heightM = contactHeightM(contact) ?? 0;
+    const world = Cartesian3.fromDegrees(contact.lon, contact.lat, heightM);
+    const toContact = Cartesian3.subtract(world, scene.camera.positionWC, new Cartesian3());
+    if (Cartesian3.dot(toContact, scene.camera.directionWC) > 0) {
+      const win = SceneTransforms.worldToWindowCoordinates(scene, world);
+      projected = win ? { x: win.x, y: win.y } : null;
+    }
+  }
+  const viewportWidthPx = scene?.canvas.clientWidth ?? window.innerWidth;
+  const viewportHeightPx = scene?.canvas.clientHeight ?? window.innerHeight;
+  const margins = viewportWidthPx < MOBILE_BREAKPOINT_PX ? CALLOUT_MARGINS_MOBILE : CALLOUT_MARGINS_DESKTOP;
+  const { leftPx, topPx } = calloutAnchor(
+    projected,
+    { widthPx: viewportWidthPx, heightPx: viewportHeightPx },
+    CALLOUT_PANEL_SIZE,
+    margins,
+  );
+
   return (
     <IdentifiedContactBody
       contact={contact}
       own={own}
       onClose={() => useStore.getState().setIdentifiedHex(null)}
+      style={{ left: `${leftPx}px`, top: `${topPx}px` }}
     />
   );
 }

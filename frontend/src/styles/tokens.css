@@ -1120,11 +1120,11 @@ body {
   }
 }
 
-/* ---- in-flight tap-to-identify callout (#86): compact, top-left, opposite the detail card ---- */
+/* ---- in-flight tap-to-identify callout (#86): compact, anchored to the tapped target ---- */
+/* Position (top/left) is JS-driven — see game/calloutAnchor.ts — so it follows the tapped
+   target's projected screen position instead of sitting in a fixed corner. */
 .identify-callout {
   position: absolute;
-  top: 64px;
-  left: 16px;
   width: 200px;
   padding: 8px 10px;
   font-size: 11px;
@@ -1133,8 +1133,6 @@ body {
 }
 @media (max-width: 1023px) {
   .identify-callout {
-    top: max(96px, calc(env(safe-area-inset-top) + 88px));
-    left: max(8px, env(safe-area-inset-left));
     width: min(200px, calc(100vw - 32px));
   }
 }
