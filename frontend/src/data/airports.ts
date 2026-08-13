@@ -90,8 +90,17 @@ export function shortenAirportName(name: string, ident: string, iata: string | n
   return shortened.length > 0 ? shortened : fallback;
 }
 
-/** What the label reads: the shortened field name, uppercased; the code only when there is no name. */
+/**
+ * The compact tactical-scope label: the IATA code where there is one, else the ICAO ident. Used by
+ * the dashboard nav-map, where a full name would swamp the scope. (The globe labels use the name —
+ * `airportGlobeLabel`.)
+ */
 export function airportLabelText(a: Airport): string {
+  return a.iata ?? a.ident;
+}
+
+/** The globe label: the shortened field name, uppercased; the code only when there is no name. */
+export function airportGlobeLabel(a: Airport): string {
   return shortenAirportName(a.name, a.ident, a.iata).toUpperCase();
 }
 

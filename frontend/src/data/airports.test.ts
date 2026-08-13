@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import {
-  AIRPORT_LABEL_MAX, airportLabelText, loadAirports, shortenAirportName, validateAirports,
-  visibleAirports, type Airport,
+  AIRPORT_LABEL_MAX, airportGlobeLabel, airportLabelText, loadAirports, shortenAirportName,
+  validateAirports, visibleAirports, type Airport,
 } from "./airports";
 
 const AIRPORTS = loadAirports();
@@ -100,12 +100,21 @@ describe("shortenAirportName — readable names, not code soup", () => {
   });
 });
 
-describe("airportLabelText", () => {
+describe("airportLabelText — the compact tactical-scope code", () => {
+  it("prefers the IATA code, which is what a pilot reads on a chart", () => {
+    expect(airportLabelText(ap({ ident: "KMOB", iata: "MOB" }))).toBe("MOB");
+  });
+  it("falls back to the ICAO ident when there is no IATA code — never to a blank", () => {
+    expect(airportLabelText(ap({ ident: "KMOB", iata: null }))).toBe("KMOB");
+  });
+});
+
+describe("airportGlobeLabel — the shortened name for globe labels", () => {
   it("reads the shortened NAME, uppercased for the terminal look", () => {
-    expect(airportLabelText(ap({ name: "Mobile Regional Airport" }))).toBe("MOBILE RGNL");
+    expect(airportGlobeLabel(ap({ name: "Mobile Regional Airport" }))).toBe("MOBILE RGNL");
   });
   it("falls back to the code when there is no usable name", () => {
-    expect(airportLabelText(ap({ name: "", iata: "MOB" }))).toBe("MOB");
-    expect(airportLabelText(ap({ name: "", iata: null, ident: "KMOB" }))).toBe("KMOB");
+    expect(airportGlobeLabel(ap({ name: "", iata: "MOB" }))).toBe("MOB");
+    expect(airportGlobeLabel(ap({ name: "", iata: null, ident: "KMOB" }))).toBe("KMOB");
   });
 });

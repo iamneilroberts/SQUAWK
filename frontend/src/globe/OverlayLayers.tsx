@@ -16,9 +16,13 @@ import RoutePreview from "../briefing/RoutePreview";
 import { useViewer } from "./viewerContext";
 import { applyBasemap, createBasemapRef, disposeBasemap } from "./basemap";
 import {
-  applyPlacesLayer, clearAirportLabels, createAirportLabelRef, createPlacesRef, syncAirportLabels,
+  applyPlacesLayer, clearAirportLabels, clearNavaidLabels, clearPlaceLabels, createAirportLabelRef,
+  createNavaidLabelRef, createPlaceLabelRef, createPlacesRef, syncAirportLabels, syncNavaidLabels,
+  syncPlaceLabels,
 } from "./labelLayers";
 import { loadAirports, visibleAirports } from "../data/airports";
+import { loadPlaces, visiblePlaces } from "../data/places";
+import { loadNavaids, visibleNavaids } from "../data/navaids";
 
 export default function OverlayLayers({
   route,
@@ -32,6 +36,8 @@ export default function OverlayLayers({
   const basemapRef = useRef(createBasemapRef());
   const placesRef = useRef(createPlacesRef());
   const airportRef = useRef(createAirportLabelRef());
+  const placeLabelRef = useRef(createPlaceLabelRef());
+  const navaidRef = useRef(createNavaidLabelRef());
 
   useEffect(() => {
     if (!bundle) return;
@@ -56,31 +62,41 @@ export default function OverlayLayers({
     return () => applyPlacesLayer(viewer, false, ref);
   }, [bundle?.viewer, labelsOn, basemap]);
 
+  // Airports, curated Gulf Coast places, and VOR-family navaids all ride the LABELS toggle and the
+  // same camera hook — "declutter by camera height/range" reacts to the camera, not a store change.
   useEffect(() => {
     if (!bundle) return;
     const viewer = bundle.viewer;
     const labels = bundle.labels;
-    const ref = airportRef.current;
+    const airports = airportRef.current;
+    const places = placeLabelRef.current;
+    const navaids = navaidRef.current;
+
+    const clearAll = () => {
+      clearAirportLabels(labels, airports);
+      clearPlaceLabels(labels, places);
+      clearNavaidLabels(labels, navaids);
+    };
 
     if (!labelsOn) {
-      clearAirportLabels(labels, ref);
+      clearAll();
       return;
     }
 
-    const airports = loadAirports();
+    const airportData = loadAirports();
+    const placeData = loadPlaces();
+    const navaidData = loadNavaids();
     const update = () => {
       if (viewer.isDestroyed()) return;
       const carto = viewer.camera.positionCartographic;
-      syncAirportLabels(
-        labels,
-        ref,
-        visibleAirports({
-          airports,
-          cameraHeightM: carto.height,
-          centerLatDeg: CesiumMath.toDegrees(carto.latitude),
-          centerLonDeg: CesiumMath.toDegrees(carto.longitude),
-        }),
-      );
+      const at = {
+        cameraHeightM: carto.height,
+        centerLatDeg: CesiumMath.toDegrees(carto.latitude),
+        centerLonDeg: CesiumMath.toDegrees(carto.longitude),
+      };
+      syncAirportLabels(labels, airports, visibleAirports({ airports: airportData, ...at }));
+      syncPlaceLabels(labels, places, visiblePlaces({ places: placeData, ...at }));
+      syncNavaidLabels(labels, navaids, visibleNavaids({ navaids: navaidData, ...at }));
     };
 
     const previousPercentage = viewer.camera.percentageChanged;
@@ -91,7 +107,7 @@ export default function OverlayLayers({
     return () => {
       viewer.camera.changed.removeEventListener(update);
       viewer.camera.percentageChanged = previousPercentage;
-      clearAirportLabels(labels, ref);
+      clearAll();
     };
   }, [bundle?.viewer, bundle?.labels, labelsOn]);
 

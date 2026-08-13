@@ -22,6 +22,7 @@ export const BASEMAP_CREDIT: Readonly<Record<BasemapKind, string>> = {
 };
 export const PLACES_CREDIT = "PLACES © ESRI";
 export const AIRPORTS_CREDIT = "AIRPORTS: OURAIRPORTS (PUBLIC DOMAIN)";
+export const NAVAIDS_CREDIT = "NAVAIDS: OURAIRPORTS (PUBLIC DOMAIN)";
 export const TRAFFIC_CREDIT = "TRAFFIC: AIRPLANES.LIVE / ADSB.LOL / ADSB.FI";
 
 /**
@@ -35,7 +36,7 @@ export function attributionFor(o: {
   terrainNote: string | null;
 }): string {
   const parts = [BASEMAP_CREDIT[o.basemap], o.terrainNote ?? "TERRAIN LOADING…"];
-  if (o.labelsOn) parts.push(PLACES_CREDIT, AIRPORTS_CREDIT);
+  if (o.labelsOn) parts.push(PLACES_CREDIT, AIRPORTS_CREDIT, NAVAIDS_CREDIT);
   parts.push(TRAFFIC_CREDIT);
   return parts.join(" · ");
 }
