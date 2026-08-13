@@ -7,6 +7,7 @@ const CLASS_ORDER: { id: AircraftClassId; name: string; model: string }[] = [
   { id: "c172s", name: "LIGHT", model: "C172S" },
   { id: "b738", name: "AIRLINER", model: "B738" },
   { id: "f5e", name: "FIGHTER", model: "F-5E" },
+  { id: "biz", name: "BUSINESS JET", model: "CITATION-CLASS" },
 ];
 
 /**

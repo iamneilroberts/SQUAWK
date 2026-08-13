@@ -121,7 +121,7 @@ function preparation(value: unknown): value is MissionPreparationPayload {
     timestamp(value.issuedAt) && timestamp(value.expiresAt) && Number(value.expiresAt) > Number(value.issuedAt) &&
     record(value.contact) && typeof value.contact.hex === "string" && HEX.test(value.contact.hex) &&
     record(value.traffic) &&
-    (value.classId === "c172s" || value.classId === "b738" || value.classId === "f5e") &&
+    (value.classId === "c172s" || value.classId === "b738" || value.classId === "f5e" || value.classId === "biz") &&
     record(value.selected) &&
     Array.isArray(choices) && choices.length > 0 && choices.length <= MISSION_MAX_ELIGIBLE_CHOICES &&
     choices.every(record) &&

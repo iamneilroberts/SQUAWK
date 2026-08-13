@@ -18,6 +18,10 @@ describe("resolveClass", () => {
   it("maps a GA designator to c172s", () => {
     expect(resolveClass(contact({ t: "PA28" }))).toEqual({ supported: true, classId: "c172s", matched: true });
   });
+  it("maps a business-jet designator to biz", () => {
+    expect(resolveClass(contact({ t: "C25A" }))).toEqual({ supported: true, classId: "biz", matched: true });
+    expect(resolveClass(contact({ t: "GLF6" }))).toEqual({ supported: true, classId: "biz", matched: true });
+  });
   it("returns explicit unsupported for an unknown type", () => {
     expect(resolveClass(contact({ t: "C130" }))).toEqual({ supported: false, classId: null, matched: false, reason: "UNSUPPORTED AIRCRAFT TYPE" });
   });

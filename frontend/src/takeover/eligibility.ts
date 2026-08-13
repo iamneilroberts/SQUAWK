@@ -13,10 +13,12 @@ import { EM_DASH } from "../hud/format";
 import gaTypes from "../params/ga-types.json";
 import airlinerTypes from "../params/airliner-types.json";
 import fighterTypes from "../params/fighter-types.json";
+import bizTypes from "../params/biz-types.json";
 
 export const GA_TYPE_DESIGNATORS: ReadonlySet<string> = new Set(gaTypes.designators);
 export const AIRLINER_TYPE_DESIGNATORS: ReadonlySet<string> = new Set(airlinerTypes.designators);
 export const FIGHTER_TYPE_DESIGNATORS: ReadonlySet<string> = new Set(fighterTypes.designators);
+export const BIZ_TYPE_DESIGNATORS: ReadonlySet<string> = new Set(bizTypes.designators);
 
 /** readsb `seen_pos` can run to ~50 s; spawning on a 50-second-old position is a lie. */
 export const MAX_SEEN_POS_S = 15;
@@ -35,6 +37,7 @@ export function resolveClass(contact: Contact): ClassResolution {
   if (t !== null) {
     if (FIGHTER_TYPE_DESIGNATORS.has(t)) return { supported: true, classId: "f5e", matched: true };
     if (AIRLINER_TYPE_DESIGNATORS.has(t)) return { supported: true, classId: "b738", matched: true };
+    if (BIZ_TYPE_DESIGNATORS.has(t)) return { supported: true, classId: "biz", matched: true };
     if (GA_TYPE_DESIGNATORS.has(t)) return { supported: true, classId: "c172s", matched: true };
     return { supported: false, classId: null, matched: false, reason: "UNSUPPORTED AIRCRAFT TYPE" };
   }

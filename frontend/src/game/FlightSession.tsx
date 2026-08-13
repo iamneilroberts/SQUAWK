@@ -472,7 +472,9 @@ export default function FlightSession({
                   },
                 });
                 useStore.getState().fire("IMPACT");
-                onTutorialCompleteRef.current?.(lockedMission.classId);
+                // biz has no tutorial (definitions.ts has no biz entry), so this callback's
+                // narrower signature never needs to name it — guard rather than widen the type.
+                if (lockedMission.classId !== "biz") onTutorialCompleteRef.current?.(lockedMission.classId);
                 return;
               }
               if (coachingUsedRef.current) onCoachingCompleteRef.current?.();

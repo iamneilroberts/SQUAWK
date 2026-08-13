@@ -6,7 +6,7 @@ import { loadLeaderboard } from "./api";
 import LeaderboardResults from "./LeaderboardResults";
 import type { LeaderboardAssist, LeaderboardPage } from "./types";
 
-const CLASS_IDS: readonly AircraftClassId[] = ["c172s", "b738", "f5e"];
+const CLASS_IDS: readonly AircraftClassId[] = ["c172s", "b738", "f5e", "biz"];
 const ASSISTS: readonly { value: LeaderboardAssist; label: string }[] = [
   { value: "none", label: "OFF" },
   { value: "low", label: "NAV" },

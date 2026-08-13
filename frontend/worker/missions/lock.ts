@@ -8,6 +8,7 @@ import {
   type MissionReceiptPayload,
 } from "../../src/mission/contract";
 import { missionProfileForClass } from "../../src/mission/profiles";
+import type { AircraftClassId } from "../../src/mission/types";
 import { loadClassById } from "../../src/sim/params";
 import { buildSpawnState } from "../../src/takeover/spawn";
 import type { ClassParams } from "../../src/sim/types";
@@ -92,7 +93,7 @@ function parseLockedDocument(mission: Mission): LockedMissionDocument | null {
 }
 
 function currentVersions(payload: {
-  classId: "c172s" | "b738" | "f5e";
+  classId: AircraftClassId;
   versions: { airportDataset: string };
 }) {
   const profile = missionProfileForClass(payload.classId);

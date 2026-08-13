@@ -12,6 +12,7 @@ const CLASS_LABELS: Record<AircraftClassId, string> = {
   c172s: "GENERAL AVIATION · C172S MODEL",
   b738: "AIRLINER · B738 MODEL",
   f5e: "FIGHTER · F-5E MODEL",
+  biz: "BUSINESS JET · CITATION-CLASS MODEL",
 };
 
 function identity(state: Exclude<ProvisionalBriefingState, { status: "idle" }>): string {
