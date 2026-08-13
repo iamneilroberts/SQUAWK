@@ -83,6 +83,18 @@ flow-mock (FLY NOW start card + trimmed debrief); 3 anon flights then require si
 _Panel preference saved: avoid scrolling; condense text to fit (memory adsb-game-panels-avoid-scrolling)._
 _DEPLOYED 2026-08-13 @ Version 7aa2a252 (HEAD fa0ab90). Gate green: typecheck, 1287 unit, lint 5/8._
 
+## Live-QA round 2 (owner on iPhone, 2026-08-13) — ALL DEPLOYED
+- [x] Immersive fade REDESIGN: touch-to-reveal fought flying → now chrome hides while FLYING; MENU is
+      the one always-visible control; tapping MENU pauses + reveals all. HUD-A/C toggle fades too.
+- [x] Cesium credit widget HIDDEN (keyless app; attribution already in StatusBar) — was covering UI + half the screen.
+- [x] #76 handoff card: fixed 460px → min(460px, 100vw-24px) + z-index:20 (no edge clip, no credit cover).
+- [x] #70 free-flight round 2: class picker → compact 3-across row so TAKE CONTROLS fits (no scroll).
+- [x] One-tap resume on touch: RESUME resumes directly; "click the globe" is desktop pointer-lock only.
+- [x] #77 iOS ENTER FULLSCREEN no-op: button hidden where unsupported + Add-to-Home-Screen note.
+- [x] #71 RESOLVED by the above (opaque bg + credit hidden killed both bleed-through and overlap).
+- [x] Cleanup: removed the dead overlaysVisible/CHROME_IDLE_TIMEOUT_MS idle-timer + tests.
+_Deploys this round: 531c8407 → 8aafd660 → be1fc2c4 → b8b96022 (+ pending cleanup commit)._
+
 ## C1 (client anon cap) and C2 (worker IP tripwire) — DEFERRED by owner (behind-the-scenes admin).
 
 ## Issues filed 2026-08-13: #66 (local/staging feed), #67 (mini-2D map on WX/radar), #68 (initial 3D-tilt wow).

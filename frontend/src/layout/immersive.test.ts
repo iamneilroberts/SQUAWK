@@ -1,7 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  isImmersiveActive, showImmersiveToggle, overlaysVisible, CHROME_IDLE_TIMEOUT_MS,
-} from "./immersive";
+import { isImmersiveActive, showImmersiveToggle } from "./immersive";
 
 describe("isImmersiveActive", () => {
   it("is true when requested AND flying (mobile — unchanged)", () => {
@@ -34,29 +32,5 @@ describe("showImmersiveToggle", () => {
     expect(showImmersiveToggle("PAUSED")).toBe(false);
     expect(showImmersiveToggle("ENDED")).toBe(false);
     expect(showImmersiveToggle("COUNTDOWN")).toBe(false);
-  });
-});
-
-describe("overlaysVisible (video-player auto-hide)", () => {
-  it("hides the informational overlays when flying, idle past the timeout, no warning", () => {
-    // Broken arm: a version that always returned true would never fade for the clean view.
-    expect(overlaysVisible("FLYING", 5000, false)).toBe(false);
-  });
-  it("shows them again right after a tap (within the idle timeout)", () => {
-    expect(overlaysVisible("FLYING", 500, false)).toBe(true);
-  });
-  it("shows them the instant the idle window has not yet elapsed", () => {
-    expect(overlaysVisible("FLYING", CHROME_IDLE_TIMEOUT_MS - 1, false)).toBe(true);
-    expect(overlaysVisible("FLYING", CHROME_IDLE_TIMEOUT_MS, false)).toBe(false);
-  });
-  it("keeps attribution visible when PAUSED, even when long idle (legal safeguard)", () => {
-    expect(overlaysVisible("PAUSED", 999999, false)).toBe(true);
-  });
-  it("always shows overlays in BROWSE", () => {
-    expect(overlaysVisible("BROWSE", 999999, false)).toBe(true);
-  });
-  it("shows overlays while a warning is live even when idle (safety overrides the hide)", () => {
-    // Broken arm: dropping the warning override would hide an OVERSPEED annunciator mid-fade.
-    expect(overlaysVisible("FLYING", 999999, true)).toBe(true);
   });
 });

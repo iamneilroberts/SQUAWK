@@ -36,32 +36,7 @@ export function showImmersiveToggle(mode: Mode): boolean {
   return mode === "FLYING";
 }
 
-/** After this long with no touch interaction, the informational overlays fade (video pattern). */
-export const CHROME_IDLE_TIMEOUT_MS = 3000;
-
-/**
- * Whether the INFORMATIONAL overlays (attribution line, HUD readouts, SIM banner, feed status)
- * are shown right now. This is the video-player auto-hide: while actively FLYING they fade after
- * an idle period, and reappear on any tap. It NEVER governs the flight controls (they stay
- * usable) — only the informational chrome.
- *
- * Rules, in order:
- *  - Anything other than FLYING (browse, countdown, PAUSED, ended) → always shown. This is why
- *    attribution is always visible in browse and when paused (the legal safeguard: auto-hiding
- *    attribution is only acceptable because it reliably comes back).
- *  - A live warning (OVERSPEED etc.) → always shown, even when idle (safety overrides the hide).
- *  - Otherwise shown only while a recent interaction is within the idle timeout.
- *
- * The caller supplies `msSinceLastInteraction`; this stays a pure function of numbers so it can be
- * broken-arm tested without a clock or the DOM.
- */
-export function overlaysVisible(
-  mode: Mode,
-  msSinceLastInteraction: number,
-  warningActive: boolean,
-  idleTimeoutMs: number = CHROME_IDLE_TIMEOUT_MS,
-): boolean {
-  if (mode !== "FLYING") return true;
-  if (warningActive) return true;
-  return msSinceLastInteraction < idleTimeoutMs;
-}
+// The former overlaysVisible() idle-timer auto-hide was removed 2026-08-13: in a flight game the
+// pilot touches the controls constantly, so "reveal on any tap" never let the chrome stay hidden.
+// ImmersiveControl now hides chrome whenever mode === "FLYING" and reveals it only on pause (via
+// the always-visible MENU button) or a live warning — no clock, no pointer listeners.

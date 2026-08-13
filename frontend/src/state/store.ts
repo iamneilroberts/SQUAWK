@@ -66,9 +66,9 @@ type State = {
    */
   immersive: boolean;
   /**
-   * Whether the informational overlays are currently shown, driven by the video-player auto-hide
-   * in immersive flight (overlaysVisible). Default true; only ImmersiveControl flips it, and only
-   * while immersive is active. Attribution is faded via this flag, never removed from the DOM.
+   * Whether the immersive chrome is currently shown. False while FLYING (chrome hidden except the
+   * always-visible MENU), true otherwise. Only ImmersiveControl flips it, and only while immersive
+   * is active. Faded elements stay in the DOM (opacity), never removed.
    */
   chromeVisible: boolean;
   /**

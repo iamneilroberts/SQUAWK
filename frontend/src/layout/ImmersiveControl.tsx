@@ -12,9 +12,9 @@
  *     silent no-op and the in-app declutter carries the mode; a minimal, dismissible "Add to Home
  *     Screen" hint offers the only real fullscreen iOS gives a web app (a standalone PWA). The hint
  *     is suppressed once installed.
- *  3. The video-player auto-hide. While actively flying, the informational overlays fade after an
- *     idle period and reappear on any tap; a live warning or leaving FLYING forces them back. The
- *     decision is the pure overlaysVisible(); this only supplies the clock and the interaction.
+ *  3. The chrome auto-hide. While actively FLYING the chrome is hidden; MENU stays as the one
+ *     always-visible control, and tapping it (pause) or a live warning reveals everything. No idle
+ *     clock, no pointer listeners (owner 2026-08-13: touch-to-reveal fought constant flight input).
  */
 import { useEffect, useState } from "react";
 import { useStore } from "../state/store";
