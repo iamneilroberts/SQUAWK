@@ -14,8 +14,8 @@ describe("modelDimsForClass", () => {
     }
   });
 
-  it("is a pure lookup, not a branch — the map holds exactly the three classes", () => {
-    expect(Object.keys(MODEL_DIMS).sort()).toEqual(["b738", "c172s", "f5e"]);
+  it("is a pure lookup, not a branch — the map holds exactly the known classes", () => {
+    expect(Object.keys(MODEL_DIMS).sort()).toEqual(["b738", "biz", "c172s", "f5e"]);
   });
 
   it("throws on an unknown id rather than silently substituting (a bug, not data)", () => {
@@ -75,5 +75,13 @@ describe("modelDimsForClass", () => {
   it("gives the fighter a low aspect ratio (short span for its length) — stubby wings", () => {
     const aspect = (id: string) => MODEL_DIMS[id].wingSpanM / MODEL_DIMS[id].lengthM;
     expect(aspect("f5e")).toBeLessThan(aspect("c172s"));
+  });
+
+  it("resolves biz model dimensions (swept low-wing twinjet with nacelles)", () => {
+    const d = modelDimsForClass("biz");
+    expect(d.wingSweepRad).toBeGreaterThan(0);
+    expect(d.engine?.count).toBe(2);
+    expect(d.lengthM).toBeGreaterThan(15);
+    expect(d.lengthM).toBeLessThan(25);
   });
 });

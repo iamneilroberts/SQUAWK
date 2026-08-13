@@ -99,6 +99,20 @@ export const MODEL_DIMS: Readonly<Record<string, ModelDims>> = {
     finHeightM: 2.3,
     fuselageRadiusM: 0.7,
   },
+  biz: {
+    lengthM: 19.0,
+    wingSpanM: 15.5,
+    wingSweepRad: (20 * Math.PI) / 180,
+    wingChordM: 2.6,
+    wingXFrac: 0.40,
+    wingZFrac: 0.7, // low wing
+    wingTipChordFrac: 0.45,
+    engine: { count: 2, spanFracs: [-0.18, 0.18], lengthM: 2.4, radiusM: 0.55 }, // aft-fuselage-mounted, tucked inboard
+    tailSpanM: 6.4,
+    tailChordM: 1.8,
+    finHeightM: 3.2,
+    fuselageRadiusM: 0.95,
+  },
 };
 
 /**

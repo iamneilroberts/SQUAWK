@@ -17,6 +17,7 @@ describe("class -> dashboard-profile registry (data, not branches)", () => {
       c172s: "sixpack",
       b738: "efis",
       f5e: "hud",
+      biz: "efis",
     };
     for (const id of DASHBOARD_PROFILE_IDS) {
       expect(profileForClass(id).primary).toBe(expected[id]);
@@ -24,9 +25,10 @@ describe("class -> dashboard-profile registry (data, not branches)", () => {
     }
   });
 
-  it("distinguishes the three flight models — no two share a primary", () => {
-    const primaries = DASHBOARD_PROFILE_IDS.map((id) => profileForClass(id).primary);
-    expect(new Set(primaries).size).toBe(primaries.length);
+  it("keeps the original three flight models on distinct primaries, and gives the bizjet the airliner's EFIS family", () => {
+    const original = ["c172s", "b738", "f5e"].map((id) => profileForClass(id).primary);
+    expect(new Set(original).size).toBe(original.length);
+    expect(profileForClass("biz").primary).toBe(profileForClass("b738").primary);
   });
 
   // Broken-arm: if the resolver ever fell back to one hard-coded default (e.g. always sixpack),
@@ -60,5 +62,9 @@ describe("class -> dashboard-profile registry (data, not branches)", () => {
     for (const id of DASHBOARD_PROFILE_IDS) {
       expect(profileForClass(id).background).toBe("transparent");
     }
+  });
+
+  it("gives the bizjet an EFIS dashboard profile", () => {
+    expect(profileForClass("biz")).toEqual({ classId: "biz", primary: "efis", background: "transparent" });
   });
 });
