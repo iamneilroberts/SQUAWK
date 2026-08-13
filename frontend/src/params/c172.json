@@ -13,6 +13,7 @@
     "postStallDecayRad": 0.2,
     "cd0": 0.035,
     "gearDragCd0": 0,
+    "speedbrakeCd0": 0,
     "oswaldE": 0.7,
     "cyBeta": -0.31
   },
@@ -65,6 +66,7 @@
     "postStallDecayRad": "TUNING KNOB — 0.20 rad (11.5 deg) fade width from CLmax toward flat-plate lift past the break. Gives the soft mushy stall the 172 is known for (about 15% CL lost in the first 2 deg past the break); smaller is a sharper CL cliff. Does NOT move CLmax.",
     "cd0": "TUNING KNOB (cruise + top speed) — raised from the JSBSim book value 0.032 to 0.035. Measured by envelope.test.ts: 75% rated power at 8000 ft settles at 123.4 kt TAS (POH 122-124, band 117-127) and sea-level full power tops out at 128.1 kt TAS (POH Vh 126, band 118-134). Real CD0 is unpublished.",
     "gearDragCd0": "0 — the 172 has fixed gear; its drag is already inside the sourced cd0 (0.035). Present so the field is required data everywhere, per GR-003, not a per-class branch.",
+    "speedbrakeCd0": "0 — the C172 has no speedbrake/spoiler; KeyB is inert. Present so the field is required data everywhere (#51), not a per-class branch.",
     "oswaldE": "TUNING KNOB — 0.70, derived from a published C172 model (CD0=0.0329, K=0.0599).",
     "cyBeta": "textbook light-single side-force slope; makes a slip cost energy",
     "rollRateMaxRadS": "40 deg/s — middle of the research doc's 30-45 deg/s light-GA estimate",

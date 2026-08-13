@@ -15,7 +15,7 @@ const P = loadC172();
 const CLEAN = P.flaps[0];
 const FULL = P.flaps[3];
 
-const CONTROLS: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle: 0.75, flapDetent: 0, trim: 0, gearDown: false, afterburner: false };
+const CONTROLS: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle: 0.75, flapDetent: 0, trim: 0, gearDown: false, afterburner: false, speedbrake: false };
 
 /** Velocity vector for a flight path `fpaDeg` above the horizon, tracking north. */
 function velocityAlong(positionEcef: Vec3, tasMs: number, fpaDeg: number): Vec3 {
@@ -227,7 +227,7 @@ describe("gear drag", () => {
     const B738 = loadB738();
     const controls: ControlVector = {
       pitch: 0, roll: 0, yaw: 0, throttle: 0.5, flapDetent: 0, trim: 0,
-      gearDown: false, afterburner: false,
+      gearDown: false, afterburner: false, speedbrake: false,
     };
     const alt = ftToM(10000);
     const tas = 128; // ~250 kt TAS
@@ -244,5 +244,29 @@ describe("gear drag", () => {
     const gearUp = computeForces({ ...stateAt(alt, tas), gearPosition: 0 }, CONTROLS, P);
     const gearDown = computeForces({ ...stateAt(alt, tas), gearPosition: 1 }, CONTROLS, P);
     expect(vLength(vSub(gearUp.forceEcef, gearDown.forceEcef))).toBeCloseTo(0, 6);
+  });
+});
+
+describe("speedbrake drag (#51)", () => {
+  const base = {
+    pitch: 0, roll: 0, yaw: 0, throttle: 0.5, flapDetent: 0, trim: 0,
+    gearDown: false, afterburner: false,
+  } as const;
+  it("adds speedbrakeCd0 of parasitic drag for a class with an airbrake, only when deployed", () => {
+    const B738 = loadB738();
+    const alt = ftToM(10000);
+    const tas = 128; // ~250 kt TAS
+    const clean = computeForces(stateAt(alt, tas), { ...base, speedbrake: false }, B738);
+    const boards = computeForces(stateAt(alt, tas), { ...base, speedbrake: true }, B738);
+    // Same speed/alt/AoA — the only difference is the speedbrakeCd0 drag term. A real increase.
+    const forceDropN = vLength(vSub(clean.forceEcef, boards.forceEcef));
+    expect(forceDropN).toBeGreaterThan(1000);
+  });
+  it("C172 (speedbrakeCd0 = 0) sees no change when the speedbrake is toggled — no branch", () => {
+    const alt = ftToM(3000);
+    const tas = 50;
+    const off = computeForces(stateAt(alt, tas), { ...CONTROLS, speedbrake: false }, P);
+    const on = computeForces(stateAt(alt, tas), { ...CONTROLS, speedbrake: true }, P);
+    expect(vLength(vSub(off.forceEcef, on.forceEcef))).toBeCloseTo(0, 6);
   });
 });

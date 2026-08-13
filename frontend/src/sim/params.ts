@@ -119,6 +119,8 @@ export function validateClassParams(raw: unknown): ClassParams {
       // num(), not positive(): the C172 ships gearDragCd0 = 0 (fixed-gear drag is already in
       // cd0), and positive() would reject that zero.
       gearDragCd0: num(aero, "gearDragCd0", "params.aero"),
+      // num(), not positive(): a class with no airbrake ships speedbrakeCd0 = 0 (#51).
+      speedbrakeCd0: num(aero, "speedbrakeCd0", "params.aero"),
       oswaldE: positive(aero, "oswaldE", "params.aero"),
       cyBeta: num(aero, "cyBeta", "params.aero"),
     },

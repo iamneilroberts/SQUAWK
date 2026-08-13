@@ -13,6 +13,7 @@
     "postStallDecayRad": 0.25,
     "cd0": 0.02,
     "gearDragCd0": 0.025,
+    "speedbrakeCd0": 0.06,
     "oswaldE": 0.7,
     "cyBeta": -0.8
   },
@@ -64,6 +65,7 @@
     "postStallDecayRad": "TUNING KNOB — 0.25 rad fade width past the break.",
     "cd0": "TUNING KNOB (climb) — 0.020 clean parasite drag; the subsonic value only (no wave drag; the sim never runs supersonic, spec §1/§7). Pinned with maxPowerW by the burner-climb test.",
     "gearDragCd0": "TUNING KNOB — 0.025, a fighter gear/doors drag increment above the 737's (smaller aircraft, proportionally higher CD0 impact). Phase B source verification pending (CLAUDE.md). Pinned by the Task 3 broken-arm test.",
+    "speedbrakeCd0": "TUNING KNOB (#51) — 0.06, the F-5E ventral airbrake drag increment (~3x clean cd0 0.02). Lets the fighter manage a steep idle descent without instant overspeed. Pinned by the speedbrake envelope test. Source verification pending (CLAUDE.md).",
     "oswaldE": "TUNING KNOB — 0.70, lower span efficiency for a low-AR fighter wing.",
     "cyBeta": "TUNING KNOB — -0.8/rad side-force slope.",
     "rollRateMaxRadS": "TUNING KNOB — 3.5 rad/s (~200 deg/s), the nimble fighter roll rate (decisions B-007). Far above the 737's 15 deg/s.",

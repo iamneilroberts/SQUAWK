@@ -17,7 +17,7 @@ describe("control sampler — stick", () => {
   it("starts centred with idle throttle, flaps up and neutral trim", () => {
     const s = createControlSampler(P);
     const c = s.sample(new Set(), DT);
-    expect(c).toEqual({ pitch: 0, roll: 0, yaw: 0, throttle: 0, flapDetent: 0, trim: 0, gearDown: false, afterburner: false });
+    expect(c).toEqual({ pitch: 0, roll: 0, yaw: 0, throttle: 0, flapDetent: 0, trim: 0, gearDown: false, afterburner: false, speedbrake: false });
   });
   it("ArrowDown pitches up, ArrowUp pitches down", () => {
     expect(hold(createControlSampler(P), ["ArrowDown"], 60).pitch).toBeGreaterThan(0);
@@ -124,7 +124,7 @@ describe("control sampler — trim", () => {
 describe("handover start state", () => {
   it("can start from the spawn's trimmed, powered controls instead of cold", () => {
     const s = createControlSampler(P, {
-      pitch: 0, roll: 0, yaw: 0, throttle: 0.62, flapDetent: 2, trim: -0.4, gearDown: false, afterburner: false,
+      pitch: 0, roll: 0, yaw: 0, throttle: 0.62, flapDetent: 2, trim: -0.4, gearDown: false, afterburner: false, speedbrake: false,
     });
     const c = s.sample(new Set(), DT);
     expect(c.throttle).toBeCloseTo(0.62, 9);
@@ -139,7 +139,7 @@ describe("reset", () => {
     hold(s, ["KeyW", "ArrowDown", "Period", "KeyF"], 120);
     s.reset();
     expect(s.sample(new Set(), DT)).toEqual({
-      pitch: 0, roll: 0, yaw: 0, throttle: 0, flapDetent: 0, trim: 0, gearDown: false, afterburner: false,
+      pitch: 0, roll: 0, yaw: 0, throttle: 0, flapDetent: 0, trim: 0, gearDown: false, afterburner: false, speedbrake: false,
     });
   });
 });
@@ -167,13 +167,28 @@ describe("KEYMAP documents the cockpit keys as well as the flight controls", () 
 });
 
 describe("afterburner toggle", () => {
-  it("KeyB toggles afterburner edge-triggered — one flip per press", () => {
+  it("KeyR toggles afterburner edge-triggered — one flip per press", () => {
     const s = createControlSampler(loadC172());
     expect(s.sample(new Set(), 1 / 60).afterburner).toBe(false);
-    expect(s.sample(new Set(["KeyB"]), 1 / 60).afterburner).toBe(true);   // edge: off→on
-    expect(s.sample(new Set(["KeyB"]), 1 / 60).afterburner).toBe(true);   // held: no re-flip
+    expect(s.sample(new Set(["KeyR"]), 1 / 60).afterburner).toBe(true);   // edge: off→on
+    expect(s.sample(new Set(["KeyR"]), 1 / 60).afterburner).toBe(true);   // held: no re-flip
     expect(s.sample(new Set(), 1 / 60).afterburner).toBe(true);           // released: stays on
-    expect(s.sample(new Set(["KeyB"]), 1 / 60).afterburner).toBe(false);  // next press: on→off
+    expect(s.sample(new Set(["KeyR"]), 1 / 60).afterburner).toBe(false);  // next press: on→off
+  });
+});
+
+describe("speedbrake toggle (#51)", () => {
+  it("KeyB toggles the speedbrake edge-triggered — one flip per press", () => {
+    const s = createControlSampler(loadC172());
+    expect(s.sample(new Set(), 1 / 60).speedbrake).toBe(false);
+    expect(s.sample(new Set(["KeyB"]), 1 / 60).speedbrake).toBe(true);   // edge: off→on
+    expect(s.sample(new Set(["KeyB"]), 1 / 60).speedbrake).toBe(true);   // held: no re-flip
+    expect(s.sample(new Set(), 1 / 60).speedbrake).toBe(true);           // released: stays on
+    expect(s.sample(new Set(["KeyB"]), 1 / 60).speedbrake).toBe(false);  // next press: on→off
+  });
+  it("KeyB no longer toggles afterburner (moved to KeyR)", () => {
+    const s = createControlSampler(loadC172());
+    expect(s.sample(new Set(["KeyB"]), 1 / 60).afterburner).toBe(false);
   });
 });
 

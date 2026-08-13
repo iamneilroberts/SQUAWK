@@ -170,6 +170,7 @@ export default function Hud({
         <span>THR {formatThrottlePct(snapshot.throttle)}</span>
         <span>{formatFlaps(snapshot.flapLabel)}</span>
         <span>{formatGear(snapshot.gear, snapshot.gearPosition)}</span>
+        {snapshot.speedbrake ? <span className="hud-warning">SPD BRK</span> : null}
         <span>{formatLightPhase(snapshot.lightPhase)}</span>
       </div>
 

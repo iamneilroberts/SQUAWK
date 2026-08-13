@@ -62,6 +62,12 @@ export type ClassParams = {
      * parasitic drag is cd0 + gearDragCd0 * gearPosition (sim/forces.ts computeForces).
      */
     gearDragCd0: number;
+    /**
+     * Parasitic-drag CD0 increment from a fully-deployed speedbrake/spoiler. 0 for a class
+     * with no airbrake (e.g. the C172), so the term vanishes with no branch. Effective
+     * parasitic drag adds speedbrakeCd0 when ControlVector.speedbrake is true (#51).
+     */
+    speedbrakeCd0: number;
     /** TUNING KNOB — Oswald span efficiency. See sources.tuning. */
     oswaldE: number;
     /** Side-force slope per radian of sideslip (negative = restoring). */
@@ -154,6 +160,12 @@ export type ControlVector = {
    * SimState.gearPosition, not this field (GR-001).
    */
   gearDown: boolean;
+  /**
+   * Commanded speedbrake — true = deployed. Edge-toggled by KeyB (input/controls.ts); adds
+   * ClassParams.aero.speedbrakeCd0 to parasitic drag while true. Instant (no transition state),
+   * like afterburner; inert where speedbrakeCd0 === 0 (#51).
+   */
+  speedbrake: boolean;
 };
 
 /** Everything the physics owns. Mutated in place by stepAircraft (via a fresh object). */

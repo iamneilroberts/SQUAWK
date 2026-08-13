@@ -187,10 +187,28 @@ describe("B738 envelope — limits", () => {
     expect(fpm).toBeLessThan(500);
   });
   it("never produces NaN across a control sweep", () => {
-    const controls: ControlVector = { pitch: 0.6, roll: 0.6, yaw: 0.6, throttle: 1, flapDetent: 4, trim: 1, gearDown: false, afterburner: false };
+    const controls: ControlVector = { pitch: 0.6, roll: 0.6, yaw: 0.6, throttle: 1, flapDetent: 4, trim: 1, gearDown: false, afterburner: false, speedbrake: false };
     let s = levelState(P, ftToM(30000), ktToMs(280), controls);
     for (let i = 0; i < 3600; i++) s = stepAircraft(s, controls, P);
     expect(Number.isFinite(s.tasMs)).toBe(true);
     expect(Number.isFinite(s.loadFactor)).toBe(true);
+  });
+});
+
+describe("B738 envelope — speedbrake (#51)", () => {
+  it("the deployed speedbrake lets a meaningfully steeper idle descent hold 250 KIAS", () => {
+    // At idle (thrust 0), a descent holds speed where drag = weight * sin(descentAngle). More
+    // drag => a steeper angle can be flown without accelerating. This is the whole point of #51:
+    // clean, the 737 overspeeds in a steep idle descent; with boards it can hold a steeper path.
+    const alt = ftToM(10000);
+    const tas = iasToTas(ktToMs(250), alt);
+    const qBar = 0.5 * isaDensity(alt) * tas * tas;
+    const weight = P.massKg * G0;
+    const cl = weight / (qBar * P.wingAreaM2);
+    const dragClean = dragCoefficient(cl, P, P.flaps[0]) * qBar * P.wingAreaM2;
+    const dragBoards = (dragCoefficient(cl, P, P.flaps[0]) + P.aero.speedbrakeCd0) * qBar * P.wingAreaM2;
+    const angleCleanDeg = (Math.asin(Math.min(1, dragClean / weight)) * 180) / Math.PI;
+    const angleBoardsDeg = (Math.asin(Math.min(1, dragBoards / weight)) * 180) / Math.PI;
+    expect(angleBoardsDeg).toBeGreaterThan(angleCleanDeg + 1); // boards buy at least a degree steeper
   });
 });

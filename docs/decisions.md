@@ -2377,3 +2377,25 @@ tiles bail to transparent (black face), never a substituted picture. resolveZoom
 maxZ (default RADAR_MAX_Z keeps precip unchanged; basemap uses 12 for a crisp close-range image).
 NavBasemapLayer is HOOK-FREE (callback ref, not useEffect) so NavMap stays walkable by its non-jsdom
 test; gated behind a showBasemap prop (on for MobileNavWx + UnifiedGlass). Browser-verified.
+
+## 2026-08-13 — Speedbrake control (#51)
+
+Owner reported the 737 "overspeeds even at low throttle." Diagnosed (throwaway probe against the real
+force code): idle thrust is exactly 0 (no floor), clean drag can't even hold level below ~30% throttle
+at 10k, and a 3° idle descent HOLDS 250 KIAS — so the model is physically correct. The overspeed was a
+~15° dive (owner saw ±6500 fpm) where gravity-along-track (167 kN) swamps drag (38 kN); a real jet needs
+speedbrakes there, which the model lacked. Owner chose "add speedbrake control" over retuning drag
+(would break the cruise envelope) or descent-guidance changes.
+
+Implemented as DATA, not a branch (spec §5): new `ControlVector.speedbrake` (boolean, instant like
+afterburner) + `ClassParams.aero.speedbrakeCd0` added to parasitic drag when deployed
+(computeForces). c172s = 0 (no airbrake, term vanishes, KeyB inert), b738 = 0.05, f5e = 0.06 (tuning
+knobs, source verification pending). Envelope test pins the claim: boards buy ≥1° steeper holdable idle
+descent. HONEST LIMIT documented in the params sources — beyond ~10° even boards can't hold 250 KIAS
+(gravity dominates); that is realistic, not a bug.
+
+Keybind: afterburner moved KeyB → **KeyR** (Reheat) to free **KeyB** for the speedbrake (B for Boards),
+since speedbrake applies to every jet and afterburner only to the F-5E (owner's mnemonic ask). Mobile
+gets a `BRK` touch button (disabled where speedbrakeCd0 = 0); HUD shows SPD BRK (desktop) / BRK OUT
+(immersive bar, both variants) only while deployed. Ground deceleration (wheel brakes / thrust
+reversers for the landing rollout) is a SEPARATE open question, not part of this change.

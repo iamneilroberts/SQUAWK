@@ -201,7 +201,9 @@ export function computeForces(
   const cl = liftCoefficient(aoaRad, params, flap);
   // Effective parasitic drag adds the gear's contribution, ramped by its integrated position
   // (GR-003) — 0 for a fixed-gear class, whose drag already lives in cd0 (gearDragCd0 = 0).
-  const cd = dragCoefficient(cl, params, flap) + params.aero.gearDragCd0 * state.gearPosition;
+  const cd = dragCoefficient(cl, params, flap)
+    + params.aero.gearDragCd0 * state.gearPosition
+    + (controls.speedbrake ? params.aero.speedbrakeCd0 : 0);
 
   let lift = qBar * params.wingAreaM2 * cl;
   const drag = qBar * params.wingAreaM2 * cd;

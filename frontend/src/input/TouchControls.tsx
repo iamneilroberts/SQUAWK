@@ -207,6 +207,7 @@ export default function TouchControls({
   onThrottle,
   throttle,
   gearFixed,
+  hasSpeedbrake,
 }: {
   onStick(roll: number, pitch: number): void;
   onStickRelease(): void;
@@ -214,6 +215,8 @@ export default function TouchControls({
   /** Live throttle [0,1] from the sim; the lever mirrors it when not being dragged. */
   throttle: number;
   gearFixed: boolean;
+  /** Class has an airbrake (speedbrakeCd0 > 0); BRK is disabled otherwise (#51). */
+  hasSpeedbrake: boolean;
 }) {
   // If the whole overlay unmounts mid-deflection (leaving FLYING), let the stick go so a stale
   // analog target can't linger; the buttons synthesize their own keyup on release already.
@@ -229,6 +232,7 @@ export default function TouchControls({
       <div className="touch-buttons">
         <DiscreteButton label="CAM" code="KeyE" />
         <DiscreteButton label="GEAR" code="KeyG" disabled={gearFixed} />
+        <DiscreteButton label="BRK" code="KeyB" disabled={!hasSpeedbrake} />
         <DiscreteButton label="FLP−" code="KeyV" />
         <DiscreteButton label="FLP+" code="KeyF" />
         <HoldButton label="TRM▼" code="Comma" />

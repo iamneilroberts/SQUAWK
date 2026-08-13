@@ -53,6 +53,11 @@ export type HudSnapshot = {
    * honest default, never a fabricated WET. Meaningless for a class with afterburnerFactor 1.
    */
   afterburner?: boolean;
+  /**
+   * Speedbrake deployed (mirrors ControlVector.speedbrake). Optional like afterburner so existing
+   * fixtures need no rework; absent reads as stowed. Drives the HUD's SPD BRK annunciator (#51).
+   */
+  speedbrake?: boolean;
   /** True when retractable, gearPosition > 0, and IAS exceeds limits.vleIasMs (GR-004). */
   gearOverspeed: boolean;
   /** Height above the sampled ground, or null when the ground has never been sampled. */

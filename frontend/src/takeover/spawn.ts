@@ -207,6 +207,7 @@ export function buildSpawnState(
     pitch: 0, roll: 0, yaw: 0, throttle, flapDetent, trim,
     gearDown: gearDownAtSpawn,
     afterburner: false,
+    speedbrake: false,
   };
 
   // Placeholder derived readouts — refreshDerived below is the source of truth for these

@@ -185,6 +185,7 @@ function BalancedRail({ snapshot, attitudeStyle, navCue }: {
       <CompactField label="ALT" value={formatAltFt(snapshot.altitudeM)} unit="FT" />
       <CompactField label="FLP" value={snapshot.flapLabel || EM_DASH} />
       <CompactField label="THR" value={formatThrottlePct(snapshot.throttle)} />
+      {snapshot.speedbrake ? <CompactField label="BRK" value="OUT" /> : null}
     </div>
   );
 }
@@ -245,6 +246,7 @@ function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange }: {
             <span>AGL <b>{formatClearanceFt(snapshot.terrainClearanceM)}</b></span>
             <span>FLP <b>{snapshot.flapLabel || EM_DASH}</b></span>
             <span>THR <b>{formatThrottlePct(snapshot.throttle)}</b></span>
+            {snapshot.speedbrake ? <span>BRK <b>OUT</b></span> : null}
           </span>
         </span>
       </span>

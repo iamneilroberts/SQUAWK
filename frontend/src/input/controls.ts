@@ -32,7 +32,8 @@ export const KEYMAP: Readonly<Record<string, string>> = {
   Comma: "trim nose down",
   Period: "trim nose up",
   KeyL: "return to level (assist)",
-  KeyB: "afterburner dry/wet",
+  KeyB: "speedbrake extend/retract",
+  KeyR: "afterburner dry/wet",
   KeyQ: "hold — look around",
   Escape: "pause",
   // Cockpit chrome, not flight controls: the sampler matches on codes and never sees these.
@@ -63,7 +64,7 @@ function stepAxis(current: number, target: number, dtS: number): number {
 }
 
 /** Cold start: centred stick, idle, flaps up, neutral trim. */
-const COLD: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle: 0, flapDetent: 0, trim: 0, gearDown: false, afterburner: false };
+const COLD: ControlVector = { pitch: 0, roll: 0, yaw: 0, throttle: 0, flapDetent: 0, trim: 0, gearDown: false, afterburner: false, speedbrake: false };
 
 /**
  * `initial` is how the takeover hands over a TRIMMED, POWERED aircraft: buildSpawnState
@@ -87,6 +88,8 @@ export function createControlSampler(params: ClassParams, initial: ControlVector
   let prevBurner = false;
   let gearDown = initial.gearDown;
   let prevGear = false;
+  let speedbrake = initial.speedbrake;
+  let prevBrake = false;
 
   return {
     sample(held, dtS, analog) {
@@ -127,15 +130,21 @@ export function createControlSampler(params: ClassParams, initial: ControlVector
       prevFlapDown = flapDown;
       prevFlapUp = flapUp;
 
-      const burnerKey = held.has("KeyB");
+      const burnerKey = held.has("KeyR");
       if (burnerKey && !prevBurner) afterburner = !afterburner;
       prevBurner = burnerKey;
+
+      // Speedbrake toggle (#51). Edge-triggered like gear/burner; inert where speedbrakeCd0 === 0
+      // (the drag term vanishes), so no per-class gate is needed here.
+      const brakeKey = held.has("KeyB");
+      if (brakeKey && !prevBrake) speedbrake = !speedbrake;
+      prevBrake = brakeKey;
 
       const gearKey = held.has("KeyG");
       if (gearKey && !prevGear && params.gear === "retractable") gearDown = !gearDown;
       prevGear = gearKey;
 
-      return { pitch, roll, yaw, throttle, flapDetent, trim, gearDown, afterburner };
+      return { pitch, roll, yaw, throttle, flapDetent, trim, gearDown, afterburner, speedbrake };
     },
     reset() {
       pitch = initial.pitch; roll = initial.roll; yaw = initial.yaw;

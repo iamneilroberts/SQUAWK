@@ -13,6 +13,7 @@
     "postStallDecayRad": 0.18,
     "cd0": 0.02,
     "gearDragCd0": 0.018,
+    "speedbrakeCd0": 0.05,
     "oswaldE": 0.8,
     "cyBeta": -0.9
   },
@@ -70,6 +71,7 @@
     "postStallDecayRad": "TUNING KNOB — 0.18 rad fade width past the break; a slightly sharper stall than the C172.",
     "cd0": "TUNING KNOB (cruise Mach + service ceiling) — 0.020 clean parasite drag for a modern transport (OpenAP 737 clean CD0 ~0.018-0.022). Tuned so 85% thrust trims level at M0.78 at FL350 (measured M0.78) and the FL410 service ceiling still just climbs.",
     "gearDragCd0": "TUNING KNOB — 0.018, mid of the spec's ~0.015-0.02 range for a 737-class gear/doors. Pinned by the Task 3 broken-arm test: a measurable max-level-speed drop with gear down.",
+    "speedbrakeCd0": "TUNING KNOB (#51) — 0.05, the 737 flight-spoiler/speedbrake parasitic-drag increment (~2.5x clean cd0), so a deployed board lets an idle 3-6 deg descent hold speed instead of overspeeding. Pinned by the speedbrake envelope test (a steeper idle descent holds with boards than clean). Beyond ~10 deg even boards can't hold — realistic. Source verification pending (CLAUDE.md).",
     "oswaldE": "TUNING KNOB — 0.80, typical transport span efficiency.",
     "cyBeta": "TUNING KNOB — -0.9/rad transport side-force slope (large fin), so a slip bleeds energy.",
     "rollRateMaxRadS": "TUNING KNOB (spec §3 large roll inertia) — 15 deg/s, deliberately low for the heavy-jet feel vs the C172's 40 deg/s.",
