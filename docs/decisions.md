@@ -2258,3 +2258,36 @@ selected contact if present, else the nearest flyable. Deferring-through-teardow
 restarting in place avoids leaking the Cesium camera/loop. NOT YET LIVE-VERIFIED (deploy held for
 owner signoff) — unit-tested at the EndCard layer; the App→FlightSession restart path needs an
 eyeball on prod before trust.
+
+## 2026-08-13 — Immersive experience declutter (#74 attribution/credit fade, #75 buttons fade) + #69 + #72
+
+**#74/#75 — fade non-essential chrome in immersive.** The video-player auto-hide (chromeVisible +
+3s idle timer in ImmersiveControl, decision logic in layout/immersive.ts) already faded the
+top-controls funnel, mission-chrome, and the StatusBar feed/attribution. It did NOT touch three
+things that still cluttered the flying view: the FULL/EXIT · DCLTR · MENU control row, the NAV/WX
+chip, and Cesium's own credit widget. Threaded the existing `faded` value (FlightSession:798) into
+ImmersiveControl + MobileNavWx and added fade classes; the Cesium credit lives outside React so
+ImmersiveControl toggles a `body.immersive-chrome-faded` class the CSS keys off. Kept ALWAYS
+visible: the top instrument bar, the STICK, the throttle, and warnings — those are how you fly and
+survive. Notably NOT faded: the CAM/GEAR/FLP/TRM flight chips (TouchControls) — they are active
+controls, not chrome; fading them would add a tap-to-reveal before every gear/flap change. If the
+owner wants maximal declutter later, they can join the fade too.
+
+**MENU no longer always-on (reverses the #58 decision).** #58 deliberately kept MENU (the mobile
+abort valve) outside the idle auto-hide "so a player who falls through un-sampled terrain can always
+get out." Owner 2026-08-13 asked to fade ALL non-essential buttons. Safe to reverse because the
+reveal is one tap: the idle-reset listener is a window `pointerdown`, so a tap ANYWHERE (it hits the
+canvas, not the faded pointer-events:none button) restores the chrome instantly, then MENU is one
+more tap. So the escape is at most two taps and the first is "tap the screen", which is the natural
+panic reaction. Manual DCLTR still never hides MENU (that toggle is for informational chrome).
+
+**#69 — iOS search-box zoom.** The pick-a-plane CALLSIGN/HEX/TYPE search + filter selects used 10px
+mono; iOS auto-zooms the viewport on focus of any input < 16px. Bumped to 16px at <=1023px (touch)
+only — desktop keeps the 10px console look. CSS-only.
+
+**#72 — dropped the SIMULATED COCKPIT PREVIEW (owner chose drop over video).** The pre-takeover
+six-pack preview only ever showed em-dashes / "NO SIGNAL" (live instruments start after takeover),
+and carried stale "SIGN-IN REQUIRED AFTER COCKPIT PREVIEW" copy that contradicts fly-first. Removed
+CockpitPreview.tsx + its usage in MissionTray + the stale note + the orphaned .mission-auth-note CSS.
+Video was declined to avoid a new asset/dependency (spec §14 gate). MissionTray goes straight from
+the briefing grid to TAKE CONTROLS.

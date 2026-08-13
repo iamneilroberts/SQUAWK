@@ -70,11 +70,17 @@ flow-mock (FLY NOW start card + trimmed debrief); 3 anon flights then require si
       DEPLOYED 2026-08-13 @ Version 07a0984a (commit bfff644). ⚠️ FLY AGAIN restart path still needs
       an eyeball on prod (unit-tested only) — fly an instant flight → debrief → tap FLY AGAIN.
 
-## Filed this session (mobile walkthrough): #69 pick-plane search zoom · #70 free-flight modal bottom
-## overlap · #71 provisional-mission card mobile display · #72 cockpit preview video/drop + stale
-## copy · #73 in-flight airport-label declutter (distance cap) · #74 immersive attribution fade.
+## UX issue batch (mobile walkthrough 2026-08-13) — HOLDING DEPLOY for owner
+- [x] #69 pick-plane search zoom — inputs 16px at <=1023px (iOS focus-zoom fix). CSS-only.
+- [x] #72 cockpit preview — DROPPED (owner chose drop over video); removed CockpitPreview + stale copy.
+- [x] #74 immersive attribution/Cesium-credit fade — credit joins the auto-hide (text attribution already faded).
+- [x] #75 immersive buttons fade — FULL/EXIT · DCLTR · MENU + NAV/WX chip fade with idle; tap reveals.
+      Kept always-on: HUD bar, stick, throttle, warnings. Flight chips (CAM/GEAR/FLP/TRM) NOT faded.
+- [ ] #73 in-flight airport-label declutter (distance cap in data/airports.ts visibleAirports) — NEXT.
+- [ ] #70 free-flight modal bottom overlap + #71 provisional-mission card mobile display — layout, likely shared root cause.
+_Batch 1 (#69/#72/#74/#75) gate green: typecheck, 1287 unit, lint 5/8. COMMITTED, NOT DEPLOYED._
 
-## C1 (client anon cap) and C2 (worker IP tripwire) remain — not started this session.
+## C1 (client anon cap) and C2 (worker IP tripwire) — DEFERRED by owner (behind-the-scenes admin).
 
 ## Issues filed 2026-08-13: #66 (local/staging feed), #67 (mini-2D map on WX/radar), #68 (initial 3D-tilt wow).
 

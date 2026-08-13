@@ -66,15 +66,20 @@ body {
   font-size: 11px;
 }
 
-/* Cesium's credit container carries required attribution (Esri, GEBCO-style feeds) and must
-   stay visible and legible — only restyled to fit the console aesthetic, never hidden. */
+/* Cesium's credit container carries required attribution (Esri, GEBCO-style feeds) — restyled to
+   fit the console aesthetic. In immersive flight it fades with the rest of the chrome (#74) and
+   reappears on any tap (same standard as the StatusBar attribution), so it is never PERMANENTLY
+   hidden; on every other screen it stays fully visible. */
 .cesium-viewer-bottom,
 .cesium-widget-credits {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text);
   text-shadow: none;
+  transition: opacity 0.5s ease;
 }
+body.immersive-chrome-faded .cesium-viewer-bottom,
+body.immersive-chrome-faded .cesium-widget-credits { opacity: 0; pointer-events: none; }
 
 /* ---- contact list rows: left-aligned identity, right-aligned numeric readout ---- */
 .contact-row {
@@ -628,7 +633,6 @@ body {
 .mission-alternative:disabled { cursor: not-allowed; opacity: 0.55; }
 .mission-alternative-active { border-left-color: var(--cyan); color: var(--cyan); background: rgba(95, 215, 224, 0.12); }
 .mission-take-controls { width: 100%; justify-content: center; margin-top: 12px; }
-.mission-auth-note { margin-top: 5px; text-align: center; color: var(--amber); }
 .mission-cockpit-preview {
   margin-top: 12px;
   padding: 7px;
@@ -1394,8 +1398,11 @@ body {
   .control-button-disabled { width: auto; }
   .dash-panel-header { min-height: 44px; }
   .contact-row { min-height: 44px; padding: 8px; }
+  /* iOS auto-zooms the viewport when a focused input/select has font-size < 16px (#69). The base
+     rule uses 10px mono; bump to 16px on phones so tapping the CALLSIGN/HEX/TYPE search (or a
+     filter dropdown) no longer zooms the browse screen to an unreadable blow-up. */
   .contact-search,
-  .contact-filter { min-height: 38px; }
+  .contact-filter { min-height: 38px; font-size: 16px; }
 
   .top-controls {
     top: max(8px, env(safe-area-inset-top));
@@ -1538,8 +1545,12 @@ body {
   pointer-events: auto;
   touch-action: manipulation;
   cursor: pointer;
+  transition: opacity 0.5s ease;
 }
 .immersive-toggle:active { background: rgba(95, 215, 224, 0.12); }
+/* #75: the control row (FULL/EXIT · DCLTR · MENU) joins the immersive idle auto-hide. Any tap
+   reveals it again (window pointerdown → chromeVisible), so MENU/EXIT stay one-tap-reachable. */
+.immersive-toggle-faded { opacity: 0; pointer-events: none; }
 .immersive-toggle-active {
   top: max(75px, calc(env(safe-area-inset-top) + 71px));
 }
@@ -2024,7 +2035,11 @@ body {
   text-transform: uppercase;
   pointer-events: auto;
   cursor: pointer;
+  transition: opacity 0.5s ease;
 }
+/* #75: the collapsed NAV/WX chip fades with the control row; the expanded overlay (if the pilot
+   opened it) is left alone. Reappears on any tap. */
+.mobile-navwx-chip-faded { opacity: 0; pointer-events: none; }
 .mobile-navwx-chip-label { color: var(--amber); }
 .mobile-navwx-chip-status { color: var(--cyan); }
 

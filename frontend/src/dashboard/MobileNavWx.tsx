@@ -42,7 +42,9 @@ export function navWxChipStatus(state: WeatherState): string {
   }
 }
 
-export default function MobileNavWx({ snapshot }: { snapshot: HudSnapshot | null }) {
+export default function MobileNavWx(
+  { snapshot, faded = false }: { snapshot: HudSnapshot | null; faded?: boolean },
+) {
   const [expanded, setExpanded] = useState(false);
   const [navRangeNm, setNavRangeNm] = useState(DEFAULT_NAV_RANGE_NM);
   const contacts = useStore((s) => s.contacts);
@@ -57,7 +59,7 @@ export default function MobileNavWx({ snapshot }: { snapshot: HudSnapshot | null
     return (
       <button
         type="button"
-        className="mobile-navwx-chip"
+        className={"mobile-navwx-chip" + (faded ? " mobile-navwx-chip-faded" : "")}
         onClick={() => setExpanded(true)}
         aria-label="Open nav and weather"
       >

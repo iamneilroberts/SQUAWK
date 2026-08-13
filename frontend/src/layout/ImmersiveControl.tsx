@@ -29,7 +29,8 @@ import { isNarrowViewport } from "./viewport";
 const AUTOHIDE_POLL_MS = 500;
 
 export default function ImmersiveControl(
-  { warningActive, onMenu }: { warningActive: boolean; onMenu: () => void },
+  { warningActive, onMenu, faded = false }:
+    { warningActive: boolean; onMenu: () => void; faded?: boolean },
 ) {
   const mode = useStore((s) => s.mode);
   const immersive = useStore((s) => s.immersive);
@@ -100,6 +101,16 @@ export default function ImmersiveControl(
     }
   }, [autoHideActive, warningActive, setChromeVisible]);
 
+  // Cesium's credit widget lives OUTSIDE the React tree (the viewer mounts its own DOM), so it
+  // can't take a `faded` prop. Toggle a body class the CSS keys off, matching the same auto-hide
+  // the other chrome uses (#74). It reappears whenever the chrome does (any tap), so the required
+  // attribution is never permanently hidden — same standard as the StatusBar attribution.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.body.classList.toggle("immersive-chrome-faded", faded);
+    return () => document.body.classList.remove("immersive-chrome-faded");
+  }, [faded]);
+
   // ---- keep the toggle honest when the user leaves fullscreen by a browser gesture ----
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -127,7 +138,7 @@ export default function ImmersiveControl(
     <>
       <button
         type="button"
-        className="immersive-toggle"
+        className={"immersive-toggle" + (faded ? " immersive-toggle-faded" : "")}
         onClick={immersive ? onExit : onEnter}
         aria-pressed={immersive}
       >
@@ -139,19 +150,22 @@ export default function ImmersiveControl(
           deliberate tap, not on an idle timer. */}
       <button
         type="button"
-        className={"immersive-toggle declutter-toggle" + (decluttered ? " declutter-toggle-on" : "")}
+        className={"immersive-toggle declutter-toggle" +
+          (decluttered ? " declutter-toggle-on" : "") + (faded ? " immersive-toggle-faded" : "")}
         onClick={() => setDeclutter(!decluttered)}
         aria-pressed={decluttered}
       >
         DCLTR
       </button>
       {/* MENU (#58): the mobile abort valve. Fires the same PAUSE as desktop Escape, so
-          PauseOverlay offers RESUME or QUIT TO BROWSE. A control chip (not informational), so it
-          sits with FULL/EXIT/DCLTR and is never hidden by declutter or the idle auto-hide — a
-          player who falls through un-sampled terrain must always be able to get out. */}
+          PauseOverlay offers RESUME or QUIT TO BROWSE. It joins the idle auto-hide with the rest
+          of the control row (#75, owner 2026-08-13) — but the escape stays one-tap-reachable:
+          any tap reveals the chrome (window pointerdown → chromeVisible), so a player who falls
+          through un-sampled terrain taps once to bring MENU back, then taps it. Manual DCLTR still
+          never hides it — that toggle is for informational chrome, not this control row. */}
       <button
         type="button"
-        className="immersive-toggle menu-toggle"
+        className={"immersive-toggle menu-toggle" + (faded ? " immersive-toggle-faded" : "")}
         onClick={onMenu}
         aria-label="Pause menu"
       >

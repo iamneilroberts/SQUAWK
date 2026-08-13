@@ -47,7 +47,7 @@ function render(state: ProvisionalBriefingState): string {
 }
 
 describe("MissionTray", () => {
-  it("shows the selected class cockpit before the deferred auth gate", () => {
+  it("shows the mission briefing and take-controls without the dropped cockpit preview (#72)", () => {
     const ready = assignContactMission({ contact, classId: "c172s", airports: [airport], datasetVersion: "fixture-v1" });
     const text = render(ready);
     expect(text).toContain("N123");
@@ -57,11 +57,12 @@ describe("MissionTray", () => {
     expect(text).toContain("5000");
     expect(text).toContain("0–100 AFTER SAFETY GATES");
     expect(text).toContain("REAL ADS-B POSITION → SIMULATED AIRCRAFT");
-    expect(text).toContain("SIMULATED COCKPIT PREVIEW");
-    expect(text).toContain("ASI KT");
-    expect(text).toContain("SIGN-IN COMES NEXT");
     expect(text).toContain("Take controls");
-    expect(text).toContain("SIGN-IN REQUIRED AFTER COCKPIT PREVIEW");
+    // Broken-arm (#72): the empty "SIMULATED COCKPIT PREVIEW" panel and its stale sign-in copy
+    // were dropped — they must be gone, not merely repositioned.
+    expect(text).not.toContain("SIMULATED COCKPIT PREVIEW");
+    expect(text).not.toContain("SIGN-IN COMES NEXT");
+    expect(text).not.toContain("SIGN-IN REQUIRED AFTER COCKPIT PREVIEW");
   });
 
   it.each([

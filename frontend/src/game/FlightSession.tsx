@@ -924,14 +924,16 @@ export default function FlightSession({
             throttle={snapshot?.throttle ?? 0}
             gearFixed={(snapshot?.gear ?? "fixed") === "fixed"}
           />
-          <MobileNavWx snapshot={snapshot} />
+          <MobileNavWx snapshot={snapshot} faded={faded} />
         </>
       )}
       {/* The immersive control row (FULL/EXIT · DCLTR · MENU) mounts on BOTH platforms while
           FLYING: mobile as before, desktop so the player can opt into immersive (owner
-          2026-08-12). TouchControls / MobileNavWx above stay mobile-only. */}
+          2026-08-12). TouchControls / MobileNavWx above stay mobile-only. `faded` fades this row
+          + the NAV/WX chip + the Cesium credit into the same auto-hide as the rest of the chrome
+          (#74/#75); the stick/throttle stay put — they are how you fly. */}
       {mode === "FLYING" && (
-        <ImmersiveControl warningActive={warningActive} onMenu={pauseFlight} />
+        <ImmersiveControl warningActive={warningActive} onMenu={pauseFlight} faded={faded} />
       )}
       {mode === "PAUSED" && tutorial !== null && activeLesson !== null && (
         <TeachingOverlay
