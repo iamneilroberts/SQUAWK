@@ -7,8 +7,13 @@
  * a fabricated zero.
  */
 
-/** Trim value that pegs the needle at the end-stop. Legibility knob, tuned on-device (spec §"tuning knobs"). */
-export const TRIM_FULL_SCALE = 0.3;
+/**
+ * Trim value that pegs the needle at the end-stop. Trim is [-1, 1] (full nose-down .. full nose-up),
+ * so the needle must reach its end-stop at ±1 — otherwise it pegs early and reads "maxed" while the
+ * numeric NOSE UP/DN % (formatTrim) still climbs, so a pilot trimming to the pegged needle stops short
+ * of full authority (owner-reported: biz flew nose-up because the needle pegged at 30% of real travel).
+ */
+export const TRIM_FULL_SCALE = 1.0;
 
 const known = (v: number | null | undefined): v is number =>
   v !== null && v !== undefined && Number.isFinite(v);

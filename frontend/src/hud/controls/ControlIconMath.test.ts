@@ -32,9 +32,13 @@ describe("ControlIconMath", () => {
   it("trim needle offsets from the center gate and flags neutral / pegged", () => {
     expect(trimNeedle(0)!.neutral).toBe(true);
     expect(trimNeedle(0)!.y).toBeCloseTo(19);         // on the gate
-    expect(trimNeedle(TRIM_FULL_SCALE)!.y).toBeCloseTo(7);   // nose-up pegs high (small y)
-    expect(trimNeedle(-TRIM_FULL_SCALE)!.y).toBeCloseTo(31); // nose-down pegs low
-    expect(trimNeedle(0.5)!.pegged).toBe(true);       // beyond full-scale
+    expect(trimNeedle(TRIM_FULL_SCALE)!.y).toBeCloseTo(7);   // full nose-up (trim +1) pegs high (small y)
+    expect(trimNeedle(-TRIM_FULL_SCALE)!.y).toBeCloseTo(31); // full nose-down (trim -1) pegs low
+    // Full scale is the trim's own ±1 authority: mid-travel is NOT pegged (this is the fix — the
+    // needle used to peg at 0.3, lying about being maxed while NOSE UP/DN % still climbed).
+    expect(trimNeedle(0.5)!.pegged).toBe(false);      // half travel, needle still moving
+    expect(trimNeedle(1)!.pegged).toBe(false);        // exactly at the end-stop, not past it
+    expect(trimNeedle(1.2)!.pegged).toBe(true);       // only beyond ±1 is pegged
     expect(trimNeedle(0.1)!.neutral).toBe(false);
     expect(trimNeedle(null)).toBeNull();
   });
