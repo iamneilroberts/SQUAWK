@@ -82,3 +82,25 @@ export function sliderToThrottle(pointerY: number, top: number, height: number):
 export function gearButtonDisabled(gear: "fixed" | "retractable"): boolean {
   return gear === "fixed";
 }
+
+/**
+ * The gear touch button gets an amber border only while a RETRACTABLE gear is mid-cycle
+ * (gearPosition strictly between fully up (0) and fully down (1)) — matching the glyph, which
+ * colours itself amber in transit. Fixed gear is always position 1, so this never fires there.
+ */
+export function gearButtonInTransit(
+  gear: "fixed" | "retractable",
+  gearPosition: number,
+): boolean {
+  return gear === "retractable" && gearPosition > 0 && gearPosition < 1;
+}
+
+/**
+ * Corner-badge text for the trim button: magnitude only (direction is shown by the ▲/▼ arrows).
+ * Neutral (rounds to 0%) yields null — no badge. Otherwise `NN%`, matching formatTrim's rounding.
+ */
+export function trimBadgeText(trim: number | null | undefined): string | null {
+  if (trim == null) return null;
+  const pct = Math.round(Math.abs(trim) * 100);
+  return pct === 0 ? null : `${pct}%`;
+}

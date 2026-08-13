@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { stickToAxes, sliderToThrottle, gearButtonDisabled } from "./analog";
+import {
+  stickToAxes,
+  sliderToThrottle,
+  gearButtonDisabled,
+  gearButtonInTransit,
+  trimBadgeText,
+} from "./analog";
 
 const R = 60; // pad radius px
 const DZ = 0.1; // 10% radial deadzone
@@ -65,5 +71,33 @@ describe("gear button inert rule", () => {
   });
   it("is enabled for a retractable-gear class", () => {
     expect(gearButtonDisabled("retractable")).toBe(false);
+  });
+});
+
+describe("gear button amber-in-transit rule (#48 mobile)", () => {
+  it("is amber only mid-cycle on a retractable class", () => {
+    expect(gearButtonInTransit("retractable", 0.5)).toBe(true);
+  });
+  it("is NOT amber fully up or fully down", () => {
+    expect(gearButtonInTransit("retractable", 0)).toBe(false);
+    expect(gearButtonInTransit("retractable", 1)).toBe(false);
+  });
+  it("never fires for a fixed-gear class (always position 1)", () => {
+    expect(gearButtonInTransit("fixed", 0.5)).toBe(false);
+    expect(gearButtonInTransit("fixed", 1)).toBe(false);
+  });
+});
+
+describe("trim badge text (#48 mobile) — magnitude only", () => {
+  it("neutral yields no badge", () => {
+    expect(trimBadgeText(0)).toBeNull();
+    expect(trimBadgeText(0.004)).toBeNull(); // rounds to 0%
+    expect(trimBadgeText(null)).toBeNull();
+    expect(trimBadgeText(undefined)).toBeNull();
+  });
+  it("shows the rounded percent magnitude regardless of direction", () => {
+    expect(trimBadgeText(0.5)).toBe("50%");
+    expect(trimBadgeText(-0.5)).toBe("50%");
+    expect(trimBadgeText(1)).toBe("100%");
   });
 });

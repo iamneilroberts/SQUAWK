@@ -18,7 +18,10 @@
  * (CSS) so the browser does not steal the drag for scroll/zoom.
  */
 import { useEffect, useRef, useState } from "react";
-import { stickToAxes, sliderToThrottle } from "./analog";
+import type { ReactNode } from "react";
+import { stickToAxes, sliderToThrottle, gearButtonInTransit, trimBadgeText } from "./analog";
+import ControlIcon from "../hud/controls/ControlIcon";
+import type { HudSnapshot } from "../hud/snapshot";
 
 /** Radial deadzone as a fraction of the pad radius — a first guess; owner-tunable on device. */
 const STICK_DEADZONE = 0.12;
@@ -34,18 +37,35 @@ function tapKey(code: string): void {
   window.setTimeout(() => keyEvent("keyup", code), TAP_HOLD_MS);
 }
 
+/** Compose the touch-button className with the optional amber-state border (#48 mobile). */
+function btnClass(disabled: boolean | undefined, stateAmber: boolean | undefined): string {
+  let c = disabled ? "touch-btn touch-btn-ghost touch-btn-ghost-disabled" : "touch-btn touch-btn-ghost";
+  if (stateAmber) c += " touch-btn-state-amber";
+  return c;
+}
+
 function DiscreteButton({
   label,
   code,
   disabled,
+  icon,
+  badge,
+  stateAmber,
 }: {
+  /** Text label; ignored when `icon` is present (glyph replaces the text so the button stays the same size). */
   label: string;
   code: string;
   disabled?: boolean;
+  /** A control-state glyph rendered INSTEAD of the text label (#48 GEAR/BRK). */
+  icon?: ReactNode;
+  /** A small corner value badge overlaid on the button (#48 FLP+/TRM); no layout impact. */
+  badge?: ReactNode;
+  /** Amber border to signal an active/in-transit state (glyph colours itself). */
+  stateAmber?: boolean;
 }) {
   return (
     <button
-      className={disabled ? "touch-btn touch-btn-ghost touch-btn-ghost-disabled" : "touch-btn touch-btn-ghost"}
+      className={btnClass(disabled, stateAmber)}
       disabled={disabled}
       onPointerDown={(e) => {
         if (disabled) return;
@@ -53,13 +73,23 @@ function DiscreteButton({
         tapKey(code);
       }}
     >
-      {label}
+      {icon ? <span className="touch-btn-icon">{icon}</span> : label}
+      {badge != null && <span className="touch-btn-badge">{badge}</span>}
     </button>
   );
 }
 
-/** A hold-to-deflect button: synthesizes a held key (rudder) for the whole press. */
-function HoldButton({ label, code }: { label: string; code: string }) {
+/** A hold-to-deflect button: synthesizes a held key (rudder/trim) for the whole press. */
+function HoldButton({
+  label,
+  code,
+  badge,
+}: {
+  label: string;
+  code: string;
+  /** Optional corner value badge (#48 TRM▲ magnitude); no layout impact. */
+  badge?: ReactNode;
+}) {
   const down = useRef(false);
   const release = () => {
     if (!down.current) return;
@@ -80,6 +110,7 @@ function HoldButton({ label, code }: { label: string; code: string }) {
       onLostPointerCapture={release}
     >
       {label}
+      {badge != null && <span className="touch-btn-badge">{badge}</span>}
     </button>
   );
 }
@@ -208,6 +239,7 @@ export default function TouchControls({
   throttle,
   gearFixed,
   hasSpeedbrake,
+  snapshot,
 }: {
   onStick(roll: number, pitch: number): void;
   onStickRelease(): void;
@@ -217,6 +249,8 @@ export default function TouchControls({
   gearFixed: boolean;
   /** Class has an airbrake (speedbrakeCd0 > 0); BRK is disabled otherwise (#51). */
   hasSpeedbrake: boolean;
+  /** Live HUD snapshot: feeds the GEAR/BRK glyphs and the FLP+/TRM badges (#48). Null before spawn. */
+  snapshot: HudSnapshot | null;
 }) {
   // If the whole overlay unmounts mid-deflection (leaving FLYING), let the stick go so a stale
   // analog target can't linger; the buttons synthesize their own keyup on release already.
@@ -231,12 +265,32 @@ export default function TouchControls({
           hold (a lever that ramps while held, matching Comma/Period on the keyboard). */}
       <div className="touch-buttons">
         <DiscreteButton label="CAM" code="KeyE" />
-        <DiscreteButton label="GEAR" code="KeyG" disabled={gearFixed} />
-        <DiscreteButton label="BRK" code="KeyB" disabled={!hasSpeedbrake} />
+        <DiscreteButton
+          label="GEAR"
+          code="KeyG"
+          disabled={gearFixed}
+          icon={<ControlIcon kind="gear" snapshot={snapshot} />}
+          stateAmber={gearButtonInTransit(snapshot?.gear ?? "fixed", snapshot?.gearPosition ?? 1)}
+        />
+        <DiscreteButton
+          label="BRK"
+          code="KeyB"
+          disabled={!hasSpeedbrake}
+          icon={<ControlIcon kind="speedbrake" snapshot={snapshot} />}
+          stateAmber={snapshot?.speedbrake === true}
+        />
         <DiscreteButton label="FLP−" code="KeyV" />
-        <DiscreteButton label="FLP+" code="KeyF" />
+        <DiscreteButton label="FLP+" code="KeyF" badge={snapshot?.flapLabel ?? "—"} />
         <HoldButton label="TRM▼" code="Comma" />
-        <HoldButton label="TRM▲" code="Period" />
+        <HoldButton
+          label="TRM▲"
+          code="Period"
+          badge={
+            trimBadgeText(snapshot?.trim) && (
+              <span className="touch-btn-badge-amber">{trimBadgeText(snapshot?.trim)}</span>
+            )
+          }
+        />
       </div>
     </div>
   );

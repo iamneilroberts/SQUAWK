@@ -9,7 +9,6 @@
 import type { HudSnapshot } from "./snapshot";
 import type { AttitudeStyle } from "../sim/types";
 import AttitudeIndicator from "../dashboard/AttitudeIndicator";
-import ControlIconCell from "./controls/ControlIconCell";
 import {
   EM_DASH,
   formatAltFt,
@@ -17,7 +16,6 @@ import {
   formatHeadingDeg,
   formatIasKt,
   formatThrottlePct,
-  formatTrim,
   formatVsiFpm,
   warningsFor,
 } from "./format";
@@ -100,30 +98,6 @@ export function prioritizedImmersiveWarnings(
 export function relativeBearingDeg(headingRad: number, bearingDeg: number): number {
   const headingDeg = ((radToDeg(headingRad) % 360) + 360) % 360;
   return ((bearingDeg - headingDeg + 540) % 360) - 180;
-}
-
-/** Shared control-state cells for both mobile rails (#48): mirrors Hud.tsx's HudControlRow so
- *  the glass strip, desktop HUD bottom, and mobile rails never disagree. Mobile previously
- *  lacked gear + trim; it now gets the full set. Hook-free so both rails can call it inline. */
-export function ImmersiveControlRow({ snapshot }: { snapshot: HudSnapshot | null }) {
-  const throttle = snapshot?.throttle ?? null;
-  const trimText = formatTrim(snapshot?.trim ?? null);
-  // Single wrapping element (#48): keeps these cells as ONE grid item on the balanced rail and a
-  // single valid block child on the tapes rail, instead of a fragment whose cells hoist/misnest.
-  return (
-    <div className="imm-control-cells">
-      <ControlIconCell kind="throttle" snapshot={snapshot} label="THR"
-        value={formatThrottlePct(throttle)} valueTone={throttle != null && throttle > 0.92 ? "amber" : "cyan"} />
-      <ControlIconCell kind="flaps" snapshot={snapshot} label="FLP" value={snapshot?.flapLabel ?? "—"} />
-      <ControlIconCell kind="trim" snapshot={snapshot} label="TRM" value={trimText}
-        valueTone={trimText === "NEUTRAL" ? "dim" : "cyan"} />
-      <ControlIconCell kind="gear" snapshot={snapshot} label="GEAR" />
-      {snapshot?.hasSpeedbrake && (
-        <ControlIconCell kind="speedbrake" snapshot={snapshot} label="SPD BRK"
-          value={snapshot?.speedbrake ? "OUT" : null} valueTone="amber" />
-      )}
-    </div>
-  );
 }
 
 function CompactField({ label, value, unit }: BarField) {
@@ -209,7 +183,9 @@ function BalancedRail({ snapshot, attitudeStyle, navCue }: {
       <MiniAttitude snapshot={snapshot} attitudeStyle={attitudeStyle} />
       <NavDirector snapshot={snapshot} navCue={navCue} compact />
       <CompactField label="ALT" value={formatAltFt(snapshot.altitudeM)} unit="FT" />
-      <ImmersiveControlRow snapshot={snapshot} />
+      <CompactField label="FLP" value={snapshot.flapLabel || EM_DASH} />
+      <CompactField label="THR" value={formatThrottlePct(snapshot.throttle)} />
+      {snapshot.speedbrake ? <CompactField label="BRK" value="OUT" /> : null}
     </div>
   );
 }
@@ -265,11 +241,13 @@ function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange }: {
         <span className="imm-director-stack">
           <SimIdentity snapshot={snapshot} />
           <NavDirector snapshot={snapshot} navCue={navCue} />
-          <div className="imm-director-systems">
+          <span className="imm-director-systems">
             <span>VSI <b>{formatVsiFpm(snapshot.verticalSpeedMs)}</b></span>
             <span>AGL <b>{formatClearanceFt(snapshot.terrainClearanceM)}</b></span>
-            <ImmersiveControlRow snapshot={snapshot} />
-          </div>
+            <span>FLP <b>{snapshot.flapLabel || EM_DASH}</b></span>
+            <span>THR <b>{formatThrottlePct(snapshot.throttle)}</b></span>
+            {snapshot.speedbrake ? <span>BRK <b>OUT</b></span> : null}
+          </span>
         </span>
       </span>
       <Tape side="right" label="ALT" unit="FT" value={mToFt(snapshot.altitudeM)} range={tapeRange?.alt ?? null} />

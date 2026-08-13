@@ -934,6 +934,7 @@ export default function FlightSession({
             throttle={snapshot?.throttle ?? 0}
             gearFixed={(snapshot?.gear ?? "fixed") === "fixed"}
             hasSpeedbrake={(originParams?.aero.speedbrakeCd0 ?? 0) > 0}
+            snapshot={snapshot}
           />
           <MobileNavWx snapshot={snapshot} faded={faded} />
         </>
