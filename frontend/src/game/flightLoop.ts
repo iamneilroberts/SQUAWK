@@ -36,6 +36,18 @@ import { classificationFromMissionOutcome } from "./classify";
 
 export const SNAPSHOT_INTERVAL_S = 0.1;
 
+// exported so the mapping is unit-testable without spinning the 60 Hz loop (#48).
+export function buildFlapDetentFields(
+  params: ClassParams,
+  controls: ControlVector,
+): { flapDetentIndex: number; flapDetentCount: number; hasSpeedbrake: boolean } {
+  return {
+    flapDetentIndex: controls.flapDetent,
+    flapDetentCount: params.flaps.length,
+    hasSpeedbrake: params.aero.speedbrakeCd0 > 0,
+  };
+}
+
 /**
  * Terrain-independent crash floor (#58). Ground collision is gated on `collisionArmed`,
  * which never opens while terrain is unverified (never sampled, or permanently disarmed at
@@ -141,6 +153,7 @@ export function createFlightLoop(deps: FlightLoopDeps) {
       throttle: controls.throttle,
       trim: controls.trim,
       flapLabel: params.flaps[controls.flapDetent].label,
+      ...buildFlapDetentFields(params, controls),
       gear: params.gear,
       gearPosition: state.gearPosition,
       stalled: state.stalled,

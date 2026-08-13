@@ -36,6 +36,12 @@ export type HudSnapshot = {
   /** Elevator trim, [-1, 1], positive = nose-up. Drives the cockpit control-state readout. */
   trim: number;
   flapLabel: string;
+  /** Live flap detent index (0 = clean) and the class's total detent count, for the #48 flap glyph.
+   *  Optional like afterburner/speedbrake so existing fixtures need no rework; absent reads as clean. */
+  flapDetentIndex?: number;
+  flapDetentCount?: number;
+  /** Class has an airbrake (aero.speedbrakeCd0 > 0). Gates the #48 speedbrake glyph; absent reads false. */
+  hasSpeedbrake?: boolean;
   gear: "fixed" | "retractable";
   /** 0 (up) .. 1 (down); mirrors SimState.gearPosition. Always 1 for a fixed-gear class. */
   gearPosition: number;
