@@ -76,9 +76,12 @@ flow-mock (FLY NOW start card + trimmed debrief); 3 anon flights then require si
 - [x] #74 immersive attribution/Cesium-credit fade — credit joins the auto-hide (text attribution already faded).
 - [x] #75 immersive buttons fade — FULL/EXIT · DCLTR · MENU + NAV/WX chip fade with idle; tap reveals.
       Kept always-on: HUD bar, stick, throttle, warnings. Flight chips (CAM/GEAR/FLP/TRM) NOT faded.
-- [ ] #73 in-flight airport-label declutter (distance cap in data/airports.ts visibleAirports) — NEXT.
-- [ ] #70 free-flight modal bottom overlap + #71 provisional-mission card mobile display — layout, likely shared root cause.
-_Batch 1 (#69/#72/#74/#75) gate green: typecheck, 1287 unit, lint 5/8. COMMITTED, NOT DEPLOYED._
+- [x] #73 in-flight airport-label declutter — AIRPORT_MAX_RANGE_NM=80 cap below the large-only tier. Committed ce754a6.
+- [~] #70 free-flight modal — condensed intro copy + mobile height-bound + opaque bg. TAKE CONTROLS reachable.
+- [~] #71 mission card — condensed disclosure + opaque bg (kills header/Cesium bleed-THROUGH). REMAINING:
+      Cesium credit renders ON TOP (z-index) + tall card top-overlap — need a real-device/Chrome pass.
+_Panel preference saved: avoid scrolling; condense text to fit (memory adsb-game-panels-avoid-scrolling)._
+_Batches gate green: typecheck, 1287 unit, lint 5/8. COMMITTED, NOT DEPLOYED — held for owner review._
 
 ## C1 (client anon cap) and C2 (worker IP tripwire) — DEFERRED by owner (behind-the-scenes admin).
 

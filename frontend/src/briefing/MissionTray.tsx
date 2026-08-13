@@ -82,7 +82,7 @@ export default function MissionTray({
       </div>
 
       <div className="mission-disclosure">
-        REAL ADS-B POSITION → SIMULATED AIRCRAFT. ROUTE IS A PREVIEW UNTIL SERVER CONFIRMATION.
+        REAL ADS-B POSITION → SIMULATED AIRCRAFT · ROUTE PREVIEW UNTIL SERVER CONFIRMS.
       </div>
 
       {state.status === "loading" && (

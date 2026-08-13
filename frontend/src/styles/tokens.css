@@ -1421,7 +1421,12 @@ body.immersive-chrome-faded .cesium-widget-credits { opacity: 0; pointer-events:
     max-width: calc(100vw - 16px);
   }
   .leaderboard-panel { max-height: calc(100dvh - 24px); padding: 12px; }
-  .tutorial-panel, .pwa-panel { max-height: calc(100dvh - 24px); padding: 12px; }
+  /* #70: the FREE FLIGHT setup panel (class picker → altitude → heading → TAKE CONTROLS) was the
+     one funnel panel WITHOUT a mobile height bound, so on a phone it overflowed and TAKE CONTROLS
+     fell behind the fixed bottom status bar. Bound + scroll it internally like its siblings. */
+  .tutorial-panel, .pwa-panel, .freeflight-panel {
+    max-height: calc(100dvh - 24px); overflow-y: auto; padding: 12px;
+  }
   .tutorial-option { grid-template-columns: 1fr; gap: 3px; }
   .debrief-grid, .debrief-components { grid-template-columns: 1fr; gap: 8px; }
   .end-card { max-height: calc(100dvh - 24px); padding: 12px; }
@@ -1443,6 +1448,15 @@ body.immersive-chrome-faded .cesium-widget-credits { opacity: 0; pointer-events:
   .quick-start { padding: 12px; }
   .quick-start-steps { gap: 5px; margin-top: 10px; margin-bottom: 10px; }
   .mission-tray { padding: 10px 11px; }
+  /* #71: on a phone the setup modals are read against a busy globe + the browse header + the
+     Cesium credit. The desktop .panel is 82% opaque, so those bleed THROUGH the card and collide
+     with its text. Make these modals near-solid on mobile — the instrumentation-over-globe look is
+     a desktop nicety, not worth an unreadable briefing on a phone. */
+  .mission-tray,
+  .freeflight-panel,
+  .tutorial-panel,
+  .pwa-panel,
+  .quick-start { background: rgba(5, 7, 10, 0.98); }
   .mission-alternative { min-height: 44px; align-items: center; }
 
   /* HUD shrinks to fit: readouts via a clamp() that tops out at the desktop size, gaps tighten.

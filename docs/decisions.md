@@ -2302,3 +2302,17 @@ dense area drew ~15–60 idents overlapping into garble. Places and navaids ALRE
 large airports should still label — so `at(50_000)` still shows a 264 NM KATL, while `at(30_000)`
 now drops it). Tuning knob. Left AIRPORT_LABEL_MAX at 60 (the range cap does the work). Left places
 untouched (already capped + a small curated set) — tighten later if the owner still sees clutter.
+
+## 2026-08-13 — Mobile setup-modal fit + bleed-through (#70 free flight, #71 mission card)
+
+Owner preference (saved): "avoid scrolling in panels where you can — reduce vertical length by
+condensing text." Applied to the two reported modals:
+- #70 FREE FLIGHT panel: was the one funnel panel missing a mobile height bound, so TAKE CONTROLS
+  fell behind the fixed status bar. Condensed the intro copy from three lines to one, added
+  max-height calc(100dvh - 24px) + overflow-y as a last-resort safety net (condensed content should
+  fit most phones without scrolling; the net only bites on the smallest viewports).
+- #71 mission card: condensed the disclosure to one line; made these mobile modals near-opaque
+  (rgba .98 vs the desktop .82) so the browse header + Cesium credit no longer bleed THROUGH the
+  card. REMAINING (needs a real-device/Chrome pass, not blind CSS): the Cesium ion credit renders
+  ON TOP of the card (its z-index likely exceeds the card's 35) and the tall card can still overlap
+  the top header — both are geometry/stacking fixes best done while watching the result.

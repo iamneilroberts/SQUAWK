@@ -51,8 +51,7 @@ export default function FreeFlightPanel({
               <button className="auth-close" type="button" aria-label="Close" onClick={() => setOpen(false)}>×</button>
             </div>
             <p className="tutorial-copy">
-              Fly a chosen class straight-and-level over the home location. No live ADS-B, account,
-              or network is required. Always SIM and unranked.
+              Straight-and-level over home. No feed, account, or network — always SIM, unranked.
             </p>
             <div className="tutorial-options" role="group" aria-label="Aircraft class">
               {CLASS_ORDER.map((option) => (
