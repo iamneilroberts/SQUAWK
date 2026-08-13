@@ -25,7 +25,9 @@ flow-mock (FLY NOW start card + trimmed debrief); 3 anon flights then require si
       server lease/keepalive/submit; instant ends with a local unranked message (scored EndCard = B5).
       REMAINING (B3c): redesign `briefing/QuickStartNotice.tsx` into the "FLY NOW" start card. Also
       LIVE-VERIFY a full one-click anon flight in Chrome before deploy.
-- [ ] B4. FLY NOW / TAKE CONTROLS with no selection → nearestFlyableContact.
+- [x] B4. No-selection TAKE CONTROLS → nearestFlyableContact (dec4a67). Center = home ?? savedCenter;
+      anon flies it instantly, authed selects it for the ranked briefing. No-op when selected-but-
+      loading or no center/flyable available.
 - [ ] B5. Debrief simplify `panels/EndCard.tsx`: outcome + score + 3 stats up top; collapse
       ScoreBreakdown (:39-51) + Versions (:53-66) behind a ▸details; anon runs show SIGN IN TO RANK.
 
