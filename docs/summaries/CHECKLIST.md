@@ -34,8 +34,12 @@ flow-mock (FLY NOW start card + trimmed debrief); 3 anon flights then require si
 - [x] B4. No-selection TAKE CONTROLS → nearestFlyableContact (dec4a67). Center = home ?? savedCenter;
       anon flies it instantly, authed selects it for the ranked briefing. No-op when selected-but-
       loading or no center/flyable available.
-- [ ] B5. Debrief simplify `panels/EndCard.tsx`: outcome + score + 3 stats up top; collapse
-      ScoreBreakdown (:39-51) + Versions (:53-66) behind a ▸details; anon runs show SIGN IN TO RANK.
+- [x] B5. Instant-flight debrief (d101b34). New `instant` DebriefSubmission status → EndCard shows a
+      LOCALLY SCORED, unranked debrief (same landing evaluation as tutorial; never submitted),
+      authority "INSTANT FLIGHT — LOCAL AND UNRANKED", amber SIGN IN TO RANK THIS FLIGHT
+      (onSignIn→sign-in sheet), ScoreBreakdown collapsed behind ▸details. 2 EndCard tests.
+      NOTE: kept the full ranked EndCard layout intact (its tests lock it); the mock's 3-stat visual
+      trim / FLY AGAIN button not done — optional polish follow-up.
 
 ## TODO — anon abuse controls (NEEDS DECISION on tripwire mechanism)
 - [ ] C1. Client cap: localStorage anon-flight count; 4th → require sign-in (block instant path).
