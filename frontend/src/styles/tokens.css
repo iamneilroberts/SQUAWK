@@ -2020,3 +2020,39 @@ body {
   transition: opacity 0.5s ease;
 }
 .top-controls-faded { opacity: 0; pointer-events: none; }
+
+/* Quiet "best in landscape / app mode" nudge — replaces the old rotate modal. Fades out as the
+   flight starts (owner 2026-08-12). */
+.app-mode-hint {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 34;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+  padding: 5px 10px;
+  background: rgba(6, 12, 16, 0.72);
+  border: 1px solid #1c333b;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #7f97a1;
+  white-space: nowrap;
+  opacity: 1;
+  transition: opacity 0.7s ease;
+  pointer-events: auto;
+}
+.app-mode-hint-faded { opacity: 0; pointer-events: none; }
+.app-mode-hint-help {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  letter-spacing: 0.14em;
+  color: #5fd7e0;
+  text-decoration: underline;
+  cursor: pointer;
+}

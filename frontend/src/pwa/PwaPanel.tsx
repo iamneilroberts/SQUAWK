@@ -18,8 +18,22 @@ function Check({ complete, children }: { complete: boolean; children: string }) 
   return <li className={complete ? "pwa-complete" : ""}>{complete ? "✓" : "○"} {children}</li>;
 }
 
-export default function PwaPanel({ mode }: { mode: Mode }) {
-  const [open, setOpen] = useState(false);
+export default function PwaPanel({
+  mode,
+  open: openProp,
+  onOpenChange,
+  showButton = mode === "BROWSE",
+}: {
+  mode: Mode;
+  /** When provided, the dialog is controlled by the parent (so a Help link elsewhere can open it). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Whether to show the APP chip button (browse chrome only; the parent also hides it on DCLTR). */
+  showButton?: boolean;
+}) {
+  const [openInternal, setOpenInternal] = useState(false);
+  const open = openProp ?? openInternal;
+  const setOpen = onOpenChange ?? setOpenInternal;
   const pwa = useSyncExternalStore(subscribePwa, getPwaSnapshot, getPwaSnapshot);
   const results = useSyncExternalStore(
     subscribeResultQueue,
@@ -28,9 +42,13 @@ export default function PwaPanel({ mode }: { mode: Mode }) {
   );
   return (
     <div className="pwa-control">
-      <button className="status-chip-button" type="button" onClick={() => setOpen(true)}>
-        {results.pendingCount > 0 ? `SYNC ${results.pendingCount}` : "APP"}
-      </button>
+      {/* The APP button is browse chrome only — it's gone once you're flying (owner 2026-08-12);
+          in flight the dialog is reached from the fading "app mode" hint's Help link instead. */}
+      {showButton && (
+        <button className="status-chip-button" type="button" onClick={() => setOpen(true)}>
+          {results.pendingCount > 0 ? `SYNC ${results.pendingCount}` : "APP"}
+        </button>
+      )}
       {open && (
         <div className="pwa-backdrop">
           <section className="panel pwa-panel" role="dialog" aria-label="Install and offline status">

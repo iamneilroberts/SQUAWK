@@ -7,6 +7,7 @@ import ContactList from "./panels/ContactList";
 import StatusBar from "./panels/StatusBar";
 import { useViewport } from "./layout/useViewport";
 import { isNarrowViewport } from "./layout/viewport";
+import AppModeHint from "./layout/AppModeHint";
 import { isImmersiveActive } from "./layout/immersive";
 import { useStore } from "./state/store";
 import { useUrlTakeover } from "./takeover/useUrlTakeover";
@@ -229,6 +230,9 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
   const { width } = useViewport();
   const narrow = isNarrowViewport(width);
   const [contactsOpen, setContactsOpen] = useState(false);
+  // The install/app instructions dialog is lifted here so the fading AppModeHint's HELP link can
+  // open it even after the APP button is gone (in flight).
+  const [appPanelOpen, setAppPanelOpen] = useState(false);
   const browseDrawer = narrow && mode === "BROWSE";
   // Mobile immersive/fullscreen flight (#13): collapse the StatusBar to feed-status + attribution,
   // and fade it with the informational chrome while the video-player auto-hide is active.
@@ -552,7 +556,13 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
             {/* Declutter (#57): the APP button and the signed-in PILOT callsign chip are
                 informational, not controls — hide them on the manual DCLTR toggle. SIGN IN
                 stays reachable (a real action, not chrome) even when decluttered. */}
-            {!decluttered && <PwaPanel mode={mode} />}
+            <PwaPanel
+              mode={mode}
+              open={appPanelOpen}
+              onOpenChange={setAppPanelOpen}
+              showButton={mode === "BROWSE" && !decluttered}
+            />
+            {narrow && <AppModeHint mode={mode} onHelp={() => setAppPanelOpen(true)} />}
             {mode === "BROWSE" && (
               <TutorialPanel progress={tutorialProgress} onStart={startTutorial} />
             )}
