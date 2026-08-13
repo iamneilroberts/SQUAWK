@@ -45,6 +45,7 @@ export default function ApproachAssistLayer({
             positions: [world(gate.left), world(gate.right)],
             width: 1,
             material: Color.CYAN.withAlpha(0.6),
+            depthFailMaterial: Color.CYAN.withAlpha(0.3),
           },
         }));
       }

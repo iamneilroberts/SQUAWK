@@ -5,9 +5,8 @@ import OverlayLayers from "./globe/OverlayLayers";
 import FlightSession from "./game/FlightSession";
 import ContactList from "./panels/ContactList";
 import StatusBar from "./panels/StatusBar";
-import RotateCard from "./layout/RotateCard";
 import { useViewport } from "./layout/useViewport";
-import { isNarrowViewport, shouldShowRotateCard } from "./layout/viewport";
+import { isNarrowViewport } from "./layout/viewport";
 import { isImmersiveActive } from "./layout/immersive";
 import { useStore } from "./state/store";
 import { useUrlTakeover } from "./takeover/useUrlTakeover";
@@ -227,13 +226,9 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
 
   // Responsive layout (mobile sub-feature 1). At wide widths `narrow` is false and every
   // branch below falls back to the original desktop render — desktop is unchanged.
-  const { width, height } = useViewport();
+  const { width } = useViewport();
   const narrow = isNarrowViewport(width);
-  const showRotate = shouldShowRotateCard(width, height, mode);
   const [contactsOpen, setContactsOpen] = useState(false);
-  // The rotate hint is dismissible so a player can fly in portrait to see how it looks (owner
-  // request); once dismissed it stays gone for the session.
-  const [rotateDismissed, setRotateDismissed] = useState(false);
   const browseDrawer = narrow && mode === "BROWSE";
   // Mobile immersive/fullscreen flight (#13): collapse the StatusBar to feed-status + attribution,
   // and fade it with the informational chrome while the video-player auto-hide is active.
@@ -535,9 +530,6 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
                 onSelected={() => setContactsOpen(false)}
               />
             </div>
-          )}
-          {showRotate && !rotateDismissed && (
-            <RotateCard onDismiss={() => setRotateDismissed(true)} />
           )}
           {takeoverMessage !== null && mode === "BROWSE" && (
             <div className="takeover-banner">{takeoverMessage}</div>

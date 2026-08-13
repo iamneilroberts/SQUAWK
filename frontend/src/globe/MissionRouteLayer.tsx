@@ -49,6 +49,10 @@ export default function MissionRouteLayer({
         width: 2,
         arcType: ArcType.GEODESIC,
         material: Color.CYAN.withAlpha(0.85),
+        // Render the occluded segments (dimmer) instead of letting them flicker: without a
+        // depthFailMaterial the thin line z-fights the terrain each frame (its positions rebuild
+        // every frame via the CallbackProperty) and reads as a strobing line.
+        depthFailMaterial: Color.CYAN.withAlpha(0.35),
         // #61: in the exterior chase view the route line trails behind the aircraft, flickers and
         // adds no value — hide it there. It stays in the cockpit view where it points to the target.
         show: new CallbackProperty(() => !useStore.getState().exterior, false),
@@ -61,6 +65,7 @@ export default function MissionRouteLayer({
           Cartesian3.fromDegrees(point.lonDeg, point.latDeg, point.altitudeFt * 0.3048 + 2)),
         width: 3,
         material: Color.ORANGE.withAlpha(0.95),
+        depthFailMaterial: Color.ORANGE.withAlpha(0.5),
       },
     });
     const cue = viewer.entities.add({
