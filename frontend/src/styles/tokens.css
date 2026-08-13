@@ -2132,6 +2132,17 @@ body {
   touch-action: manipulation;
 }
 .mobile-navwx-map { min-height: 220px; }
+/* #60: in landscape immersive flight the overlay was left:8px right:8px, so it spanned the full
+   (wide, short) viewport — the fixed 168px radar face floated in a wide empty band and the weather
+   crammed underneath. Dock it as a compact right-side panel (release the left edge, cap the width)
+   so it reads like the portrait panel: a centred circular face with the weather below. */
+@media (orientation: landscape) and (max-height: 600px) {
+  .mobile-navwx-overlay {
+    left: auto;
+    width: min(360px, calc(100vw - 16px));
+  }
+  .mobile-navwx-map { min-height: 168px; }
+}
 
 /* Screen-space assist chrome (ASSIST chip + destination cue) joins the video-player auto-hide:
    fades with the rest of the informational chrome, tap restores. Stays in the DOM. */
