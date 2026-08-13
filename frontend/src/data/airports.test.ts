@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import {
-  AIRPORT_LABEL_MAX, airportLabelText, loadAirports, validateAirports, visibleAirports,
-  type Airport,
+  AIRPORT_LABEL_MAX, airportLabelText, loadAirports, shortenAirportName, validateAirports,
+  visibleAirports, type Airport,
 } from "./airports";
 
 const AIRPORTS = loadAirports();
@@ -81,11 +81,31 @@ describe("visibleAirports — declutter by camera height", () => {
   });
 });
 
-describe("airportLabelText", () => {
-  it("prefers the IATA code, which is what a pilot reads on a chart", () => {
-    expect(airportLabelText(ap({ ident: "KMOB", iata: "MOB" }))).toBe("MOB");
+describe("shortenAirportName — readable names, not code soup", () => {
+  it("abbreviates the common long words and drops a trailing 'Airport'", () => {
+    expect(shortenAirportName("Mobile Regional Airport", "KMOB", "MOB")).toBe("Mobile Rgnl");
+    expect(shortenAirportName("Pensacola International Airport", "KPNS", "PNS")).toBe("Pensacola Intl");
+    expect(shortenAirportName("Foley Municipal Airport", "5R4", null)).toBe("Foley Muni");
   });
-  it("falls back to the ICAO ident when there is no IATA code — never to a blank", () => {
-    expect(airportLabelText(ap({ ident: "KMOB", iata: null }))).toBe("KMOB");
+  it("keeps a name that has nothing to abbreviate", () => {
+    expect(shortenAirportName("Mobile Downtown", "KBFM", "BFM")).toBe("Mobile Downtown");
+  });
+  it("collapses the whitespace a dropped word leaves behind", () => {
+    expect(shortenAirportName("Louis Armstrong New Orleans International Airport", "KMSY", "MSY"))
+      .toBe("Louis Armstrong New Orleans Intl");
+  });
+  it("falls back to the code when the name is blank or only 'Airport'", () => {
+    expect(shortenAirportName("", "KMOB", "MOB")).toBe("MOB");
+    expect(shortenAirportName("Airport", "KMOB", null)).toBe("KMOB");
+  });
+});
+
+describe("airportLabelText", () => {
+  it("reads the shortened NAME, uppercased for the terminal look", () => {
+    expect(airportLabelText(ap({ name: "Mobile Regional Airport" }))).toBe("MOBILE RGNL");
+  });
+  it("falls back to the code when there is no usable name", () => {
+    expect(airportLabelText(ap({ name: "", iata: "MOB" }))).toBe("MOB");
+    expect(airportLabelText(ap({ name: "", iata: null, ident: "KMOB" }))).toBe("KMOB");
   });
 });

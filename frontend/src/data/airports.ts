@@ -73,9 +73,26 @@ export function loadAirports(): Airport[] {
   return cached;
 }
 
-/** What the label reads: the IATA code where there is one, otherwise the ICAO ident. */
+/**
+ * A chart-length name from a long official one: abbreviate the words that appear on almost every
+ * field, drop a trailing "Airport", and fall back to the code if nothing readable is left. Pure and
+ * case-preserving; `airportLabelText` uppercases for the terminal look.
+ */
+export function shortenAirportName(name: string, ident: string, iata: string | null): string {
+  const fallback = iata ?? ident;
+  const shortened = name
+    .replace(/\bInternational\b/gi, "Intl")
+    .replace(/\bRegional\b/gi, "Rgnl")
+    .replace(/\bMunicipal\b/gi, "Muni")
+    .replace(/\bAirport\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return shortened.length > 0 ? shortened : fallback;
+}
+
+/** What the label reads: the shortened field name, uppercased; the code only when there is no name. */
 export function airportLabelText(a: Airport): string {
-  return a.iata ?? a.ident;
+  return shortenAirportName(a.name, a.ident, a.iata).toUpperCase();
 }
 
 export function visibleAirports(o: {
