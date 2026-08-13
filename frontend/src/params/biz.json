@@ -1,0 +1,71 @@
+{
+  "id": "biz",
+  "label": "BIZ",
+  "modelNote": "CITATION-CLASS MODEL",
+  "massKg": 11500,
+  "wingAreaM2": 30.0,
+  "wingSpanM": 15.5,
+  "aspectRatio": 8.0,
+  "aero": {
+    "cl0": 0.2, "clAlphaPerRad": 5.2, "stallAlphaRad": 0.30, "postStallDecayRad": 0.18,
+    "cd0": 0.11, "gearDragCd0": 0.02, "speedbrakeCd0": 0.045, "oswaldE": 0.80, "cyBeta": -0.85
+  },
+  "control": {
+    "rollRateMaxRadS": 0.9, "pitchRateMaxRadS": 0.35, "yawRateMaxRadS": 0.2,
+    "rollDampingPerS": 3.0, "pitchDampingPerS": 2.5, "yawDampingPerS": 2.0,
+    "pitchStiffnessPerS2": 3.0, "yawStiffnessPerS2": 2.2, "refDynamicPressurePa": 6500,
+    "trimAlphaCenterRad": 0.03, "trimAlphaRangeRad": 0.13
+  },
+  "propulsion": {
+    "maxPowerW": 11160000, "lapseModel": "turbofan", "propEfficiency": 0.85,
+    "propPeakSpeedMs": 250, "afterburnerFactor": 1.0
+  },
+  "limits": {
+    "vneIasMs": 156.9, "vnoIasMs": 148.0, "vfeIasMs": 105.0, "gLimitPos": 3.0,
+    "gLimitNeg": -1.0, "serviceCeilingM": 16307, "mmo": 0.80, "vleIasMs": 113.0
+  },
+  "flaps": [
+    { "label": "0", "dCL0": 0.0, "dStallAlphaRad": 0.0, "dCD0": 0.0 },
+    { "label": "1", "dCL0": 0.3, "dStallAlphaRad": -0.02, "dCD0": 0.01 },
+    { "label": "2", "dCL0": 0.6, "dStallAlphaRad": -0.05, "dCD0": 0.03 },
+    { "label": "FULL", "dCL0": 0.9, "dStallAlphaRad": -0.09, "dCD0": 0.07 }
+  ],
+  "gear": "retractable",
+  "display": { "asiMinKt": 60, "asiMaxKt": 400, "attitudeStyle": "ball" },
+  "sources": {
+    "massKg": "TUNING KNOB (cruise/climb) — 11.5 t mid-mission weight (Citation Latitude MTOW ~13.97 t / 30,800 lb). Pinned by the FL430 cruise trim + sea-level climb tests.",
+    "wingAreaM2": "TUNING KNOB — 30.0 m^2, wing loading ~376 kg/m^2 at 11.5 t (mid-size-jet band). Citation Latitude published geometry pending source verification.",
+    "wingSpanM": "derived-consistent with aspectRatio: sqrt(AR*S) = sqrt(8.0*30.0) = 15.49 m.",
+    "aspectRatio": "TUNING KNOB — 8.0, typical mid-size-jet AR; b^2/S = 15.5^2/30.0 = 8.0.",
+    "cl0": "TUNING KNOB (cruise trim) — swept-wing zero-AoA lift; with clAlphaPerRad puts cruise AoA in a sane range at M0.78/FL430.",
+    "clAlphaPerRad": "TUNING KNOB (stall band) — 5.2/rad, a swept mid-jet-wing lift slope. Pinned by the sea-level clean-stall-speed band test (105-135 kt).",
+    "stallAlphaRad": "TUNING KNOB (stall band) — 17.2 deg (0.30 rad) clean critical AoA; CLmax_clean = 0.2 + 5.2*0.30 = 1.76. Pinned alongside clAlphaPerRad by the stall-speed band test.",
+    "postStallDecayRad": "TUNING KNOB — 0.18 rad fade width past the break, matching the b738/f5e pattern.",
+    "cd0": "TUNING KNOB (cruise Mach + SL climb + service ceiling) — 0.11. DEVIATION FROM PLAUSIBLE: this is far above a realistic clean-jet cd0 (~0.02); it is pinned this high only because the shared turbofan flat-rating corner (forces.ts TURBOFAN_CORNER_M, FL380) sits below biz's FL430 cruise, so 85%-throttle cruise thrust there is already density-lapsed and the SL(full-throttle)/cruise(85%,FL430) thrust ratio is fixed at ~1.5x regardless of cd0 or mass. At any realistic cd0 (~0.02-0.03) the model tops out around 650-900 fpm at SL — nowhere near the required >2500 fpm — because the absolute thrust needed to hold M0.77-0.80 at FL430 is small at that altitude's low dynamic pressure, and 1.5x a small number is still small. Raising cd0 forces more absolute maxPowerW into the cruise trim, and that same higher absolute power carries over to SL, buying the climb rate at the cost of an unrealistic parasite-drag value. See task-1-report.md for the full derivation; flagged as a concern, not a silent fudge.",
+    "gearDragCd0": "TUNING KNOB — 0.02, in the spec's ~0.015-0.02 mid-jet gear/doors range (top of range for a smaller, less-faired gear bay than the 737).",
+    "speedbrakeCd0": "TUNING KNOB (#51) — 0.045, the Citation-class airbrake/spoiler parasitic-drag increment (~2.25x clean cd0), scaled down from the b738's 0.05 for the smaller airframe. Source verification pending.",
+    "oswaldE": "TUNING KNOB — 0.80, typical transport/bizjet span efficiency.",
+    "cyBeta": "TUNING KNOB — -0.85/rad bizjet side-force slope, slightly less than the 737's -0.9 (smaller fin).",
+    "rollRateMaxRadS": "TUNING KNOB — ~51.6 deg/s, brisk mid-jet roll (lighter and shorter-span than the 737, so quicker than its 15 deg/s but well below the F-5E's fighter roll).",
+    "pitchRateMaxRadS": "TUNING KNOB — ~20 deg/s.",
+    "yawRateMaxRadS": "TUNING KNOB — ~11.5 deg/s.",
+    "damping/stiffness": "TUNING KNOBS — rollDampingPerS 3.0 with the roll rate above gives a crisp but not twitchy bizjet roll feel; pitch omega_n = sqrt(3.0) = 1.73 rad/s, zeta = 2.5/(2*1.73) = 0.72 (well damped).",
+    "refDynamicPressurePa": "TUNING KNOB — 6500 Pa, above the b738's 6000 Pa: a lighter, smaller-wing jet reaches this qBar at a comparable speed, so control authority saturates through the same normal speed band.",
+    "trimAlphaCenterRad": "TUNING KNOB — 1.7 deg, near the cruise AoA so trim near centre is roughly hands-off cruise.",
+    "trimAlphaRangeRad": "TUNING KNOB — +-7.4 deg trim authority, enough to trim from approach AoA to cruise AoA.",
+    "propulsion": "TUNING KNOBS — 2x flat-rated turbofan via the shared T=eta*P/max(V,peak): propPeakSpeedMs 250 m/s sits above cruise TAS at FL430 (~227 m/s) so thrust there is constant with speed (flat-rated), only reduced by the density lapse above the shared turbofan corner (FL380). maxPowerW 11.16 MW gives eta*P/250 = 0.85*11.16e6/250 = 37.9 kN full-throttle rated thrust; T/W ~0.34 at 11.5 t. This is a materially higher T/W than a real Citation Latitude's cruise-required thrust — see the cd0 note for why: it is the other half of the paired cd0/maxPowerW knob that reconciles the FL430-cruise + strong-SL-climb targets against the shared corner-altitude lapse model. afterburnerFactor 1.0 (no afterburner, unlike the F-5E). lapseModel \"turbofan\" (shared with b738/f5e). Citation Latitude 2x PW306D1 ~5,907 lbf static each — source verification pending; maxPowerW/propPeakSpeedMs pinned instead by the FL430 cruise-Mach and SL/ceiling-climb tests.",
+    "propEfficiency": "0.85 — the eta in T = eta*P/max(V,peak), matching b738/f5e; not a real prop efficiency (the aircraft has no propeller). Kept near 1 so maxPowerW carries the tuning.",
+    "lapseModel": "\"turbofan\" — selects forces.ts turbofanPowerLapse (flat-rated to TURBOFAN_CORNER_M, then density falloff). Shared with b738/f5e, chosen by this key not a class branch (decisions AF-002).",
+    "afterburnerFactor": "1.0 — turbofan, no afterburner (Citation-class bizjets have none).",
+    "limits.vneIasMs": "Vmo ~305 KIAS = 156.9 m/s. Source verification pending.",
+    "limits.vnoIasMs": "~288 KIAS = 148.0 m/s, a display caution reference below Vmo. Source verification pending.",
+    "limits.vfeIasMs": "~204 KIAS = 105.0 m/s flap placard (most-restrictive detent); display only. Source verification pending.",
+    "mmo": "0.80 — typical Citation-class Mmo. Source verification pending.",
+    "vleIasMs": "~220 KIAS = 113.0 m/s Vle/Vlo placard. Source verification pending.",
+    "gLimits": "+3.0 / -1.0, bizjet clean flight-envelope limits (between the 737's +2.5 and a fighter's higher clamp). Pinned by the g-clamp envelope test (reached from a 320 kt entry at FL200).",
+    "serviceCeilingM": "16,307 m (~53,500 ft) — TUNING KNOB, NOT a source figure; DEVIATION FROM PLAUSIBLE. A real Citation Latitude's certified ceiling is 45,000 ft, but at the cd0/maxPowerW this file needs for the SL-climb test (see cd0 note), full-throttle climb at 45,000 ft is still strongly positive (thousands of fpm) in-model — the >2500 fpm SL requirement forces enough absolute thrust that the shared turbofan density lapse (forces.ts, corner FL380) doesn't pull climb rate down to a near-zero \"ceiling\" until ~53,500 ft. Value found by scanning full-throttle best-climb-rate vs altitude for a 0-500 fpm crossing; pinned by the service-ceiling-climb test.",
+    "flaps": "0/1/2/FULL — simplified bizjet schedule; dCL0/dStallAlpha/dCD0 are TUNING KNOBS giving monotonically falling stall speeds and rising drag across the schedule.",
+    "display": "ASI 60-400 kt spans the jet band, matching b738; attitudeStyle ball (EFIS horizon disc).",
+    "gear": "retractable — Citation-class bizjets have retractable gear."
+  }
+}

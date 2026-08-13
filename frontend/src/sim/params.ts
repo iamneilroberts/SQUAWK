@@ -7,6 +7,7 @@ import type { ClassParams, FlapDetent, LapseModel } from "./types";
 import c172Raw from "../params/c172.json";
 import b738Raw from "../params/b738.json";
 import f5eRaw from "../params/f5e.json";
+import bizRaw from "../params/biz.json";
 
 function asRecord(value: unknown, path: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -189,12 +190,21 @@ export function loadF5e(): ClassParams {
   return cachedF5e;
 }
 
+let cachedBiz: ClassParams | null = null;
+
+/** The Citation-class business-jet class (turbofan, no afterburner). */
+export function loadBiz(): ClassParams {
+  if (cachedBiz === null) cachedBiz = validateClassParams(bizRaw);
+  return cachedBiz;
+}
+
 /** Resolve a class id (from resolveClass) to its validated params. Unknown id is a bug, not data. */
 export function loadClassById(id: string): ClassParams {
   switch (id) {
     case "c172s": return loadC172();
     case "b738": return loadB738();
     case "f5e": return loadF5e();
+    case "biz": return loadBiz();
     default: throw new Error(`unknown class id: ${id}`);
   }
 }
