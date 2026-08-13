@@ -1,0 +1,618 @@
+[
+  {
+    "ident": "AEX",
+    "name": "Alexandria",
+    "type": "VORTAC",
+    "latDeg": 31.25670051574707,
+    "lonDeg": -92.5009994506836
+  },
+  {
+    "ident": "AMG",
+    "name": "Alma",
+    "type": "VORTAC",
+    "latDeg": 31.536500930786133,
+    "lonDeg": -82.50810241699219
+  },
+  {
+    "ident": "AYS",
+    "name": "Waycross",
+    "type": "VORTAC",
+    "latDeg": 31.269399642944336,
+    "lonDeg": -82.556396484375
+  },
+  {
+    "ident": "BAD",
+    "name": "Barksdale",
+    "type": "TACAN",
+    "latDeg": 32.503299713134766,
+    "lonDeg": -93.66780090332031
+  },
+  {
+    "ident": "BFM",
+    "name": "Brookley",
+    "type": "VORTAC",
+    "latDeg": 30.612699508666992,
+    "lonDeg": -88.05549621582031
+  },
+  {
+    "ident": "BIX",
+    "name": "Keesler",
+    "type": "TACAN",
+    "latDeg": 30.407100677490234,
+    "lonDeg": -88.92970275878906
+  },
+  {
+    "ident": "BPT",
+    "name": "Beaumont",
+    "type": "VOR-DME",
+    "latDeg": 29.94610023498535,
+    "lonDeg": -94.01619720458984
+  },
+  {
+    "ident": "BTR",
+    "name": "Baton Rouge",
+    "type": "VORTAC",
+    "latDeg": 30.48509979248047,
+    "lonDeg": -91.29409790039062
+  },
+  {
+    "ident": "CEW",
+    "name": "Crestview",
+    "type": "VORTAC",
+    "latDeg": 30.826200485229492,
+    "lonDeg": -86.6791000366211
+  },
+  {
+    "ident": "CSG",
+    "name": "Columbus",
+    "type": "VORTAC",
+    "latDeg": 32.615299224853516,
+    "lonDeg": -85.0176010131836
+  },
+  {
+    "ident": "CTY",
+    "name": "Cross City",
+    "type": "VORTAC",
+    "latDeg": 29.599000930786133,
+    "lonDeg": -83.04869842529297
+  },
+  {
+    "ident": "DAS",
+    "name": "Daisetta",
+    "type": "VORTAC",
+    "latDeg": 30.189699172973633,
+    "lonDeg": -94.6449966430664
+  },
+  {
+    "ident": "DBN",
+    "name": "Dublin",
+    "type": "VORTAC",
+    "latDeg": 32.560699462890625,
+    "lonDeg": -82.83319854736328
+  },
+  {
+    "ident": "DTN",
+    "name": "Downtown",
+    "type": "VOR",
+    "latDeg": 32.53990173339844,
+    "lonDeg": -93.74130249023438
+  },
+  {
+    "ident": "DWG",
+    "name": "Warrington",
+    "type": "TACAN",
+    "latDeg": 30.478200912475586,
+    "lonDeg": -86.5208969116211
+  },
+  {
+    "ident": "EDN",
+    "name": "Enterprise",
+    "type": "VOR",
+    "latDeg": 31.29599952697754,
+    "lonDeg": -85.9032974243164
+  },
+  {
+    "ident": "EIC",
+    "name": "Belcher",
+    "type": "VORTAC",
+    "latDeg": 32.771400451660156,
+    "lonDeg": -93.80989837646484
+  },
+  {
+    "ident": "ELD",
+    "name": "El Dorado",
+    "type": "VORTAC",
+    "latDeg": 33.25619888305664,
+    "lonDeg": -92.743896484375
+  },
+  {
+    "ident": "EMG",
+    "name": "Elm Grove",
+    "type": "VORTAC",
+    "latDeg": 32.40019989013672,
+    "lonDeg": -93.59510040283203
+  },
+  {
+    "ident": "ESF",
+    "name": "Esler",
+    "type": "VORTAC",
+    "latDeg": 31.447500228881836,
+    "lonDeg": -92.3218994140625
+  },
+  {
+    "ident": "EUF",
+    "name": "Eufaula",
+    "type": "VORTAC",
+    "latDeg": 31.950199127197266,
+    "lonDeg": -85.13050079345703
+  },
+  {
+    "ident": "EWA",
+    "name": "Kewanee",
+    "type": "VORTAC",
+    "latDeg": 32.366798400878906,
+    "lonDeg": -88.4583969116211
+  },
+  {
+    "ident": "FXU",
+    "name": "Polk",
+    "type": "VORTAC",
+    "latDeg": 31.111600875854492,
+    "lonDeg": -93.21790313720703
+  },
+  {
+    "ident": "GCV",
+    "name": "Greene County",
+    "type": "VORTAC",
+    "latDeg": 31.097999572753906,
+    "lonDeg": -88.48609924316406
+  },
+  {
+    "ident": "GEF",
+    "name": "Greenville",
+    "type": "VORTAC",
+    "latDeg": 30.551300048828125,
+    "lonDeg": -83.78309631347656
+  },
+  {
+    "ident": "GGG",
+    "name": "Gregg Co",
+    "type": "VORTAC",
+    "latDeg": 32.41780090332031,
+    "lonDeg": -94.7531967163086
+  },
+  {
+    "ident": "GNV",
+    "name": "Gators",
+    "type": "VORTAC",
+    "latDeg": 29.692100524902344,
+    "lonDeg": -82.27300262451172
+  },
+  {
+    "ident": "GPT",
+    "name": "Gulfport",
+    "type": "VORTAC",
+    "latDeg": 30.40679931640625,
+    "lonDeg": -89.07679748535156
+  },
+  {
+    "ident": "HEY",
+    "name": "Hanchey",
+    "type": "VOR",
+    "latDeg": 31.374099731445312,
+    "lonDeg": -85.65280151367188
+  },
+  {
+    "ident": "HEZ",
+    "name": "Natchez",
+    "type": "VOR-DME",
+    "latDeg": 31.618200302124023,
+    "lonDeg": -91.29959869384766
+  },
+  {
+    "ident": "HMU",
+    "name": "Hammond",
+    "type": "VOR",
+    "latDeg": 30.519399642944336,
+    "lonDeg": -90.4175033569336
+  },
+  {
+    "ident": "HRT",
+    "name": "Hurlburt",
+    "type": "TACAN",
+    "latDeg": 30.42799949645996,
+    "lonDeg": -86.69029998779297
+  },
+  {
+    "ident": "HRV",
+    "name": "Harvey",
+    "type": "VORTAC",
+    "latDeg": 29.850200653076172,
+    "lonDeg": -90.00299835205078
+  },
+  {
+    "ident": "IFM",
+    "name": "Tift Myers",
+    "type": "VOR",
+    "latDeg": 31.428699493408203,
+    "lonDeg": -83.48889923095703
+  },
+  {
+    "ident": "IGB",
+    "name": "Bigbee",
+    "type": "VORTAC",
+    "latDeg": 33.48550033569336,
+    "lonDeg": -88.51360321044922
+  },
+  {
+    "ident": "JAN",
+    "name": "Jackson",
+    "type": "VORTAC",
+    "latDeg": 32.50749969482422,
+    "lonDeg": -90.1677017211914
+  },
+  {
+    "ident": "JYU",
+    "name": "Junior",
+    "type": "VOR-DME",
+    "latDeg": 32.344600677490234,
+    "lonDeg": -86.99130249023438
+  },
+  {
+    "ident": "LAL",
+    "name": "Lakeland",
+    "type": "VORTAC",
+    "latDeg": 27.9862003326416,
+    "lonDeg": -82.01390075683594
+  },
+  {
+    "ident": "LBY",
+    "name": "Eaton",
+    "type": "VORTAC",
+    "latDeg": 31.418699264526367,
+    "lonDeg": -89.33760070800781
+  },
+  {
+    "ident": "LCH",
+    "name": "Lake Charles",
+    "type": "VORTAC",
+    "latDeg": 30.14150047302246,
+    "lonDeg": -93.10559844970703
+  },
+  {
+    "ident": "LDK",
+    "name": "Crimson",
+    "type": "VORTAC",
+    "latDeg": 33.2588996887207,
+    "lonDeg": -87.53690338134766
+  },
+  {
+    "ident": "LEV",
+    "name": "Leeville",
+    "type": "VORTAC",
+    "latDeg": 29.175199508666992,
+    "lonDeg": -90.10399627685547
+  },
+  {
+    "ident": "LFK",
+    "name": "Lufkin",
+    "type": "VORTAC",
+    "latDeg": 31.162399291992188,
+    "lonDeg": -94.71700286865234
+  },
+  {
+    "ident": "LFT",
+    "name": "Lafayette",
+    "type": "VORTAC",
+    "latDeg": 30.19379997253418,
+    "lonDeg": -91.99259948730469
+  },
+  {
+    "ident": "LGC",
+    "name": "Lagrange",
+    "type": "VORTAC",
+    "latDeg": 33.04909896850586,
+    "lonDeg": -85.2061996459961
+  },
+  {
+    "ident": "LLA",
+    "name": "White Lake",
+    "type": "VOR-DME",
+    "latDeg": 29.66320037841797,
+    "lonDeg": -92.37359619140625
+  },
+  {
+    "ident": "LSF",
+    "name": "Lawson",
+    "type": "VOR-DME",
+    "latDeg": 32.332401275634766,
+    "lonDeg": -84.99330139160156
+  },
+  {
+    "ident": "MAI",
+    "name": "Marianna",
+    "type": "VORTAC",
+    "latDeg": 30.78619956970215,
+    "lonDeg": -85.12449645996094
+  },
+  {
+    "ident": "MCB",
+    "name": "Mc Comb",
+    "type": "VORTAC",
+    "latDeg": 31.304500579833984,
+    "lonDeg": -90.2582015991211
+  },
+  {
+    "ident": "MCF",
+    "name": "Macdill",
+    "type": "TACAN",
+    "latDeg": 27.8612003326416,
+    "lonDeg": -82.51349639892578
+  },
+  {
+    "ident": "MCN",
+    "name": "Macon",
+    "type": "VORTAC",
+    "latDeg": 32.691200256347656,
+    "lonDeg": -83.64720153808594
+  },
+  {
+    "ident": "MEI",
+    "name": "Meridian",
+    "type": "VORTAC",
+    "latDeg": 32.378501892089844,
+    "lonDeg": -88.8042984008789
+  },
+  {
+    "ident": "MGM",
+    "name": "Montgomery",
+    "type": "VORTAC",
+    "latDeg": 32.2223014831543,
+    "lonDeg": -86.3197021484375
+  },
+  {
+    "ident": "MGR",
+    "name": "Moultrie",
+    "type": "VOR-DME",
+    "latDeg": 31.082300186157227,
+    "lonDeg": -83.80419921875
+  },
+  {
+    "ident": "MHF",
+    "name": "Trinity",
+    "type": "VOR-DME",
+    "latDeg": 29.546300888061523,
+    "lonDeg": -94.74749755859375
+  },
+  {
+    "ident": "MLU",
+    "name": "Monroe",
+    "type": "VORTAC",
+    "latDeg": 32.51689910888672,
+    "lonDeg": -92.03600311279297
+  },
+  {
+    "ident": "MVC",
+    "name": "Monroeville",
+    "type": "VORTAC",
+    "latDeg": 31.460399627685547,
+    "lonDeg": -87.35279846191406
+  },
+  {
+    "ident": "MXF",
+    "name": "Maxwell",
+    "type": "TACAN",
+    "latDeg": 32.37929916381836,
+    "lonDeg": -86.36830139160156
+  },
+  {
+    "ident": "NGS",
+    "name": "Santa Rosa",
+    "type": "TACAN",
+    "latDeg": 30.614900588989258,
+    "lonDeg": -86.9375
+  },
+  {
+    "ident": "NJW",
+    "name": "Joe Williams",
+    "type": "TACAN",
+    "latDeg": 32.795101165771484,
+    "lonDeg": -88.83529663085938
+  },
+  {
+    "ident": "NMM",
+    "name": "Meridian",
+    "type": "TACAN",
+    "latDeg": 32.57849884033203,
+    "lonDeg": -88.54530334472656
+  },
+  {
+    "ident": "NPA",
+    "name": "Pensacola",
+    "type": "TACAN",
+    "latDeg": 30.357999801635742,
+    "lonDeg": -87.31649780273438
+  },
+  {
+    "ident": "NSE",
+    "name": "Whiting",
+    "type": "TACAN",
+    "latDeg": 30.724000930786133,
+    "lonDeg": -87.01799774169922
+  },
+  {
+    "ident": "NUN",
+    "name": "Saufley",
+    "type": "VOR",
+    "latDeg": 30.472200393676758,
+    "lonDeg": -87.33580017089844
+  },
+  {
+    "ident": "OCF",
+    "name": "Ocala",
+    "type": "VORTAC",
+    "latDeg": 29.177499771118164,
+    "lonDeg": -82.22630310058594
+  },
+  {
+    "ident": "OKW",
+    "name": "Brookwood",
+    "type": "VORTAC",
+    "latDeg": 33.239601135253906,
+    "lonDeg": -87.25
+  },
+  {
+    "ident": "OTK",
+    "name": "Valdosta",
+    "type": "VOR-DME",
+    "latDeg": 30.780399322509766,
+    "lonDeg": -83.27970123291016
+  },
+  {
+    "ident": "OZR",
+    "name": "Cairns",
+    "type": "VOR-DME",
+    "latDeg": 31.268999099731445,
+    "lonDeg": -85.72630310058594
+  },
+  {
+    "ident": "PAM",
+    "name": "Tyndall",
+    "type": "TACAN",
+    "latDeg": 30.073999404907227,
+    "lonDeg": -85.57240295410156
+  },
+  {
+    "ident": "PCU",
+    "name": "Picayune",
+    "type": "VOR-DME",
+    "latDeg": 30.561199188232422,
+    "lonDeg": -89.73049926757812
+  },
+  {
+    "ident": "PFN",
+    "name": "Panama City",
+    "type": "VORTAC",
+    "latDeg": 30.21619987487793,
+    "lonDeg": -85.68090057373047
+  },
+  {
+    "ident": "PIE",
+    "name": "St Petersburg",
+    "type": "VORTAC",
+    "latDeg": 27.907800674399997,
+    "lonDeg": -82.6843032837
+  },
+  {
+    "ident": "PZD",
+    "name": "Pecan",
+    "type": "VORTAC",
+    "latDeg": 31.65519905090332,
+    "lonDeg": -84.29309844970703
+  },
+  {
+    "ident": "RQR",
+    "name": "Reserve",
+    "type": "VOR-DME",
+    "latDeg": 30.087499618530273,
+    "lonDeg": -90.5886001586914
+  },
+  {
+    "ident": "RRS",
+    "name": "Wiregrass",
+    "type": "VORTAC",
+    "latDeg": 31.284400939941406,
+    "lonDeg": -85.43119812011719
+  },
+  {
+    "ident": "SBI",
+    "name": "Sabine Pass",
+    "type": "VOR-DME",
+    "latDeg": 29.68670082092285,
+    "lonDeg": -94.03800201416016
+  },
+  {
+    "ident": "SJI",
+    "name": "Semmes",
+    "type": "VORTAC",
+    "latDeg": 30.72599983215332,
+    "lonDeg": -88.35929870605469
+  },
+  {
+    "ident": "SQS",
+    "name": "Sidon",
+    "type": "VORTAC",
+    "latDeg": 33.46390151977539,
+    "lonDeg": -90.27729797363281
+  },
+  {
+    "ident": "SRQ",
+    "name": "Sarasota",
+    "type": "VORTAC",
+    "latDeg": 27.39780044555664,
+    "lonDeg": -82.5542984008789
+  },
+  {
+    "ident": "SWB",
+    "name": "Sawmill",
+    "type": "VOR-DME",
+    "latDeg": 31.97319984436035,
+    "lonDeg": -92.6771011352539
+  },
+  {
+    "ident": "SZW",
+    "name": "Seminole",
+    "type": "VORTAC",
+    "latDeg": 30.55620002746582,
+    "lonDeg": -84.3740005493164
+  },
+  {
+    "ident": "TAY",
+    "name": "Taylor",
+    "type": "VORTAC",
+    "latDeg": 30.504600524902344,
+    "lonDeg": -82.55290222167969
+  },
+  {
+    "ident": "TBD",
+    "name": "Tibby",
+    "type": "VORTAC",
+    "latDeg": 29.6643009185791,
+    "lonDeg": -90.8291015625
+  },
+  {
+    "ident": "TGE",
+    "name": "Tuskegee",
+    "type": "VOR-DME",
+    "latDeg": 32.48460006713867,
+    "lonDeg": -85.66929626464844
+  },
+  {
+    "ident": "UIA",
+    "name": "Andalusia",
+    "type": "VOR",
+    "latDeg": 31.309499740600586,
+    "lonDeg": -86.39219665527344
+  },
+  {
+    "ident": "VAD",
+    "name": "Moody",
+    "type": "VORTAC",
+    "latDeg": 30.960100173950195,
+    "lonDeg": -83.19339752197266
+  },
+  {
+    "ident": "VNA",
+    "name": "Vienna",
+    "type": "VORTAC",
+    "latDeg": 32.213401794433594,
+    "lonDeg": -83.49729919433594
+  },
+  {
+    "ident": "VUH",
+    "name": "Scholes",
+    "type": "VORTAC",
+    "latDeg": 29.26930046081543,
+    "lonDeg": -94.8676986694336
+  }
+]
