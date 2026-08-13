@@ -12,4 +12,4 @@ Deferred (bizjet lead-in): extract shared ControlStateRow across the 3 desktop s
 
 Next after #48 sign-off: bizjet epic (`docs/superpowers/plans/2026-08-13-bizjet-flight-model.md`).
 
-_Updated: 2026-08-13 — mongols-rich-hud @ 1e737a9 (Phase 2 deployed, awaiting on-device sign-off)_
+_Updated: 2026-08-13 — mongols-rich-hud @ 8c4fb56 (Phase 3: MENU bottom-left + systems-line trim deployed Version f08fc681, awaiting sign-off)_
