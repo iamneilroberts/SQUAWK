@@ -104,3 +104,21 @@ export function trimBadgeText(trim: number | null | undefined): string | null {
   const pct = Math.round(Math.abs(trim) * 100);
   return pct === 0 ? null : `${pct}%`;
 }
+
+/** Off-level threshold (radians, ≈10°) that shows the mobile LEVEL assist button (#5). */
+export const LEVEL_ASSIST_THRESHOLD_RAD = 0.1745;
+
+/**
+ * The mobile LEVEL button (a beginner touch shortcut for the existing KeyL return-to-level
+ * assist) shows only while the plane is off-level, and disappears once it's roughly level —
+ * mirroring the assist's own auto-disengage. `null`/`undefined`/`NaN` (no snapshot yet) hides it
+ * rather than guessing.
+ */
+export function shouldShowLevelButton(
+  rollRad: number | null | undefined,
+  pitchRad: number | null | undefined,
+): boolean {
+  const offLevel = (v: number | null | undefined): boolean =>
+    typeof v === "number" && !Number.isNaN(v) && Math.abs(v) > LEVEL_ASSIST_THRESHOLD_RAD;
+  return offLevel(rollRad) || offLevel(pitchRad);
+}

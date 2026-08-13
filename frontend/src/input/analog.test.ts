@@ -5,6 +5,7 @@ import {
   gearButtonDisabled,
   gearButtonInTransit,
   trimBadgeText,
+  shouldShowLevelButton,
 } from "./analog";
 
 const R = 60; // pad radius px
@@ -99,5 +100,26 @@ describe("trim badge text (#48 mobile) — magnitude only", () => {
     expect(trimBadgeText(0.5)).toBe("50%");
     expect(trimBadgeText(-0.5)).toBe("50%");
     expect(trimBadgeText(1)).toBe("100%");
+  });
+});
+
+describe("mobile LEVEL assist button visibility (#5) — off-level threshold", () => {
+  it("level (0,0) is hidden", () => {
+    expect(shouldShowLevelButton(0, 0)).toBe(false);
+  });
+  it("banked 0.2rad roll shows the button", () => {
+    expect(shouldShowLevelButton(0.2, 0)).toBe(true);
+  });
+  it("pitched -0.2rad shows the button", () => {
+    expect(shouldShowLevelButton(0, -0.2)).toBe(true);
+  });
+  it("just under the ~10° threshold (0.17rad) stays hidden", () => {
+    expect(shouldShowLevelButton(0.17, 0)).toBe(false);
+    expect(shouldShowLevelButton(0, 0.17)).toBe(false);
+  });
+  it("null/undefined values hide the button rather than guessing", () => {
+    expect(shouldShowLevelButton(null, null)).toBe(false);
+    expect(shouldShowLevelButton(undefined, undefined)).toBe(false);
+    expect(shouldShowLevelButton(null, 0.2)).toBe(true); // pitch alone still trips it
   });
 });

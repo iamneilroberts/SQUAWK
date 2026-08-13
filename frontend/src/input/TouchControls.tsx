@@ -19,7 +19,13 @@
  */
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { stickToAxes, sliderToThrottle, gearButtonInTransit, trimBadgeText } from "./analog";
+import {
+  stickToAxes,
+  sliderToThrottle,
+  gearButtonInTransit,
+  trimBadgeText,
+  shouldShowLevelButton,
+} from "./analog";
 import ControlIcon from "../hud/controls/ControlIcon";
 import type { HudSnapshot } from "../hud/snapshot";
 
@@ -232,6 +238,27 @@ function ThrottleSlider({
   );
 }
 
+/**
+ * Beginner return-to-level assist button (#5): appears only while the plane is off-level
+ * (shouldShowLevelButton) and fires the SAME existing keyboard assist (KeyL) via tapKey — a
+ * momentary tap, mirroring DiscreteButton's handler. The assist itself (edge-detect, recovery,
+ * auto-disengage) already exists in game/leveling.ts + the flight loop; this only synthesizes
+ * the keypress.
+ */
+function LevelButton() {
+  return (
+    <button
+      className="touch-level-btn"
+      onPointerDown={(e) => {
+        e.preventDefault();
+        tapKey("KeyL");
+      }}
+    >
+      LEVEL
+    </button>
+  );
+}
+
 export default function TouchControls({
   onStick,
   onStickRelease,
@@ -260,6 +287,10 @@ export default function TouchControls({
     <div className="touch-controls">
       <VirtualStick onStick={onStick} onRelease={onStickRelease} />
       <ThrottleSlider throttle={throttle} onThrottle={onThrottle} />
+      {/* Beginner return-to-level assist (#5): only rendered while off-level, so it "disappears"
+          once the assist (or the pilot) brings the plane back level. Sits above the button row,
+          clear of the stick/throttle/MENU. */}
+      {shouldShowLevelButton(snapshot?.rollRad, snapshot?.pitchRad) && <LevelButton />}
       {/* Minimal transparent control set (owner refinement, #13): just gear, flaps and trim —
           rudder, afterburner, level-assist and pause were dropped from the mobile UI. Trim is a
           hold (a lever that ramps while held, matching Comma/Period on the keyboard). */}
