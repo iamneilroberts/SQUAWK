@@ -2488,3 +2488,56 @@ verification**, flagged "source verification pending" in `tprop.json` `sources`.
 
 `display.attitudeStyle` is `"line"` (the validator accepts only `line`|`ball`); the six-pack-vs-EFIS
 dashboard choice is deferred to Task 2's `dashboard/profiles.ts`, not this params file.
+
+## 2026-08-13 — TP-002 · tprop bucket split, geometry limit, and remaining archetype details
+
+Closes out the `tprop` archetype (TP-001 above covers the lapse-model decision by measurement; this
+entry covers everything else from spec §4/§5 and the owner-pending designator calls).
+
+**Decision-B bucket split (regionals stay airliner, jets stay biz).** `tprop` is scoped to light/mid
+turboprops ONLY — King Air, PC-12, Caravan, TBM, etc. (`params/tprop-types.json`, 20 designators).
+Regional turboprops — Q400/DH8D and ATR AT72/AT76 — **stay in the existing `b738` (airliner) bucket**,
+verified already present in `airliner-types.json` and pinned by an explicit "keeps regional turboprops
+in the airliner bucket" test. Saab 340/2000 (SF34/SB20) are excluded from `tprop` for the same reason
+(regional-adjacent). PC-24 and Cirrus Vision Jet (PC24/SF50) are turboprop-*adjacent but are jets* —
+they stay in the `biz` bucket, already covered by `biz-types.json`. `resolveClass` checks
+fighter → airliner → biz → tprop → GA in order, so the tprop designator set had to be verified disjoint
+from all four existing type files before merging (Task 3); the one collision found was resolved by
+dropping `PAY1` (below).
+
+**Owner-pending designator calls (flagged for device-verify, one-line reversible):**
+- `B190` (Beech 1900, 19-seat commuter) is a borderline case between light/mid turboprop and regional.
+  Defaulted to **INCLUDED** in `tprop-types.json` per the plan's starter list; if the owner judges it
+  reads as a regional airliner instead, removing it is a one-line edit.
+- `SW4` (Fairchild/Swearingen Metroliner) is **left UNSUPPORTED** — added to neither `tprop-types.json`
+  nor `airliner-types.json`, matching the plan's explicit "leave out" instruction. Flagged in case the
+  owner wants it added to the airliner bucket instead.
+- `PAY1` (Piper Cheyenne) was **dropped** from the `tprop` starter list — it was already present in
+  `ga-types.json` (bucketed as GA-piston, a pre-existing classification predating this task, out of
+  scope to fix here), and `resolveClass` checks the tprop bucket before the GA bucket, so including it
+  in both would have silently changed PAY1's existing behavior from `c172s` to `tprop`. `PAY2`/`PAY3`/
+  `PAY4` are unaffected and remain in `tprop-types.json`.
+
+**Honest geometry limitation: nacelles, not spinning prop discs.** The low-poly `tprop` model
+(`globe/aircraftModelDims.ts` `tprop` entry, consumed by `globe/aircraftGeometry.ts`'s `nacelles()`)
+renders two wing-mounted engine nacelles as simple closed boxes — the SAME primitive every other
+multi-engine class uses (`c172s` cowling, `b738`/`f5e` pods). There is no propeller-disc geometry (spinning
+or static) anywhere in the low-poly renderer; this was explicitly deferred from Task 2's review to this
+decisions entry rather than silently shipped. The silhouette reads as a twin-turboprop by wing/tail
+proportions and nacelle placement, not by a visible prop — an honest limitation of the shared low-poly
+primitive set, not a `tprop`-specific gap.
+
+**`speedbrakeCd0` is honestly 0.** The King Air 350 has no airbrake/spoiler, so `aero.speedbrakeCd0` is
+`0.0` (validated with `num()`, not `positive()`, so a legal zero) and the KeyB speedbrake toggle is
+inert for this class — matching the `c172s` precedent (also 0), unlike `b738`/`f5e` (0.05/0.06).
+
+**Leaderboard.** The new `tprop` leaderboard board is wired into all three worker allowlists (Task 3)
+but starts **empty** — no turboprop flights have been scored yet. Honest, not a bug.
+
+**Tuning-knob vs sourced status (CLAUDE.md gate) — consolidated.** Per TP-001, `maxPowerW` (1.566 MW),
+`propPeakSpeedMs` (100 m/s), and the two turboprop-lapse knobs (`turbopropCornerM` 6858 m,
+`turbopropLapseExp` 2.5) are the least-certain numbers in `tprop.json` — all pinned by the measured
+FL280-cruise / SL-climb / FL350-ceiling triple, not by a published source. King Air 350 POH and
+PT6A-60A-class (flat-rated shp, critical altitude) figures still need source verification, flagged
+"source verification pending" throughout `tprop.json`'s `sources` block (mass, wing geometry, Vne/Vno/
+Vfe/Vle, Mmo, g-limits, cd0, service ceiling).
