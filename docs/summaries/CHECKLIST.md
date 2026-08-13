@@ -1,21 +1,15 @@
 # Checklist — #48 graphic control-state indicators
 
-CODE-COMPLETE on `mongols-rich-hud` @ 867d604. Gate green (typecheck, 1303 tests, lint 5 pre-existing/0 added).
-Plan `docs/superpowers/plans/2026-08-13-control-state-indicators.md`. SDD ledger:
-`.superpowers/sdd/2026-08-13-control-state-indicators/progress.md`.
-Live prod branch — NOT yet deployed. Waiting on owner on-device sign-off before `npm run deploy:production`.
+DEPLOYED to fly.voygent.app. Branch `mongols-rich-hud`. Plan `docs/superpowers/plans/2026-08-13-control-state-indicators.md`.
+SDD ledger: `.superpowers/sdd/2026-08-13-control-state-indicators/progress.md`.
 
-- [x] Task 1 — `ControlIconMath.ts` pure geometry + unit tests
-- [x] Task 2 — snapshot fields (flapDetentIndex/flapDetentCount/hasSpeedbrake) + flightLoop wiring
-- [x] Task 3 — `ControlIcon` + `ControlIconCell` components + CSS
-- [x] Task 4 — desktop glass strip (`ControlState.tsx`) + gated speedbrake
-- [x] Task 5 — desktop HUD bottom (`Hud.tsx`) + trim added (1 fix round: tightened flap assertion)
-- [x] Task 6 — mobile rails (`ImmersiveHudBar.tsx`, +gear/trim) + decisions.md
-- [x] Final whole-branch review (opus4.8) → 1 fix wave (mobile grid hoist/clip) → re-review clean
-- [ ] **Owner on-device pass on BOTH mobile rails, then deploy**
+- [x] Phase 1 — icons on all 3 surfaces (6 TDD tasks + whole-branch review + fix wave). DEPLOYED Version 1340ba86.
+- [x] Owner on-device pass → mobile HUD icon row jammed (landscape MENU collision, portrait overlap).
+- [x] Phase 2 — mobile redesign: state moved to bottom touch buttons (compact glyphs GEAR/BRK, FLP+/TRM▲ value badges); HUD icon row reverted. Reviewed clean. DEPLOYED Version 61fca26e @ 1e737a9.
+- [ ] **Owner on-device pass on Phase 2 mobile buttons (both orientations)**
 
-Deferred (do at bizjet lead-in): extract shared ControlStateRow across 3 surfaces + add value-tone boundary test (final review #2/#5); null-flap-glyph hide (#4); EM_DASH literal (#6).
+Deferred (bizjet lead-in): extract shared ControlStateRow across the 3 desktop surfaces + tone-boundary test (review #2/#5); null-flap-glyph hide (#4); EM_DASH literal (#6); TouchControls trimBadgeText double-call (phase-2 minor).
 
-Next after #48: bizjet epic (`docs/superpowers/plans/2026-08-13-bizjet-flight-model.md`).
+Next after #48 sign-off: bizjet epic (`docs/superpowers/plans/2026-08-13-bizjet-flight-model.md`).
 
-_Updated: 2026-08-13 — mongols-rich-hud @ 867d604 (code-complete, awaiting deploy sign-off)_
+_Updated: 2026-08-13 — mongols-rich-hud @ 1e737a9 (Phase 2 deployed, awaiting on-device sign-off)_
