@@ -2,7 +2,9 @@
 
 Browser flight sim seeded from live ADS-B: pick a real aircraft on a minimal live display,
 TAKE CONTROLS, and fly it first-person over real satellite imagery and terrain until you
-crash, land, or quit. Self-hosted, single-user, open source (MIT).
+crash, land, or quit. Open source (MIT), self-hostable three ways — local server, local
+Docker, or your own Cloudflare Worker — with optional hosting for remote users
+(see **Deployment & distribution**).
 
 Sibling project: **LORAN** (github.com/iamneilroberts/LORAN) — shares stack discipline and
 visual language; shares no code at runtime (the feed normalizer is copied, not imported).
@@ -29,15 +31,35 @@ Research notes: `docs/research/`
 ## Stack
 
 Vite · React 18 + TypeScript · **CesiumJS** (keyless: `Ion.defaultAccessToken = null`) ·
-Zustand · Tailwind for layout only + hand-written CSS tokens · Python 3.12 + FastAPI +
-httpx. Physics: fixed 60 Hz, SI units internally, aviation units only at the display edge,
-attitude as quaternion, `sim/` has **no Cesium imports** and is fully unit-testable.
+Zustand · Tailwind for layout only + hand-written CSS tokens. Backend is one of two
+interchangeable proxies behind the same feed contract: **Python 3.12 + FastAPI + httpx**
+(local/Docker) or the **Cloudflare Workers** build (Workers + Durable Objects + D1) that is
+the reference deployment — see **Deployment & distribution**. Physics: fixed 60 Hz, SI units
+internally, aviation units only at the display edge, attitude as quaternion, `sim/` has **no
+Cesium imports** and is fully unit-testable.
+
+## Deployment & distribution
+
+The **reference deployment** — the live build the owner runs — is a **Cloudflare Workers**
+stack (Workers + Durable Objects for the ADS-B broker/lease, D1 for auth/missions/admin,
+`wrangler.jsonc` config). This public repo is the **open-source distribution**; the goal is
+that anyone can stand up their own instance three first-class ways:
+
+- **Local server** — bare-metal (Vite frontend + FastAPI proxy), `.env` driven.
+- **Local Docker** — `docker-compose`, the turnkey self-host path.
+- **Cloudflare Worker** — deploy the Workers build to your own CF account; **optional
+  hosting** lets a maintainer run one instance for remote users.
+
+Config stays portable across all three (`.env` + `.env.example`, no absolute paths, no
+secrets in git). The FastAPI proxy and the Workers broker are two backends serving the same
+frontend against the same feed contract — keep them in sync rather than forking behavior.
 
 ## Data sources & attribution (must be displayed)
 
 | Feed | Role | Notes |
 |---|---|---|
-| airplanes.live → adsb.lol → adsb.fi | live ADS-B, failover | readsb schema, feet/knots, 1 req/s, backend-proxied |
+| Local ADS-B receiver (dump1090 / readsb / tar1090) | live ADS-B, **preferred when present** | your own SDR's `aircraft.json`, same readsb schema; used **in addition to** the API feeds — local first for your area, APIs for wider coverage/failover. Configured via `.env`, off by default |
+| airplanes.live → adsb.lol → adsb.fi | live ADS-B, API failover | readsb schema, feet/knots, 1 req/s, backend-proxied |
 | adsbdb | type → class mapping | cached, backend-proxied |
 | Esri World Imagery | satellite basemap | attribution required; no documented quota — degrade honestly if throttled |
 | Re:Earth Terrain | quantized-mesh terrain, **ellipsoidal** | keyless; attribution "Re:Earth Terrain · Mapterhorn (CC BY 4.0)"; best-effort — ion free tier is the fallback |

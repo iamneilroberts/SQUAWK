@@ -1327,3 +1327,22 @@ INVARIANTS (watertight, positive signed volume / outward winding, per-feature br
 are unit-tested and green; the actual on-screen LOOK is owner-eyeballed on deploy (exterior cam,
 press E). The SIM machinery and the amber/cyan single-instance ghost tint are geometry-independent
 and untouched.
+
+## 2026-08-13 — DEPLOY-001 · Distribution model: reference is Cloudflare Workers; open-source repo installs three ways + local ADS-B feed (owner)
+
+Reconciled the documented stack with the live build. The **reference deployment** the owner
+runs (fly.voygent.app) is a **Cloudflare Workers** stack — Workers + Durable Objects for the
+ADS-B broker/lease, D1 for auth/missions/admin, `wrangler.jsonc` config — which the original
+CLAUDE.md (FastAPI-only) never described. Owner's intent, recorded here: this public repo is
+the **open-source distribution**, and someone standing up their own instance must be able to
+choose **local server (bare-metal + FastAPI)**, **local Docker (`docker-compose`)**, or **their
+own Cloudflare Worker**, with **optional hosting** so a maintainer can run one Worker instance
+for remote users. Consequence: the FastAPI proxy and the Workers broker are two backends behind
+the **same feed contract**, kept in sync rather than forked; config stays portable via `.env` /
+`.env.example` (no absolute paths, no secrets in git) across all three targets. Also added a
+**local ADS-B receiver** (dump1090 / readsb / tar1090 `aircraft.json`) as a first-class feed
+used **in addition to** the aggregator APIs — local first for the operator's own area, the
+airplanes.live → adsb.lol → adsb.fi chain for wider coverage and failover; off by default,
+enabled via `.env`. Updated CLAUDE.md (framing line, Stack, new **Deployment & distribution**
+section, data-sources table). Not yet built: the local-feed source module and the Workers build
+are not in this repo's tracked tree — this entry records the roadmap direction, not shipped code.
