@@ -552,6 +552,15 @@ export default function FlightSession({
     useStore.getState().fire("PAUSE");
   }, []);
 
+  // Resume straight from the PauseOverlay. On touch there is no pointer lock, so the desktop
+  // "arm, then click the globe to re-lock" dance (spec §6) is needless friction — RESUME just
+  // resumes (owner 2026-08-13). Desktop still arms so the canvas click can re-acquire pointer lock.
+  const resumeFlight = useCallback(() => {
+    loopRef.current?.resume();
+    setResumeArmed(false);
+    useStore.getState().fire("RESUME");
+  }, []);
+
   // ---- Esc pauses; visibilitychange auto-pauses (spec §5, §6) ----
   useEffect(() => {
     if (mode !== "FLYING" && mode !== "PAUSED") return;
@@ -945,7 +954,7 @@ export default function FlightSession({
       {mode === "PAUSED" && !(tutorial !== null && activeLesson !== null) && (
         <PauseOverlay
           armed={resumeArmed}
-          onArmResume={() => setResumeArmed(true)}
+          onArmResume={narrow ? resumeFlight : () => setResumeArmed(true)}
           onQuit={() => leaveToBrowse("QUIT")}
         />
       )}

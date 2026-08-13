@@ -2349,3 +2349,19 @@ min(460px, 100vw - 24px) so it fits any phone, z-index: 20 (above the credit, be
 modals at 30+), and max-height calc(100dvh - 96px). All other over-globe cards already carry an
 explicit z-index >= 35 (quick-start 35, handoff now 20, coaching/teaching 43-44, pause/end 45), so
 the credit's z:1 sits under all of them.
+
+## 2026-08-13 — Hide Cesium credit widget + one-tap resume on touch (owner live QA)
+
+**Hide Cesium's credit widget.** Owner: "Cesium is still taking up half the screen." The z-index
+fix stopped it covering UI but the widget itself was a big band. Since the app is KEYLESS
+(Ion.defaultAccessToken = null, no ion assets) the ion credit isn't required, and the imagery/
+terrain attributions (Esri, Re:Earth · Mapterhorn) are already in our StatusBar + HUD. So the
+widget was pure duplication → `.cesium-viewer-bottom { display: none }`. Our StatusBar attribution
+line remains the required, always-present credit. Removed the now-dead credit z-index/fade rules +
+the ImmersiveControl body-class toggle that drove them.
+
+**One-tap resume on touch.** Owner: "do we have to make the user click resume AND touch the globe?"
+The two-step resume (RESUME arms → "CLICK THE GLOBE TO RESUME" → canvas click) exists only because
+desktop Esc drops pointer lock and Chrome rate-limits re-locking, so re-lock needs a real canvas
+click. Touch has no pointer lock, so on `narrow` RESUME now resumes directly (resumeFlight); the
+armed "click the globe" state never shows on mobile. Desktop still arms.

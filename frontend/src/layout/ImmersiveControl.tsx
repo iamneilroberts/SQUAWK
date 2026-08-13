@@ -65,16 +65,6 @@ export default function ImmersiveControl(
     setChromeVisible(!autoHideActive || mode !== "FLYING" || warningActive);
   }, [autoHideActive, mode, warningActive, setChromeVisible]);
 
-  // Cesium's credit widget lives OUTSIDE the React tree (the viewer mounts its own DOM), so it
-  // can't take a `faded` prop. Toggle a body class the CSS keys off, matching the same auto-hide
-  // the other chrome uses (#74). It reappears whenever the chrome does (any tap), so the required
-  // attribution is never permanently hidden — same standard as the StatusBar attribution.
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    document.body.classList.toggle("immersive-chrome-faded", faded);
-    return () => document.body.classList.remove("immersive-chrome-faded");
-  }, [faded]);
-
   // ---- keep the toggle honest when the user leaves fullscreen by a browser gesture ----
   useEffect(() => {
     if (typeof document === "undefined") return;

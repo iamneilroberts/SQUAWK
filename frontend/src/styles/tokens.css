@@ -66,27 +66,12 @@ body {
   font-size: 11px;
 }
 
-/* Cesium's credit container carries required attribution (Esri, GEBCO-style feeds) — restyled to
-   fit the console aesthetic. In immersive flight it fades with the rest of the chrome (#74) and
-   reappears on any tap (same standard as the StatusBar attribution), so it is never PERMANENTLY
-   hidden; on every other screen it stays fully visible. */
-.cesium-viewer-bottom {
-  /* The credit sat OVER app panels/buttons (Cesium mounts it late in the DOM at a high effective
-     stack) — it obscured TAKE CONTROLS / SELECT and painted through cards (#71, #76). Pin it to a
-     low z-index so it stays above the globe but BELOW every app panel/button (z 5+): visible on the
-     open globe, never covering the UI. */
-  z-index: 1;
-}
-.cesium-viewer-bottom,
-.cesium-widget-credits {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text);
-  text-shadow: none;
-  transition: opacity 0.5s ease;
-}
-body.immersive-chrome-faded .cesium-viewer-bottom,
-body.immersive-chrome-faded .cesium-widget-credits { opacity: 0; pointer-events: none; }
+/* Hide Cesium's default credit widget. This app is KEYLESS (Ion.defaultAccessToken = null) and uses
+   NO Cesium ion assets, so the ion credit is not required; the imagery/terrain attributions (Esri,
+   Re:Earth · Mapterhorn) are already shown in our own StatusBar + HUD. Cesium's widget was pure
+   duplication AND took up half the mobile screen / covered app UI (#71/#76 + owner 2026-08-13).
+   Our own attribution line remains the required, always-present credit. */
+.cesium-viewer-bottom { display: none; }
 
 /* ---- contact list rows: left-aligned identity, right-aligned numeric readout ---- */
 .contact-row {
