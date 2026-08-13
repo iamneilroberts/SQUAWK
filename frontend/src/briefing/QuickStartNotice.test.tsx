@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import QuickStartNotice, { QUICK_START_STEPS } from "./QuickStartNotice";
+import QuickStartNotice from "./QuickStartNotice";
 
 function collectText(node: unknown, out: string[] = []): string[] {
   if (node === null || node === undefined || node === false || node === true) return out;
@@ -13,26 +13,36 @@ function collectText(node: unknown, out: string[] = []): string[] {
   return out;
 }
 
+function render() {
+  return collectText(QuickStartNotice({
+    onDismiss: vi.fn(),
+    onFlyNow: vi.fn(),
+    onSelectPlane: vi.fn(),
+    onStartTraining: vi.fn(),
+  })).join(" ");
+}
+
 describe("QuickStartNotice", () => {
-  it("funnels a first-time visitor through account-free training before live flight", () => {
-    const text = collectText(QuickStartNotice({
-      onDismiss: vi.fn(),
-      onStartTraining: vi.fn(),
-      onSelectPlane: vi.fn(),
-    })).join(" ");
-    expect(text).toContain("Train before you sign in");
-    for (const step of QUICK_START_STEPS) expect(text).toContain(step);
-    expect(text).toContain("Start landing training");
-    expect(text).toContain("No account");
+  it("leads with FLY NOW — take a real aircraft, no account, fly-first", () => {
+    const text = render();
+    expect(text).toContain("Take the controls");
+    expect(text).toMatch(/Fly a real aircraft/i);
+    expect(text).toMatch(/Fly now/i);
+    // The fly-first promise: no account, and FLY NOW takes the nearest flyable.
+    expect(text).toMatch(/No account/i);
+    expect(text).toMatch(/nearest flyable/i);
   });
 
-  it("keeps browse and dismiss available without making either the primary action", () => {
-    const text = collectText(QuickStartNotice({
-      onDismiss: vi.fn(),
-      onStartTraining: vi.fn(),
-      onSelectPlane: vi.fn(),
-    })).join(" ");
-    expect(text).toContain("Browse live planes");
+  it("keeps pick-a-plane and guided training as secondary actions, plus dismiss", () => {
+    const text = render();
+    expect(text).toMatch(/Pick a plane/i);
+    expect(text).toMatch(/Training/i);
     expect(text).toContain("×");
+  });
+
+  it("no longer tells anonymous visitors to sign in before flying", () => {
+    const text = render();
+    expect(text).not.toMatch(/sign in only when you are ready/i);
+    expect(text).not.toMatch(/Train before you sign in/i);
   });
 });

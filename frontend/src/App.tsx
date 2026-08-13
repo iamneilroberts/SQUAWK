@@ -518,13 +518,19 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
           {mode === "BROWSE" && quickStartOpen && selectedHex === null && (
             <QuickStartNotice
               onDismiss={dismissGuide}
-              onStartTraining={() => {
+              onFlyNow={() => {
+                // Fly-first: no selection → takeControls auto-picks the nearest flyable and (for an
+                // anonymous visitor) instant-flies it, no sign-in (B3c → B4/B3b).
                 dismissGuide();
-                if (startTutorial("c172s")) setTrainingHandoffPending(true);
+                takeControls();
               }}
               onSelectPlane={() => {
                 dismissGuide();
                 focusContacts();
+              }}
+              onStartTraining={() => {
+                dismissGuide();
+                if (startTutorial("c172s")) setTrainingHandoffPending(true);
               }}
             />
           )}
