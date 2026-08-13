@@ -83,7 +83,8 @@ describe("Hud", () => {
     expect(text).toContain("C172 MODEL THIS BUILD");
   });
   it("shows every §9 readout", () => {
-    const text = collectText(Hud({ snapshot: snap(), attribution: "" })).join(" ");
+    const tokens = collectText(Hud({ snapshot: snap(), attribution: "" }));
+    const text = tokens.join(" ");
     expect(text).toContain("105"); // IAS
     expect(text).toContain("118"); // TAS
     expect(text).toContain("3500"); // altitude
@@ -92,7 +93,7 @@ describe("Hud", () => {
     expect(text).toContain("+1.0"); // g
     expect(text).toContain("60%"); // throttle
     expect(text).toContain("FLP"); // flaps icon cell label
-    expect(text).toContain("10"); // flap value
+    expect(tokens).toContain("10"); // flap value (exact-token: "10" is a substring of "105")
     expect(text).toContain("GEAR"); // gear icon cell label (icon-only, no text value)
     expect(text).toContain("01:05"); // airtime
   });
