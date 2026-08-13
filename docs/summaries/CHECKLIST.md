@@ -19,10 +19,12 @@ flow-mock (FLY NOW start card + trimmed debrief); 3 anon flights then require si
       opts?, lockedAt?)` → SIM unranked LockedMissionView from a REAL Contact (class via resolveClass,
       alt_geom/track via shared spawn) + nearest airport (world index) as destination. Pure, TDD, 8
       tests. Throws on unsupported contact / no airports. NOT yet wired into the store/flow (B3).
-- [ ] B3. TAKE CONTROLS rewire (App.tsx:312 `takeControls`): if NOT authed → instant anon flight (no
-      prepare/lock/sign-in/bounce); if authed → existing prepare→lock ranked path (already de-bounced
-      since authed users never reload). Start-card "FLY NOW" (redesign `briefing/QuickStartNotice.tsx`)
-      → auto-pick nearest flyable (B1) → instant flight.
+- [~] B3. TAKE CONTROLS rewire — CORE DONE (fbc9424 store, 874c151 wiring). Anon `takeControls` →
+      buildInstantMission(selected contact) → startInstantFlight; no prepare/lock/sign-in/bounce.
+      New store flag `instantFlight`; FlightSession `local = freeFlight||instantFlight` guards all
+      server lease/keepalive/submit; instant ends with a local unranked message (scored EndCard = B5).
+      REMAINING (B3c): redesign `briefing/QuickStartNotice.tsx` into the "FLY NOW" start card. Also
+      LIVE-VERIFY a full one-click anon flight in Chrome before deploy.
 - [ ] B4. FLY NOW / TAKE CONTROLS with no selection → nearestFlyableContact.
 - [ ] B5. Debrief simplify `panels/EndCard.tsx`: outcome + score + 3 stats up top; collapse
       ScoreBreakdown (:39-51) + Versions (:53-66) behind a ▸details; anon runs show SIGN IN TO RANK.
