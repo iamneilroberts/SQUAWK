@@ -798,15 +798,24 @@ export default function FlightSession({
   // Destination pointer in the HUD bar (owner 2026-08-11: "need some kind of pointer to the
   // airport"). Feeds the bar's NavDirector (relative-bearing arrow + distance) from the same
   // missionNavigationCue the big screen-space cue used; the bar replaces that cue on narrow.
+  // The destination POINTER (which way is the airport + how far) is basic situational awareness,
+  // not a landing aid, so an instant flight always gets it even at OFF assist (its anonymous pilot
+  // never chose an assist level, and "fly a real plane and land it" needs a destination). It is the
+  // ONLY nav cue an instant flight can support: its airport is a real point but has no runway
+  // geometry, so route/runway-highlight/approach aids (the rest of NAV/FULL) would draw nothing
+  // meaningful — hence a pointer-only exception rather than bumping the assist level. (#47)
   const immersiveNavCue =
     lockedMission !== null &&
     snapshot !== null &&
     assist !== null &&
-    assistFeatures(assist.current).destinationCue
+    (instantFlight || assistFeatures(assist.current).destinationCue)
       ? (() => {
           const cue = missionNavigationCue(snapshot, lockedMission.assignment);
+          // Instant flight targets an airport, not a specific runway (no runway geometry), so it
+          // shows just the ident; ranked/tutorial missions name the assigned runway end.
+          const { airportIdent, runwayEndIdent } = lockedMission.assignment;
           return {
-            destination: `${lockedMission.assignment.airportIdent} RWY ${lockedMission.assignment.runwayEndIdent}`,
+            destination: instantFlight ? airportIdent : `${airportIdent} RWY ${runwayEndIdent}`,
             bearingDeg: cue.bearingDeg,
             distanceNm: cue.distanceNm,
           };

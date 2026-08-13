@@ -2215,3 +2215,19 @@ flag. Terrain is the normal real-sampled path (free flight is `tutorial === null
 the `createTerrainService` branch); the persistent SIM banner + synthetic callsign come from the Hud
 and `formatCallsign` for free. Browse entry is `freeflight/FreeFlightPanel.tsx`, a FREE FLIGHT
 status-chip dialog modeled on TutorialPanel, reachable even when the feed is OFFLINE.
+
+## 2026-08-13 — Instant flight always shows the destination pointer (#47/C3)
+
+The immersive HUD's destination pointer (NavDirector: which way the airport is + distance) is
+gated on `assistFeatures(assist.current).destinationCue`, i.e. assist ≠ OFF. Instant (anonymous)
+flights start at OFF (buildInstantMission sets `assist: "none"`), so they showed "NO DESTINATION
+SET" despite having a real nearest-airport assignment. Fix: `immersiveNavCue` now shows the pointer
+when `instantFlight || assistFeatures(...).destinationCue`. Rationale: the directional pointer is
+basic situational awareness (a compass to the destination), not a landing aid — and it is the ONLY
+nav cue an instant flight can support, because its assignment airport is a real point with NO runway
+geometry (runwayLengthFt 0, assignedEnd at the airport centre), so route / runway-highlight /
+approach-corridor / glide-gate / flare aids (the rest of NAV/FULL) would draw nothing meaningful.
+Hence a pointer-only exception in FlightSession rather than defaulting instant flight to NAV/FULL
+assist (which would render broken runway visuals). The label drops the "RWY --" segment for instant
+flights (airport ident only). Ranked/tutorial behaviour is unchanged. The broader #47 ask — a
+destination indicator in the DEFAULT (non-immersive) desktop HUD — remains open.
