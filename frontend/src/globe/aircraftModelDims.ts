@@ -1,8 +1,8 @@
 /*
  * Per-class low-poly model dimensions (issue #15). These are DATA, keyed by the same class id
- * the flight params use (c172s / b738 / f5e — see takeover/eligibility.ts::resolveClass and
+ * the flight params use (c172s / b738 / f5e / biz — see takeover/eligibility.ts::resolveClass and
  * sim/params.ts::loadClassById), NOT a per-class code branch: buildAirframe (aircraftGeometry.ts)
- * turns one dimension record into a wireframe, so the three silhouettes differ only in these
+ * turns one dimension record into a wireframe, so the four silhouettes differ only in these
  * numbers. Cesium-free and pure, so both this map and the geometry it feeds are unit-testable.
  *
  * All lengths are metres in the body frame (X forward out the nose, Y right wing, Z down — the
@@ -117,7 +117,7 @@ export const MODEL_DIMS: Readonly<Record<string, ModelDims>> = {
 
 /**
  * Resolve a class id to its model dimensions. Unknown id is a bug (the resolver only ever
- * produces the three keys above), not data — so it throws, exactly like loadClassById.
+ * produces the four keys above), not data — so it throws, exactly like loadClassById.
  */
 export function modelDimsForClass(classId: string): ModelDims {
   const dims = MODEL_DIMS[classId];

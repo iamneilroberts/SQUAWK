@@ -4,16 +4,17 @@ Branch `bizjet` off `mongols-rich-hud` (9882e86 == live prod). #48 SHIPPED + clo
 Plan: `docs/superpowers/plans/2026-08-13-bizjet-flight-model.md`
 Spec: `docs/superpowers/specs/2026-08-13-multi-aircraft-type-flight-models-design.md`
 
-## Lead-in: deferred #48 cleanups (do first)
-- [ ] #1 Extract shared `ControlStateRow` across `ControlState.tsx` + `Hud.tsx` HudControlRow + add tone-threshold test (throttle>0.92→amber, NEUTRAL→dim)
-- [ ] #2 Null-flap-glyph: gate flap droop on `known(flapDetentIndex)`
-- [ ] #3 EM_DASH: replace hardcoded `"—"` with shared `EM_DASH` constant (3 rows)
-- [ ] #4 `TouchControls.tsx`: hoist double `trimBadgeText(snapshot?.trim)` call to a const
+## Lead-in: deferred #48 cleanups (DONE @ f221cc1)
+- [x] #1 Extracted shared `ControlStateCells.tsx` + tone-threshold test (throttle>0.92→amber, NEUTRAL→dim, speedbrake gating)
+- [x] #2 Null-flap-glyph: pass raw nullable detent → flapDroopEnd known()-guard hides droop on null
+- [x] #3 EM_DASH: control-state rows use shared constant (other unrelated `"—"` literals left as-is)
+- [x] #4 `TouchControls.tsx`: hoisted double `trimBadgeText(snapshot?.trim)` to a const
 
 ## Bizjet epic (SDD, fresh subagent per task, review between)
-- [ ] Task 1: `params/biz.json` + `loadBiz()`/`case "biz"` in `sim/params.ts` + `sim/biz-envelope.test.ts` (include `aero.speedbrakeCd0`; cruise ~M0.78 @ FL430; source every non-GA number)
-- [ ] Tasks 2–4: compiler-guided `AircraftClassId` union flip + fill consumers
-- [ ] tprop + heavy archetypes (same pattern, after biz)
-- [ ] Owner device-verify + deploy each phase
+- [x] Task 1: `params/biz.json` + `loadBiz` + envelope test — plus owner-approved per-class turbofan corner (`4d6ff5c`+`c1c0a25`). Plausible: M0.769 @ FL430, 2949 fpm SL climb, real 45,000 ft ceiling.
+- [x] Task 2: mission profile + EFIS dashboard profile + model dims (`e46fe72`, string-keyed)
+- [x] Task 3: `AircraftClassId` union flip + all consumers + biz-types resolution + worker validators (`809dec9`+`e3d3316`)
+- [ ] Task 4: decision log + full gate + DEPLOY (owner-authorized) + owner device-verify
+- [ ] tprop + heavy archetypes (same pattern, after biz) — future plans
 
-_Updated: 2026-08-13 — bizjet_
+_Updated: 2026-08-13 — bizjet (Tasks 1–3 shipped; Task 4 gate green, deploying)_

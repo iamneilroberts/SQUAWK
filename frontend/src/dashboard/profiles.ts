@@ -24,7 +24,7 @@ export type DashboardProfile = {
 };
 
 /**
- * The registry. Three basic profiles for the three flight models. Order is documentation only;
+ * The registry. Four basic profiles for the four flight models. Order is documentation only;
  * lookups are by key. Realistic/skeuomorphic backgrounds are DEFERRED — `background` stays
  * "transparent" (the LORAN vector look) and is the single place the art pass will touch.
  */

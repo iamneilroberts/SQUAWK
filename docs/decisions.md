@@ -2412,3 +2412,36 @@ branches. Trim needle full-scale is `TRIM_FULL_SCALE = 0.30` (legibility knob, t
 gained `flapDetentIndex?`/`flapDetentCount?`/`hasSpeedbrake?` (optional, honest defaults). Icon+value for
 throttle/trim/flaps; icon + minimal caption for gear (label carries state) and speedbrake ("OUT" when
 deployed).
+
+## 2026-08-13 — bizjet (`biz`) flight model: first of three new archetypes
+
+Added a `biz` (Citation Latitude-class mid-size business jet) flight model so business-jet ADS-B
+contacts (Citation/Learjet/Gulfstream/Phenom/Challenger, 61 ICAO designators in
+`params/biz-types.json`) become takeover-eligible instead of `UNSUPPORTED AIRCRAFT TYPE`. Built
+data-not-branches: a new `params/biz.json` (+ mission profile, EFIS dashboard profile, model dims)
+drives the SAME Cesium-free 6-DOF model as the other classes — flat-rated turbofan via the shared
+`T=η·P/max(V,propPeakSpeedMs)` + shared `turbofan` density lapse, like `b738` scaled down, no
+afterburner. Representative airframe: Cessna Citation Latitude-class (~M0.80, 2× flat-rated turbofan,
+retractable gear).
+
+**Per-class turbofan flat-rating corner (owner decision, option C).** The shared
+`forces.ts TURBOFAN_CORNER_M` was a single hardcoded FL380 (full rated thrust below it, density lapse
+above). That works for the 737/F-5 (they cruise below it) but NOT for a Citation, which cruises at
+**FL430 — above the corner** — where the sea-level-vs-cruise thrust ratio is fixed at ~1.5×, so
+realistic drag caps sea-level climb at ~700 fpm (a real Citation does ~3–4k). Rather than fake the
+drag (an early implementer draft used cd0=0.11, ~5× realistic, + a 53,500 ft ceiling to force the
+envelope test green — rejected), the owner approved making the flat-rating corner **per-class DATA**:
+new optional `propulsion.turbofanCornerM` / `turbofanLapseExp`, read through the existing
+`POWER_LAPSE_MODELS` dispatch (keyed by `lapseModel`, still no class branch). Omitted → the shared
+FL380/exp-1.0 defaults, so **b738 and f5e are behaviourally unchanged** (their envelope tests pass
+untouched). `biz` sets `turbofanCornerM: 6400` (FL210) — a TUNING KNOB (lower than a physical
+flat-rating altitude) pinned by the envelope triple, not a sourced figure.
+
+**Tuning-knob vs sourced status (CLAUDE.md gate).** With the per-class corner, `biz.json` uses
+plausible numbers — `cd0` 0.023, real `serviceCeilingM` 13716 m (45,000 ft) — measured envelope:
+cruise M0.769 @ FL430, sea-level best climb ~2949 fpm, ceiling climb ~258 fpm, clean stall in the
+mid-jet band, +3.0 g clamp. `cd0`, `maxPowerW` (6.5 MW → T/W ~0.20, an honest cruise-oriented
+flat-rated approximation), and `turbofanCornerM` are all TUNING KNOBS. **Citation Latitude published
+performance figures (thrust, wing geometry, exact placards) still need source verification** — flagged
+"source verification pending" in `biz.json` `sources`, not silently invented. The new `biz` leaderboard
+board starts empty (honest — no biz flights scored yet).
