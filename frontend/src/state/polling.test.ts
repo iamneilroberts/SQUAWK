@@ -204,6 +204,39 @@ describe("startTrafficPolling radius", () => {
     stop();
   });
 
+  it("makes zero config or traffic requests while a local free flight is active (#29)", async () => {
+    useStore.getState().startFreeFlight(lockedMission);
+    const stop = startTrafficPolling({ intervalMs: 1_000 });
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(mockedFetchConfig).not.toHaveBeenCalled();
+    expect(mockedFetchTraffic).not.toHaveBeenCalled();
+    expect(mockedFetchActiveMissionTraffic).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("keeps polling browse traffic around the player during an anonymous instant flight (#84)", async () => {
+    mockedFetchConfig.mockResolvedValue({ home: { lat: 1, lon: 2 } });
+    mockedFetchTraffic.mockResolvedValue(trafficResult([contact("live-1")], "instant-src", 7));
+    // Instant flight has no server-side mission lease, so the active-mission endpoint would fail:
+    // it must use the browse fetch, centered on the player's moving position.
+    useStore.getState().startInstantFlight(lockedMission);
+    useStore.getState().fire("COUNTDOWN_DONE");
+    expect(useStore.getState().mode).toBe("FLYING");
+
+    const stop = startTrafficPolling({
+      intervalMs: 1000,
+      activePosition: () => ({ lat: 31, lon: -87 }),
+    });
+    await vi.advanceTimersByTimeAsync(0); // config resolves, then the zero-delay traffic tick
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(mockedFetchTraffic).toHaveBeenCalledWith(31, -87, 80);
+    expect(mockedFetchActiveMissionTraffic).not.toHaveBeenCalled();
+    expect(useStore.getState().contacts.has("live-1")).toBe(true);
+    expect(useStore.getState().feedSource).toBe("instant-src");
+    stop();
+  });
+
   it("keeps the locked local simulation running when active traffic is unavailable", async () => {
     mockedFetchConfig.mockResolvedValue({ home: { lat: 1, lon: 2 } });
     mockedFetchActiveMissionTraffic.mockRejectedValue(new Error("network lost"));

@@ -193,7 +193,7 @@ describe("session state", () => {
     useStore.getState().startLockedMission(lockedMission());
     expect(useStore.getState().freeFlight).toBe(false);
   });
-  it("startInstantFlight starts from BROWSE, sets instantFlight (not freeFlight) and clears contacts (B3)", () => {
+  it("startInstantFlight starts from BROWSE, sets instantFlight (not freeFlight) and KEEPS contacts (#84)", () => {
     useStore.getState().resetSession();
     useStore.getState().applyFetch(trafficResult([contact("abc123")]));
     const mission = lockedMission("none");
@@ -205,7 +205,10 @@ describe("session state", () => {
     expect(s.freeFlight).toBe(false);
     expect(s.tutorial).toBeNull();
     expect(s.lockedMission).toBe(mission);
-    expect(s.contacts.size).toBe(0);
+    // Instant flight spawns from a REAL live contact, so live traffic keeps rendering as scenery
+    // (design spec §FLYING). Unlike free flight it must NOT wipe the browse contacts — the poller
+    // keeps them fresh from here.
+    expect(s.contacts.has("abc123")).toBe(true);
     expect(s.selectedHex).toBeNull();
     // A second start is refused: no longer in BROWSE.
     expect(useStore.getState().startInstantFlight(mission)).toBe(false);

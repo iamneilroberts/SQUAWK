@@ -2541,3 +2541,22 @@ FL280-cruise / SL-climb / FL350-ceiling triple, not by a published source. King 
 PT6A-60A-class (flat-rated shp, critical altitude) figures still need source verification, flagged
 "source verification pending" throughout `tprop.json`'s `sources` block (mass, wing geometry, Vne/Vno/
 Vfe/Vle, Mmo, g-limits, cd0, service ceiling).
+
+## 2026-08-13 — #84 Instant flight keeps live ADS-B traffic (browse fetch, player-centered)
+
+Instant flight (the default anonymous TAKE CONTROLS path) rendered no other live contacts while
+flying. It had inherited free flight's "no ADS-B" pattern verbatim from fbc9424: `startInstantFlight`
+wiped `contacts`, and the traffic poller's suppression guard froze polling for `instantFlight`. But
+instant flight spawns from a **real** live contact, and the specs require live traffic in every flight
+mode (design spec §FLYING "live traffic keeps polling and renders as scenery"; phase-B design
+"polling continues in all modes"). Free flight and the tutorial are genuinely synthetic and stay
+frozen — the guard now suppresses only those two.
+
+**Routing decision.** With `instantFlight` out of the guard it would otherwise fall into the
+active-mission branch, because instant flight *does* set `lockedMission`. That endpoint is wrong here:
+`buildInstantMission` mints a client-side `crypto.randomUUID()` and there is no server-side mission
+lease, so `fetchActiveMissionTraffic` would fail → `FeedDownError` → a false OFFLINE. Instant flight
+therefore uses the plain browse `fetchTraffic`, centered on the **player's current position**
+(`options.activePosition()`, falling back to the spawn contact) rather than fixed `home`, so contacts
+follow the moving aircraft. Signed-in ranked missions are untouched and remain on the lease-backed
+active-mission endpoint.

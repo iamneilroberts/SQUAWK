@@ -414,8 +414,10 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
     if (currentMode !== "BROWSE" || next !== "COUNTDOWN" || mission.status !== "locked") {
       return false;
     }
-    // Anonymous instant flight: local like free flight (no polling/lease/submission) but a distinct
-    // flag so its scored, trimmed debrief never routes through free flight's "no result" path.
+    // Anonymous instant flight: no server lease or submission, but a distinct flag so its scored,
+    // trimmed debrief never routes through free flight's "no result" path. Unlike free flight it
+    // spawns from a REAL live contact, so contacts are deliberately NOT cleared — live traffic
+    // keeps polling and renders as scenery while flying (design spec §FLYING, issue #84).
     set({
       mode: next,
       lockedMission: mission,
@@ -425,7 +427,6 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       origin: { hex: mission.contact.hex, snapshot: mission.contact },
       assist: initialAssistState(assistModeFromPreference(mission.assist)),
       endStats: null,
-      contacts: new Map(),
       selectedHex: null,
       selectionLocked: false,
     });
@@ -555,7 +556,9 @@ export function startTrafficPolling(options: TrafficPollingOptions = {}): () => 
     if (stopped || inFlight || !visibility.isVisible()) return;
     inFlight = true;
     const session = useStore.getState();
-    if (session.tutorial !== null || session.freeFlight || session.instantFlight) {
+    // Tutorial and free flight are genuinely synthetic (no live traffic by design) — they stay
+    // frozen. Instant flight is NOT: it spawns from a real contact and keeps polling (#84).
+    if (session.tutorial !== null || session.freeFlight) {
       inFlight = false;
       schedule(delayMs());
       return;
@@ -581,6 +584,12 @@ export function startTrafficPolling(options: TrafficPollingOptions = {}): () => 
                 lat: state.lockedMission.contact.lat,
                 lon: state.lockedMission.contact.lon,
               };
+              // An anonymous instant flight has no server-side mission lease, so the active-mission
+              // endpoint would fail (-> FeedDownError -> OFFLINE). Use the plain browse fetch,
+              // centered on the player instead of home so nearby traffic follows them (#84).
+              if (state.instantFlight) {
+                return fetchTraffic(position.lat, position.lon, state.radiusNm);
+              }
               return fetchActiveMissionTraffic(
                 state.lockedMission.missionId,
                 position.lat,
