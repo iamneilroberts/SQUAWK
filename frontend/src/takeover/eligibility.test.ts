@@ -22,6 +22,15 @@ describe("resolveClass", () => {
     expect(resolveClass(contact({ t: "C25A" }))).toEqual({ supported: true, classId: "biz", matched: true });
     expect(resolveClass(contact({ t: "GLF6" }))).toEqual({ supported: true, classId: "biz", matched: true });
   });
+  it("maps a light/mid turboprop designator to tprop", () => {
+    expect(resolveClass(contact({ t: "B350" }))).toEqual({ supported: true, classId: "tprop", matched: true });
+    expect(resolveClass(contact({ t: "PC12" }))).toEqual({ supported: true, classId: "tprop", matched: true });
+    expect(resolveClass(contact({ t: "C208" }))).toEqual({ supported: true, classId: "tprop", matched: true });
+  });
+  it("keeps regional turboprops in the airliner bucket (decision B)", () => {
+    expect(resolveClass(contact({ t: "DH8D" }))).toEqual({ supported: true, classId: "b738", matched: true });
+    expect(resolveClass(contact({ t: "AT72" }))).toEqual({ supported: true, classId: "b738", matched: true });
+  });
   it("returns explicit unsupported for an unknown type", () => {
     expect(resolveClass(contact({ t: "C130" }))).toEqual({ supported: false, classId: null, matched: false, reason: "UNSUPPORTED AIRCRAFT TYPE" });
   });

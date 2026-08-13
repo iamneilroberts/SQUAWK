@@ -1,0 +1,13 @@
+{
+  "note": "ICAO type designators treated as King Air-class light/mid turboprop for the class resolver. Data, not code: adding a type here is the only thing needed to fly it as the tprop model. Regional turboprops (DH8D, AT7x, SF34, SB20) and turboprop-derived jets stay in their existing buckets (decision B) — do not add them here.",
+  "designators": [
+    "BE20", "B350", "BE30", "BE9L", "BE9T", "B190",
+    "PC12",
+    "C208", "C20B",
+    "TBM7", "TBM8", "TBM9",
+    "PAY2", "PAY3", "PAY4",
+    "P180",
+    "AC90", "AC95",
+    "EPIC", "E110"
+  ]
+}

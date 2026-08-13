@@ -118,7 +118,7 @@ function preview(value: unknown): value is MissionPreviewIdentity {
   return typeof value.aircraftHex === "string" && HEX.test(value.aircraftHex) &&
     (value.aircraftType === null ||
       (typeof value.aircraftType === "string" && /^[A-Za-z0-9_-]{1,16}$/.test(value.aircraftType))) &&
-    (value.classId === "c172s" || value.classId === "b738" || value.classId === "f5e" || value.classId === "biz") &&
+    (value.classId === "c172s" || value.classId === "b738" || value.classId === "f5e" || value.classId === "biz" || value.classId === "tprop") &&
     typeof value.selectedChoiceKey === "string" && CHOICE_KEY.test(value.selectedChoiceKey) &&
     Array.isArray(value.eligibleChoiceKeys) &&
     value.eligibleChoiceKeys.length > 0 &&

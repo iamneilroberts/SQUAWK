@@ -2,6 +2,7 @@ import c172sRaw from "./profiles/c172s.json";
 import b738Raw from "./profiles/b738.json";
 import f5eRaw from "./profiles/f5e.json";
 import bizRaw from "./profiles/biz.json";
+import tpropRaw from "./profiles/tprop.json";
 import type { AircraftClassId, MissionProfile } from "./types";
 
 function assertFinitePositive(value: unknown, label: string): asserts value is number {
@@ -112,6 +113,7 @@ const profiles: Record<AircraftClassId, MissionProfile> = {
   b738: deepFreeze(validateMissionProfile(b738Raw)),
   f5e: deepFreeze(validateMissionProfile(f5eRaw)),
   biz: deepFreeze(validateMissionProfile(bizRaw)),
+  tprop: deepFreeze(validateMissionProfile(tpropRaw)),
 };
 
 export function missionProfileForClass(classId: AircraftClassId): MissionProfile {
@@ -119,5 +121,5 @@ export function missionProfileForClass(classId: AircraftClassId): MissionProfile
 }
 
 export function allMissionProfiles(): MissionProfile[] {
-  return [profiles.c172s, profiles.b738, profiles.f5e, profiles.biz];
+  return [profiles.c172s, profiles.b738, profiles.f5e, profiles.biz, profiles.tprop];
 }

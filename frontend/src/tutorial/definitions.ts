@@ -52,9 +52,14 @@ const LESSONS: Record<AircraftClassId, readonly TutorialLesson[]> = {
     { id: "configure", title: "Gear and speed", body: "Confirm gear down and stabilize near 160 KT. Avoid abrupt bank close to the ground.", triggerAirtimeS: 20 },
     { id: "flare", title: "Fighter flare", body: "Ease into the flare near 30 FT, close power, and preserve centerline through rollout.", triggerAirtimeS: 58 },
   ],
-  // biz has no TUTORIAL_DEFINITIONS entry below (owner 2026-08-13: no tutorial for the class) —
-  // this key exists only to satisfy Record<AircraftClassId, ...> and is unreachable.
+  // biz and tprop have no TUTORIAL_DEFINITIONS entry below (owner 2026-08-13: no tutorial for
+  // either class) — these keys exist only to satisfy Record<AircraftClassId, ...> and are unreachable.
   biz: [
+    { id: "hold", title: "Stabilize", body: "Fly a stabilized approach at target speed with small corrections.", triggerAirtimeS: 2 },
+    { id: "configure", title: "Configure early", body: "Extend gear and flaps early; target the class approach speed.", triggerAirtimeS: 20 },
+    { id: "flare", title: "Flare and idle", body: "Flare gently near the runway and smoothly close the thrust levers.", triggerAirtimeS: 60 },
+  ],
+  tprop: [
     { id: "hold", title: "Stabilize", body: "Fly a stabilized approach at target speed with small corrections.", triggerAirtimeS: 2 },
     { id: "configure", title: "Configure early", body: "Extend gear and flaps early; target the class approach speed.", triggerAirtimeS: 20 },
     { id: "flare", title: "Flare and idle", body: "Flare gently near the runway and smoothly close the thrust levers.", triggerAirtimeS: 60 },
@@ -164,8 +169,9 @@ const MISSION_IDS: Record<AircraftClassId, string> = {
   c172s: "00000000-0000-4000-8000-000000000101",
   b738: "00000000-0000-4000-8000-000000000102",
   f5e: "00000000-0000-4000-8000-000000000103",
-  // Unreachable (see LESSONS.biz above): kept only to satisfy the Record type.
+  // Unreachable (see LESSONS.biz/LESSONS.tprop above): kept only to satisfy the Record type.
   biz: "00000000-0000-4000-8000-000000000104",
+  tprop: "00000000-0000-4000-8000-000000000105",
 };
 
 export function tutorialDefinitionForClass(classId: AircraftClassId): TutorialDefinition {

@@ -1,4 +1,4 @@
-export type AircraftClassId = "c172s" | "b738" | "f5e" | "biz";
+export type AircraftClassId = "c172s" | "b738" | "f5e" | "biz" | "tprop";
 export type AirportSize = "small" | "medium" | "large";
 export type RunwaySurface = "HARD" | "GRAVEL" | "GRASS" | "DIRT" | "SAND" | "WATER" | "SNOW_ICE" | "OTHER";
 

@@ -16,7 +16,7 @@ import type { Env } from "../../env";
 import { defineRoute, type RouteDefinition } from "../router";
 import { ValidationError } from "../validation";
 
-const CLASS_IDS: readonly AircraftClassId[] = ["c172s", "b738", "f5e", "biz"];
+const CLASS_IDS: readonly AircraftClassId[] = ["c172s", "b738", "f5e", "biz", "tprop"];
 const ASSISTS: readonly LeaderboardAssist[] = ["none", "low", "medium", "high"];
 const SCORING_VERSION = /^[a-z0-9][a-z0-9._-]{0,31}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
