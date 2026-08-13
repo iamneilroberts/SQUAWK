@@ -84,6 +84,9 @@ export default function FlightSession({
   const lockedMission = useStore((s) => s.lockedMission);
   const tutorial = useStore((s) => s.tutorial);
   const freeFlight = useStore((s) => s.freeFlight);
+  const instantFlight = useStore((s) => s.instantFlight);
+  // Both flags mark a purely client-side flight: no server lease to release, no result to submit.
+  const local = freeFlight || instantFlight;
   const assist = useStore((s) => s.assist);
   const endStats = useStore((s) => s.endStats);
   const basemap = useStore((s) => s.basemap);
@@ -236,7 +239,7 @@ export default function FlightSession({
    * mode is refused rather than teleporting the app to BROWSE from somewhere it should not.
    */
   function leaveToBrowse(event: GameEvent) {
-    if (lockedMission !== null && tutorial === null && !freeFlight && useStore.getState().mode !== "ENDED") {
+    if (lockedMission !== null && tutorial === null && !local && useStore.getState().mode !== "ENDED") {
       const key = releaseKeyRef.current ?? crypto.randomUUID();
       releaseKeyRef.current = key;
       void releaseMissionLease(lockedMission.missionId, key).catch(() => undefined);
@@ -262,7 +265,7 @@ export default function FlightSession({
       status: "unavailable",
       message: "AUTHORITATIVE RESULT HAS NOT BEEN SUBMITTED",
     });
-    if (tutorial !== null || freeFlight) return;
+    if (tutorial !== null || local) return;
     const release = () => {
       if (useStore.getState().mode === "ENDED") return;
       void releaseMissionLease(
@@ -272,7 +275,7 @@ export default function FlightSession({
     };
     window.addEventListener("pagehide", release);
     return () => window.removeEventListener("pagehide", release);
-  }, [lockedMission, tutorial, freeFlight]);
+  }, [lockedMission, tutorial, freeFlight, instantFlight, local]);
 
   useEffect(() => subscribeResultQueueEvents((event) => {
     const pending = pendingResultRef.current;
@@ -429,6 +432,19 @@ export default function FlightSession({
                 useStore.getState().fire("IMPACT");
                 return;
               }
+              // Instant anonymous flight (B3): local and unranked — never submits to the server.
+              // B5 replaces this message with the scored, trimmed EndCard + SIGN IN TO RANK.
+              if (instantFlight) {
+                pendingResultRef.current = null;
+                activeLessonRef.current = null;
+                setActiveLesson(null);
+                setDebrief({
+                  status: "unavailable",
+                  message: "INSTANT FLIGHT — LOCAL AND UNRANKED. SIGN IN TO RANK.",
+                });
+                useStore.getState().fire("IMPACT");
+                return;
+              }
               if (tutorial !== null) {
                 pendingResultRef.current = null;
                 activeLessonRef.current = null;
@@ -511,6 +527,7 @@ export default function FlightSession({
     lockedMission,
     tutorial,
     freeFlight,
+    instantFlight,
   ]);
 
   // Pause from FLYING: stop the physics loop and move the machine to PAUSED. Shared by desktop

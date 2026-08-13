@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ViewerHost from "./globe/ViewerHost";
 import ContactLayer from "./globe/ContactLayer";
 import OverlayLayers from "./globe/OverlayLayers";
@@ -39,6 +39,8 @@ import { missionChoiceKey, type MissionPreparationView } from "./mission/contrac
 import TutorialPanel from "./tutorial/TutorialPanel";
 import FreeFlightPanel from "./freeflight/FreeFlightPanel";
 import { buildFreeFlightMission } from "./freeflight/freeFlight";
+import { buildInstantMission } from "./takeover/instantMission";
+import { loadAirports } from "./data/airports";
 import {
   buildTutorialMission,
   tutorialDefinitionForClass,
@@ -308,9 +310,25 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
     }
   }, [lockedMission, missionCommit.status, mode]);
 
+  // Bundled airport index for the instant-flight destination; parsed once (validateAirports runs
+  // on every loadAirports call, so memoize it rather than re-parse on each takeover).
+  const airports = useMemo(() => loadAirports(), []);
+
   const takeControls = useCallback(() => {
     if (briefing.state.status !== "ready") return;
     if (authStatus !== "authenticated") {
+      // Fly-first / sign-in-later (B3): anonymous users get an instant, unranked flight on the
+      // selected contact — no prepare/lock/sign-in/reload bounce. Signed-in users keep the ranked
+      // prepare path below. If the instant build is impossible (unsupported contact, no airport
+      // data), fall back to the sign-in flow with restorable provisional state.
+      try {
+        const mission = buildInstantMission(briefing.state.contact, airports, {
+          missionId: crypto.randomUUID(),
+        });
+        if (useStore.getState().startInstantFlight(mission)) return;
+      } catch {
+        // Fall through to sign-in.
+      }
       try {
         saveProvisionalBriefing(sessionStorage, {
           aircraftHex: briefing.state.contact.hex,
@@ -357,7 +375,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
         if (missionOperation.current !== operation) return;
         setMissionCommit({ status: "error", message: missionErrorMessage(error) });
       });
-  }, [authStatus, briefing.state, commitPreparation, missionCommit]);
+  }, [airports, authStatus, briefing.state, commitPreparation, missionCommit]);
 
   const startTutorial = useCallback((classId: AircraftClassId) => {
     const definition = tutorialDefinitionForClass(classId);
