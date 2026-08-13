@@ -15,7 +15,6 @@ import {
   formatClearanceFt,
   formatHeadingDeg,
   formatIasKt,
-  formatThrottlePct,
   formatVsiFpm,
   warningsFor,
 } from "./format";
@@ -183,9 +182,6 @@ function BalancedRail({ snapshot, attitudeStyle, navCue }: {
       <MiniAttitude snapshot={snapshot} attitudeStyle={attitudeStyle} />
       <NavDirector snapshot={snapshot} navCue={navCue} compact />
       <CompactField label="ALT" value={formatAltFt(snapshot.altitudeM)} unit="FT" />
-      <CompactField label="FLP" value={snapshot.flapLabel || EM_DASH} />
-      <CompactField label="THR" value={formatThrottlePct(snapshot.throttle)} />
-      {snapshot.speedbrake ? <CompactField label="BRK" value="OUT" /> : null}
     </div>
   );
 }
@@ -244,9 +240,6 @@ function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange }: {
           <span className="imm-director-systems">
             <span>VSI <b>{formatVsiFpm(snapshot.verticalSpeedMs)}</b></span>
             <span>AGL <b>{formatClearanceFt(snapshot.terrainClearanceM)}</b></span>
-            <span>FLP <b>{snapshot.flapLabel || EM_DASH}</b></span>
-            <span>THR <b>{formatThrottlePct(snapshot.throttle)}</b></span>
-            {snapshot.speedbrake ? <span>BRK <b>OUT</b></span> : null}
           </span>
         </span>
       </span>

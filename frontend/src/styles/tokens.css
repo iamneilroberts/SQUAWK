@@ -1642,10 +1642,19 @@ body {
   background: rgba(255, 176, 0, 0.12);
 }
 
-/* ---- MENU / abort (#58): the mobile pause valve. Sits to the LEFT of DCLTR in the same top row
-   (168px = two chip-widths clears both FULL/EXIT and DCLTR). Reuses .immersive-toggle's look. ---- */
+/* ---- MENU / abort (#48, owner 2026-08-13): pinned to the bottom-LEFT corner instead of riding
+   in the top control row. position:fixed keeps it put in both orientations, sitting BELOW the
+   virtual STICK (stick bottom = safe-area+64px; this chip tops out ~44px above the inset, clear of
+   it) and clear of the throttle on the right. top/right are reset to auto so the .immersive-toggle
+   top-row anchors don't apply. z 40 keeps it above the HUD (z 26) so it stays tappable. Reuses
+   .immersive-toggle's look; behavior (onMenu, never-fades) is unchanged. ---- */
 .menu-toggle {
-  right: calc(max(8px, env(safe-area-inset-right)) + 168px);
+  position: fixed;
+  top: auto;
+  right: auto;
+  left: calc(env(safe-area-inset-left, 0px) + 8px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+  z-index: 40;
 }
 
 /* ---- The one-time iOS "Add to Home Screen" hint (only shown where true fullscreen is
@@ -1751,12 +1760,12 @@ body {
 .imm-hud .gauge-adi-ground { fill: color-mix(in srgb, var(--amber) 16%, var(--grid) 60%); }
 .imm-adi-face { width: 100%; height: 100%; display: block; }
 
-/* A — shortest scan path: SIM, speed, attitude, destination/heading, altitude, flaps, throttle. */
+/* A — shortest scan path: SIM, speed, attitude, destination/heading, altitude. */
 .imm-bar-balanced {
   display: grid;
   grid-template-columns:
     27px minmax(30px, 0.65fr) 32px minmax(54px, 1.45fr)
-    minmax(36px, 0.8fr) minmax(27px, 0.55fr) minmax(38px, 0.72fr);
+    minmax(36px, 0.8fr);
   gap: 3px;
   padding: 4px;
 }

@@ -169,8 +169,12 @@ describe("ImmersiveHudBar", () => {
       variant: "tapes",
       navCue: { destination: "KADS · RWY 16", bearingDeg: 298, distanceNm: 6.8 },
     })).join(" ");
-    for (const value of ["IAS", "ALT", "VSI", "AGL", "FLP", "THR", "KADS", "DEST", "+28°"]) {
+    for (const value of ["IAS", "ALT", "VSI", "AGL", "KADS", "DEST", "+28°"]) {
       expect(text).toContain(value);
+    }
+    // FLP/THR now live on the touch buttons + throttle lever, so the HUD systems line drops them (#48).
+    for (const gone of ["FLP", "THR"]) {
+      expect(text).not.toContain(gone);
     }
   });
 
