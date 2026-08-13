@@ -15,10 +15,10 @@ flow-mock (FLY NOW start card + trimmed debrief); 3 anon flights then require si
 - [x] B1. `takeover/pickFlyable.ts` nearestFlyableContact (3eee033)
 
 ## TODO — instant anonymous flight
-- [ ] B2. Instant mission builder — extend `freeflight/freeFlight.ts:buildFreeFlightMission` (or a
-      sibling `buildInstantMission`) to seed a SIM LockedMissionView from a REAL Contact
-      (lat/lon/alt/heading via track, class via resolveClass) + nearest airport (airports-world.json)
-      as destination. Pure, TDD. Enter FLYING via `store.startFreeFlight`-style (anonymous, unranked).
+- [x] B2. Instant mission builder — `takeover/instantMission.ts:buildInstantMission(contact, airports,
+      opts?, lockedAt?)` → SIM unranked LockedMissionView from a REAL Contact (class via resolveClass,
+      alt_geom/track via shared spawn) + nearest airport (world index) as destination. Pure, TDD, 8
+      tests. Throws on unsupported contact / no airports. NOT yet wired into the store/flow (B3).
 - [ ] B3. TAKE CONTROLS rewire (App.tsx:312 `takeControls`): if NOT authed → instant anon flight (no
       prepare/lock/sign-in/bounce); if authed → existing prepare→lock ranked path (already de-bounced
       since authed users never reload). Start-card "FLY NOW" (redesign `briefing/QuickStartNotice.tsx`)
