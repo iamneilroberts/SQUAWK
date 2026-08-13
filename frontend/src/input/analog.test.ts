@@ -5,6 +5,7 @@ import {
   gearButtonDisabled,
   gearButtonInTransit,
   trimBadgeText,
+  trimBadges,
   shouldShowLevelButton,
 } from "./analog";
 
@@ -100,6 +101,24 @@ describe("trim badge text (#48 mobile) — magnitude only", () => {
     expect(trimBadgeText(0.5)).toBe("50%");
     expect(trimBadgeText(-0.5)).toBe("50%");
     expect(trimBadgeText(1)).toBe("100%");
+  });
+});
+
+describe("trim badges (#83 mobile) — sign-matched button", () => {
+  it("neutral/deadband shows no badge on either button", () => {
+    expect(trimBadges(0)).toEqual({ up: null, down: null });
+    expect(trimBadges(0.004)).toEqual({ up: null, down: null }); // rounds to 0%
+    expect(trimBadges(-0.004)).toEqual({ up: null, down: null });
+    expect(trimBadges(null)).toEqual({ up: null, down: null });
+    expect(trimBadges(undefined)).toEqual({ up: null, down: null });
+  });
+  it("positive (nose-up) trim badges TRM▲ only", () => {
+    expect(trimBadges(0.5)).toEqual({ up: "50%", down: null });
+    expect(trimBadges(1)).toEqual({ up: "100%", down: null });
+  });
+  it("negative (nose-down) trim badges TRM▼ only", () => {
+    expect(trimBadges(-0.5)).toEqual({ up: null, down: "50%" });
+    expect(trimBadges(-1)).toEqual({ up: null, down: "100%" });
   });
 });
 

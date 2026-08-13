@@ -105,6 +105,19 @@ export function trimBadgeText(trim: number | null | undefined): string | null {
   return pct === 0 ? null : `${pct}%`;
 }
 
+/**
+ * Per-button trim badges (#83): the magnitude badge belongs on whichever button matches the
+ * trim's SIGN — TRM▲ (nose-up, positive) or TRM▼ (nose-down, negative) — never both, so the
+ * badge itself conveys direction. Neutral/deadband (trimBadgeText returns null) shows on neither.
+ */
+export function trimBadges(
+  trim: number | null | undefined,
+): { up: string | null; down: string | null } {
+  const text = trimBadgeText(trim);
+  if (text == null || trim == null) return { up: null, down: null };
+  return trim > 0 ? { up: text, down: null } : { up: null, down: text };
+}
+
 /** Off-level threshold (radians, ≈10°) that shows the mobile LEVEL assist button (#5). */
 export const LEVEL_ASSIST_THRESHOLD_RAD = 0.1745;
 

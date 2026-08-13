@@ -23,7 +23,7 @@ import {
   stickToAxes,
   sliderToThrottle,
   gearButtonInTransit,
-  trimBadgeText,
+  trimBadges,
   shouldShowLevelButton,
 } from "./analog";
 import ControlIcon from "../hud/controls/ControlIcon";
@@ -284,7 +284,7 @@ export default function TouchControls({
   // analog target can't linger; the buttons synthesize their own keyup on release already.
   useEffect(() => () => onStickRelease(), [onStickRelease]);
 
-  const trimBadge = trimBadgeText(snapshot?.trim);
+  const { up: trimBadgeUp, down: trimBadgeDown } = trimBadges(snapshot?.trim);
 
   return (
     <div className="touch-controls">
@@ -315,12 +315,18 @@ export default function TouchControls({
         />
         <DiscreteButton label="FLP−" code="KeyV" />
         <DiscreteButton label="FLP+" code="KeyF" badge={snapshot?.flapLabel ?? EM_DASH} />
-        <HoldButton label="TRM▼" code="Comma" />
+        <HoldButton
+          label="TRM▼"
+          code="Comma"
+          badge={
+            trimBadgeDown && <span className="touch-btn-badge-amber">{trimBadgeDown}</span>
+          }
+        />
         <HoldButton
           label="TRM▲"
           code="Period"
           badge={
-            trimBadge && <span className="touch-btn-badge-amber">{trimBadge}</span>
+            trimBadgeUp && <span className="touch-btn-badge-amber">{trimBadgeUp}</span>
           }
         />
       </div>
