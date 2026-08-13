@@ -70,11 +70,15 @@ describe("visibleAirports — declutter by camera height", () => {
     expect(at(300_000)).toEqual(["KATL"]);
   });
 
-  it("brings the medium airports in below the 40 km tier boundary", () => {
-    expect(at(30_000).sort()).toEqual(["KATL", "KMOB", "KPNS"]);
+  it("brings the medium airports in below the 40 km tier boundary, capping the far near-field (#73)", () => {
+    // Below the tier, all sizes show but the near-field range cap (80 NM) drops KATL (~264 NM);
+    // the local KMOB/KPNS stay. This is the declutter airports were missing.
+    expect(at(30_000).sort()).toEqual(["KMOB", "KPNS"]);
   });
 
-  it("still shows large airports only just ABOVE that boundary", () => {
+  it("still labels far LARGE airports just ABOVE the boundary — the range cap does NOT apply there (#73)", () => {
+    // KATL is ~264 NM away: dropped below the tier by the range cap, but ABOVE the tier the size
+    // filter is the declutter and the far large airport must still label.
     expect(at(50_000)).toEqual(["KATL"]);
   });
 

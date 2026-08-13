@@ -2291,3 +2291,14 @@ and carried stale "SIGN-IN REQUIRED AFTER COCKPIT PREVIEW" copy that contradicts
 CockpitPreview.tsx + its usage in MissionTray + the stale note + the orphaned .mission-auth-note CSS.
 Video was declined to avoid a new asset/dependency (spec §14 gate). MissionTray goes straight from
 the briefing grid to TAKE CONTROLS.
+
+## 2026-08-13 — Airport-label near-field range cap (#73)
+
+Airport labels walled up over busy metros because `visibleAirports` had NO distance cap — it took
+the nearest 60 at any altitude, and below the 40 km "large-only" tier that meant every size, so a
+dense area drew ~15–60 idents overlapping into garble. Places and navaids ALREADY cap by range
+(PLACE_MAX_RANGE_NM 300, NAVAID_MAX_RANGE_NM 250); airports were the gap. Added AIRPORT_MAX_RANGE_NM
+= 80, applied ONLY below the large-only tier (above it the size filter is the declutter and far
+large airports should still label — so `at(50_000)` still shows a 264 NM KATL, while `at(30_000)`
+now drops it). Tuning knob. Left AIRPORT_LABEL_MAX at 60 (the range cap does the work). Left places
+untouched (already capped + a small curated set) — tighten later if the owner still sees clutter.

@@ -28,6 +28,16 @@ export type Airport = {
 export const AIRPORT_LABEL_MAX = 60;
 
 /**
+ * Near-field ground-range cap (NM), the declutter airports were missing (#73) — places and navaids
+ * already cap this way. Below the large-only tier the map shows EVERY airport size, so over a busy
+ * metro the view walled up with distant idents overlapping into unreadable garble. Only airports
+ * within this range of the camera centre are labelled. It applies ONLY below the tier: above it the
+ * size filter already thins the far field and you still want the few large airports even when far.
+ * Tuning knob — drop it if the near field is still busy.
+ */
+export const AIRPORT_MAX_RANGE_NM = 80;
+
+/**
  * Camera-height tiers, metres. Above the top one the globe is a marble and labels are noise;
  * below the bottom one everything we have is legible.
  */
@@ -116,17 +126,20 @@ export function visibleAirports(o: {
   centerLatDeg: number;
   centerLonDeg: number;
   maxLabels?: number;
+  maxRangeNm?: number;
 }): Airport[] {
   const maxLabels = o.maxLabels ?? AIRPORT_LABEL_MAX;
   if (o.cameraHeightM > NOTHING_ABOVE_M) return [];
 
-  const tier =
-    o.cameraHeightM > LARGE_ONLY_ABOVE_M
-      ? o.airports.filter((a) => a.size === "large")
-      : o.airports;
+  const largeOnly = o.cameraHeightM > LARGE_ONLY_ABOVE_M;
+  const tier = largeOnly ? o.airports.filter((a) => a.size === "large") : o.airports;
+  // The near-field range cap only bites in the all-sizes regime; above the tier the size filter is
+  // the declutter, so far large airports still label. An explicit maxRangeNm overrides either way.
+  const maxRangeNm = o.maxRangeNm ?? (largeOnly ? Infinity : AIRPORT_MAX_RANGE_NM);
 
   return tier
     .map((a) => ({ a, r: rangeNm(o.centerLatDeg, o.centerLonDeg, a.latDeg, a.lonDeg) }))
+    .filter((x) => x.r <= maxRangeNm)
     .sort((x, y) => x.r - y.r)
     .slice(0, maxLabels)
     .map((x) => x.a);
