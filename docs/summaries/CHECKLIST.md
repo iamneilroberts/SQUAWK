@@ -1,6 +1,8 @@
 # Checklist — streamline starting + debrief (big phase)
 
-_Updated: 2026-08-12 — mongols-rich-hud. Phase-1 fixes DEPLOYED @ e880f5bc. Big phase started._
+_Updated: 2026-08-12 — mongols-rich-hud. B2+B3+B4 DEPLOYED @ Version 59a11f21 (HEAD c0885ea, pushed).
+Anon instant flight LIVE-VERIFIED on prod. B3c + B5 + C1-C3 remain._
+_Local/staging can't fetch traffic (provider vars only in env.production) → issue #66; verify on prod._
 
 Decisions: fly-first/sign-in-later (anonymous instant, UNRANKED v1); signed-in users get the
 existing ranked prepare/lock path de-frictioned; default = nearest flyable live contact; screens per
@@ -19,12 +21,16 @@ flow-mock (FLY NOW start card + trimmed debrief); 3 anon flights then require si
       opts?, lockedAt?)` → SIM unranked LockedMissionView from a REAL Contact (class via resolveClass,
       alt_geom/track via shared spawn) + nearest airport (world index) as destination. Pure, TDD, 8
       tests. Throws on unsupported contact / no airports. NOT yet wired into the store/flow (B3).
-- [~] B3. TAKE CONTROLS rewire — CORE DONE (fbc9424 store, 874c151 wiring). Anon `takeControls` →
+- [~] B3. TAKE CONTROLS rewire — CORE DONE + DEPLOYED + LIVE-VERIFIED. Anon `takeControls` →
       buildInstantMission(selected contact) → startInstantFlight; no prepare/lock/sign-in/bounce.
       New store flag `instantFlight`; FlightSession `local = freeFlight||instantFlight` guards all
       server lease/keepalive/submit; instant ends with a local unranked message (scored EndCard = B5).
-      REMAINING (B3c): redesign `briefing/QuickStartNotice.tsx` into the "FLY NOW" start card. Also
-      LIVE-VERIFY a full one-click anon flight in Chrome before deploy.
+      ✅ VERIFIED on prod (Version 59a11f21): anon took over a real CRJ7 (JIA5312) at its actual
+      176KT/1781FT, NO sign-in bounce, clean FPV + HUD, clean QUIT teardown, no console errors.
+      REMAINING (B3c): redesign `briefing/QuickStartNotice.tsx` into the "FLY NOW" start card — the
+      intro card still shows the OLD "sign in when ready to fly" copy, now contradicted by fly-first.
+      NOTE: instant flight HUD shows "NO DESTINATION SET" — the immersive HUD isn't reading the
+      instant mission's nearest-airport assignment; fold into C3 (airport bearing pointers).
 - [x] B4. No-selection TAKE CONTROLS → nearestFlyableContact (dec4a67). Center = home ?? savedCenter;
       anon flies it instantly, authed selects it for the ranked briefing. No-op when selected-but-
       loading or no center/flyable available.
