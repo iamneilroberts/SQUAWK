@@ -733,8 +733,13 @@ body.immersive-chrome-faded .cesium-widget-credits { opacity: 0; pointer-events:
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 460px;
-  max-height: 80%;
+  /* Was a fixed 460px, so on a phone (~430px) it was wider than the screen and clipped both edges
+     — labels cut off left, values cut off right (#76). Fit it to the viewport. */
+  width: min(460px, calc(100vw - 24px));
+  /* Above the Cesium credit (now z:1) so the credit no longer paints over this card (#76); below
+     the funnel modals (z 30+). Was unset (z:0), which the credit sat on top of. */
+  z-index: 20;
+  max-height: calc(100dvh - 96px);
   overflow-y: auto;
   padding: 12px 14px;
   font-size: 12px;

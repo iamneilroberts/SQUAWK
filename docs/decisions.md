@@ -2339,3 +2339,13 @@ above the globe but below every app panel/button (z 5+). Single root fix for the
 below the fold because the three FULL-WIDTH stacked class buttons ate ~210px. Reworked the class
 picker into a compact 3-across row of two-line buttons (NAME over MODEL), saving ~140px so the
 centered modal fits without scrolling.
+
+## 2026-08-13 — Handoff/TAKE-CONTROLS card mobile fit (#76)
+
+The pre-flight handoff card used a FIXED width: 460px, so on a ~430px phone it was wider than the
+viewport and clipped both edges (labels cut left, values cut right). It also had NO z-index (z:0),
+so after the Cesium credit was pinned to z:1 it would have sat under the credit. Fixed: width
+min(460px, 100vw - 24px) so it fits any phone, z-index: 20 (above the credit, below the funnel
+modals at 30+), and max-height calc(100dvh - 96px). All other over-globe cards already carry an
+explicit z-index >= 35 (quick-start 35, handoff now 20, coaching/teaching 43-44, pause/end 45), so
+the credit's z:1 sits under all of them.
