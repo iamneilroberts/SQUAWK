@@ -329,6 +329,20 @@ describe("view preferences", () => {
     useStore.getState().setBasemap("SAT");
     useStore.getState().setLabelsOn(false);
   });
+  it("starts with other-aircraft visibility ON (#85)", () => {
+    expect(useStore.getState().showOtherAircraft).toBe(true);
+  });
+  it("toggles other-aircraft visibility", () => {
+    useStore.getState().setShowOtherAircraft(false);
+    expect(useStore.getState().showOtherAircraft).toBe(false);
+    useStore.getState().setShowOtherAircraft(true);
+  });
+  it("leaves showOtherAircraft alone when the session resets — it is a preference, not session state", () => {
+    useStore.getState().setShowOtherAircraft(false);
+    useStore.getState().resetSession();
+    expect(useStore.getState().showOtherAircraft).toBe(false);
+    useStore.getState().setShowOtherAircraft(true);
+  });
   it("starts decluttered off", () => {
     expect(useStore.getState().decluttered).toBe(false);
   });

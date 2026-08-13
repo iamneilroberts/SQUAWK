@@ -72,6 +72,22 @@ export function diffContacts(
   return { added, removed, kept };
 }
 
+/**
+ * Gate for the "display other aircraft" toggle (#85): when off, every live contact except the
+ * origin ghost's is dropped before it ever reaches `syncBillboards`. Own-ship (the player's SIM
+ * aircraft) is never routed through this map at all — it renders via aircraftModel.ts — so it,
+ * like the ghost, stays visible regardless of this toggle.
+ */
+export function visibleContactsForBillboards(
+  contacts: Map<string, Contact>,
+  ghostHex: string | null,
+  showOtherAircraft: boolean,
+): Map<string, Contact> {
+  if (showOtherAircraft) return contacts;
+  const ghost = ghostHex === null ? undefined : contacts.get(ghostHex);
+  return ghost === undefined ? new Map() : new Map([[ghostHex as string, ghost]]);
+}
+
 function scaleFor(hex: string, selectedHex: string | null): number {
   return hex === selectedHex ? 1.4 : 1;
 }

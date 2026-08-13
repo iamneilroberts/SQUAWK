@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   formatUtcClock, feedChipLabel, terrainChipClass, nextRadius, radiusChipLabel,
-  basemapChipLabel, labelsChipLabel, nextBasemap, contactsChipLabel, statusBarRegions,
+  basemapChipLabel, labelsChipLabel, aircraftChipLabel, nextBasemap, contactsChipLabel,
+  statusBarRegions,
 } from "./StatusBar";
 
 describe("statusBarRegions (immersive collapse)", () => {
@@ -85,6 +86,10 @@ describe("basemap and labels chips", () => {
   it("states the labels layer's actual state, both ways", () => {
     expect(labelsChipLabel(true)).toBe("LABELS ON");
     expect(labelsChipLabel(false)).toBe("LABELS OFF");
+  });
+  it("states the other-aircraft visibility state, both ways (#85)", () => {
+    expect(aircraftChipLabel(true)).toBe("AIRCRAFT");
+    expect(aircraftChipLabel(false)).toBe("AIRCRAFT HIDDEN");
   });
 });
 

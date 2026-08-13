@@ -51,6 +51,11 @@ export function labelsChipLabel(on: boolean): string {
   return on ? "LABELS ON" : "LABELS OFF";
 }
 
+/** Other-aircraft (#85) visibility chip — mirrors labelsChipLabel's on/off shape. */
+export function aircraftChipLabel(on: boolean): string {
+  return on ? "AIRCRAFT" : "AIRCRAFT HIDDEN";
+}
+
 /** Mobile contacts drawer toggle label — the live count in brackets (spec §2.1, `CONTACTS [n]`). */
 export function contactsChipLabel(count: number): string {
   return `CONTACTS [${count}]`;
@@ -113,6 +118,8 @@ export default function StatusBar({ terrainNote, contactsChip, immersive = false
   const setBasemap = useStore((s) => s.setBasemap);
   const labelsOn = useStore((s) => s.labelsOn);
   const setLabelsOn = useStore((s) => s.setLabelsOn);
+  const showOtherAircraft = useStore((s) => s.showOtherAircraft);
+  const setShowOtherAircraft = useStore((s) => s.setShowOtherAircraft);
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -178,6 +185,13 @@ export default function StatusBar({ terrainNote, contactsChip, immersive = false
             onClick={() => setLabelsOn(!labelsOn)}
           >
             {labelsChipLabel(labelsOn)}
+          </button>
+          <button
+            type="button"
+            className={showOtherAircraft ? "status-chip-button status-chip-button-active" : "status-chip-button"}
+            onClick={() => setShowOtherAircraft(!showOtherAircraft)}
+          >
+            {aircraftChipLabel(showOtherAircraft)}
           </button>
         </>
       )}

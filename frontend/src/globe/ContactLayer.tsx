@@ -7,7 +7,7 @@ import { useEffect, useRef } from "react";
 import { Cartesian3, Math as CesiumMath } from "cesium";
 import type { Label } from "cesium";
 import { useStore } from "../state/store";
-import { syncBillboards } from "./contactBillboards";
+import { syncBillboards, visibleContactsForBillboards } from "./contactBillboards";
 import { syncGhostLabel } from "./ghost";
 import { syncGhostModel, type GhostModelRef } from "./ghostModel";
 import { useViewer } from "./viewerContext";
@@ -23,6 +23,7 @@ export default function ContactLayer() {
   const mode = useStore((s) => s.mode);
   const origin = useStore((s) => s.origin);
   const feedStatus = useStore((s) => s.feedStatus);
+  const showOtherAircraft = useStore((s) => s.showOtherAircraft);
   const ghostLabelRef = useRef<{ label: Label | null }>({ label: null });
   const ghostModelRef = useRef<GhostModelRef>({ model: null, classId: null });
 
@@ -43,10 +44,17 @@ export default function ContactLayer() {
 
   useEffect(() => {
     if (!bundle) return;
-    syncBillboards(bundle.billboards, bundle.byHex, contacts, selectedHex, {
-      ghostHex: origin?.hex ?? null,
-      feedStatus,
-    });
+    const ghostHex = origin?.hex ?? null;
+    // "Display other aircraft" (#85): when off, every billboard except the origin ghost's is
+    // gated out here. The ghost's own label/model sync below is untouched by the toggle, and
+    // own-ship isn't part of this map at all — it renders through aircraftModel.ts.
+    syncBillboards(
+      bundle.billboards,
+      bundle.byHex,
+      visibleContactsForBillboards(contacts, ghostHex, showOtherAircraft),
+      selectedHex,
+      { ghostHex, feedStatus },
+    );
     syncGhostLabel(
       bundle.labels,
       ghostLabelRef.current,
@@ -57,7 +65,7 @@ export default function ContactLayer() {
     // non-SIM cyan styling so it stays unmistakable from the player's amber SIM aircraft. It is
     // oriented from the real ADS-B track, level — no attitude is faked from data that lacks it.
     syncGhostModel(bundle.viewer, ghostModelRef.current, origin, contacts.get(origin?.hex ?? ""));
-  }, [bundle, contacts, selectedHex, origin, feedStatus]);
+  }, [bundle, contacts, selectedHex, origin, feedStatus, showOtherAircraft]);
 
   // Destroy the ghost model when the layer unmounts (viewer teardown).
   useEffect(() => {

@@ -4,6 +4,7 @@ import {
   contactHeightM,
   diffContacts,
   renderableContacts,
+  visibleContactsForBillboards,
 } from "./contactBillboards";
 import { ftToM } from "../sim/units";
 import type { Contact } from "../data/types";
@@ -65,5 +66,26 @@ describe("traffic freshness presentation", () => {
     expect(contactAlpha(true, "live")).toBe(0.35);
     expect(contactAlpha(false, "stale")).toBe(0.3);
     expect(contactAlpha(true, "offline")).toBe(0.18);
+  });
+});
+
+describe("visibleContactsForBillboards (#85 display-other-aircraft gate)", () => {
+  const contacts = new Map([["a", contact("a")], ["ghost", contact("ghost")]]);
+
+  it("passes every contact through unchanged when the toggle is on", () => {
+    expect(visibleContactsForBillboards(contacts, "ghost", true)).toBe(contacts);
+  });
+
+  it("drops every contact except the origin ghost when the toggle is off", () => {
+    const result = visibleContactsForBillboards(contacts, "ghost", false);
+    expect([...result.keys()]).toEqual(["ghost"]);
+  });
+
+  it("returns an empty map when off and there is no origin ghost", () => {
+    expect(visibleContactsForBillboards(contacts, null, false).size).toBe(0);
+  });
+
+  it("returns an empty map when off and the ghost hex isn't in the live contacts", () => {
+    expect(visibleContactsForBillboards(contacts, "missing", false).size).toBe(0);
   });
 });
