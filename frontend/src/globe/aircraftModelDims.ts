@@ -113,6 +113,20 @@ export const MODEL_DIMS: Readonly<Record<string, ModelDims>> = {
     finHeightM: 3.2,
     fuselageRadiusM: 0.95,
   },
+  tprop: {
+    lengthM: 14.2,
+    wingSpanM: 17.7,
+    wingSweepRad: 0, // straight turboprop wing
+    wingChordM: 1.9,
+    wingXFrac: 0.38,
+    wingZFrac: 0.6, // low wing
+    wingTipChordFrac: 0.5,
+    engine: { count: 2, spanFracs: [-0.28, 0.28], lengthM: 2.8, radiusM: 0.5 }, // two WING-mounted turboprops (nacelle + prop disc)
+    tailSpanM: 5.2,
+    tailChordM: 1.4,
+    finHeightM: 3.9, // tall T-tail
+    fuselageRadiusM: 0.85,
+  },
 };
 
 /**

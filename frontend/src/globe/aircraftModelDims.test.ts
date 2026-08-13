@@ -15,7 +15,7 @@ describe("modelDimsForClass", () => {
   });
 
   it("is a pure lookup, not a branch — the map holds exactly the known classes", () => {
-    expect(Object.keys(MODEL_DIMS).sort()).toEqual(["b738", "biz", "c172s", "f5e"]);
+    expect(Object.keys(MODEL_DIMS).sort()).toEqual(["b738", "biz", "c172s", "f5e", "tprop"]);
   });
 
   it("throws on an unknown id rather than silently substituting (a bug, not data)", () => {
@@ -83,5 +83,14 @@ describe("modelDimsForClass", () => {
     expect(d.engine?.count).toBe(2);
     expect(d.lengthM).toBeGreaterThan(15);
     expect(d.lengthM).toBeLessThan(25);
+  });
+
+  it("resolves tprop model dimensions (straight high-AR low wing, twin wing-mounted turboprops)", () => {
+    const d = modelDimsForClass("tprop");
+    expect(d.wingSweepRad).toBe(0);         // straight wing (turboprop, not swept)
+    expect(d.engine?.count).toBe(2);        // two wing-mounted turboprops
+    expect(d.wingSpanM).toBeGreaterThan(d.lengthM); // high-AR: span exceeds length
+    expect(d.lengthM).toBeGreaterThan(12);
+    expect(d.lengthM).toBeLessThan(18);
   });
 });

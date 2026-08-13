@@ -33,6 +33,7 @@ const PROFILES: Record<string, DashboardProfile> = {
   b738: { classId: "b738", primary: "efis", background: "transparent" },
   f5e: { classId: "f5e", primary: "hud", background: "transparent" },
   biz: { classId: "biz", primary: "efis", background: "transparent" },
+  tprop: { classId: "tprop", primary: "sixpack", background: "transparent" },
 };
 
 /** Every class id the registry knows — for tests and iteration, never a branch. */

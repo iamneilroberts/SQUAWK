@@ -27,7 +27,7 @@ function deepFreeze<T>(value: T): T {
 export function validateMissionProfile(value: unknown): MissionProfile {
   if (typeof value !== "object" || value === null) throw new Error("mission profile must be an object");
   const profile = value as MissionProfile;
-  if (!(["c172s", "b738", "f5e", "biz"] as const).includes(profile.classId)) throw new Error("invalid mission class");
+  if (!(["c172s", "b738", "f5e", "biz", "tprop"] as const).includes(profile.classId)) throw new Error("invalid mission class");
   for (const [label, version] of [
     ["profileVersion", profile.profileVersion],
     ["assignmentVersion", profile.assignmentVersion],

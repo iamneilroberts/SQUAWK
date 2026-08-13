@@ -18,6 +18,7 @@ describe("class -> dashboard-profile registry (data, not branches)", () => {
       b738: "efis",
       f5e: "hud",
       biz: "efis",
+      tprop: "sixpack",
     };
     for (const id of DASHBOARD_PROFILE_IDS) {
       expect(profileForClass(id).primary).toBe(expected[id]);
@@ -66,5 +67,9 @@ describe("class -> dashboard-profile registry (data, not branches)", () => {
 
   it("gives the bizjet an EFIS dashboard profile", () => {
     expect(profileForClass("biz")).toEqual({ classId: "biz", primary: "efis", background: "transparent" });
+  });
+
+  it("gives the turboprop a six-pack dashboard profile (steam gauges, like the GA single)", () => {
+    expect(profileForClass("tprop")).toEqual({ classId: "tprop", primary: "sixpack", background: "transparent" });
   });
 });
