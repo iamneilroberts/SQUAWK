@@ -2399,3 +2399,16 @@ since speedbrake applies to every jet and afterburner only to the F-5E (owner's 
 gets a `BRK` touch button (disabled where speedbrakeCd0 = 0); HUD shows SPD BRK (desktop) / BRK OUT
 (immersive bar, both variants) only while deployed. Ground deceleration (wheel brakes / thrust
 reversers for the landing rollout) is a SEPARATE open question, not part of this change.
+
+## 2026-08-13 — #48 graphic control-state indicators
+
+Idiom A "mini-instruments" (owner-approved via interactive mock): throttle lever, flap trailing-edge
+droop, trim needle against a fixed center gate, gear strut+wheel, speedbrake boards. One pure geometry
+module (`hud/controls/ControlIconMath.ts`) + one hook-free SVG component (`ControlIcon`) + shared
+`ControlIconCell`, applied to all three surfaces (glass strip, desktop HUD bottom, mobile rails; mobile
+gains gear+trim). Class differences are data: gear `fixed` → static wheel vs `gearPosition`-animated;
+speedbrake cell gated on the new `hasSpeedbrake` snapshot flag (`aero.speedbrakeCd0 > 0`) — no class
+branches. Trim needle full-scale is `TRIM_FULL_SCALE = 0.30` (legibility knob, tune on-device). Snapshot
+gained `flapDetentIndex?`/`flapDetentCount?`/`hasSpeedbrake?` (optional, honest defaults). Icon+value for
+throttle/trim/flaps; icon + minimal caption for gear (label carries state) and speedbrake ("OUT" when
+deployed).
