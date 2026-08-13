@@ -32,4 +32,9 @@ describe("mobile immersive control row (#48)", () => {
     expect(kinds(ImmersiveControlRow({ snapshot: snap({ hasSpeedbrake: true }) }))).toContain("speedbrake");
     expect(kinds(ImmersiveControlRow({ snapshot: snap({ hasSpeedbrake: false }) }))).not.toContain("speedbrake");
   });
+  it("returns ONE wrapping container, not a fragment that hoists into the rail grid (#48)", () => {
+    const el = ImmersiveControlRow({ snapshot: snap() }) as { type?: unknown; props?: { className?: string } };
+    expect(el.type).toBe("div");
+    expect(el.props?.className).toBe("imm-control-cells");
+  });
 });

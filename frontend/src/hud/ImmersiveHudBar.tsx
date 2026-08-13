@@ -108,8 +108,10 @@ export function relativeBearingDeg(headingRad: number, bearingDeg: number): numb
 export function ImmersiveControlRow({ snapshot }: { snapshot: HudSnapshot | null }) {
   const throttle = snapshot?.throttle ?? null;
   const trimText = formatTrim(snapshot?.trim ?? null);
+  // Single wrapping element (#48): keeps these cells as ONE grid item on the balanced rail and a
+  // single valid block child on the tapes rail, instead of a fragment whose cells hoist/misnest.
   return (
-    <>
+    <div className="imm-control-cells">
       <ControlIconCell kind="throttle" snapshot={snapshot} label="THR"
         value={formatThrottlePct(throttle)} valueTone={throttle != null && throttle > 0.92 ? "amber" : "cyan"} />
       <ControlIconCell kind="flaps" snapshot={snapshot} label="FLP" value={snapshot?.flapLabel ?? "—"} />
@@ -120,7 +122,7 @@ export function ImmersiveControlRow({ snapshot }: { snapshot: HudSnapshot | null
         <ControlIconCell kind="speedbrake" snapshot={snapshot} label="SPD BRK"
           value={snapshot?.speedbrake ? "OUT" : null} valueTone="amber" />
       )}
-    </>
+    </div>
   );
 }
 
@@ -263,11 +265,11 @@ function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange }: {
         <span className="imm-director-stack">
           <SimIdentity snapshot={snapshot} />
           <NavDirector snapshot={snapshot} navCue={navCue} />
-          <span className="imm-director-systems">
+          <div className="imm-director-systems">
             <span>VSI <b>{formatVsiFpm(snapshot.verticalSpeedMs)}</b></span>
             <span>AGL <b>{formatClearanceFt(snapshot.terrainClearanceM)}</b></span>
             <ImmersiveControlRow snapshot={snapshot} />
-          </span>
+          </div>
         </span>
       </span>
       <Tape side="right" label="ALT" unit="FT" value={mToFt(snapshot.altitudeM)} range={tapeRange?.alt ?? null} />

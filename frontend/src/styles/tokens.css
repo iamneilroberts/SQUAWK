@@ -1726,12 +1726,14 @@ body {
 .imm-hud .gauge-adi-ground { fill: color-mix(in srgb, var(--amber) 16%, var(--grid) 60%); }
 .imm-adi-face { width: 100%; height: 100%; display: block; }
 
-/* A — shortest scan path: SIM, speed, attitude, destination/heading, altitude, flaps, throttle. */
+/* A — shortest scan path: SIM, speed, attitude, destination/heading, altitude, control cells.
+   Six tracks for six direct children; the control cells are one grid item (.imm-control-cells),
+   not a hoisted fragment (#48), so the last (widest) track holds the whole icon row. */
 .imm-bar-balanced {
   display: grid;
   grid-template-columns:
     27px minmax(30px, 0.65fr) 32px minmax(54px, 1.45fr)
-    minmax(36px, 0.8fr) minmax(27px, 0.55fr) minmax(38px, 0.72fr);
+    minmax(36px, 0.8fr) minmax(0, 2.2fr);
   gap: 3px;
   padding: 4px;
 }
@@ -2216,6 +2218,9 @@ body {
 .control-icon .ci-cyf { fill: var(--cyan); stroke: none; }
 .control-icon .ci-amf { fill: var(--amber); stroke: none; }
 .control-icon .ci-dash { stroke-dasharray: 2 2; }
+/* Mobile rails (#48): the shared cells sit in ONE wrapping element so they occupy a single grid
+   item on the balanced rail and a single valid block child on the tapes rail. */
+.imm-control-cells { display: flex; align-items: flex-end; justify-content: center; gap: 6px; min-width: 0; }
 .control-icon-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
 .control-icon-label { font-size: 8.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text); opacity: 0.55; white-space: nowrap; }
 .control-icon-value { font-size: 10.5px; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
