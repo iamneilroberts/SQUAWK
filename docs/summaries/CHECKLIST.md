@@ -47,17 +47,23 @@ flow-mock (FLY NOW start card + trimmed debrief); 3 anon flights then require si
       (Rate Limit binding vs KV counter vs DO). Client beacons on anon flight start; over-threshold →
       require sign-in. Does NOT gate the current flight on the network (optimistic + fail-open).
 
-## TODO — HUD
-- [ ] C3 / issue #47. Top-bar left/right directional pointers → airport bearing. Extend
-      `hud/ImmersiveHudBar.tsx` NavDirector (imm-director-arrow, ~:142-166) — relative bearing to
-      mission.assignment airport. ALSO fixes instant flight's "NO DESTINATION SET" HUD gap.
+## HUD
+- [x] C3 (instant-flight part) / #47. Instant flight destination pointer fixed (51a9574, deployed
+      b08ce861) — ungated `immersiveNavCue` for instantFlight; shows "KGPT · 22.4 NM" + DEST arrow,
+      verified live. Decision logged. STILL OPEN in #47: destination indicator in the DEFAULT
+      (non-immersive) desktop HUD.
 
-## PENDING (owner sequence: b → c)
-- [ ] (b) Resume B5 debrief LIVE-verify on prod: FLY NOW → fly to crash/land → confirm scored EndCard
-      + SIGN IN TO RANK + "INSTANT FLIGHT — LOCAL AND UNRANKED". Paused: sparse traffic (1 A119).
-      FREE FLIGHT reaches a debrief without traffic as a fallback proxy.
-- [ ] (c) #47 / C3 above.
+## DONE (owner sequence a→handoff→b→c, 2026-08-13)
+- [x] (a) triage: closed #64 #58 #63 #43 #32 #26 #9 #36 (51→43 open); commented #65 #61 #47 #66.
+- [x] handoff: pause-2026-08-13-instant-flight-shipped.md
+- [x] (b) B5 debrief verify: instant flight entry verified live (A20N airliner takeover, no bounce);
+      debrief scored EndCard + SIGN IN TO RANK unit-tested; owner confirmed crash→debrief mechanism.
+- [x] (c) C3 instant destination pointer — see HUD above.
+
+## STILL PENDING
+- [ ] #47 default (non-immersive) desktop HUD destination indicator.
 - [ ] verify + close #65 (mouse-look) and #61 (exterior trail flicker).
+- [ ] B5 optional polish: mock's exact 3-stat trim + FLY AGAIN button.
 
 ## Issue triage 2026-08-13 — CLOSED #64 #58 #63 #43 #32 #26 #9 #36 (fixed-batch, 51→43 open).
 
