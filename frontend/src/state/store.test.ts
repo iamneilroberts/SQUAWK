@@ -353,3 +353,50 @@ describe("view preferences", () => {
     expect(useStore.getState().decluttered).toBe(false);
   });
 });
+
+describe("identifiedHex — in-flight tap-to-identify (#86)", () => {
+  const toFlying = () => {
+    useStore.getState().resetSession();
+    useStore.getState().fire("TAKE_CONTROLS");
+    useStore.getState().fire("COUNTDOWN_DONE");
+  };
+  it("defaults to null", () => {
+    useStore.getState().resetSession();
+    expect(useStore.getState().identifiedHex).toBeNull();
+  });
+  it("setter sets and clears", () => {
+    useStore.getState().setIdentifiedHex("abc123");
+    expect(useStore.getState().identifiedHex).toBe("abc123");
+    useStore.getState().setIdentifiedHex(null);
+    expect(useStore.getState().identifiedHex).toBeNull();
+  });
+  it("survives while FLYING and PAUSED", () => {
+    toFlying();
+    useStore.getState().setIdentifiedHex("abc123");
+    useStore.getState().fire("PAUSE");
+    expect(useStore.getState().mode).toBe("PAUSED");
+    expect(useStore.getState().identifiedHex).toBe("abc123");
+    useStore.getState().fire("RESUME");
+    expect(useStore.getState().mode).toBe("FLYING");
+    expect(useStore.getState().identifiedHex).toBe("abc123");
+  });
+  it("clears when the flight ends (IMPACT -> ENDED)", () => {
+    toFlying();
+    useStore.getState().setIdentifiedHex("abc123");
+    useStore.getState().fire("IMPACT");
+    expect(useStore.getState().mode).toBe("ENDED");
+    expect(useStore.getState().identifiedHex).toBeNull();
+  });
+  it("clears when leaving flight to BROWSE (QUIT)", () => {
+    toFlying();
+    useStore.getState().setIdentifiedHex("abc123");
+    useStore.getState().fire("QUIT");
+    expect(useStore.getState().mode).toBe("BROWSE");
+    expect(useStore.getState().identifiedHex).toBeNull();
+  });
+  it("resetSession clears it", () => {
+    useStore.getState().setIdentifiedHex("abc123");
+    useStore.getState().resetSession();
+    expect(useStore.getState().identifiedHex).toBeNull();
+  });
+});

@@ -41,6 +41,13 @@ type State = {
   pollingIdentity: PollingIdentity;
   contacts: Map<string, Contact>;
   selectedHex: string | null;
+  /**
+   * The contact tapped for identification WHILE FLYING (#86). Deliberately SEPARATE from
+   * selectedHex, which carries BROWSE semantics (ContactList selection + the briefing flow in
+   * App.tsx) — setting that in flight would fire browse-only side effects. Cleared on tap of
+   * empty space and whenever the mode leaves FLYING/PAUSED (see `fire`).
+   */
+  identifiedHex: string | null;
   selectionLocked: boolean;
   feedStatus: FeedStatus;
   feedSource: string | null;
@@ -106,6 +113,7 @@ type State = {
   applyFetch(r: TrafficFetchResult): void;
   markFetchFailed(mode?: SystemMode): void;
   select(hex: string | null): void;
+  setIdentifiedHex(hex: string | null): void;
   setSelectionLocked(locked: boolean): void;
   /**
    * Session mode. The ONLY session state zustand holds, along with origin and endStats:
@@ -189,6 +197,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   pollingIdentity: "anonymous",
   contacts: new Map(),
   selectedHex: null,
+  identifiedHex: null,
   selectionLocked: false,
   feedStatus: "offline",
   feedSource: null,
@@ -345,12 +354,23 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
     if (hex !== null) triggerRefreshNow();
   },
 
+  setIdentifiedHex(hex) {
+    set({ identifiedHex: hex });
+  },
+
   setSelectionLocked(locked) {
     set({ selectionLocked: locked });
   },
 
   fire(event) {
-    set({ mode: nextMode(get().mode, event) });
+    const next = nextMode(get().mode, event);
+    // The in-flight identify callout only exists while flying: any transition OUT of
+    // FLYING/PAUSED (impact, quit, exit-end) clears it so no stale callout survives (#86).
+    set(
+      next === "FLYING" || next === "PAUSED"
+        ? { mode: next }
+        : { mode: next, identifiedHex: null },
+    );
   },
 
   setOrigin(o) {
@@ -466,6 +486,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       assist: null,
       endStats: null,
       selectionLocked: false,
+      identifiedHex: null,
     });
   },
 
@@ -481,6 +502,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       assist: null,
       endStats: null,
       selectionLocked: false,
+      identifiedHex: null,
     });
   },
 }));

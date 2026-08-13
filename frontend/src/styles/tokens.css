@@ -1120,6 +1120,25 @@ body {
   }
 }
 
+/* ---- in-flight tap-to-identify callout (#86): compact, top-left, opposite the detail card ---- */
+.identify-callout {
+  position: absolute;
+  top: 64px;
+  left: 16px;
+  width: 200px;
+  padding: 8px 10px;
+  font-size: 11px;
+  pointer-events: auto;
+  z-index: 34;
+}
+@media (max-width: 1023px) {
+  .identify-callout {
+    top: max(96px, calc(env(safe-area-inset-top) + 88px));
+    left: max(8px, env(safe-area-inset-left));
+    width: min(200px, calc(100vw - 32px));
+  }
+}
+
 /* ---- radar scope: PPI, own ship centred, heading up ---- */
 .radar { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .radar-face { width: 168px; height: 168px; }

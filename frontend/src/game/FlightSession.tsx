@@ -34,6 +34,7 @@ import ImmersiveControl from "../layout/ImmersiveControl";
 import DashboardStrip, { stripMountedForMode } from "../dashboard/DashboardStrip";
 import TrafficOverlay from "../globe/TrafficOverlay";
 import TrafficDetailCard from "../dashboard/TrafficDetailCard";
+import IdentifiedContactCallout from "./IdentifiedContactCallout";
 import MobileNavWx from "../dashboard/MobileNavWx";
 import HandoffCard from "../panels/HandoffCard";
 import PauseOverlay from "../panels/PauseOverlay";
@@ -925,6 +926,8 @@ export default function FlightSession({
           {trafficHex !== null && (
             <TrafficDetailCard hex={trafficHex} onClose={() => setTrafficHex(null)} />
           )}
+          {/* Tap an aircraft in the 3D scene (not a windscreen tag) -> compact identify callout (#86). */}
+          <IdentifiedContactCallout />
         </>
       )}
       {mode === "FLYING" && narrow && (

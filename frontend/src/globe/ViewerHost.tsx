@@ -26,6 +26,7 @@ import {
   Viewer,
 } from "cesium";
 import { startTrafficPolling, useStore } from "../state/store";
+import { resolvePickAction } from "./pickRouting";
 import { hudSnapshot } from "../hud/snapshot";
 import { applyRealTimeLighting } from "./dayNightLighting";
 import { attachTerrain, createSceneHeightSampler } from "./terrainProvider";
@@ -90,11 +91,15 @@ export default function ViewerHost({ children, onTerrainNoteChange }: ViewerHost
 
     const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
     handler.setInputAction((click: ScreenSpaceEventHandler.PositionedEvent) => {
-      // Picking only means anything in BROWSE; while flying the canvas click resumes.
-      if (useStore.getState().mode !== "BROWSE") return;
+      // Cesium fires LEFT_CLICK on a click-not-drag only, so a flight look-drag never reaches
+      // here — a genuine TAP does. BROWSE picks drive `select`; FLYING/PAUSED taps drive the
+      // separate `identify` callout (#86); other modes ignore the pick. See globe/pickRouting.ts.
+      const state = useStore.getState();
       const picked = viewer.scene.pick(click.position);
-      const hex = picked?.id;
-      useStore.getState().select(typeof hex === "string" && byHex.has(hex) ? hex : null);
+      const hex = typeof picked?.id === "string" ? picked.id : null;
+      const action = resolvePickAction(state.mode, hex, hex !== null && byHex.has(hex));
+      if (action.kind === "select") state.select(action.hex);
+      else if (action.kind === "identify") state.setIdentifiedHex(action.hex);
     }, ScreenSpaceEventType.LEFT_CLICK);
 
     const stopPolling = startTrafficPolling({
