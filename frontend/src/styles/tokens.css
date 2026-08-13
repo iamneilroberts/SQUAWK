@@ -1642,19 +1642,57 @@ body {
   background: rgba(255, 176, 0, 0.12);
 }
 
-/* ---- MENU / abort (#48, owner 2026-08-13): pinned to the bottom-LEFT corner instead of riding
-   in the top control row. position:fixed keeps it put in both orientations, sitting BELOW the
-   virtual STICK (stick bottom = safe-area+64px; this chip tops out ~44px above the inset, clear of
-   it) and clear of the throttle on the right. top/right are reset to auto so the .immersive-toggle
-   top-row anchors don't apply. z 40 keeps it above the HUD (z 26) so it stays tappable. Reuses
+/* ---- MENU / abort (#48, owner 2026-08-13): floats just ABOVE the throttle lever, right-aligned
+   with it, in BOTH orientations. The old bottom-LEFT corner overlapped the CAM button in portrait
+   and the attribution in landscape; sitting above the lever clears both. position:fixed + top/left
+   auto so the .immersive-toggle top-row anchors don't apply; right = the throttle's own inset so the
+   chip and the lever share a right edge. `bottom` is computed from the throttle's numbers — its
+   bottom offset + its (single, per-orientation) height + a small gap — so MENU floats a deterministic
+   ~10px above the lever's top, never overlapping it, the buttons row, the stick, or the attribution.
+   The default here is the portrait value; the orientation media queries below re-derive it from each
+   orientation's throttle height. z 40 keeps it above the HUD (z 26) so it stays tappable. Reuses
    .immersive-toggle's look; behavior (onMenu, never-fades) is unchanged. ---- */
 .menu-toggle {
   position: fixed;
   top: auto;
-  right: auto;
-  left: calc(env(safe-area-inset-left, 0px) + 8px);
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+  left: auto;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: calc(max(72px, calc(env(safe-area-inset-bottom) + 64px)) + 38vh + 10px);
   z-index: 40;
+}
+
+/* ---- #48 (owner 2026-08-13): pin ONE resolvable throttle height per orientation so MENU's `bottom`
+   (above) lands a deterministic gap over the lever's top — the base rule's min(46vh, 100dvh-240px)
+   is ambiguous to compute against.
+   Portrait SHORTENS the lever (38vh, cap dropped) to open ~50px of headroom for the MENU chip; the
+   lever there sits low (top ~0.62·H down) so MENU lands BELOW the SIGN IN / FULL·DCLTR band and above
+   the lever — clear of both.
+   Landscape is a hair shorter than the old 240px reserve (272px) precisely so the lever top drops far
+   enough that MENU, floating 10px above it, clears the upper-right chrome when a pause/warning reveals
+   it: MENU top = reserve − throttleBottom − 46px ≈ 141–154px, which sits below the FULL/DCLTR row
+   (bottom ~132px) and well above the SIGN IN chip (top ≥232px, `.top-controls-immersive`). Both bands
+   fade while flying; this holds for the worst case where they're shown (paused, anonymous SIGN IN up).
+   Height only — TouchControls' drag/track math is untouched. Each orientation re-derives MENU's bottom
+   from the same numbers. ---- */
+@media (orientation: portrait) {
+  .touch-throttle {
+    height: 38vh;
+    max-height: none;
+  }
+  .menu-toggle {
+    /* throttle bottom + 38vh height + 10px gap */
+    bottom: calc(max(72px, calc(env(safe-area-inset-bottom) + 64px)) + 38vh + 10px);
+  }
+}
+@media (orientation: landscape) {
+  .touch-throttle {
+    height: calc(100dvh - 272px);
+    max-height: none;
+  }
+  .menu-toggle {
+    /* throttle bottom + (100dvh - 272px) height + 10px gap */
+    bottom: calc(max(72px, calc(env(safe-area-inset-bottom) + 64px)) + 100dvh - 262px);
+  }
 }
 
 /* ---- The one-time iOS "Add to Home Screen" hint (only shown where true fullscreen is

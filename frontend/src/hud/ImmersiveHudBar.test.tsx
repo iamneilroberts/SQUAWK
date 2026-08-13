@@ -207,6 +207,20 @@ describe("ImmersiveHudBar", () => {
     expect(collectText(el).join(" ")).toContain("IAS");
   });
 
+  it("fades the HUD-A/C toggle when toggleFaded, but keeps the warning annunciator (#48)", () => {
+    // A live warning forces the chrome visible; Hud passes toggleFaded=true so the layout picker
+    // stays hidden mid-alert while the warnings layer (its own never-faded band) still renders.
+    const el = ImmersiveHudBar({
+      snapshot: snap({ stalled: true }),
+      attitudeStyle: "line",
+      variant: "balanced",
+      onVariantChange: () => {},
+      toggleFaded: true,
+    });
+    expect(classNamesIn(el)).toContain("imm-hud-toggle-faded");
+    expect(collectText(el).join(" ")).toContain("STALL");
+  });
+
   it("puts safety calls before approach coaching and caps the transient rail", () => {
     expect(prioritizedImmersiveWarnings(
       snap({ stalled: true, overspeed: true }),

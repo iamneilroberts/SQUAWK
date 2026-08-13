@@ -154,7 +154,10 @@ export default function Hud({
           approachWarnings={immersiveApproachWarnings}
           tapeRange={tapeRange}
           decluttered={decluttered}
-          toggleFaded={faded}
+          // #48: an active warning forces the chrome visible (faded=false), which would un-hide
+          // the HUD-A/C layout picker mid-alert. Keep that toggle hidden while any warning is up —
+          // the warning annunciator has its own never-faded layer, so safety text still shows.
+          toggleFaded={faded || warnings.length > 0}
         />
         <div className="hud-attribution">{attribution}</div>
       </div>
