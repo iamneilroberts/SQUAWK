@@ -200,7 +200,7 @@ describe("turbofan power lapse", () => {
     expect(b).toBeLessThan(a);
   });
   it("is registered under the turbofan lapse key", () => {
-    expect(POWER_LAPSE_MODELS.turbofan(0)).toBeCloseTo(1, 6);
+    expect(POWER_LAPSE_MODELS.turbofan(0, loadB738())).toBeCloseTo(1, 6);
   });
 });
 

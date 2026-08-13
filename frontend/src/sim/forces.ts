@@ -97,26 +97,37 @@ export function pistonPowerLapse(altitudeM: number): number {
  * out), then loses thrust with density in the stratosphere. Modelled as: 1.0 up to
  * TURBOFAN_CORNER_M, then (sigma/sigma_corner)^TURBOFAN_LAPSE_EXP above it.
  *
- * TUNING KNOBS (pinned by the b738 envelope tests, Task 7): the corner altitude and the exponent.
- * FL380 corner keeps full rated thrust available at the 737's FL350 cruise (FL350 < corner, so
- * cruise Mach is immune to these two knobs) while still lapsing enough above it that the FL410
- * service ceiling is a real ceiling — full-throttle best climb there measures ~190 fpm (barely
- * climbing) with this corner; at the tropopause-height FL360 corner it was -52 fpm (no ceiling at
- * all, the model could not reach FL410). The flat-rated CFM56 holds close to rated thrust a little
- * way into the lower stratosphere before the density falloff dominates, so a corner just above the
- * 11000 m tropopause is honest. Exponent 1.0 makes stratospheric thrust track density (T ∝ rho),
- * the standard first-order jet model, and is left at that textbook value. One shared curve for both
- * jets in v1 (both are flat-rated turbofans); per-jet parameterisation is deferred (spec §2.1)
- * unless the fighter's envelope (Task 8) demands it.
+ * The corner altitude and exponent are now per-class-overridable DATA (`propulsion.turbofanCornerM` /
+ * `turbofanLapseExp`); the module constants below are the DEFAULT used by any class that omits them.
+ * b738 and f5e omit them and keep the shared FL380 corner (byte-identical behavior). A jet that
+ * cruises ABOVE the default corner overrides it: the bizjet cruises at FL430 (above FL380), where a
+ * shared FL380 corner already density-lapses 85%-throttle cruise thrust, fixing the sea-level-full /
+ * cruise-85% thrust ratio at ~1.5x regardless of drag — capping realistic-cd0 sea-level climb far
+ * below its target. A lower per-class corner puts more of the cruise climb in the lapsed regime, so
+ * holding cruise Mach demands more rated thrust, which (unlapsed at sea level) restores a realistic
+ * sea-level climb margin at an honest clean-jet cd0.
+ *
+ * DEFAULTS (pinned by the b738 envelope tests, Task 7): FL380 corner keeps full rated thrust
+ * available at the 737's FL350 cruise (FL350 < corner, so cruise Mach is immune to these two knobs)
+ * while still lapsing enough above it that the FL410 service ceiling is a real ceiling — full-throttle
+ * best climb there measures ~190 fpm (barely climbing) with this corner; at the tropopause-height
+ * FL360 corner it was -52 fpm (no ceiling at all, the model could not reach FL410). The flat-rated
+ * CFM56 holds close to rated thrust a little way into the lower stratosphere before the density
+ * falloff dominates, so a corner just above the 11000 m tropopause is honest. Exponent 1.0 makes
+ * stratospheric thrust track density (T ∝ rho), the standard first-order jet model.
  */
 export const TURBOFAN_CORNER_M = 11582; // FL380
 export const TURBOFAN_LAPSE_EXP = 1.0;
 
-export function turbofanPowerLapse(altitudeM: number): number {
-  if (altitudeM <= TURBOFAN_CORNER_M) return 1;
+export function turbofanPowerLapse(
+  altitudeM: number,
+  cornerM: number = TURBOFAN_CORNER_M,
+  lapseExp: number = TURBOFAN_LAPSE_EXP,
+): number {
+  if (altitudeM <= cornerM) return 1;
   const sigma = isaDensity(altitudeM) / RHO_SL;
-  const sigmaCorner = isaDensity(TURBOFAN_CORNER_M) / RHO_SL;
-  return Math.pow(sigma / sigmaCorner, TURBOFAN_LAPSE_EXP);
+  const sigmaCorner = isaDensity(cornerM) / RHO_SL;
+  return Math.pow(sigma / sigmaCorner, lapseExp);
 }
 
 /**
@@ -127,10 +138,10 @@ export function turbofanPowerLapse(altitudeM: number): number {
  * rejects any value not keyed here at load time rather than silently defaulting — a typo in
  * a parameter file must not quietly turn an engine into a different engine.
  */
-export const POWER_LAPSE_MODELS: Record<LapseModel, (altitudeM: number) => number> = {
-  piston: pistonPowerLapse,
+export const POWER_LAPSE_MODELS: Record<LapseModel, (altitudeM: number, params: ClassParams) => number> = {
+  piston: (h) => pistonPowerLapse(h),
   none: () => 1,
-  turbofan: turbofanPowerLapse,
+  turbofan: (h, p) => turbofanPowerLapse(h, p.propulsion.turbofanCornerM, p.propulsion.turbofanLapseExp),
 };
 
 /**
@@ -150,7 +161,7 @@ export function thrustNewtons(
     params.propulsion;
   const clamped = Math.min(1, Math.max(0, throttle));
   const burner = afterburner ? afterburnerFactor : 1;
-  const shaftPowerW = clamped * maxPowerW * POWER_LAPSE_MODELS[lapseModel](altitudeM) * burner;
+  const shaftPowerW = clamped * maxPowerW * POWER_LAPSE_MODELS[lapseModel](altitudeM, params) * burner;
   return (propEfficiency * shaftPowerW) / Math.max(tasMs, propPeakSpeedMs);
 }
 

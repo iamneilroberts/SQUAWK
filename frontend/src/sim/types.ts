@@ -107,6 +107,15 @@ export type ClassParams = {
      * without an afterburner — a factor of 1 leaves thrustNewtons unchanged, so no branch.
      */
     afterburnerFactor: number;
+    /**
+     * Turbofan flat-rating corner altitude (m): full rated thrust at/below it, density lapse above.
+     * Optional — omitted classes use the shared TURBOFAN_CORNER_M default (b738/f5e keep FL380).
+     * A jet that cruises above the default corner (e.g. a bizjet at FL430) sets a lower corner so
+     * its sea-level thrust margin — and thus climb — is realistic. Only read when lapseModel="turbofan".
+     */
+    turbofanCornerM?: number;
+    /** Turbofan stratospheric lapse exponent. Optional; defaults to TURBOFAN_LAPSE_EXP (1.0). */
+    turbofanLapseExp?: number;
   };
   limits: {
     vneIasMs: number;

@@ -144,6 +144,16 @@ export function validateClassParams(raw: unknown): ClassParams {
       propEfficiency: positive(propulsion, "propEfficiency", "params.propulsion"),
       propPeakSpeedMs: positive(propulsion, "propPeakSpeedMs", "params.propulsion"),
       afterburnerFactor: positive(propulsion, "afterburnerFactor", "params.propulsion"),
+      // Optional per-class turbofan flat-rating overrides. Absent → left undefined, and
+      // turbofanPowerLapse falls back to the shared TURBOFAN_CORNER_M / TURBOFAN_LAPSE_EXP
+      // defaults (b738/f5e omit these, so their behavior is unchanged). If present, they must
+      // be finite numbers — a typo must not silently become a NaN corner altitude.
+      ...(propulsion.turbofanCornerM === undefined
+        ? {}
+        : { turbofanCornerM: positive(propulsion, "turbofanCornerM", "params.propulsion") }),
+      ...(propulsion.turbofanLapseExp === undefined
+        ? {}
+        : { turbofanLapseExp: positive(propulsion, "turbofanLapseExp", "params.propulsion") }),
     },
     limits: {
       vneIasMs: positive(limits, "vneIasMs", "params.limits"),

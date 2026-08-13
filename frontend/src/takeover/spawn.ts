@@ -193,7 +193,7 @@ export function buildSpawnState(
     qBar * params.wingAreaM2;
   const thrustCapacityN =
     (params.propulsion.propEfficiency * params.propulsion.maxPowerW *
-      POWER_LAPSE_MODELS[params.propulsion.lapseModel](altitudeM)) /
+      POWER_LAPSE_MODELS[params.propulsion.lapseModel](altitudeM, params)) /
     Math.max(tasMs, params.propulsion.propPeakSpeedMs);
   const throttle = thrustCapacityN > 0 ? Math.min(1, Math.max(0, dragN / thrustCapacityN)) : 0;
   const trim = Math.min(
