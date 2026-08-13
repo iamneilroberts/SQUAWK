@@ -38,7 +38,7 @@ export const FREE_FLIGHT_CLASSES: Record<AircraftClassId, FreeFlightClassInfo> =
   c172s: { hex: "ff0172", flight: "FREE172", t: "C172", defaultAltitudeFt: 4_500, minAltitudeFt: 1_000, maxAltitudeFt: 13_000 },
   b738: { hex: "ff0738", flight: "FREE738", t: "B738", defaultAltitudeFt: 26_000, minAltitudeFt: 2_000, maxAltitudeFt: 40_000 },
   f5e: { hex: "ff05e0", flight: "FREEF5E", t: "F5", defaultAltitudeFt: 20_000, minAltitudeFt: 2_000, maxAltitudeFt: 50_000 },
-  biz: { hex: "ff0b1z", flight: "FREEBIZ", t: "C680", defaultAltitudeFt: 24_000, minAltitudeFt: 2_000, maxAltitudeFt: 45_000 },
+  biz: { hex: "ff0b12", flight: "FREEBIZ", t: "C680", defaultAltitudeFt: 24_000, minAltitudeFt: 2_000, maxAltitudeFt: 45_000 },
 };
 
 /** Stable ids so a free flight is identifiable without a random source in pure tests. */

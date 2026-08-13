@@ -56,7 +56,7 @@ async function seedResult(options: {
   resultId: string;
   missionId: string;
   userId: string;
-  classId?: "c172s" | "b738" | "f5e";
+  classId?: "c172s" | "b738" | "f5e" | "biz";
   assist?: "none" | "low" | "medium" | "high";
   scoring?: string;
   score?: number;
@@ -165,6 +165,13 @@ describe("partitioned public leaderboards", () => {
       expect(cache.match).not.toHaveBeenCalled();
       expect(cache.put).not.toHaveBeenCalled();
     }
+  });
+
+  it("accepts the biz class partition (regression guard for CLASS_IDS)", async () => {
+    const { response } = await getLeaderboard("class=biz&assist=none&scoring=scoring-v1");
+    expect(response.status).toBe(200);
+    const body = await response.json() as { data: { entries: unknown[] } };
+    expect(body.data.entries).toEqual([]);
   });
 
   it("keeps ties and page boundaries stable while isolating every partition", async () => {
