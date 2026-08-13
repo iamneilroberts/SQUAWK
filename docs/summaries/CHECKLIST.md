@@ -67,7 +67,8 @@ flow-mock (FLY NOW start card + trimmed debrief); 3 anon flights then require si
 - [x] verify + close #65 (mouse-look) and #61 (exterior trail flicker) — VERIFIED on b08ce861, closed.
 - [x] B5 polish: instant debrief hero (big outcome + AIRTIME/DISTANCE/MAX ALT) + FLY AGAIN button
       (restarts a fresh instant flight via App flyAgain). Additive, instant-only. Gate green.
-      COMMITTED, NOT DEPLOYED. ⚠️ FLY AGAIN restart path NOT live-verified — eyeball on prod first.
+      DEPLOYED 2026-08-13 @ Version 07a0984a (commit bfff644). ⚠️ FLY AGAIN restart path still needs
+      an eyeball on prod (unit-tested only) — fly an instant flight → debrief → tap FLY AGAIN.
 
 ## Filed this session (mobile walkthrough): #69 pick-plane search zoom · #70 free-flight modal bottom
 ## overlap · #71 provisional-mission card mobile display · #72 cockpit preview video/drop + stale
