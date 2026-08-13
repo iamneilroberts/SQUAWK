@@ -78,16 +78,22 @@ export function loadAirports(): Airport[] {
  * field, drop a trailing "Airport", and fall back to the code if nothing readable is left. Pure and
  * case-preserving; `airportLabelText` uppercases for the terminal look.
  */
+/** A shortened name past this length would swamp the globe — fall back to the compact code. */
+const AIRPORT_NAME_MAX_CHARS = 22;
+
 export function shortenAirportName(name: string, ident: string, iata: string | null): string {
   const fallback = iata ?? ident;
   const shortened = name
     .replace(/\bInternational\b/gi, "Intl")
     .replace(/\bRegional\b/gi, "Rgnl")
     .replace(/\bMunicipal\b/gi, "Muni")
+    .replace(/\bNaval Air Station\b/gi, "NAS")
+    .replace(/\bAir Force Base\b/gi, "AFB")
     .replace(/\bAirport\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
-  return shortened.length > 0 ? shortened : fallback;
+  if (shortened.length === 0 || shortened.length > AIRPORT_NAME_MAX_CHARS) return fallback;
+  return shortened;
 }
 
 /**

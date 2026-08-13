@@ -39,8 +39,10 @@ describe("the bundled OurAirports extract", () => {
   });
 
   it("stays inside the bundle budget", () => {
+    // Minified, and now carries a name per airport (globe labels read the name, not the code).
+    // Still a fraction of the full ~10 MB OurAirports file — the guard's real purpose.
     const bytes = readFileSync("src/data/airports-world.json").byteLength;
-    expect(bytes).toBeLessThan(600_000);
+    expect(bytes).toBeLessThan(800_000);
   });
 
   it("rejects a malformed record instead of shipping it to Cesium", () => {
@@ -86,13 +88,17 @@ describe("shortenAirportName — readable names, not code soup", () => {
     expect(shortenAirportName("Mobile Regional Airport", "KMOB", "MOB")).toBe("Mobile Rgnl");
     expect(shortenAirportName("Pensacola International Airport", "KPNS", "PNS")).toBe("Pensacola Intl");
     expect(shortenAirportName("Foley Municipal Airport", "5R4", null)).toBe("Foley Muni");
+    expect(shortenAirportName("Keesler Air Force Base", "KBIX", "BIX")).toBe("Keesler AFB");
   });
   it("keeps a name that has nothing to abbreviate", () => {
     expect(shortenAirportName("Mobile Downtown", "KBFM", "BFM")).toBe("Mobile Downtown");
   });
   it("collapses the whitespace a dropped word leaves behind", () => {
-    expect(shortenAirportName("Louis Armstrong New Orleans International Airport", "KMSY", "MSY"))
-      .toBe("Louis Armstrong New Orleans Intl");
+    expect(shortenAirportName("Bay Minette Airport", "1R8", null)).toBe("Bay Minette");
+  });
+  it("falls back to the code for a name too long to sit on the globe", () => {
+    expect(shortenAirportName("Naval Air Station Pensacola Forrest Sherman Field", "KNPA", "NPA"))
+      .toBe("NPA");
   });
   it("falls back to the code when the name is blank or only 'Airport'", () => {
     expect(shortenAirportName("", "KMOB", "MOB")).toBe("MOB");
