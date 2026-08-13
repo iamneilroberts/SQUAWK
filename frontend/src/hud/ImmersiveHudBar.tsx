@@ -138,29 +138,23 @@ function SimIdentity(_: { snapshot: HudSnapshot }) {
   );
 }
 
+/*
+ * #82: the turn-direction cue moved OUT of this inline line and onto the big amber edge chevron
+ * (EdgeTurnCue), so the pilot reads the required turn at the edge of vision without parsing a
+ * signed number. NavDirector keeps only the reference data — destination NAME + DISTANCE and the
+ * live heading — with no inline turn arrow, so there is exactly one turn indicator on screen.
+ */
 function NavDirector({ snapshot, navCue, compact = false }: {
   snapshot: HudSnapshot;
   navCue: ImmersiveHudNavCue | null;
   compact?: boolean;
 }) {
-  const relative = navCue === null ? null : relativeBearingDeg(snapshot.headingRad, navCue.bearingDeg);
-  const relativeText = relative === null ? null : `${relative >= 0 ? "+" : "−"}${Math.abs(Math.round(relative))}°`;
   return (
     <span className={compact ? "imm-director-copy imm-director-copy-compact" : "imm-director-copy"}>
       <span className="imm-director-label">
         {navCue === null ? "NO DESTINATION SET" : `${navCue.destination} · ${navCue.distanceNm.toFixed(1)} NM`}
       </span>
       <span className="imm-director-heading">HDG {formatHeadingDeg(snapshot.headingRad)}°</span>
-      {relativeText !== null && (
-        <span className="imm-director-nav">
-          <span
-            className="imm-director-arrow"
-            style={{ transform: `rotate(${Math.round(relative ?? 0)}deg)` }}
-            aria-hidden="true"
-          >↑</span>
-          DEST {relativeText}
-        </span>
-      )}
       {compact && (
         <span className="imm-director-secondary">
           VSI {formatVsiFpm(snapshot.verticalSpeedMs)} · AGL {formatClearanceFt(snapshot.terrainClearanceM)}

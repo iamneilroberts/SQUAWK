@@ -17,6 +17,7 @@ import ImmersiveHudBar, {
   type ImmersiveHudVariant,
   type TapeRange,
 } from "./ImmersiveHudBar";
+import EdgeTurnCue from "./EdgeTurnCue";
 import {
   formatAirtime, formatAltFt, formatAoaDeg, formatClass, formatClearanceFt,
   formatG, formatHeadingDeg, formatIasKt, formatLightPhase, formatSimRate,
@@ -143,6 +144,10 @@ export default function Hud({
           // the warning annunciator has its own never-faded layer, so safety text still shows.
           toggleFaded={faded || warnings.length > 0}
         />
+        {/* #82: the prominent edge turn-direction cue. Left/right edge chevron for the required
+            turn to the assigned destination; renders nothing when there is no destination. It is
+            the immersive HUD's single turn indicator (the bar's inline arrow was removed). */}
+        <EdgeTurnCue headingRad={snapshot.headingRad} navCue={immersiveNavCue} />
         <div className="hud-attribution">{attribution}</div>
       </div>
     );

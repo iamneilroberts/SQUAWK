@@ -169,11 +169,13 @@ describe("ImmersiveHudBar", () => {
       variant: "tapes",
       navCue: { destination: "KADS · RWY 16", bearingDeg: 298, distanceNm: 6.8 },
     })).join(" ");
-    for (const value of ["IAS", "ALT", "VSI", "AGL", "KADS", "DEST", "+28°"]) {
+    // Destination NAME + DISTANCE stay in the bar as reference data.
+    for (const value of ["IAS", "ALT", "VSI", "AGL", "KADS", "6.8"]) {
       expect(text).toContain(value);
     }
-    // FLP/THR now live on the touch buttons + throttle lever, so the HUD systems line drops them (#48).
-    for (const gone of ["FLP", "THR"]) {
+    // #82: the inline turn arrow + "DEST +N°" moved to the big edge chevron (EdgeTurnCue), so
+    // there is exactly one turn indicator. FLP/THR live on the touch buttons + throttle lever (#48).
+    for (const gone of ["FLP", "THR", "DEST", "+28°"]) {
       expect(text).not.toContain(gone);
     }
   });

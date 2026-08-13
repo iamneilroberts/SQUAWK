@@ -1898,9 +1898,7 @@ body {
   white-space: nowrap;
 }
 .imm-director-heading { color: var(--amber); font-size: 11px; white-space: nowrap; }
-.imm-director-nav { color: var(--amber); font-size: 7px; white-space: nowrap; }
 .imm-director-secondary { color: var(--text); opacity: 0.68; font-size: 6px; white-space: nowrap; }
-.imm-director-arrow { display: inline-block; margin-right: 2px; transform-origin: 50% 55%; }
 
 /* C — instrument-like speed/altitude edge tapes around the real shared attitude indicator. */
 .imm-hud .imm-bar-tapes {
@@ -1996,7 +1994,6 @@ body {
 }
 .imm-director-systems b { color: var(--amber); font-weight: 600; }
 .imm-bar-tapes .imm-director-heading { font-size: 13px; }
-.imm-bar-tapes .imm-director-nav { font-size: 8px; }
 
 .imm-hud-toggle {
   position: absolute;
@@ -2043,6 +2040,53 @@ body {
   letter-spacing: 0.06em;
 }
 
+/* ---- Edge turn cue (#82): the prominent, glanceable destination turn indicator for the mobile
+   immersive HUD. A big amber chevron pinned to the LEFT edge for a left turn, the RIGHT edge for a
+   right turn, with the turn magnitude — so the required turn reads at the edge of vision without
+   parsing a signed number. On course (within the dead-band) it shows a neutral centered CYAN
+   "ON COURSE" mark (cyan = nominal / no action) instead of flapping between sides.
+
+   Placement: it sits in the clear band BELOW the top status bar (bottom ~62px) and, on the right,
+   ABOVE the MENU chip (top ~140px) / throttle lever. The left edge is otherwise clear (the virtual
+   stick is lower-left; the bottom control row is far below). The layout is HORIZONTAL and short
+   (~34px tall) so the right cue stays above the MENU chip in the tight landscape case. It is
+   pointer-events:none with a below-controls z-index (24 < touch-controls 25 < MENU 40), so it can
+   NEVER steal a tap from the flight controls even if it visually grazes one. safe-area insets keep
+   it off the notch/edges. NEEDS device verification at real portrait + landscape sizes.
+   LORAN language: amber, mono, uppercase, 1px scrim, no radius, no shadow. ---- */
+.edge-turn-cue {
+  position: absolute;
+  top: max(84px, calc(env(safe-area-inset-top) + 80px));
+  z-index: 24;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+  color: var(--amber);
+  font-family: var(--mono);
+  letter-spacing: 0.08em;
+  line-height: 1;
+  border-color: rgba(255, 176, 0, 0.5); /* amber-tinted scrim border (overrides hud-scrim's cyan) */
+}
+.edge-turn-cue[data-side="left"] {
+  left: max(6px, env(safe-area-inset-left));
+  flex-direction: row; /* chevron on the outer (left) edge, degrees inboard */
+}
+.edge-turn-cue[data-side="right"] {
+  right: max(6px, env(safe-area-inset-right));
+  flex-direction: row-reverse; /* chevron on the outer (right) edge, degrees inboard */
+}
+.edge-turn-cue-oncourse {
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--cyan);
+  border-color: rgba(95, 215, 224, 0.35);
+}
+.edge-turn-chevron { font-size: 34px; font-weight: 700; line-height: 0.7; }
+.edge-turn-degrees { font-size: 20px; font-weight: 600; }
+.edge-turn-oncourse { font-size: 11px; letter-spacing: 0.14em; opacity: 0.85; }
+
 @media (max-width: 767px) {
   /* The A/C rail, its secondary row, AND the relocated control chips (FULL/EXIT · DCLTR · MENU at
      safe-area+88px, 36px tall → bottom ~124px) occupy the top band. Keep the assist control below
@@ -2065,7 +2109,6 @@ body {
   .imm-bar-balanced .imm-field-label { font-size: 8px; }
   .imm-director-copy-compact .imm-director-label { font-size: 8px; }
   .imm-director-copy-compact .imm-director-heading { font-size: 13px; }
-  .imm-director-copy-compact .imm-director-nav { font-size: 8px; }
   .imm-director-copy-compact .imm-director-secondary { font-size: 7px; }
 
   .imm-bar-tapes .imm-director {
@@ -2077,7 +2120,6 @@ body {
   .imm-bar-tapes .imm-bar-adi { width: 40px; height: 40px; }
   .imm-bar-tapes .imm-director-label { font-size: 8px; }
   .imm-bar-tapes .imm-director-heading { font-size: 15px; }
-  .imm-bar-tapes .imm-director-nav { font-size: 9px; }
   .imm-bar-tapes .imm-director-systems { gap: 10px; font-size: 8px; }
 }
 
