@@ -48,8 +48,18 @@ flow-mock (FLY NOW start card + trimmed debrief); 3 anon flights then require si
       require sign-in. Does NOT gate the current flight on the network (optimistic + fail-open).
 
 ## TODO — HUD
-- [ ] C3. Top-bar left/right directional pointers → airport bearing. Extend `hud/ImmersiveHudBar.tsx`
-      NavDirector (imm-director-arrow, ~:142-166) — relative bearing to mission.assignment airport.
+- [ ] C3 / issue #47. Top-bar left/right directional pointers → airport bearing. Extend
+      `hud/ImmersiveHudBar.tsx` NavDirector (imm-director-arrow, ~:142-166) — relative bearing to
+      mission.assignment airport. ALSO fixes instant flight's "NO DESTINATION SET" HUD gap.
+
+## PENDING (owner sequence: b → c)
+- [ ] (b) Resume B5 debrief LIVE-verify on prod: FLY NOW → fly to crash/land → confirm scored EndCard
+      + SIGN IN TO RANK + "INSTANT FLIGHT — LOCAL AND UNRANKED". Paused: sparse traffic (1 A119).
+      FREE FLIGHT reaches a debrief without traffic as a fallback proxy.
+- [ ] (c) #47 / C3 above.
+- [ ] verify + close #65 (mouse-look) and #61 (exterior trail flicker).
+
+## Issue triage 2026-08-13 — CLOSED #64 #58 #63 #43 #32 #26 #9 #36 (fixed-batch, 51→43 open).
 
 ## KEY MAP (from explorer)
 - Mode machine: `game/machine.ts:13` (BROWSE/COUNTDOWN/FLYING/PAUSED/ENDED); store `state/store.ts`
