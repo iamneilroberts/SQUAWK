@@ -2803,3 +2803,44 @@ Ranked-mission eligibility deliberately untouched (that's issue #87). Tuning kno
 reviews + opus whole-branch review APPROVE. Live in-app visual pass (dogleg render, flicker gone,
 TURN FINAL appear/disappear at the FAF boundary) still pending — local dev has no traffic feed
 (#66), so it needs an owner run on a traffic-enabled environment.
+
+## 2026-08-14 — takeover approach-setup quality (sweet-spot band + spawn-facing-FAF + card distance)
+
+Owner request: taking control should set the player up for a sane approach. Three parts
+(spec `docs/superpowers/specs/2026-08-14-takeover-approach-setup-design.md`):
+
+1. **Sweet-spot distance band.** New per-profile `ranking` knobs `preferredBandMinNm` /
+   `preferredBandMaxNm` / `outsideBandPenaltyWeight`. `suitability()` subtracts a penalty for
+   airports outside the band (both ends). The too-CLOSE penalty is the load-bearing part — it
+   must exceed the existing `minutePenalty`'s per-NM pull (which always favors closer), so the
+   game prefers a short *setup leg* over an immediate abeam-the-numbers arrival. Implemented
+   weights are stronger than the spec's first-guess table (c172s 1.0 vs 0.6, etc.) so the
+   sweet-spot is actually felt; all are tunable knobs, owner live-verifies. The band only
+   reweights — it never filters, so it can't strand a pick (tier-3 unfiltered fallback from #88
+   still applies). Bands: c172s [8,25], tprop [15,60], biz/f5e [30,120], b738 [40,150].
+2. **Spawn facing the FAF (default-on, remembered).** New `takeover/headingToFafPreference.ts`
+   (`adsb.handoff-heading-to-faf.v1`, default TRUE). `buildSpawnState` gained an optional
+   `spawnHeadingDeg` override; when on, the spawn heading = bearing from the contact to
+   `finalApproachFix(assignment, guidance)` (#88 geometry), so the SIM aircraft points at AND
+   moves toward the FAF. Disclosed on the handoff card ADJUSTMENTS list (HEADING … TO APPROACH),
+   guarded by the circular `headingDeltaDeg` so it doesn't false-fire at the 0/360 boundary.
+   **Excluded:** free flight (keeps the user's chosen heading) and RE-SYNC (matches the live
+   aircraft). Only the SIM aircraft is rotated; the genuine aircraft's ghost keeps its real
+   track — no feed data synthesized.
+3. **Distance on the handoff card.** New DESTINATION row (`<ident> RWY <end> · <dist> NM`);
+   the card previously showed no distance. Hidden in free flight (inert there).
+
+**Relationship to #87 (recorded on the issue):** Part 2's `spawnHeadingDeg` seam is the
+reusable subset of #87's "skip to landing approach" — #87 will extend the same call site with
+position/altitude/speed/config. Parts 1–2 are **ranked-neutral** (you still fly the whole
+route), unlike #87's compression/skip.
+
+**Toggle UX note:** the handoff checkbox rebuilds only the spawn (via a ref-read of the current
+toggle + a decoupled effect), so toggling no longer restarts the countdown timer or terrain
+preload; a toggle during the terrain-preload window is applied when the spawn resolves (not
+dropped).
+
+**Verification:** full unit suite 1447/1447, `tsc` + `npm run build` clean, per-task reviews +
+opus whole-branch review APPROVE (one fix wave for two Minor UI findings + a follow-up for a
+self-inflicted toggle race and a HandoffCard test-props gap). Live in-app pass (spawn heading,
+card distance, band-appropriate airport, free-flight guard) pending owner run on prod (#66).
