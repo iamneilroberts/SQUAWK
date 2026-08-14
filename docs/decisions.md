@@ -2760,3 +2760,46 @@ persists in the portrait browser/narrow path, not just true fullscreen):
 
 All CSS/layout — owner device-verifies in portrait. The 210px stick-clearance and 8px attribution
 size are tunable.
+
+## 2026-08-14 — #88 enhanced landing guidance (straight-in FAF, heading-aware pick, turn-to-final)
+
+Issue #88: the game guided players with a single straight geodesic line to the runway threshold —
+no approach path, airport pick ignored current heading, and nothing told the player when to turn
+onto final. Fix delivered as five parts (spec: `docs/superpowers/specs/2026-08-14-landing-guidance-design.md`,
+plan: `docs/superpowers/plans/2026-08-14-landing-guidance.md`). Owner decisions locked during brainstorming:
+
+1. **Approach shape = straight-in to a final-approach fix (FAF), not a full traffic pattern.** New
+   `guidance.finalApproachFixNm` (default 5.5) marks a point on the extended centerline, on the
+   glideslope. Reuses `positionAlongApproach`; no curved base leg.
+2. **Airport pick = HARD cone filter** on `snapshot.trackDeg` (owner chose hard over a soft score
+   term). New `ranking.headingConeDeg` (default 60). Fallback ladder cone → 2×cone → unfiltered so a
+   player is never stranded; tier-3 reproduces the old selection byte-for-byte. `trackDeg` already
+   flowed into `assignMission` but was unused until now.
+3. **FAF altitude = on-slope** (glideslope extended to the FAF distance), not a capped pattern
+   altitude — you're already stabilized at the FAF.
+4. **Assist gating: turn-to-final CALLOUT at NAV, drawn FAF marker at FULL.** New `finalTurnCue`
+   surfaces `TURN FINAL <hdg> · <dist> · <alt> · <spd>` to the FAF; `ApproachAssistLayer` draws the
+   FAF marker only at FULL.
+5. **Route line = dogleg** (pos → FAF → threshold) replacing the straight-to-threshold line, plus a
+   sub-pixel per-frame rebuild throttle (skip when start moved <1 m) and runway-outline depthFail to
+   kill the reported flicker.
+
+**Deviation from spec (deliberate):** the spec suggested the turn-cue handoff use the runway-frame
+along-track projection the approach band uses. Implemented instead as a **radial gate** —
+`finalTurnCue` returns null once great-circle distance to the threshold ≤ `finalApproachFixNm`.
+Simpler and, per whole-branch review, produces no dead zone: for 5.0–5.5 NM the existing descent
+advisory (`descentGuidanceFor`, active beyond `approachLengthNm`) covers the HUD text continuously,
+and inside 5.0 NM the approach band takes over. NavDirector render order (band → descent → finalTurn)
+guarantees one continuous, non-duplicated line across the whole approach.
+
+**FAF 0.5 NM outside the corridor:** `finalApproachFixNm`=5.5 vs `guidance.approachLengthNm`=5 means
+the FAF marker/vertex sit just beyond the drawn final corridor. Intended — the FAF is the turn-on
+point, the corridor is the final segment past it.
+
+Ranked-mission eligibility deliberately untouched (that's issue #87). Tuning knobs (`headingConeDeg`,
+`finalApproachFixNm`) are per-profile and identical across all five profiles for v1.
+
+**Verification:** 124 mission + 148 hud unit tests green, `tsc` + `npm run build` clean, per-task
+reviews + opus whole-branch review APPROVE. Live in-app visual pass (dogleg render, flicker gone,
+TURN FINAL appear/disappear at the FAF boundary) still pending — local dev has no traffic feed
+(#66), so it needs an owner run on a traffic-enabled environment.
