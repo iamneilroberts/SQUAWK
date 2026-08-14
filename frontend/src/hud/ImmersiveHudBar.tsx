@@ -31,6 +31,14 @@ export type ImmersiveHudNavCue = {
   distanceNm: number;
 };
 
+/** TURN FINAL callout (#88): heading + distance to the FAF and the on-slope target alt/speed. */
+export type ImmersiveHudFinalTurn = {
+  bearingDeg: number;
+  distanceNm: number;
+  targetAltFt: number;
+  targetSpeedKt: number;
+};
+
 export type TapeRange = { min: number; max: number; step: number; major: number; pxPerUnit: number };
 
 /** Fixed tape viewport height in px. MUST equal the .tape-window height in tokens.css. */
@@ -58,7 +66,7 @@ export function tapeBandBox(loValue: number, hiValue: number, range: TapeRange):
 }
 
 /** Nearest-10-ft rounding keeps the director-line altitude band glanceable. */
-function roundTo10(value: number): number {
+export function roundTo10(value: number): number {
   return Math.round(value / 10) * 10;
 }
 
@@ -166,11 +174,14 @@ function descentLineText(g: DescentGuidance): string {
   return `DESC ${rateFpm} FPM ↓ ${roundTo10(g.targetAltitudeFt)} FT`;
 }
 
-function NavDirector({ snapshot, navCue, approachBand = null, descentGuidance = null, compact = false }: {
+function NavDirector({
+  snapshot, navCue, approachBand = null, descentGuidance = null, finalTurn = null, compact = false,
+}: {
   snapshot: HudSnapshot;
   navCue: ImmersiveHudNavCue | null;
   approachBand?: ApproachBand | null;
   descentGuidance?: DescentGuidance | null;
+  finalTurn?: ImmersiveHudFinalTurn | null;
   compact?: boolean;
 }) {
   return (
@@ -189,6 +200,15 @@ function NavDirector({ snapshot, navCue, approachBand = null, descentGuidance = 
       {approachBand === null && descentGuidance && (
         <span className="imm-director-approach">{descentLineText(descentGuidance)}</span>
       )}
+      {/* #88: TURN FINAL — the FAF heading/distance + on-slope target, before the approach band or
+          descent advisory take over closer in. finalTurnCue is null once inside the FAF distance. */}
+      {finalTurn && (
+        <span className="imm-director-approach">
+          {`TURN FINAL ${Math.round(finalTurn.bearingDeg).toString().padStart(3, "0")}° · ` +
+            `${finalTurn.distanceNm.toFixed(1)} NM · ${roundTo10(finalTurn.targetAltFt)} FT · ` +
+            `${Math.round(finalTurn.targetSpeedKt)} KT`}
+        </span>
+      )}
       {compact && (
         <span className="imm-director-secondary">
           VSI {formatVsiFpm(snapshot.verticalSpeedMs)} · AGL{" "}
@@ -201,19 +221,20 @@ function NavDirector({ snapshot, navCue, approachBand = null, descentGuidance = 
   );
 }
 
-function BalancedRail({ snapshot, attitudeStyle, navCue, approachBand, descentGuidance }: {
+function BalancedRail({ snapshot, attitudeStyle, navCue, approachBand, descentGuidance, finalTurn }: {
   snapshot: HudSnapshot;
   attitudeStyle: AttitudeStyle;
   navCue: ImmersiveHudNavCue | null;
   approachBand: ApproachBand | null;
   descentGuidance: DescentGuidance | null;
+  finalTurn: ImmersiveHudFinalTurn | null;
 }) {
   return (
     <div className="imm-bar imm-bar-balanced" data-hud-variant="balanced">
       <SimIdentity snapshot={snapshot} />
       <CompactField label="IAS" value={formatIasKt(snapshot.iasMs)} unit="KT" />
       <MiniAttitude snapshot={snapshot} attitudeStyle={attitudeStyle} />
-      <NavDirector snapshot={snapshot} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} compact />
+      <NavDirector snapshot={snapshot} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} finalTurn={finalTurn} compact />
       <CompactField label="ALT" value={formatAltFt(snapshot.altitudeM)} unit="FT" />
     </div>
   );
@@ -264,13 +285,14 @@ function Tape({ side, label, unit, value, range, band = null }: {
   );
 }
 
-function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange, approachBand, descentGuidance }: {
+function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange, approachBand, descentGuidance, finalTurn }: {
   snapshot: HudSnapshot;
   attitudeStyle: AttitudeStyle;
   navCue: ImmersiveHudNavCue | null;
   tapeRange: { ias: TapeRange; alt: TapeRange } | null;
   approachBand: ApproachBand | null;
   descentGuidance: DescentGuidance | null;
+  finalTurn: ImmersiveHudFinalTurn | null;
 }) {
   return (
     <div className="imm-bar imm-bar-tapes" data-hud-variant="tapes">
@@ -282,7 +304,7 @@ function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange, approachBand, de
         <MiniAttitude snapshot={snapshot} attitudeStyle={attitudeStyle} />
         <span className="imm-director-stack">
           <SimIdentity snapshot={snapshot} />
-          <NavDirector snapshot={snapshot} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} />
+          <NavDirector snapshot={snapshot} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} finalTurn={finalTurn} />
           <span className="imm-director-systems">
             <span>VSI <b>{formatVsiFpm(snapshot.verticalSpeedMs)}</b></span>
             <span className={groundProximityActive(snapshot) ? "imm-agl-alert" : undefined}>AGL <b>{formatClearanceFt(snapshot.terrainClearanceM)}</b></span>
@@ -306,6 +328,7 @@ export default function ImmersiveHudBar({
   approachWarnings = [],
   approachBand = null,
   descentGuidance = null,
+  finalTurn = null,
   tapeRange = null,
   decluttered = false,
   toggleFaded = false,
@@ -318,6 +341,8 @@ export default function ImmersiveHudBar({
   approachWarnings?: string[];
   approachBand?: ApproachBand | null;
   descentGuidance?: DescentGuidance | null;
+  /** #88: TURN FINAL callout — heading/distance to the FAF + on-slope target alt/speed. */
+  finalTurn?: ImmersiveHudFinalTurn | null;
   tapeRange?: { ias: TapeRange; alt: TapeRange } | null;
   /** Manual declutter (#57): hides the HUD-A/C layout toggle, an informational-only control. */
   decluttered?: boolean;
@@ -329,8 +354,8 @@ export default function ImmersiveHudBar({
   return (
     <div className={`imm-hud imm-hud-${variant}`}>
       {variant === "balanced"
-        ? <BalancedRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} />
-        : <TapeRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} tapeRange={tapeRange} approachBand={approachBand} descentGuidance={descentGuidance} />}
+        ? <BalancedRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} finalTurn={finalTurn} />
+        : <TapeRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} tapeRange={tapeRange} approachBand={approachBand} descentGuidance={descentGuidance} finalTurn={finalTurn} />}
 
       {onVariantChange !== undefined && !decluttered && (
         <button
