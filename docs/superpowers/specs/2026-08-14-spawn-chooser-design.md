@@ -30,23 +30,21 @@ This supersedes #90's binary `HEADING → APPROACH` checkbox and implements the 
 - `mission/` and `takeover/spawn.ts` stay Cesium-free, pure, unit-testable.
 - No new dependencies.
 
-## The three options
+## The four options
 
-Presented as a 3-way control on the TAKE CONTROLS card (replaces #90's checkbox). Persisted
-preference (localStorage), default **A**.
+Presented as a 4-way control on the TAKE CONTROLS card (replaces #90's checkbox). Persisted
+preference (localStorage), default **A2**.
 
-- **A — Real position** _(ranked, default)_: spawn at the live position, **heading rotated toward
-  the FAF** (this is #90's shipped, ranked behavior — kept as the helpful ranked default). Position/
-  altitude/speed untouched.
+- **A1 — Real (authentic)** _(ranked)_: spawn exactly as the live aircraft is — real position AND
+  real heading. No override.
+- **A2 — Lined up in place** _(ranked, default)_: real position, **heading rotated toward the FAF**
+  (this is #90's shipped behavior). Position/altitude/speed untouched.
 - **B — One turn** _(unranked)_: repositioned onto a **45° base-leg entry ~`baseLegOffsetNm` out**,
   pointed at the FAF, on-slope altitude, approach speed — a single turn rolls you onto final.
 - **C — On final** _(unranked)_: repositioned onto the extended centerline **at the FAF**, on-slope
   altitude, approach speed, **gear down + landing flaps**, runway heading.
 
-> **Open sub-decision (flagged):** Option A keeps #90's "heading toward FAF" so the default stays
-> helpful AND ranked. This drops the pre-#90 "pure real heading" spawn (pointing exactly where the
-> live aircraft points). If you want pure-real-heading kept, say so and it becomes A (with
-> face-FAF folded into B) or a 4th option.
+A1 and A2 are ranked (position untouched — you fly the whole route). B and C reposition → unranked.
 
 ## Part 1 — Spawn override seam
 
@@ -92,16 +90,19 @@ already the single sources at `spawn.ts:159-200`. Each override pushes a `POSITI
 **Files:** `takeover/spawnModePreference.ts` (replaces `headingToFafPreference.ts`),
 `game/FlightSession.tsx`, `panels/HandoffCard.tsx`
 
-- Preference module (extend #90's): `SpawnMode = "real" | "base" | "final"`, key
-  `adsb.spawn-mode.v1`, default `"real"`, same `Pick<Storage,…>` + try/catch shape. (Migrate the
-  old `adsb.handoff-heading-to-faf.v1` → treat missing as `"real"`.)
+- Preference module (extend #90's): `SpawnMode = "real" | "faceApproach" | "base" | "final"`, key
+  `adsb.spawn-mode.v1`, default `"faceApproach"`, same `Pick<Storage,…>` + try/catch shape.
+  (Migrate the old `adsb.handoff-heading-to-faf.v1`: absent/`"on"` → `"faceApproach"`, `"off"` →
+  `"real"`.)
 - `FlightSession.tsx`: replace `faceApproach` boolean state + ref with `spawnMode` state + ref;
   both spawn-build sites (`:382-400` initial, `:602-625` toggle-reaction) branch on mode to build
-  the override opts (A → `spawnHeadingDeg` only; B → `baseLegPlacement`; C → `onFinalPlacement` +
-  gear/flaps). Set the store `repositioned` flag for B/C. Keep the decoupled-effect + ref pattern
-  so changing the choice rebuilds only the spawn (no countdown restart).
-- `HandoffCard.tsx`: replace the checkbox with a 3-option selector (`real`/`base`/`final`),
-  terminal style. Show an **UNRANKED** note when `base`/`final` is selected. Hidden in free flight.
+  the override opts (`real` → none; `faceApproach` → `spawnHeadingDeg` only; `base` →
+  `baseLegPlacement`; `final` → `onFinalPlacement` + gear/flaps). Set the store `repositioned` flag
+  for `base`/`final`. Keep the decoupled-effect + ref pattern so changing the choice rebuilds only
+  the spawn (no countdown restart).
+- `HandoffCard.tsx`: replace the checkbox with a 4-option selector (`real`/`faceApproach`/`base`/
+  `final`), terminal style. Show an **UNRANKED** note when `base`/`final` is selected. Hidden in
+  free flight.
 
 ## Relationship to #87
 
