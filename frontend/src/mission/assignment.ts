@@ -117,16 +117,28 @@ export function assignMission(options: {
     : profile.reachability.defaultPlanningSpeedKt;
   const planningSpeedKt = clamp(speed, profile.reachability.minPlanningSpeedKt, profile.reachability.maxPlanningSpeedKt);
   const maxDistanceNm = planningSpeedKt * profile.reachability.maxMinutes / 60;
-  const candidates: RunwayAssignment[] = [];
 
-  for (const airport of options.airports) {
-    if (!profile.runway.airportSizes.includes(airport.size)) continue;
-    const distanceNm = greatCircleDistanceNm(snapshot.latDeg, snapshot.lonDeg, airport.latDeg, airport.lonDeg);
-    if (distanceNm + BOUNDARY_EPSILON < profile.reachability.minDestinationNm || distanceNm > maxDistanceNm + BOUNDARY_EPSILON) continue;
-    const estimatedMinutes = distanceNm / planningSpeedKt * 60;
-    const best = bestForAirport(airport, snapshot, estimatedMinutes, distanceNm, profile);
-    if (best !== null) candidates.push(best);
-  }
+  const collectCandidates = (coneDeg: number | null): RunwayAssignment[] => {
+    const out: RunwayAssignment[] = [];
+    for (const airport of options.airports) {
+      if (!profile.runway.airportSizes.includes(airport.size)) continue;
+      const distanceNm = greatCircleDistanceNm(snapshot.latDeg, snapshot.lonDeg, airport.latDeg, airport.lonDeg);
+      if (distanceNm + BOUNDARY_EPSILON < profile.reachability.minDestinationNm || distanceNm > maxDistanceNm + BOUNDARY_EPSILON) continue;
+      if (coneDeg !== null) {
+        const bearingToAirport = initialBearingDeg(snapshot.latDeg, snapshot.lonDeg, airport.latDeg, airport.lonDeg);
+        if (headingDeltaDeg(snapshot.trackDeg, bearingToAirport) > coneDeg + BOUNDARY_EPSILON) continue;
+      }
+      const estimatedMinutes = distanceNm / planningSpeedKt * 60;
+      const best = bestForAirport(airport, snapshot, estimatedMinutes, distanceNm, profile);
+      if (best !== null) out.push(best);
+    }
+    return out;
+  };
+
+  const cone = profile.ranking.headingConeDeg;
+  let candidates = collectCandidates(cone);
+  if (candidates.length === 0) candidates = collectCandidates(cone * 2);
+  if (candidates.length === 0) candidates = collectCandidates(null);
   candidates.sort(compareAssignments);
 
   const common = {

@@ -143,3 +143,32 @@ describe("deterministic mission assignment", () => {
     if (result.assigned) expect(Number.isFinite(result.best.distanceNm)).toBe(true);
   });
 });
+
+describe("heading-aware selection", () => {
+  it("prefers an airport ahead over a better one behind the cone", () => {
+    const profile = missionProfileForClass("c172s");
+    // ahead (east, along track 090): modest runway; behind (west): excellent long runway
+    const ahead = airport("AHEAD", 40, {
+      ...destinationPoint(snapshot.latDeg, snapshot.lonDeg, 90, 40),
+      runways: [runway({ lengthFt: 3200, widthFt: 75 })],
+    });
+    const behind = airport("BEHIND", 40, {
+      ...destinationPoint(snapshot.latDeg, snapshot.lonDeg, 270, 40),
+      runways: [runway({ lengthFt: 9000, widthFt: 150 })],
+    });
+    const result = assignMission({ snapshot, profile, datasetVersion: "t", airports: [behind, ahead] });
+    expect(result.assigned).toBe(true);
+    if (result.assigned) expect(result.best.airportIdent).toBe("AHEAD");
+  });
+
+  it("falls back to unfiltered ranking when the cone is empty", () => {
+    const profile = missionProfileForClass("c172s");
+    const behind = airport("BEHIND", 40, {
+      ...destinationPoint(snapshot.latDeg, snapshot.lonDeg, 270, 40),
+      runways: [runway({ lengthFt: 9000, widthFt: 150 })],
+    });
+    const result = assignMission({ snapshot, profile, datasetVersion: "t", airports: [behind] });
+    expect(result.assigned).toBe(true);
+    if (result.assigned) expect(result.best.airportIdent).toBe("BEHIND");
+  });
+});
