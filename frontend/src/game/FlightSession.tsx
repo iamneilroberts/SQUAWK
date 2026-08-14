@@ -121,6 +121,11 @@ export default function FlightSession({
     try { setFaceApproach(localStorage, enabled); } catch { /* storage unavailable — apply for this session */ }
     setFaceApproachState(enabled);
   }, []);
+  // Mirrors `faceApproach` every render so the COUNTDOWN effect's async preload continuation (a
+  // closure created once, not re-run on toggle) reads the LATEST value instead of the stale one
+  // captured when the effect started — otherwise a toggle during the preload window is dropped.
+  const faceApproachRef = useRef(faceApproach);
+  faceApproachRef.current = faceApproach;
   const [note, setNote] = useState("");
   /** RESUME pressed, waiting for the canvas click that spec §6 requires. */
   const [resumeArmed, setResumeArmed] = useState(false);
@@ -375,7 +380,7 @@ export default function FlightSession({
       countdownTerrainResolvedRef.current = true;
 
       const spawnHeadingDeg =
-        faceApproach && !freeFlight
+        faceApproachRef.current && !freeFlight
           ? (() => {
               const faf = finalApproachFix(lockedMission.assignment, lockedMission.missionProfile.guidance);
               return initialBearingDeg(contact.lat, contact.lon, faf.point.latDeg, faf.point.lonDeg);
@@ -577,6 +582,9 @@ export default function FlightSession({
     // submitPendingResult owns refs/current mission and must not restart an active countdown.
     // `faceApproach` is deliberately NOT a dep here — see the decoupled rebuild effect below;
     // depending on it would restart the 3-2-1 timer and re-run terrain preload on every toggle.
+    // The spawn build inside reads `faceApproachRef.current`, not the closed-over `faceApproach`,
+    // so a toggle during the preload window (before countdownTerrainResolvedRef flips true, while
+    // the decoupled effect below still bails) isn't lost — it's picked up when preload resolves.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     mode,
