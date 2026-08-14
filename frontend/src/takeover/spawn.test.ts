@@ -252,6 +252,13 @@ describe("spawnHeadingDeg override", () => {
     expect(over.adjustments.some((a) => a.field === "HEADING")).toBe(true);
     expect(base.adjustments.some((a) => a.field === "HEADING")).toBe(false);
   });
+
+  it("does not disclose across the 0/360 boundary when the circular distance is under 0.5deg", () => {
+    // track 359.8 -> override 0.1 is 0.3deg apart the short way around, but a naive linear
+    // subtraction of the raw values sees |0.1 - 359.8| = 359.7, well past the 0.5deg gate.
+    const r = buildSpawnState(ga({ track: 359.8 }), P, { terrainHeightM: null, spawnHeadingDeg: 0.1 });
+    expect(r.adjustments.some((a) => a.field === "HEADING")).toBe(false);
+  });
 });
 
 describe("buildSpawnState — gear (GR-006)", () => {
