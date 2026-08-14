@@ -2584,3 +2584,50 @@ The altitude band reuses the existing glidepath tolerance (max(120 ft, 18% of gl
 approachAlerts ×1); extracted `glideSlopeAltitudeFt` + `glidepathToleranceFt` into guidanceGeometry.ts
 (the mission-layer home) and pointed all call sites, including the new `mission/approachBand.ts`, at
 them so the band and the HIGH/LOW approach calls agree on what "on path" means.
+
+## 2026-08-14 — #5b One-shot RE-SYNC to the live aircraft position (arcade assist)
+
+An on-demand "RE-SYNC" respawns the player's SIM aircraft at the GENUINE tracked ADS-B contact's
+CURRENT live position/velocity/attitude. It mirrors the #5a return-to-level wiring: a keyboard key +
+a mobile button that only synthesizes the same key event — the button never touches the store/sim.
+
+**Key: `KeyY`** (mnemonic re-sYnc). `KeyR` was suggested in the brief but is already the afterburner
+toggle (`input/controls.ts`); the next free, mnemonic letter is Y. Like `KeyE`/`KeyC`/`Slash` it is a
+CHROME key handled by a React `keydown` effect in `FlightSession`, NOT a held sampler input, so it is
+deliberately absent from `GAME_KEY_CODES` in `input/keyboard.ts` but present in `KEYMAP` (+ a
+`KEY_LABELS` face) so ControlsHelp documents it.
+
+**Data source / gate.** The live tracked contact is `useStore.getState().contacts.get(origin.hex)`
+(the poller keeps `contacts` current while flying; `origin` is the frozen takeover snapshot). Eligibility
+uses `checkPhysicalEligibility` — the shared physical subset, NOT the class-resolving `checkEligibility`,
+because the locked class never changes on re-sync. It refuses honestly (no teleport) on a missing /
+off-feed / stale / on-ground / no-altitude contact or an offline feed, showing the reason (via the
+eligibility strings, which already use `EM_DASH` for unknown fields) in the existing `.resync-note`
+amber band; the note auto-clears after 4 s.
+
+**Rebuild.** `buildSpawnState(liveContact, lockedMission.aircraftProfile, { terrainHeightM })` against
+the already-locked profile. Terrain height under the contact is sampled synchronously via
+`bundle.heightSampler` (the same `scene.globe.getHeight` wrap the per-tick terrain service uses), best
+effort — `null` when the tile is not resident, which `buildSpawnState` discloses honestly. Chosen over
+the async `preloadTerrain` most-detailed sample so the arcade re-sync is instant; and terrain height
+only affects the spawn on the `alt_baro`-only path, which is rare for live readsb (`alt_geom` present).
+
+**Apply to the running loop.** Added `resync(newSpawn)` to `createFlightLoop` — the loop object had no
+respawn path (buildSpawnState was called once at construction). It swaps `state`/`controls`, and
+**reseeds** the control sampler (`createControlSampler(params, newSpawn.controls)`) — without this the
+next tick's `sample()` would clobber the trimmed controls with the pre-resync drifted lever/trim. It
+recreates the stats accumulator and landing recorder from the new spawn so the ~teleport jump is not
+folded into distance/landing evidence, clears the cached terrain clearance, and cancels any in-progress
+leveling. `newSpawn.state.timeS` is 0, so rebasing to it **re-arms the terrain spawn grace**: collision
+stays disarmed until tiles under the new position have a moment to load — the same protection the
+initial takeover gets, and the reason the sim clock (and thus HUD airtime) resets on a re-sync.
+`resync` is a no-op once the flight has ended (a crash is not revived).
+
+**Unchanged (per ground rules §2):** the SIM badge, `SIM-<hex>` callsign, and ghost divergence
+semantics. After a re-sync the ghost naturally jumps to coincide with the player then resumes diverging;
+that is not hidden or faked.
+
+**Mobile button.** A `RE-SYNC` touch button beside `LEVEL` in `TouchControls`, synthesizing
+`tapKey("KeyY")`. Shown only when there is a live feed to re-sync to (`lockedMission && !tutorial &&
+!freeFlight && feedStatus !== "offline"`); it still refuses honestly if the contact goes stale between
+polls.

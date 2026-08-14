@@ -106,11 +106,13 @@ export function createFlightLoop(deps: FlightLoopDeps) {
   // The spawn's trimmed throttle and trim ARE the sampler's starting position — otherwise
   // the player inherits an idle, untrimmed aeroplane a second after the handoff card
   // promised otherwise.
-  const sampler = createControlSampler(params, spawn.controls);
+  // `let`, not `const`: resync() (issue #5b) rebuilds these from the fresh live spawn, mirroring
+  // their seeding here so a re-synced flight continues as if it had just handed over.
+  let sampler = createControlSampler(params, spawn.controls);
   const accumulator = createAccumulator();
   const rateMeter = createRateMeter(2);
-  const stats = createStatsAccumulator(spawn.state);
-  const landingRecorder = landing === undefined ? null : createLandingEvidenceRecorder(spawn.state);
+  let stats = createStatsAccumulator(spawn.state);
+  let landingRecorder = landing === undefined ? null : createLandingEvidenceRecorder(spawn.state);
 
   // Sim state lives HERE, in a closure variable — not in zustand (spec §3).
   let state: SimState = spawn.state;
@@ -324,6 +326,35 @@ export function createFlightLoop(deps: FlightLoopDeps) {
     },
     isLeveling() {
       return leveling;
+    },
+    /**
+     * One-shot RE-SYNC arcade assist (issue #5b): respawn the player at the genuine tracked
+     * contact's CURRENT live position/velocity/attitude. `newSpawn` is built by the caller from
+     * the live contact + the already-locked class params (buildSpawnState), so this only has to
+     * swap it into the running loop and reset the accumulators that assume one monotonic flight.
+     *
+     * The class never changes — only where/how fast the aircraft is. The SIM badge, synthetic
+     * callsign and ghost are untouched; the ghost naturally coincides then diverges again.
+     */
+    resync(newSpawn: SpawnResult) {
+      if (ended) return; // a crashed flight is over — do not revive it
+      state = newSpawn.state;
+      controls = newSpawn.controls;
+      // Reseed the sampler to the freshly trimmed controls, exactly as at construction. Without
+      // this the NEXT tick's sample() would overwrite `controls` with the pre-resync drifted
+      // lever/trim positions and undo the hand-over.
+      sampler = createControlSampler(params, newSpawn.controls);
+      // Reset the accumulators that assume one continuous flight from spawn: the stats path length
+      // and the landing recorder would otherwise fold the teleport jump into distance/evidence.
+      stats = createStatsAccumulator(newSpawn.state);
+      landingRecorder = landing === undefined ? null : createLandingEvidenceRecorder(newSpawn.state);
+      // newSpawn.state.timeS is 0, so rebasing to it re-arms the terrain spawn grace: collision
+      // stays disarmed until tiles under the new position have had a moment to load, the same
+      // protection the initial takeover gets. Clear the stale clearance for the same reason.
+      terrainClearanceM = null;
+      // The new spawn is trimmed and level — abandon any in-progress return-to-level assist.
+      leveling = false;
+      levelingElapsedS = 0;
     },
     getState(): SimState {
       return state;
