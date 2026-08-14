@@ -124,6 +124,14 @@ describe("createKeyboard", () => {
   it("does NOT capture the retired KeyR live-traffic shortcut", () => {
     expect(GAME_KEY_CODES.has("KeyR")).toBe(false);
   });
+  it("does NOT capture KeyY — re-sync is a one-shot chrome key, not a held control (issue #5b)", () => {
+    expect(GAME_KEY_CODES.has("KeyY")).toBe(false);
+    const t = fakeTarget();
+    const kb = createKeyboard(t);
+    t.fire("keydown", keyEvent("KeyY"));
+    expect(kb.held.has("KeyY")).toBe(false);
+    kb.dispose();
+  });
   it("captures KeyQ and preventDefaults it — free-look holds it while pointer-locked (issue #9)", () => {
     expect(GAME_KEY_CODES.has("KeyQ")).toBe(true);
     const t = fakeTarget();

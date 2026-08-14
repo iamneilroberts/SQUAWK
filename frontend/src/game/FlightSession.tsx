@@ -12,8 +12,8 @@ import { useStore } from "../state/store";
 import type { GameEvent } from "./machine";
 import { useViewer } from "../globe/viewerContext";
 import { attributionFor } from "../globe/mapSources";
-import { resolveClass } from "../takeover/eligibility";
-import { buildLockedMissionSpawn, type SpawnResult } from "../takeover/spawn";
+import { checkPhysicalEligibility, resolveClass } from "../takeover/eligibility";
+import { buildLockedMissionSpawn, buildSpawnState, type SpawnResult } from "../takeover/spawn";
 import { createTerrainService, type TerrainService } from "../world/terrain";
 import { createKeyboard } from "../input/keyboard";
 import { createCesiumFlightHost } from "../globe/cesiumFlightHost";
@@ -71,6 +71,8 @@ import { createTutorialTerrainService } from "../tutorial/terrain";
 
 const COUNTDOWN_FROM = 3;
 const PRELOAD_TIMEOUT_MS = 3000;
+/** How long a refused RE-SYNC note lingers before it auto-clears (issue #5b). */
+const RESYNC_NOTE_MS = 4000;
 
 export default function FlightSession({
   coachingEnabled = false,
@@ -98,6 +100,7 @@ export default function FlightSession({
   const local = freeFlight || instantFlight;
   const assist = useStore((s) => s.assist);
   const endStats = useStore((s) => s.endStats);
+  const feedStatus = useStore((s) => s.feedStatus);
   const basemap = useStore((s) => s.basemap);
   const labelsOn = useStore((s) => s.labelsOn);
   const immersive = useStore((s) => s.immersive);
@@ -109,6 +112,8 @@ export default function FlightSession({
   const [note, setNote] = useState("");
   /** RESUME pressed, waiting for the canvas click that spec §6 requires. */
   const [resumeArmed, setResumeArmed] = useState(false);
+  /** Honest RE-SYNC refusal message shown in the .resync-note band (#5b); null = nothing shown. */
+  const [resyncNote, setResyncNote] = useState<string | null>(null);
   /** Hex of the windscreen tag the player clicked, or null when no detail card is open. */
   const [trafficHex, setTrafficHex] = useState<string | null>(null);
   const [debrief, setDebrief] = useState<DebriefSubmission>({
@@ -133,6 +138,7 @@ export default function FlightSession({
   const terrainRef = useRef<TerrainService | null>(null);
   const releaseKeyRef = useRef<string | null>(null);
   const resultKeyRef = useRef<string | null>(null);
+  const resyncNoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingResultRef = useRef<PendingMissionResult | null>(null);
   const resultAttemptRef = useRef(0);
   const seenLessonsRef = useRef(new Set<string>());
@@ -183,6 +189,11 @@ export default function FlightSession({
     setCountdown(null);
     setNote("");
     setResumeArmed(false);
+    if (resyncNoteTimerRef.current !== null) {
+      clearTimeout(resyncNoteTimerRef.current);
+      resyncNoteTimerRef.current = null;
+    }
+    setResyncNote(null);
     setTrafficHex(null);
     setActiveLesson(null);
     activeLessonRef.current = null;
@@ -603,6 +614,61 @@ export default function FlightSession({
     };
   }, [mode]);
 
+  // ---- KeyY = one-shot RE-SYNC to the live aircraft position (issue #5b) ----
+  // Arcade assist: respawn the SIM aircraft at the GENUINE tracked contact's CURRENT live
+  // position/velocity/attitude. A chrome key handled here in React (like KeyE), NOT a held sampler
+  // input. The mobile RE-SYNC button synthesizes the same KeyY, so this one listener serves both.
+  // It refuses honestly — a stale/offline/missing contact never teleports, it shows a brief note.
+  // The locked class never changes, so it uses checkPhysicalEligibility (the shared subset), and
+  // rebuilds with buildSpawnState against the live contact + the already-locked aircraft profile.
+  useEffect(() => {
+    if (mode !== "FLYING") return;
+    const showNote = (reason: string | null) => {
+      if (resyncNoteTimerRef.current !== null) clearTimeout(resyncNoteTimerRef.current);
+      resyncNoteTimerRef.current = null;
+      setResyncNote(reason);
+      if (reason !== null) {
+        resyncNoteTimerRef.current = setTimeout(() => setResyncNote(null), RESYNC_NOTE_MS);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== "KeyY" || e.ctrlKey || e.metaKey || e.altKey) return;
+      const loop = loopRef.current;
+      const store = useStore.getState();
+      const origin = store.origin;
+      if (loop === null || lockedMission === null || origin === null || !bundle) {
+        showNote("RE-SYNC UNAVAILABLE");
+        return;
+      }
+      if (store.feedStatus === "offline") {
+        showNote("RE-SYNC — FEED OFFLINE");
+        return;
+      }
+      // The poller keeps `contacts` current while flying; the live tracked aircraft is the origin
+      // hex. It is never dead-reckoned forward — a stale row is refused, not extrapolated.
+      const live = store.contacts.get(origin.hex);
+      if (live === undefined) {
+        showNote("RE-SYNC — CONTACT NOT ON FEED");
+        return;
+      }
+      const eligibility = checkPhysicalEligibility(live);
+      if (!eligibility.eligible) {
+        showNote(`RE-SYNC — ${eligibility.reason}`);
+        return;
+      }
+      // Sample the CURRENT terrain height under the contact the way the initial spawn does; best
+      // effort — null when the tile is not resident yet, which buildSpawnState discloses honestly.
+      const rawHeight = bundle.heightSampler(degToRad(live.lat), degToRad(live.lon));
+      const terrainHeightM =
+        typeof rawHeight === "number" && Number.isFinite(rawHeight) ? rawHeight : null;
+      const newSpawn = buildSpawnState(live, lockedMission.aircraftProfile, { terrainHeightM });
+      loop.resync(newSpawn);
+      showNote(null); // teleported — clear any prior refusal; the SIM/ghost semantics are untouched
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mode, bundle, lockedMission]);
+
   // ---- exterior view: wheel to zoom (issue #4) ----
   // Drag-to-orbit now lives in the unified pointer handler below (mouse + touch, issue #65): Cesium's
   // ScreenSpaceEventHandler calls preventDefault() on the canvas pointerdown, which suppresses the
@@ -813,6 +879,13 @@ export default function FlightSession({
   const faded = (immersiveActive || (narrow && mode === "FLYING")) && !chromeVisible;
   const warningActive = snapshot ? warningsFor(snapshot).length > 0 : false;
 
+  // Mobile RE-SYNC button visibility (#5b): only a locked mission that tracks a REAL live contact
+  // can re-sync. Tutorial and free flight are synthetic (no live traffic), and an offline feed has
+  // nothing to re-sync to. Instant flight qualifies — it spawns from a real contact and keeps
+  // polling. The button can still refuse honestly if the contact goes stale between polls.
+  const canResync =
+    lockedMission !== null && tutorial === null && !freeFlight && feedStatus !== "offline";
+
   // Destination pointer in the HUD bar (owner 2026-08-11: "need some kind of pointer to the
   // airport"). Feeds the bar's NavDirector (relative-bearing arrow + distance) from the same
   // missionNavigationCue the big screen-space cue used; the bar replaces that cue on narrow.
@@ -958,6 +1031,7 @@ export default function FlightSession({
             throttle={snapshot?.throttle ?? 0}
             gearFixed={(snapshot?.gear ?? "fixed") === "fixed"}
             hasSpeedbrake={(originParams?.aero.speedbrakeCd0 ?? 0) > 0}
+            showResync={canResync}
             snapshot={snapshot}
           />
           <MobileNavWx snapshot={snapshot} faded={faded} />
@@ -970,6 +1044,12 @@ export default function FlightSession({
           (#74/#75); the stick/throttle stay put — they are how you fly. */}
       {mode === "FLYING" && (
         <ImmersiveControl warningActive={warningActive} onMenu={pauseFlight} faded={faded} />
+      )}
+      {/* Honest RE-SYNC refusal (#5b): the arcade assist declined (contact stale/offline/off-feed),
+          so nothing teleported — say why, briefly, in the existing amber band. Never shown on a
+          successful re-sync. */}
+      {mode === "FLYING" && resyncNote !== null && (
+        <div className="resync-note">{resyncNote}</div>
       )}
       {mode === "PAUSED" && tutorial !== null && activeLesson !== null && (
         <TeachingOverlay

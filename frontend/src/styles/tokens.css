@@ -1476,6 +1476,30 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .touch-level-btn { animation: none; }
 }
+/* RE-SYNC arcade assist (#5b): same amber pill as LEVEL, sitting one row higher so both can show
+   at once without overlapping the stick/throttle/MENU. */
+.touch-resync-btn {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 108px);
+  min-width: 100px;
+  min-height: 44px;
+  padding: 8px 20px;
+  border: 2px solid var(--amber);
+  background: rgba(255, 176, 0, 0.22);
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border-radius: 0;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: pointer;
+}
+.touch-resync-btn:active { background: rgba(255, 176, 0, 0.4); }
 
 @media (max-width: 1023px) {
   /* Status bar carries the honest feed source + attribution: it WRAPS to more lines rather

@@ -260,6 +260,26 @@ function LevelButton() {
   );
 }
 
+/**
+ * RE-SYNC arcade assist (#5b): respawns the player at the genuine tracked aircraft's current live
+ * position. Fires the SAME one-shot chrome key (KeyY) the keyboard uses via tapKey, exactly like
+ * LevelButton — FlightSession owns the eligibility check, the rebuild and the honest refusal note;
+ * this only synthesizes the keypress. Shown only when there is a live feed to re-sync to.
+ */
+function ResyncButton() {
+  return (
+    <button
+      className="touch-resync-btn"
+      onPointerDown={(e) => {
+        e.preventDefault();
+        tapKey("KeyY");
+      }}
+    >
+      RE-SYNC
+    </button>
+  );
+}
+
 export default function TouchControls({
   onStick,
   onStickRelease,
@@ -267,6 +287,7 @@ export default function TouchControls({
   throttle,
   gearFixed,
   hasSpeedbrake,
+  showResync,
   snapshot,
 }: {
   onStick(roll: number, pitch: number): void;
@@ -277,6 +298,8 @@ export default function TouchControls({
   gearFixed: boolean;
   /** Class has an airbrake (speedbrakeCd0 > 0); BRK is disabled otherwise (#51). */
   hasSpeedbrake: boolean;
+  /** Show the RE-SYNC assist button (#5b): a locked live-feed mission, not a synthetic flight. */
+  showResync: boolean;
   /** Live HUD snapshot: feeds the GEAR/BRK glyphs and the FLP+/TRM badges (#48). Null before spawn. */
   snapshot: HudSnapshot | null;
 }) {
@@ -294,6 +317,10 @@ export default function TouchControls({
           once the assist (or the pilot) brings the plane back level. Sits above the button row,
           clear of the stick/throttle/MENU. */}
       {shouldShowLevelButton(snapshot?.rollRad, snapshot?.pitchRad) && <LevelButton />}
+      {/* RE-SYNC arcade assist (#5b): sits beside the LEVEL button. Only when a live feed exists to
+          re-sync to; FlightSession still refuses honestly (into the .resync-note band) if the
+          contact has since gone stale/offline. */}
+      {showResync && <ResyncButton />}
       {/* Minimal transparent control set (owner refinement, #13): just gear, flaps and trim —
           rudder, afterburner, level-assist and pause were dropped from the mobile UI. Trim is a
           hold (a lever that ramps while held, matching Comma/Period on the keyboard). */}

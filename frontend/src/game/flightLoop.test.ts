@@ -595,3 +595,115 @@ describe("flight loop return-to-level assist (issue #5a)", () => {
     bits.loop.stop();
   });
 });
+
+describe("flight loop re-sync to live position (issue #5b)", () => {
+  // A stateful frame driver: `fly(n)` advances n frames at 60 Hz on a wall clock that keeps
+  // running across calls (the loop rejects a clock that jumps backwards), so a re-sync in the
+  // middle of a test does not need the caller to thread the wall time by hand.
+  const driverFor = (host: ReturnType<typeof fakeHost>) => {
+    let ms = 0;
+    return (frames: number) => {
+      for (let i = 0; i < frames; i++) {
+        host.frame(ms);
+        ms += 1000 / 60;
+      }
+    };
+  };
+
+  it("teleports the aircraft to the live spawn and resets the sim clock", () => {
+    const bits = makeLoop({ contact: ga({ alt_geom: 5000 }), groundHeight: 0 });
+    const fly = driverFor(bits.host);
+    bits.loop.start();
+    fly(150); // ~2.5 s of flight so the clock and position have moved on
+    expect(bits.loop.getState().timeS).toBeGreaterThan(1);
+
+    const resyncSpawn = buildSpawnState(ga({ lat: 40.1, lon: -100.2, alt_geom: 9000 }), P, {
+      terrainHeightM: 0,
+    });
+    bits.loop.resync(resyncSpawn);
+
+    // Exactly the new spawn, and the clock is rebased so the terrain spawn grace re-applies.
+    expect(bits.loop.getState().timeS).toBe(resyncSpawn.state.timeS);
+    expect(bits.loop.getState().position.x).toBeCloseTo(resyncSpawn.state.position.x, 3);
+    expect(bits.loop.getState().position.y).toBeCloseTo(resyncSpawn.state.position.y, 3);
+    expect(bits.loop.getState().position.z).toBeCloseTo(resyncSpawn.state.position.z, 3);
+    bits.loop.stop();
+  });
+
+  it("reseeds the control sampler so the next tick does not clobber the trimmed controls", () => {
+    // Drift the throttle wide open, then re-sync: the reseeded sampler must hold the new spawn's
+    // trimmed throttle, not the pre-resync full-throttle it had drifted to.
+    const held = new Set<string>(["KeyW"]);
+    const bits = makeLoop({ contact: ga({ alt_geom: 5000 }), groundHeight: 0, held });
+    const fly = driverFor(bits.host);
+    bits.loop.start();
+    fly(150); // ~2.5 s of throttle-up
+    expect(bits.snaps[bits.snaps.length - 1].throttle).toBeGreaterThan(0.9);
+
+    const resyncSpawn = buildSpawnState(ga({ alt_geom: 5000 }), P, { terrainHeightM: 0 });
+    held.clear();
+    bits.loop.resync(resyncSpawn);
+    fly(30); // half a second, hands off the keys
+
+    expect(bits.snaps[bits.snaps.length - 1].throttle).toBeCloseTo(
+      resyncSpawn.controls.throttle,
+      2,
+    );
+    bits.loop.stop();
+  });
+
+  it("re-arms the terrain spawn grace so the teleport is not an instant crash", () => {
+    // Ground sits at 1000 m; the loop flies safely above it, then re-syncs to a spawn BELOW it.
+    // With the clock rebased to zero the grace window must keep collision disarmed for one frame.
+    const bits = makeLoop({ contact: ga({ alt_geom: 5000 }), groundHeight: 1000 });
+    const fly = driverFor(bits.host);
+    bits.loop.start();
+    fly(240); // >3 s: collision is armed, aircraft still above ground
+    expect(bits.ends.length).toBe(0);
+
+    const underground = buildSpawnState(ga({ lat: 40.1, lon: -100.2, alt_geom: 2000 }), P, {
+      terrainHeightM: 1000,
+    });
+    bits.loop.resync(underground);
+    fly(1); // one frame: still inside the re-armed grace
+    expect(bits.ends.length).toBe(0);
+
+    fly(240); // past the grace: now it collides with the ground it is under
+    expect(bits.ends.length).toBe(1);
+    bits.loop.stop();
+  });
+
+  it("resets the stats accumulator so the teleport jump is not counted as distance flown", () => {
+    // The teleport moves the aircraft ~1000 km; without a stats reset that jump would be folded
+    // into the path length. Only the short post-resync flight should count.
+    const bits = makeLoop({ contact: ga({ alt_geom: 5000 }), groundHeight: 1000 });
+    const fly = driverFor(bits.host);
+    bits.loop.start();
+    fly(240);
+    const underground = buildSpawnState(ga({ lat: 40.1, lon: -100.2, alt_geom: 2000 }), P, {
+      terrainHeightM: 1000,
+    });
+    bits.loop.resync(underground);
+    fly(300); // fly on until it collides with the ground below
+    expect(bits.ends.length).toBe(1);
+    expect(bits.ends[0].distanceM).toBeLessThan(50_000); // km-scale teleport excluded
+    bits.loop.stop();
+  });
+
+  it("is a no-op once the flight has already ended", () => {
+    const bits = makeLoop({ contact: ga({ alt_geom: 500 }), groundHeight: 300 });
+    const fly = driverFor(bits.host);
+    bits.loop.start();
+    fly(300); // fly into the ground
+    expect(bits.ends.length).toBe(1);
+    const ended = bits.loop.getState();
+
+    const resyncSpawn = buildSpawnState(ga({ lat: 40.1, lon: -100.2, alt_geom: 9000 }), P, {
+      terrainHeightM: 0,
+    });
+    bits.loop.resync(resyncSpawn); // must not revive the crashed flight
+    expect(bits.loop.getState().position.x).toBe(ended.position.x);
+    expect(bits.ends.length).toBe(1);
+    bits.loop.stop();
+  });
+});
