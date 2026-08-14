@@ -9,6 +9,7 @@
 import type { HudSnapshot } from "./snapshot";
 import type { AttitudeStyle } from "../sim/types";
 import type { ApproachBand } from "../mission/approachBand";
+import type { DescentGuidance } from "../mission/descentGuidance";
 import AttitudeIndicator from "../dashboard/AttitudeIndicator";
 import {
   EM_DASH,
@@ -159,10 +160,17 @@ function SimIdentity(_: { snapshot: HudSnapshot }) {
  * signed number. NavDirector keeps only the reference data — destination NAME + DISTANCE and the
  * live heading — with no inline turn arrow, so there is exactly one turn indicator on screen.
  */
-function NavDirector({ snapshot, navCue, approachBand = null, compact = false }: {
+function descentLineText(g: DescentGuidance): string {
+  if (g.onProfile) return `DESC · ON PROFILE · ${roundTo10(g.targetAltitudeFt)} FT`;
+  const rateFpm = Math.round(g.descentRateFpm / 50) * 50;
+  return `DESC ${rateFpm} FPM ↓ ${roundTo10(g.targetAltitudeFt)} FT`;
+}
+
+function NavDirector({ snapshot, navCue, approachBand = null, descentGuidance = null, compact = false }: {
   snapshot: HudSnapshot;
   navCue: ImmersiveHudNavCue | null;
   approachBand?: ApproachBand | null;
+  descentGuidance?: DescentGuidance | null;
   compact?: boolean;
 }) {
   return (
@@ -177,6 +185,10 @@ function NavDirector({ snapshot, navCue, approachBand = null, compact = false }:
             `${roundTo10(approachBand.altitude.loFt)}-${roundTo10(approachBand.altitude.hiFt)} FT`}
         </span>
       )}
+      {/* At range the approach band is silent; show the descent-to-approach advisory instead. */}
+      {approachBand === null && descentGuidance && (
+        <span className="imm-director-approach">{descentLineText(descentGuidance)}</span>
+      )}
       {compact && (
         <span className="imm-director-secondary">
           VSI {formatVsiFpm(snapshot.verticalSpeedMs)} · AGL{" "}
@@ -189,18 +201,19 @@ function NavDirector({ snapshot, navCue, approachBand = null, compact = false }:
   );
 }
 
-function BalancedRail({ snapshot, attitudeStyle, navCue, approachBand }: {
+function BalancedRail({ snapshot, attitudeStyle, navCue, approachBand, descentGuidance }: {
   snapshot: HudSnapshot;
   attitudeStyle: AttitudeStyle;
   navCue: ImmersiveHudNavCue | null;
   approachBand: ApproachBand | null;
+  descentGuidance: DescentGuidance | null;
 }) {
   return (
     <div className="imm-bar imm-bar-balanced" data-hud-variant="balanced">
       <SimIdentity snapshot={snapshot} />
       <CompactField label="IAS" value={formatIasKt(snapshot.iasMs)} unit="KT" />
       <MiniAttitude snapshot={snapshot} attitudeStyle={attitudeStyle} />
-      <NavDirector snapshot={snapshot} navCue={navCue} approachBand={approachBand} compact />
+      <NavDirector snapshot={snapshot} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} compact />
       <CompactField label="ALT" value={formatAltFt(snapshot.altitudeM)} unit="FT" />
     </div>
   );
@@ -251,12 +264,13 @@ function Tape({ side, label, unit, value, range, band = null }: {
   );
 }
 
-function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange, approachBand }: {
+function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange, approachBand, descentGuidance }: {
   snapshot: HudSnapshot;
   attitudeStyle: AttitudeStyle;
   navCue: ImmersiveHudNavCue | null;
   tapeRange: { ias: TapeRange; alt: TapeRange } | null;
   approachBand: ApproachBand | null;
+  descentGuidance: DescentGuidance | null;
 }) {
   return (
     <div className="imm-bar imm-bar-tapes" data-hud-variant="tapes">
@@ -268,7 +282,7 @@ function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange, approachBand }: 
         <MiniAttitude snapshot={snapshot} attitudeStyle={attitudeStyle} />
         <span className="imm-director-stack">
           <SimIdentity snapshot={snapshot} />
-          <NavDirector snapshot={snapshot} navCue={navCue} approachBand={approachBand} />
+          <NavDirector snapshot={snapshot} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} />
           <span className="imm-director-systems">
             <span>VSI <b>{formatVsiFpm(snapshot.verticalSpeedMs)}</b></span>
             <span className={groundProximityActive(snapshot) ? "imm-agl-alert" : undefined}>AGL <b>{formatClearanceFt(snapshot.terrainClearanceM)}</b></span>
@@ -291,6 +305,7 @@ export default function ImmersiveHudBar({
   navCue = null,
   approachWarnings = [],
   approachBand = null,
+  descentGuidance = null,
   tapeRange = null,
   decluttered = false,
   toggleFaded = false,
@@ -302,6 +317,7 @@ export default function ImmersiveHudBar({
   navCue?: ImmersiveHudNavCue | null;
   approachWarnings?: string[];
   approachBand?: ApproachBand | null;
+  descentGuidance?: DescentGuidance | null;
   tapeRange?: { ias: TapeRange; alt: TapeRange } | null;
   /** Manual declutter (#57): hides the HUD-A/C layout toggle, an informational-only control. */
   decluttered?: boolean;
@@ -313,8 +329,8 @@ export default function ImmersiveHudBar({
   return (
     <div className={`imm-hud imm-hud-${variant}`}>
       {variant === "balanced"
-        ? <BalancedRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} approachBand={approachBand} />
-        : <TapeRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} tapeRange={tapeRange} approachBand={approachBand} />}
+        ? <BalancedRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} />
+        : <TapeRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} tapeRange={tapeRange} approachBand={approachBand} descentGuidance={descentGuidance} />}
 
       {onVariantChange !== undefined && !decluttered && (
         <button
