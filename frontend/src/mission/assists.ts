@@ -1,6 +1,7 @@
 import type { MissionAssistLevel } from "./contract";
 import { greatCircleDistanceNm, initialBearingDeg } from "./geo";
-import type { RunwayAssignment } from "./types";
+import { finalApproachFix } from "./guidanceGeometry";
+import type { MissionProfile, RunwayAssignment } from "./types";
 
 export type AssistMode = "FULL" | "NAV" | "OFF";
 
@@ -63,5 +64,24 @@ export function missionNavigationCue(
       assignment.assignedEnd.latDeg,
       assignment.assignedEnd.lonDeg,
     ),
+  };
+}
+
+export function finalTurnCue(
+  own: { latDeg: number; lonDeg: number },
+  assignment: RunwayAssignment,
+  profile: MissionProfile,
+): { bearingDeg: number; distanceNm: number; targetAltFt: number; targetSpeedKt: number } | null {
+  const distanceToThresholdNm = greatCircleDistanceNm(
+    own.latDeg, own.lonDeg, assignment.assignedEnd.latDeg, assignment.assignedEnd.lonDeg,
+  );
+  // Inside the FAF distance we are on (or intercepting) final; hand off to the threshold cue + approach band.
+  if (distanceToThresholdNm <= profile.guidance.finalApproachFixNm) return null;
+  const faf = finalApproachFix(assignment, profile.guidance);
+  return {
+    bearingDeg: initialBearingDeg(own.latDeg, own.lonDeg, faf.point.latDeg, faf.point.lonDeg),
+    distanceNm: greatCircleDistanceNm(own.latDeg, own.lonDeg, faf.point.latDeg, faf.point.lonDeg),
+    targetAltFt: faf.altitudeFt,
+    targetSpeedKt: profile.approach.targetSpeedKt,
   };
 }
