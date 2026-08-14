@@ -13,7 +13,10 @@ import type { GameEvent } from "./machine";
 import { useViewer } from "../globe/viewerContext";
 import { attributionFor } from "../globe/mapSources";
 import { checkPhysicalEligibility, resolveClass } from "../takeover/eligibility";
+import { shouldFaceApproach, setFaceApproach } from "../takeover/headingToFafPreference";
 import { buildLockedMissionSpawn, buildSpawnState, type SpawnResult } from "../takeover/spawn";
+import { initialBearingDeg } from "../mission/geo";
+import { finalApproachFix } from "../mission/guidanceGeometry";
 import { createTerrainService, type TerrainService } from "../world/terrain";
 import { createKeyboard } from "../input/keyboard";
 import { createCesiumFlightHost } from "../globe/cesiumFlightHost";
@@ -111,6 +114,13 @@ export default function FlightSession({
 
   const [spawn, setSpawn] = useState<SpawnResult | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+  /** Spawn heading faces the FAF instead of the live track; default on, persisted (owner req). */
+  const [faceApproach, setFaceApproachState] = useState(() =>
+    shouldFaceApproach(typeof window === "undefined" ? null : window.localStorage));
+  const toggleFaceApproach = useCallback((enabled: boolean) => {
+    try { setFaceApproach(localStorage, enabled); } catch { /* storage unavailable — apply for this session */ }
+    setFaceApproachState(enabled);
+  }, []);
   const [note, setNote] = useState("");
   /** RESUME pressed, waiting for the canvas click that spec §6 requires. */
   const [resumeArmed, setResumeArmed] = useState(false);
@@ -357,12 +367,20 @@ export default function FlightSession({
           };
       if (cancelled) return;
 
+      const spawnHeadingDeg =
+        faceApproach && !freeFlight
+          ? (() => {
+              const faf = finalApproachFix(lockedMission.assignment, lockedMission.missionProfile.guidance);
+              return initialBearingDeg(contact.lat, contact.lon, faf.point.latDeg, faf.point.lonDeg);
+            })()
+          : undefined;
       const built = buildLockedMissionSpawn(
         contact,
         lockedMission.classId,
         params,
         {
           terrainHeightM: preload.terrainHeightM,
+          spawnHeadingDeg,
           ...(tutorial === null
             ? {}
             : { initialFlapDetent: params.flaps.length - 1, initialGearDown: true }),
@@ -559,6 +577,7 @@ export default function FlightSession({
     tutorial,
     freeFlight,
     instantFlight,
+    faceApproach,
   ]);
 
   // Pause from FLYING: stop the physics loop and move the machine to PAUSED. Shared by desktop
@@ -1016,7 +1035,9 @@ export default function FlightSession({
       )}
       {mode === "COUNTDOWN" && lockedMission && (
         <HandoffCard contact={lockedMission.contact} spawn={spawn} params={originParams}
-          matched={originResolution?.matched ?? false} countdown={countdown} note={note} />
+          matched={originResolution?.matched ?? false} countdown={countdown} note={note}
+          assignment={lockedMission.assignment}
+          faceApproach={faceApproach} onToggleFaceApproach={toggleFaceApproach} />
       )}
       {stripMountedForMode(mode) && (
         <>

@@ -2,6 +2,8 @@ import type { Contact } from "../data/types";
 import type { Airport } from "../data/airports";
 import { bearingDeg, rangeNm } from "../dashboard/geoRange";
 import { missionVersions, type LockedMissionView } from "../mission/contract";
+import { initialBearingDeg } from "../mission/geo";
+import { finalApproachFix } from "../mission/guidanceGeometry";
 import { missionProfileForClass } from "../mission/profiles";
 import type { RunwayAssignment } from "../mission/types";
 import { DATA_VERSIONS } from "../shared/versions";
@@ -22,6 +24,8 @@ import { buildLockedMissionSpawn } from "./spawn";
 export type InstantMissionOptions = {
   /** Caller-supplied mission id (crypto.randomUUID in the browser); defaults to a stable id. */
   missionId?: string;
+  /** Spawn facing the final approach fix instead of the live track. Default on (true). */
+  faceApproach?: boolean;
 };
 
 /** Stable default id so a pure test needs no random source. */
@@ -102,8 +106,16 @@ export function buildInstantMission(
     scoringVersion: profile.scoringVersion,
   });
   // Spawn the player's SIM aircraft from the real contact (no terrain sample in this pure path;
-  // the spawn builder trusts alt_geom as the ellipsoidal datum, same as free flight).
-  const spawn = buildLockedMissionSpawn(contact, classId, params, { terrainHeightM: null });
+  // the spawn builder trusts alt_geom as the ellipsoidal datum, same as free flight). When facing
+  // the approach (default on), the heading points at the FAF instead of the live track.
+  const faceApproach = opts.faceApproach ?? true;
+  const spawnHeadingDeg = faceApproach
+    ? (() => {
+        const faf = finalApproachFix(assignment, profile.guidance);
+        return initialBearingDeg(contact.lat, contact.lon, faf.point.latDeg, faf.point.lonDeg);
+      })()
+    : undefined;
+  const spawn = buildLockedMissionSpawn(contact, classId, params, { terrainHeightM: null, spawnHeadingDeg });
 
   return {
     schemaVersion: 1,
