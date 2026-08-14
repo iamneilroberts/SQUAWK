@@ -92,6 +92,9 @@ export type MissionProfile = {
     hardSurfaceBonus: number;
     minutePenalty: number;
     headingConeDeg: number;
+    preferredBandMinNm: number;
+    preferredBandMaxNm: number;
+    outsideBandPenaltyWeight: number;
   };
   guidance: {
     approachLengthNm: number;
