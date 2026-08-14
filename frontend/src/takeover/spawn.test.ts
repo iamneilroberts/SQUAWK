@@ -241,6 +241,19 @@ describe("buildSpawnState — purity", () => {
   });
 });
 
+describe("spawnHeadingDeg override", () => {
+  it("points attitude at the override heading and discloses it", () => {
+    const base = buildSpawnState(ga(), P, { terrainHeightM: null });
+    const over = buildSpawnState(ga(), P, { terrainHeightM: null, spawnHeadingDeg: 42 });
+    const baseHdg = radToDeg(hprFromQuat(base.state.attitude, base.state.position).headingRad);
+    const overHdg = radToDeg(hprFromQuat(over.state.attitude, over.state.position).headingRad);
+    expect(((overHdg % 360) + 360) % 360).toBeCloseTo(42, 3);
+    expect(overHdg).not.toBeCloseTo(baseHdg, 1); // assumes fixture contact.track !== 42
+    expect(over.adjustments.some((a) => a.field === "HEADING")).toBe(true);
+    expect(base.adjustments.some((a) => a.field === "HEADING")).toBe(false);
+  });
+});
+
 describe("buildSpawnState — gear (GR-006)", () => {
   it("spawns a retractable class gear-up (fixes the acceptance-flight GEAR DOWN-at-cruise bug)", () => {
     const b738 = loadB738();

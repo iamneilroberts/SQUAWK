@@ -22,6 +22,7 @@ import { degToRad, fpmToMs, ftToM, ktToMs, msToKt, mToFt } from "../sim/units";
 import { vDot } from "../sim/vec3";
 import { refreshDerived } from "../sim/aircraft";
 import type { AircraftClassId } from "../mission/types";
+import { normalizeHeading } from "../mission/geo";
 
 const G0 = 9.80665;
 /** Minimum clearance when a pressure altitude has to be clamped onto real terrain. */
@@ -45,6 +46,7 @@ export function buildLockedMissionSpawn(
     terrainHeightM: number | null;
     initialFlapDetent?: number;
     initialGearDown?: boolean;
+    spawnHeadingDeg?: number;
   },
 ): SpawnResult {
   if (aircraftProfile.id !== classId) {
@@ -60,6 +62,7 @@ export function buildSpawnState(
     terrainHeightM: number | null;
     initialFlapDetent?: number;
     initialGearDown?: boolean;
+    spawnHeadingDeg?: number;
   },
 ): SpawnResult {
   const adjustments: SpawnAdjustment[] = [];
@@ -156,7 +159,20 @@ export function buildSpawnState(
   const latRad = degToRad(contact.lat);
   const lonRad = degToRad(contact.lon);
   const position = geodeticToEcef(latRad, lonRad, altitudeM);
-  const headingRad = degToRad(contact.track ?? 0);
+  const liveTrackDeg = contact.track ?? 0;
+  const headingDeg = opts.spawnHeadingDeg ?? liveTrackDeg;
+  const headingRad = degToRad(headingDeg);
+  if (
+    opts.spawnHeadingDeg !== undefined &&
+    Math.abs(normalizeHeading(opts.spawnHeadingDeg) - normalizeHeading(liveTrackDeg)) > 0.5
+  ) {
+    adjustments.push({
+      field: "HEADING",
+      from: `${Math.round(normalizeHeading(liveTrackDeg)).toString().padStart(3, "0")} LIVE`,
+      to: `${Math.round(normalizeHeading(headingDeg)).toString().padStart(3, "0")} TO APPROACH`,
+      reason: "Pointed at the approach fix for takeover setup (HEADING → APPROACH toggle).",
+    });
+  }
   if (contact.baro_rate === null) {
     adjustments.push({
       field: "VERTICAL RATE",
