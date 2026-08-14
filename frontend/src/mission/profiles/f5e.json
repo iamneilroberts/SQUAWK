@@ -25,14 +25,16 @@
     "widthMarginWeight": 18,
     "lightedBonus": 5,
     "hardSurfaceBonus": 10,
-    "minutePenalty": 0.15
+    "minutePenalty": 0.15,
+    "headingConeDeg": 60
   },
   "guidance": {
     "approachLengthNm": 8,
     "corridorWidthFt": 1100,
     "gateSpacingNm": 1,
     "glideSlopeDeg": 3,
-    "flareHeightFt": 30
+    "flareHeightFt": 30,
+    "finalApproachFixNm": 5.5
   },
   "approach": {
     "targetSpeedKt": 155,

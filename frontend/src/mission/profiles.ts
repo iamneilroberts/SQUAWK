@@ -57,11 +57,11 @@ export function validateMissionProfile(value: unknown): MissionProfile {
       profile.runway.airportSizes.some((value) => !airportSizes.has(value))) throw new Error("runway.airportSizes is invalid");
   if (!Array.isArray(profile.runway.surfaces) || profile.runway.surfaces.length === 0 ||
       profile.runway.surfaces.some((value) => !surfaces.has(value))) throw new Error("runway.surfaces is invalid");
-  const rankingNames = ["lengthMarginWeight", "widthMarginWeight", "lightedBonus", "hardSurfaceBonus", "minutePenalty"] as const;
+  const rankingNames = ["lengthMarginWeight", "widthMarginWeight", "lightedBonus", "hardSurfaceBonus", "minutePenalty", "headingConeDeg"] as const;
   if (Object.keys(profile.ranking ?? {}).sort().join(",") !== [...rankingNames].sort().join(",")) throw new Error("ranking fields are invalid");
   for (const label of rankingNames) assertFiniteNonNegative(profile.ranking[label], `ranking.${label}`);
   const guidanceNames = [
-    "approachLengthNm", "corridorWidthFt", "gateSpacingNm", "glideSlopeDeg", "flareHeightFt",
+    "approachLengthNm", "corridorWidthFt", "gateSpacingNm", "glideSlopeDeg", "flareHeightFt", "finalApproachFixNm",
   ] as const;
   if (Object.keys(profile.guidance ?? {}).sort().join(",") !== [...guidanceNames].sort().join(",")) {
     throw new Error("guidance fields are invalid");
