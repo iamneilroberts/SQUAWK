@@ -691,7 +691,8 @@ body {
 
 /* Desktop destination indicator (#47) — top-center, tucked under the HDG readout. Uses the same
    .hud-scrim backing/border as the corner clusters, so it reads over bright sky and matches the
-   HUD language. Amber for the heading-relative pointer (a directive), cyan for the ident/range. */
+   HUD language. Fixed reference only (name + range) — the turn direction moved to the edge cue
+   below, so there is no heading-relative pointer here anymore. */
 .hud-destination {
   position: absolute;
   top: 78px;
@@ -707,13 +708,6 @@ body {
 }
 .hud-destination-dest { font-weight: 700; letter-spacing: 0.14em; }
 .hud-destination-dist { opacity: 0.85; }
-.hud-destination-nav {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--amber);
-}
-.hud-destination-arrow { display: inline-block; font-weight: 700; }
 .mission-reconfirm {
   margin-top: 12px;
   padding: 9px;
@@ -2040,23 +2034,16 @@ body {
   letter-spacing: 0.06em;
 }
 
-/* ---- Edge turn cue (#82): the prominent, glanceable destination turn indicator for the mobile
-   immersive HUD. A big amber chevron pinned to the LEFT edge for a left turn, the RIGHT edge for a
-   right turn, with the turn magnitude — so the required turn reads at the edge of vision without
-   parsing a signed number. On course (within the dead-band) it shows a neutral centered CYAN
-   "ON COURSE" mark (cyan = nominal / no action) instead of flapping between sides.
-
-   Placement: it sits in the clear band BELOW the top status bar (bottom ~62px) and, on the right,
-   ABOVE the MENU chip (top ~140px) / throttle lever. The left edge is otherwise clear (the virtual
-   stick is lower-left; the bottom control row is far below). The layout is HORIZONTAL and short
-   (~34px tall) so the right cue stays above the MENU chip in the tight landscape case. It is
-   pointer-events:none with a below-controls z-index (24 < touch-controls 25 < MENU 40), so it can
-   NEVER steal a tap from the flight controls even if it visually grazes one. safe-area insets keep
-   it off the notch/edges. NEEDS device verification at real portrait + landscape sizes.
+/* ---- Edge turn cue (#82 mobile, #47 desktop): the prominent, glanceable destination turn
+   indicator, shared by both HUD layouts. A big amber chevron pinned to the LEFT edge for a left
+   turn, the RIGHT edge for a right turn, with the turn magnitude — so the required turn reads at
+   the edge of vision without parsing a signed number. On course (within the dead-band) it shows a
+   neutral centered CYAN "ON COURSE" mark (cyan = nominal / no action) instead of flapping between
+   sides. Only the vertical placement differs by breakpoint (see below); everything else — visuals,
+   z-index, pointer-events — is shared.
    LORAN language: amber, mono, uppercase, 1px scrim, no radius, no shadow. ---- */
 .edge-turn-cue {
   position: absolute;
-  top: max(84px, calc(env(safe-area-inset-top) + 80px));
   z-index: 24;
   pointer-events: none;
   display: inline-flex;
@@ -2068,6 +2055,12 @@ body {
   letter-spacing: 0.08em;
   line-height: 1;
   border-color: rgba(255, 176, 0, 0.5); /* amber-tinted scrim border (overrides hud-scrim's cyan) */
+  /* Desktop default (>=1024px, no touch controls to dodge): TRUE MID-HEIGHT on the left/right
+     edge — the most glanceable spot and clear of every desktop cluster (#47). hud-left/hud-right
+     (top: 25%, ~4 short readout rows) end well above 50%; hud-bottom sits far below; hud-heading
+     and the SIM banner are top-center. Overridden for mobile below. */
+  top: 50%;
+  transform: translateY(-50%);
 }
 .edge-turn-cue[data-side="left"] {
   left: max(6px, env(safe-area-inset-left));
@@ -2079,13 +2072,29 @@ body {
 }
 .edge-turn-cue-oncourse {
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%); /* desktop: center on both axes at mid-height */
   color: var(--cyan);
   border-color: rgba(95, 215, 224, 0.35);
 }
 .edge-turn-chevron { font-size: 34px; font-weight: 700; line-height: 0.7; }
 .edge-turn-degrees { font-size: 20px; font-weight: 600; }
 .edge-turn-oncourse { font-size: 11px; letter-spacing: 0.14em; opacity: 0.85; }
+
+@media (max-width: 1023px) {
+  /* Mobile immersive placement (#82, unchanged): the clear band BELOW the top status bar
+     (bottom ~62px) and, on the right, ABOVE the MENU chip (top ~140px) / throttle lever. The left
+     edge is otherwise clear (the virtual stick is lower-left; the bottom control row is far
+     below). safe-area insets keep it off the notch/edges. There are no touch controls on desktop
+     to dodge, which is why desktop (above) can use true mid-height instead.
+     NEEDS device verification at real portrait + landscape sizes. */
+  .edge-turn-cue {
+    top: max(84px, calc(env(safe-area-inset-top) + 80px));
+    transform: none;
+  }
+  .edge-turn-cue-oncourse {
+    transform: translateX(-50%);
+  }
+}
 
 @media (max-width: 767px) {
   /* The A/C rail, its secondary row, AND the relocated control chips (FULL/EXIT · DCLTR · MENU at

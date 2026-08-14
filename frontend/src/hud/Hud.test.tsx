@@ -195,30 +195,30 @@ describe("Hud", () => {
   });
 
   // ---- Desktop destination indicator (#47): the scattered desktop HUD had no equivalent of
-  // the mobile bar's NavDirector. A top-center cue names the assigned airport, its range, and a
-  // heading-relative arrow. Driven by the same immersiveNavCue the bar uses (populated for instant
-  // flight and any destinationCue-assist ranked flight), so it covers instant flight too. ----
+  // the mobile bar's NavDirector. A top-center cue names the assigned airport and its range —
+  // a fixed reference, not a turn indicator. Driven by the same immersiveNavCue the bar uses
+  // (populated for instant flight and any destinationCue-assist ranked flight), so it covers
+  // instant flight too. The turn direction itself now lives in the edge cue (below), matching
+  // the one-turn-indicator rule #82 set for the immersive bar. ----
   describe("desktop destination cue (#47)", () => {
     const has = (classes: string[], token: string) =>
       classes.some((c) => c.split(/\s+/).includes(token));
-    // heading 270°, destination due north (bearing 0°) → 90° to the right of the nose.
     const navCue = { destination: "KGPT", bearingDeg: 0, distanceNm: 22.4 };
 
-    it("names the airport, range and heading-relative bearing on the desktop HUD", () => {
+    it("names the airport and range on the desktop HUD", () => {
       const text = collectText(
         Hud({ snapshot: snap({ headingRad: degToRad(270) }), attribution: "", immersiveNavCue: navCue }),
       ).join(" ");
       expect(text).toContain("KGPT");
       expect(text).toContain("22.4"); // NM
-      expect(text).toContain("DEST");
-      expect(text).toContain("+90"); // relative bearing, destination to the right
     });
 
-    it("shows a rotating arrow element for the destination direction", () => {
+    it("does not render a relative-bearing arrow (turn direction is the edge cue's job now)", () => {
       const classes = collectClasses(
         Hud({ snapshot: snap(), attribution: "", immersiveNavCue: navCue }),
       );
-      expect(has(classes, "hud-destination-arrow")).toBe(true);
+      expect(has(classes, "hud-destination-arrow")).toBe(false);
+      expect(has(classes, "hud-destination-nav")).toBe(false);
     });
 
     it("renders no destination cue when there is no assigned destination (honest, no clutter)", () => {
@@ -233,6 +233,63 @@ describe("Hud", () => {
         Hud({ snapshot: snap(), attribution: "", immersive: true, immersiveNavCue: navCue }),
       );
       expect(has(classes, "hud-destination")).toBe(false);
+    });
+  });
+
+  // ---- Desktop edge turn-direction cue (#47): the desktop twin of the mobile immersive HUD's
+  // edge chevron (#82) — REUSES EdgeTurnCue/edgeTurnCue as-is, just mounted in the desktop return
+  // instead of the immersive bar tree. This is now the desktop HUD's sole turn indicator. ----
+  describe("desktop edge turn cue (#47)", () => {
+    // Finds the first raw element node (not the text/class walkers above) whose className
+    // includes `token` — needed here because the turn side lives in a `data-side` attribute,
+    // which the text/class collectors above don't expose.
+    function findByClassToken(node: unknown, token: string): { props?: Record<string, unknown> } | null {
+      if (node === null || node === undefined || typeof node !== "object") return null;
+      if (Array.isArray(node)) {
+        for (const c of node) {
+          const found = findByClassToken(c, token);
+          if (found) return found;
+        }
+        return null;
+      }
+      const type = (node as { type?: unknown }).type;
+      const props = (node as { props?: unknown }).props as
+        | { className?: unknown; children?: unknown }
+        | undefined;
+      if (typeof type === "function") {
+        return findByClassToken((type as (p: unknown) => unknown)(props), token);
+      }
+      if (props) {
+        if (
+          typeof props.className === "string" &&
+          props.className.split(/\s+/).includes(token)
+        ) {
+          return node as { props?: Record<string, unknown> };
+        }
+        if ("children" in props) return findByClassToken(props.children, token);
+      }
+      return null;
+    }
+
+    // heading 270°, destination due north (bearing 0°) → 90° to the right of the nose.
+    const navCue = { destination: "KGPT", bearingDeg: 0, distanceNm: 22.4 };
+
+    it("mounts the edge chevron on the desktop HUD with the right side and degrees", () => {
+      const tree = Hud({
+        snapshot: snap({ headingRad: degToRad(270) }),
+        attribution: "",
+        immersiveNavCue: navCue,
+      });
+      const cue = findByClassToken(tree, "edge-turn-cue");
+      expect(cue).not.toBeNull();
+      expect(cue?.props?.["data-side"]).toBe("right");
+      const text = collectText(tree).join(" ");
+      expect(text).toContain("90");
+    });
+
+    it("renders no edge cue when there is no assigned destination", () => {
+      const tree = Hud({ snapshot: snap(), attribution: "", immersiveNavCue: null });
+      expect(findByClassToken(tree, "edge-turn-cue")).toBeNull();
     });
   });
 

@@ -12,7 +12,6 @@
 import type { HudSnapshot } from "./snapshot";
 import type { AttitudeStyle } from "../sim/types";
 import ImmersiveHudBar, {
-  relativeBearingDeg,
   type ImmersiveHudNavCue,
   type ImmersiveHudVariant,
   type TapeRange,
@@ -27,34 +26,23 @@ import ControlStateCells from "./controls/ControlStateCells";
 
 /*
  * Desktop destination indicator (#47). The scattered desktop HUD had no equivalent of the mobile
- * bar's NavDirector; this top-center cue names the assigned airport, its range, and an arrow that
- * points where the destination is RELATIVE to the nose (left/right of current heading). Driven by
- * the same immersiveNavCue the bar uses — so it lights up for instant flight (ungated) and for any
- * ranked flight whose assist level includes the destination cue. Renders nothing when there is no
- * assigned destination, so the desktop view stays clean (no persistent "NO DESTINATION" chip).
+ * bar's NavDirector; this top-center cue names the assigned airport and its range — a fixed
+ * reference, not a turn indicator. Driven by the same immersiveNavCue the bar uses — so it lights
+ * up for instant flight (ungated) and for any ranked flight whose assist level includes the
+ * destination cue. Renders nothing when there is no assigned destination, so the desktop view
+ * stays clean (no persistent "NO DESTINATION" chip).
+ *
+ * The turn direction used to live here too (a rotating ↑ arrow + "DEST +N°"), but #47 gave desktop
+ * the same edge-anchored turn cue mobile got in #82 (EdgeTurnCue, mounted below in Hud's desktop
+ * return) — so this cue no longer computes or shows a relative bearing; that's the edge cue's job
+ * now, matching the one-turn-indicator rule #82 established for the immersive bar.
  */
-function HudDestinationCue({
-  snapshot,
-  navCue,
-}: {
-  snapshot: HudSnapshot;
-  navCue: ImmersiveHudNavCue | null;
-}) {
+function HudDestinationCue({ navCue }: { navCue: ImmersiveHudNavCue | null }) {
   if (navCue === null) return null;
-  const relative = relativeBearingDeg(snapshot.headingRad, navCue.bearingDeg);
-  const relativeText = `${relative >= 0 ? "+" : "−"}${Math.abs(Math.round(relative))}°`;
   return (
-    <div className="hud-destination hud-scrim" aria-label="Assigned destination guidance">
+    <div className="hud-destination hud-scrim" aria-label="Assigned destination">
       <span className="hud-destination-dest">{navCue.destination}</span>
       <span className="hud-destination-dist">{navCue.distanceNm.toFixed(1)} NM</span>
-      <span className="hud-destination-nav">
-        <span
-          className="hud-destination-arrow"
-          style={{ transform: `rotate(${Math.round(relative)}deg)` }}
-          aria-hidden="true"
-        >↑</span>
-        DEST {relativeText}
-      </span>
     </div>
   );
 }
@@ -182,7 +170,13 @@ export default function Hud({
         <span className="hud-heading-value">{formatHeadingDeg(snapshot.headingRad)}</span>
       </div>
 
-      <HudDestinationCue snapshot={snapshot} navCue={immersiveNavCue} />
+      <HudDestinationCue navCue={immersiveNavCue} />
+
+      {/* #47: desktop twin of the mobile edge turn-direction cue (#82) — reuses the same
+          platform-agnostic helper/component, just mounted here instead of in the immersive bar
+          tree. Left/right edge chevron for the required turn to the assigned destination;
+          renders nothing when there is no destination. */}
+      <EdgeTurnCue headingRad={snapshot.headingRad} navCue={immersiveNavCue} />
 
       <div className="hud-bottom">
         <HudControlRow snapshot={snapshot} />
