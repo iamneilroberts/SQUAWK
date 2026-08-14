@@ -26,7 +26,10 @@
     "lightedBonus": 5,
     "hardSurfaceBonus": 8,
     "minutePenalty": 0.35,
-    "headingConeDeg": 60
+    "headingConeDeg": 60,
+    "preferredBandMinNm": 8,
+    "preferredBandMaxNm": 25,
+    "outsideBandPenaltyWeight": 1.0
   },
   "guidance": {
     "approachLengthNm": 5,
