@@ -71,6 +71,14 @@ export function validateMissionProfile(value: unknown): MissionProfile {
     throw new Error("guidance gate spacing exceeds approach length");
   }
   if (profile.guidance.glideSlopeDeg >= 15) throw new Error("guidance glide slope is invalid");
+  const approachNames = ["targetSpeedKt", "bandKt"] as const;
+  if (Object.keys(profile.approach ?? {}).sort().join(",") !== [...approachNames].sort().join(",")) {
+    throw new Error("approach fields are invalid");
+  }
+  for (const label of approachNames) assertFinitePositive(profile.approach[label], `approach.${label}`);
+  if (profile.approach.bandKt >= profile.approach.targetSpeedKt) {
+    throw new Error("approach band exceeds target speed");
+  }
   const landingNames = [
     "requireGearDown", "maxSinkRateFpm", "maxAbsBankDeg", "minPitchDeg", "maxPitchDeg",
     "minTouchdownSpeedKt", "maxTouchdownSpeedKt", "maxLoadFactor", "maxRolloutCrossTrackFt",

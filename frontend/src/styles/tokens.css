@@ -1893,6 +1893,9 @@ body {
 }
 .imm-director-heading { color: var(--amber); font-size: 11px; white-space: nowrap; }
 .imm-director-secondary { color: var(--text); opacity: 0.68; font-size: 6px; white-space: nowrap; }
+/* #52: suggested approach speed/altitude band — cyan (nominal guidance), a touch above secondary. */
+.imm-director-approach { color: var(--cyan); font-size: 8px; letter-spacing: 0.04em; white-space: nowrap; }
+.imm-bar-tapes .imm-director-approach { font-size: 10px; }
 
 /* C — instrument-like speed/altitude edge tapes around the real shared attitude indicator. */
 .imm-hud .imm-bar-tapes {
@@ -1917,6 +1920,16 @@ body {
 }
 .imm-hud .tape-window { position: relative; width: 100%; height: 44px; overflow: hidden; } /* == TAPE_WINDOW_PX */
 .imm-hud .tape-strip { position: absolute; left: 0; right: 0; bottom: 0; will-change: transform; }
+/* #52: suggested approach band — a cyan (nominal) translucent range on the IAS/ALT tapes. */
+.imm-hud .tape-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: rgba(95, 215, 224, 0.14);
+  border-top: 1px solid rgba(95, 215, 224, 0.5);
+  border-bottom: 1px solid rgba(95, 215, 224, 0.5);
+  pointer-events: none;
+}
 .imm-hud .tape-tick { position: absolute; height: 1px; background: rgba(210, 222, 228, 0.55); }
 .imm-hud .tape-tick.major { width: 13px; background: rgba(230, 238, 242, 0.8); }
 .imm-hud .tape-tick.minor { width: 7px; }

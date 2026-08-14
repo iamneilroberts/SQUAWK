@@ -3,6 +3,12 @@ import type { MissionProfile, RunwayAssignment } from "./types";
 
 const FEET_PER_NM = 6076.11549;
 
+// Half-width of the "on the glide slope" band: the larger of a fixed floor near the
+// threshold and a fraction of the glide height far out. Shared by the approach warnings
+// (HIGH/LOW) and the approach-band HUD readout so both agree on what "on path" means.
+const GLIDEPATH_TOLERANCE_RATIO = 0.18;
+const MIN_GLIDEPATH_TOLERANCE_FT = 120;
+
 export type GuidancePoint = { latDeg: number; lonDeg: number; altitudeFt: number };
 export type GuidanceSegment = { left: GuidancePoint; right: GuidancePoint };
 
@@ -17,6 +23,31 @@ function point(
 
 function runwayElevationFt(assignment: RunwayAssignment): number {
   return assignment.assignedEnd.elevationFt ?? assignment.airportElevationFt ?? 0;
+}
+
+/** Height above the threshold, in feet, of a 3°-ish glide slope at a given distance. */
+function glideHeightFt(guidance: MissionProfile["guidance"], distanceNm: number): number {
+  return Math.tan((guidance.glideSlopeDeg * Math.PI) / 180) * distanceNm * FEET_PER_NM;
+}
+
+/** Absolute MSL altitude (feet) a nominal approach rides at `distanceNm` from the threshold. */
+export function glideSlopeAltitudeFt(
+  assignment: RunwayAssignment,
+  guidance: MissionProfile["guidance"],
+  distanceNm: number,
+): number {
+  return runwayElevationFt(assignment) + glideHeightFt(guidance, distanceNm);
+}
+
+/** Half-width (feet) of the acceptable altitude band around the glide slope at a distance. */
+export function glidepathToleranceFt(
+  guidance: MissionProfile["guidance"],
+  distanceNm: number,
+): number {
+  return Math.max(
+    MIN_GLIDEPATH_TOLERANCE_FT,
+    glideHeightFt(guidance, distanceNm) * GLIDEPATH_TOLERANCE_RATIO,
+  );
 }
 
 export function runwayOutline(assignment: RunwayAssignment): GuidancePoint[] {
@@ -53,11 +84,9 @@ export function approachGuidance(
   const halfWidthNm = guidance.corridorWidthFt / 2 / FEET_PER_NM;
   const leftBearing = assignment.runwayHeadingDeg - 90;
   const rightBearing = assignment.runwayHeadingDeg + 90;
-  const altitudeAt = (distanceNm: number) =>
-    elevationFt + Math.tan(guidance.glideSlopeDeg * Math.PI / 180) * distanceNm * FEET_PER_NM;
   const crossSection = (distanceNm: number): GuidanceSegment => {
     const center = destinationPoint(threshold.latDeg, threshold.lonDeg, outbound, distanceNm);
-    const altitudeFt = altitudeAt(distanceNm);
+    const altitudeFt = glideSlopeAltitudeFt(assignment, guidance, distanceNm);
     return {
       left: point(center, leftBearing, halfWidthNm, altitudeFt),
       right: point(center, rightBearing, halfWidthNm, altitudeFt),
@@ -104,7 +133,6 @@ export function approachSurface(
   guidance: MissionProfile["guidance"],
 ): GuidanceSegment[] {
   const threshold = assignment.assignedEnd;
-  const elevationFt = runwayElevationFt(assignment);
   const outbound = assignment.runwayHeadingDeg + 180;
   const leftBearing = assignment.runwayHeadingDeg - 90;
   const rightBearing = assignment.runwayHeadingDeg + 90;
@@ -119,8 +147,7 @@ export function approachSurface(
     const t = distanceNm / guidance.approachLengthNm;
     const widthFt = thresholdWidthFt + (guidance.corridorWidthFt - thresholdWidthFt) * t;
     const halfWidthNm = widthFt / 2 / FEET_PER_NM;
-    const altitudeFt =
-      elevationFt + Math.tan(guidance.glideSlopeDeg * Math.PI / 180) * distanceNm * FEET_PER_NM;
+    const altitudeFt = glideSlopeAltitudeFt(assignment, guidance, distanceNm);
     const center = destinationPoint(threshold.latDeg, threshold.lonDeg, outbound, distanceNm);
     return {
       left: point(center, leftBearing, halfWidthNm, altitudeFt),

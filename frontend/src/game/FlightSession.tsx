@@ -23,6 +23,7 @@ import { createCountdownTimer } from "./countdownTimer";
 import { hudSnapshot } from "../hud/snapshot";
 import { formatCallsign, warningsFor } from "../hud/format";
 import { approachWarningsFor } from "../hud/approachAlerts";
+import { approachBandFor } from "../mission/approachBand";
 import Hud from "../hud/Hud";
 import { tapeRangesFor, type ImmersiveHudVariant } from "../hud/ImmersiveHudBar";
 import TouchControls from "../input/TouchControls";
@@ -848,6 +849,18 @@ export default function FlightSession({
         )
       : [];
 
+  // #52: suggested approach speed + glide-slope altitude band. Excludes instant flight, which
+  // targets an airport point with no runway geometry (same reason the approach aids are off there).
+  const immersiveApproachBand =
+    lockedMission !== null && snapshot !== null && assist !== null && !instantFlight
+      ? approachBandFor(
+          snapshot,
+          lockedMission.assignment,
+          lockedMission.missionProfile,
+          assist.current,
+        )
+      : null;
+
   const dismissLesson = () => {
     activeLessonRef.current = null;
     setActiveLesson(null);
@@ -905,6 +918,7 @@ export default function FlightSession({
             onImmersiveVariantChange={setImmersiveHudVariant}
             immersiveNavCue={immersiveNavCue}
             immersiveApproachWarnings={immersiveApproachWarnings}
+            immersiveApproachBand={immersiveApproachBand}
             narrow={narrow}
             tapeRange={originParams ? tapeRangesFor(originParams) : null}
             decluttered={decluttered}

@@ -1,14 +1,30 @@
-# Turboprop (`tprop`) epic — checklist
+# #52 Approach speed/altitude band — CHECKLIST
 
-Branch `tprop` off `mongols-rich-hud` (9954b20 == live prod, has biz + trim fix).
-Plan: `docs/superpowers/plans/2026-08-13-tprop-flight-model.md` (committed 261438d)
-Handoff: `~/.claude/coordination/adsb-game/handoffs/pause-2026-08-13-tprop-epic.md`
-Execute via `superpowers:subagent-driven-development`.
+_Updated: 2026-08-13 — approach-band_
 
-- [x] Task 1: `params/tprop.json` + `loadTprop` + envelope test (KEEP trim-to-level test) + turboprop lapse decision (piston → measure → additive `turboprop` variant)
-- [x] Task 2: mission profile + six-pack dashboard profile + model dims (string-keyed)
-- [x] Task 3: `AircraftClassId` union flip + all consumers + `tprop-types.json` + resolveClass + ALL 3 worker allowlists
-- [x] Task 4: decision log (TP-001/TP-002) + full gate — deploy + owner device-verify still pending (owner-only, not run by this session)
-- [ ] After tprop: `heavy` archetype (777-class + widebody designator reassignment)
+Owner decisions: explicit per-class `approach` field + BOTH display surfaces (NavDirector text line + tape bands).
 
-_Updated: 2026-08-13 — tprop docs + gate done (534842f, 827a3cb, a52e38a + docs commit); deploy/device-verify pending (owner)_
+## Data
+- [x] `approach: { targetSpeedKt; bandKt }` on MissionProfile (types.ts)
+- [x] Validate `approach` (positive, bandKt < targetSpeedKt) — profiles.ts + tests
+- [x] `approach` block in all 5 JSONs (surgical insert, no reformat): c172s 65±5, b738 150±10, f5e 155±12, biz 118±10, tprop 118±10
+- [x] decisions.md entry (tuning knobs, Phase-B verification)
+
+## Pure logic (TDD)
+- [x] Extract glideSlopeAltitudeFt + glidepathToleranceFt into guidanceGeometry.ts
+- [x] Deduped 3 glide-slope formula copies (approachGuidance, approachSurface, approachAlerts)
+- [x] mission/approachBand.ts approachBandFor(...) — gating + speed band + altitude band
+
+## Display
+- [x] NavDirector strip line "APCH lo-hi KT · lo-hi FT" (cyan)
+- [x] tapeBandBox + cyan band overlay on IAS + ALT tapes
+- [x] Wired FlightSession -> Hud -> ImmersiveHudBar (excludes instant flight)
+- [x] CSS: .tape-band, .imm-director-approach
+
+## Ship
+- [x] Gate: typecheck clean, 1401 unit tests pass, lint 0 errors (5 pre-existing globe warnings)
+- [x] Production build clean
+- [x] Committed
+- [ ] Owner sign-off to deploy
+- [ ] Deploy (ff-merge both, npm run deploy:production, push both)
+- [ ] Owner device-verify on final approach -> close #52 -> prune worktree

@@ -28,4 +28,19 @@ describe("versioned mission profiles", () => {
     invalid.reachability.maxMinutes = 31;
     expect(() => validateMissionProfile(invalid)).toThrow(/product cap/);
   });
+
+  it("publishes a per-class approach speed band with a positive floor", () => {
+    for (const profile of allMissionProfiles()) {
+      expect(profile.approach.targetSpeedKt).toBeGreaterThan(0);
+      expect(profile.approach.bandKt).toBeGreaterThan(0);
+      // lo = target - band must stay above zero so the HUD never shows a negative speed.
+      expect(profile.approach.targetSpeedKt - profile.approach.bandKt).toBeGreaterThan(0);
+    }
+  });
+
+  it("rejects an approach band wider than its target speed", () => {
+    const invalid = structuredClone(missionProfileForClass("c172s"));
+    invalid.approach.bandKt = invalid.approach.targetSpeedKt + 1;
+    expect(() => validateMissionProfile(invalid)).toThrow(/approach/);
+  });
 });

@@ -7,6 +7,7 @@ import ImmersiveHudBar, {
   tapeTicks,
   tapeStripOffset,
   tapeRangesFor,
+  tapeBandBox,
   TAPE_WINDOW_PX,
   type TapeRange,
 } from "./ImmersiveHudBar";
@@ -334,6 +335,51 @@ describe("functional tapes", () => {
     expect(text).toContain(EM_DASH);
     expect(text).not.toContain("115");
     expect(text).not.toContain("3200");
+  });
+});
+
+describe("approach band (#52)", () => {
+  const tapeRange = tapeRangesFor({
+    display: { asiMinKt: 40, asiMaxKt: 180 }, limits: { serviceCeilingM: 4100 },
+  });
+  const approachBand = {
+    distanceNm: 3,
+    speed: { targetKt: 65, loKt: 60, hiKt: 70 },
+    altitude: { targetFt: 1065, loFt: 895, hiFt: 1235 },
+  };
+
+  it("computes a clamped band box from tape units to pixels", () => {
+    const box = tapeBandBox(60, 70, tapeRange.ias);
+    expect(box.bottomPx).toBeCloseTo((60 - tapeRange.ias.min) * tapeRange.ias.pxPerUnit);
+    expect(box.heightPx).toBeCloseTo(10 * tapeRange.ias.pxPerUnit);
+    // clamps to the tape ends rather than overflowing the strip
+    const clamped = tapeBandBox(-100, 9999, tapeRange.ias);
+    expect(clamped.bottomPx).toBeCloseTo(0);
+    expect(clamped.heightPx).toBeCloseTo((tapeRange.ias.max - tapeRange.ias.min) * tapeRange.ias.pxPerUnit);
+  });
+
+  it("draws a target band on both the IAS and ALT tapes during approach", () => {
+    const tree = ImmersiveHudBar({
+      snapshot: snap(), attitudeStyle: "ball", variant: "tapes", tapeRange, approachBand,
+    });
+    expect(classNamesIn(tree).filter((c) => c === "tape-band").length).toBe(2);
+  });
+
+  it("shows the suggested speed and altitude band as a director line", () => {
+    const tree = ImmersiveHudBar({
+      snapshot: snap(), attitudeStyle: "ball", variant: "tapes",
+      navCue: { destination: "KADS", bearingDeg: 0, distanceNm: 3 }, approachBand,
+    });
+    const text = collectText(tree).join(" ");
+    expect(text).toContain("APCH 60-70 KT");
+  });
+
+  it("draws no band and no director line when not on approach", () => {
+    const tree = ImmersiveHudBar({
+      snapshot: snap(), attitudeStyle: "ball", variant: "tapes", tapeRange, approachBand: null,
+    });
+    expect(classNamesIn(tree).filter((c) => c === "tape-band").length).toBe(0);
+    expect(collectText(tree).join(" ")).not.toContain("APCH");
   });
 });
 

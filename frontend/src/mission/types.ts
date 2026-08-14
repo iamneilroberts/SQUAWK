@@ -99,6 +99,10 @@ export type MissionProfile = {
     glideSlopeDeg: number;
     flareHeightFt: number;
   };
+  approach: {
+    targetSpeedKt: number;
+    bandKt: number;
+  };
   landing: {
     requireGearDown: boolean;
     maxSinkRateFpm: number;

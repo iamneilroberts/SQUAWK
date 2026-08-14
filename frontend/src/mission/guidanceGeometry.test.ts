@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { missionProfileForClass } from "./profiles";
-import { approachGuidance, approachSurface, runwayOutline, surfaceQuads } from "./guidanceGeometry";
+import {
+  approachGuidance,
+  approachSurface,
+  glidepathToleranceFt,
+  glideSlopeAltitudeFt,
+  runwayOutline,
+  surfaceQuads,
+} from "./guidanceGeometry";
 import { greatCircleDistanceNm } from "./geo";
 import type { RunwayAssignment } from "./types";
 
@@ -77,6 +84,33 @@ describe("profile-driven guidance geometry", () => {
       expect(result.flare.altitudeFt).toBeCloseTo(110 + profile.guidance.flareHeightFt, 6);
     },
   );
+});
+
+describe("glideSlopeAltitudeFt", () => {
+  const guidance = missionProfileForClass("c172s").guidance; // 3° slope
+
+  it("returns the runway threshold elevation at the threshold (distance 0)", () => {
+    expect(glideSlopeAltitudeFt(assignment, guidance, 0)).toBeCloseTo(110, 6);
+  });
+
+  it("rides the glide slope one nautical mile out", () => {
+    const expected = 110 + Math.tan((3 * Math.PI) / 180) * 1 * FEET_PER_NM;
+    expect(glideSlopeAltitudeFt(assignment, guidance, 1)).toBeCloseTo(expected, 6);
+  });
+});
+
+describe("glidepathToleranceFt", () => {
+  const guidance = missionProfileForClass("c172s").guidance; // 3° slope
+
+  it("holds a 120 ft floor close to the threshold", () => {
+    // glide height at 1 nm (~318 ft) × 0.18 ≈ 57 ft, below the floor.
+    expect(glidepathToleranceFt(guidance, 1)).toBeCloseTo(120, 6);
+  });
+
+  it("widens to 18% of glide height far out", () => {
+    const glideHeight = Math.tan((3 * Math.PI) / 180) * 5 * FEET_PER_NM;
+    expect(glidepathToleranceFt(guidance, 5)).toBeCloseTo(glideHeight * 0.18, 6);
+  });
 });
 
 describe("approachSurface", () => {

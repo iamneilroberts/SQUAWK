@@ -7,16 +7,14 @@
 import type { HudSnapshot } from "./snapshot";
 import { assistFeatures, missionNavigationCue, type AssistMode } from "../mission/assists";
 import { headingDeltaDeg } from "../mission/geo";
+import { glidepathToleranceFt, glideSlopeAltitudeFt } from "../mission/guidanceGeometry";
 import { projectToRunwayFrame } from "../mission/runwayGeometry";
 import type { MissionProfile, RunwayAssignment } from "../mission/types";
 import { mToFt, radToDeg } from "../sim/units";
 
-const FEET_PER_NM = 6076.11549;
 const MIN_ALERT_DISTANCE_NM = 0.2;
 const ALIGNMENT_ALERT_DISTANCE_NM = 3;
 const MAX_HEADING_ERROR_DEG = 20;
-const GLIDEPATH_TOLERANCE_RATIO = 0.18;
-const MIN_GLIDEPATH_TOLERANCE_FT = 120;
 
 export function approachWarningsFor(
   snapshot: HudSnapshot,
@@ -55,15 +53,9 @@ export function approachWarningsFor(
     return [];
   }
 
-  const runwayElevationFt =
-    assignment.assignedEnd.elevationFt ?? assignment.airportElevationFt ?? 0;
-  const glideHeightFt =
-    Math.tan(guidance.glideSlopeDeg * Math.PI / 180) * cue.distanceNm * FEET_PER_NM;
-  const glidepathErrorFt = mToFt(snapshot.altitudeM) - (runwayElevationFt + glideHeightFt);
-  const toleranceFt = Math.max(
-    MIN_GLIDEPATH_TOLERANCE_FT,
-    glideHeightFt * GLIDEPATH_TOLERANCE_RATIO,
-  );
+  const glidepathErrorFt =
+    mToFt(snapshot.altitudeM) - glideSlopeAltitudeFt(assignment, guidance, cue.distanceNm);
+  const toleranceFt = glidepathToleranceFt(guidance, cue.distanceNm);
 
   if (glidepathErrorFt > toleranceFt) return ["HIGH"];
   if (glidepathErrorFt < -toleranceFt) return ["LOW"];

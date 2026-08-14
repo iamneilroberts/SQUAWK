@@ -2560,3 +2560,27 @@ therefore uses the plain browse `fetchTraffic`, centered on the **player's curre
 (`options.activePosition()`, falling back to the spawn contact) rather than fixed `home`, so contacts
 follow the moving aircraft. Signed-in ranked missions are untouched and remain on the lease-backed
 active-mission endpoint.
+
+## 2026-08-13 — #52 Approach speed/altitude band (per-class suggested targets)
+
+During an approach the HUD now shows a suggested target airspeed and a glide-slope altitude band
+for the current distance-to-threshold, on the mobile rich HUD: a cyan translucent band on the IAS
+and ALT tapes plus a text line in the NavDirector strip ("APCH lo-hi KT · lo-hi FT"). Off for
+instant flight (an airport point with no runway geometry, same exclusion as the other approach aids);
+gated on NAV+ assist and being on the approach side of the assigned runway, inside the profile's
+approach length.
+
+**Data, not branches.** Added a per-class `approach: { targetSpeedKt, bandKt }` block to each of the
+five mission profiles rather than deriving from the existing `landing.*TouchdownSpeedKt` range — the
+touchdown range (e.g. C172 42-80 kt) is too wide and its low end is near-stall, so shown as a "fly
+this on final" target it would mislead. The explicit field yields believable final-approach numbers.
+
+**Numbers are tuning knobs pending Phase-B source verification** (same status as CD0/e and the fighter
+envelope per CLAUDE.md): C172S 65±5, B738 150±10, F5E 155±12 (fighter — least certain, verify against
+T-38/F-5 approach speeds), biz (Citation Latitude-class) 118±10, tprop (King Air 350-class) 118±10.
+The altitude band reuses the existing glidepath tolerance (max(120 ft, 18% of glide height)).
+
+**Refactor.** The glide-slope altitude formula was duplicated in three places (guidanceGeometry ×2,
+approachAlerts ×1); extracted `glideSlopeAltitudeFt` + `glidepathToleranceFt` into guidanceGeometry.ts
+(the mission-layer home) and pointed all call sites, including the new `mission/approachBand.ts`, at
+them so the band and the HIGH/LOW approach calls agree on what "on path" means.

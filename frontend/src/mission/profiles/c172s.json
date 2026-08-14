@@ -34,6 +34,10 @@
     "glideSlopeDeg": 3,
     "flareHeightFt": 20
   },
+  "approach": {
+    "targetSpeedKt": 65,
+    "bandKt": 5
+  },
   "landing": {
     "requireGearDown": true,
     "maxSinkRateFpm": 600,

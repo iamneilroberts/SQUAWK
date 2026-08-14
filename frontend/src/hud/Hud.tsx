@@ -16,6 +16,7 @@ import ImmersiveHudBar, {
   type ImmersiveHudVariant,
   type TapeRange,
 } from "./ImmersiveHudBar";
+import type { ApproachBand } from "../mission/approachBand";
 import EdgeTurnCue from "./EdgeTurnCue";
 import {
   formatAirtime, formatAltFt, formatAoaDeg, formatClass, formatClearanceFt,
@@ -76,6 +77,7 @@ export default function Hud({
   onImmersiveVariantChange,
   immersiveNavCue = null,
   immersiveApproachWarnings = [],
+  immersiveApproachBand = null,
   narrow = false,
   tapeRange = null,
   decluttered = false,
@@ -96,6 +98,8 @@ export default function Hud({
   onImmersiveVariantChange?(variant: ImmersiveHudVariant): void;
   immersiveNavCue?: ImmersiveHudNavCue | null;
   immersiveApproachWarnings?: string[];
+  /** #52: per-class suggested approach speed + glide-slope altitude band, shown during final. */
+  immersiveApproachBand?: ApproachBand | null;
   /** A narrow phone viewport, even before the user taps FULL: gets the compact rail too, not the
    *  desktop scattered-corner HUD. Does NOT gate the fade — only true immersive/fullscreen does. */
   narrow?: boolean;
@@ -125,6 +129,7 @@ export default function Hud({
           onVariantChange={onImmersiveVariantChange}
           navCue={immersiveNavCue}
           approachWarnings={immersiveApproachWarnings}
+          approachBand={immersiveApproachBand}
           tapeRange={tapeRange}
           decluttered={decluttered}
           // #48: an active warning forces the chrome visible (faded=false), which would un-hide
