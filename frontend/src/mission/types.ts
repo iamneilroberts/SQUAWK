@@ -91,6 +91,7 @@ export type MissionProfile = {
     lightedBonus: number;
     hardSurfaceBonus: number;
     minutePenalty: number;
+    headingConeDeg: number;
   };
   guidance: {
     approachLengthNm: number;
@@ -98,6 +99,7 @@ export type MissionProfile = {
     gateSpacingNm: number;
     glideSlopeDeg: number;
     flareHeightFt: number;
+    finalApproachFixNm: number;
   };
   approach: {
     targetSpeedKt: number;
