@@ -2711,3 +2711,31 @@ that is not hidden or faked.
 `tapKey("KeyY")`. Shown only when there is a live feed to re-sync to (`lockedMission && !tutorial &&
 !freeFlight && feedStatus !== "offline"`); it still refuses honestly if the contact goes stale between
 polls.
+
+## 2026-08-14 — Owner in-flight feedback: guidance in instant flight + range descent advisory + destination marker
+
+From live device testing of #52 (owner flying the default anonymous instant-flight path at ~24 nm out):
+
+**Enable the approach band in instant flight.** #52 originally excluded instant flight ("no runway
+geometry"). But instant flight's mission DOES carry a real destination (the nearest bundled airport)
+and renders PAPI/route already — it just runs `assist: "none"` (OFF). Following the existing nav-cue
+exception, instant flight now gets an effective **NAV** assist for the advisory guidance
+(`advisoryAssist` in FlightSession). Signed-in users who chose assist OFF still see nothing (their
+opt-out is respected). **Caveat (honest-data):** instant flight's airport elevation is unknown (0),
+so the *altitude* band/target is on a sea-level datum and is approximate; the per-class **speed** band
+is exact. Ranked/tutorial missions have real elevations and are unaffected.
+
+**Range descent advisory (new, `mission/descentGuidance.ts`).** Beyond the approach length the band is
+silent, so at 20+ nm the owner saw no speed/alt advice. Added a pure `descentGuidanceFor` that, within
+`MAX_GUIDANCE_NM (40)` of the destination, advises the altitude to be at by the approach entry (the top
+of the glide slope) and the descent rate to get there at current groundspeed — `DESC <fpm> ↓ <alt> FT`
+in the NavDirector strip, handing off to the approach band on final. `ON PROFILE` when already at/below
+target. Groundspeed uses TAS (no wind model in v1).
+
+**Destination marker + route line in instant flight (`MissionRouteLayer`).** Was NAV+-gated, so instant
+flight showed only the cryptic red PAPI dot. Now: passed the effective NAV assist so the cyan route line
++ labeled marker render; the degenerate runway outline is skipped when `runwayLengthFt === 0`; and the
+marker label carries a **live distance** (`IDENT\n<dist> NM`) so it doubles as a range readout at any
+range. The red dot the owner asked about is the PAPI light array (all red = below glide slope far out).
+
+Still open from that feedback: **#81** attribution overlapping the bottom controls in portrait (separate).

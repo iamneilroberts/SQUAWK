@@ -381,6 +381,25 @@ describe("approach band (#52)", () => {
     expect(classNamesIn(tree).filter((c) => c === "tape-band").length).toBe(0);
     expect(collectText(tree).join(" ")).not.toContain("APCH");
   });
+
+  it("shows the descent advisory at range, and defers to the approach band on final", () => {
+    const descentGuidance = {
+      distanceNm: 20, targetAltitudeFt: 1700, descentRateFpm: 440, onProfile: false, targetSpeedKt: 115,
+    };
+    const far = ImmersiveHudBar({
+      snapshot: snap(), attitudeStyle: "ball", variant: "tapes", descentGuidance,
+    });
+    const farText = collectText(far).join(" ");
+    expect(farText).toContain("DESC");
+    expect(farText).toContain("FPM");
+    // On final the approach band takes over; the descent line is suppressed.
+    const near = ImmersiveHudBar({
+      snapshot: snap(), attitudeStyle: "ball", variant: "tapes", approachBand, descentGuidance,
+    });
+    const nearText = collectText(near).join(" ");
+    expect(nearText).toContain("APCH 60-70 KT");
+    expect(nearText).not.toContain("DESC");
+  });
 });
 
 describe("UI-002 declutter", () => {

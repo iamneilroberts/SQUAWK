@@ -40,7 +40,9 @@ import MobileNavWx from "../dashboard/MobileNavWx";
 import HandoffCard from "../panels/HandoffCard";
 import PauseOverlay from "../panels/PauseOverlay";
 import EndCard from "../panels/EndCard";
-import { degToRad, ktToMs } from "../sim/units";
+import { degToRad, ktToMs, mToFt, msToKt } from "../sim/units";
+import { descentGuidanceFor } from "../mission/descentGuidance";
+import type { AssistMode } from "../mission/assists";
 import { releaseMissionLease, submitMissionResult } from "../mission/api";
 import { buildMissionResultPackage } from "../mission/resultPackage";
 import { assistFeatures, assistModeFromPreference, missionNavigationCue } from "../mission/assists";
@@ -923,15 +925,36 @@ export default function FlightSession({
         )
       : [];
 
-  // #52: suggested approach speed + glide-slope altitude band. Excludes instant flight, which
-  // targets an airport point with no runway geometry (same reason the approach aids are off there).
+  // Instant flight runs assist=OFF but still gets the nav cue + advisory guidance (owner req):
+  // treat it as NAV for the approach band / descent advisory, which gate on destinationCue. Its
+  // destination is the real nearest airport; note the altitude band/target is approximate there
+  // (airport elevation is unknown → sea-level datum). The per-class SPEED band is exact regardless.
+  const advisoryAssist: AssistMode = instantFlight ? "NAV" : (assist?.current ?? "OFF");
+
+  // #52: suggested approach speed + glide-slope altitude band on final.
   const immersiveApproachBand =
-    lockedMission !== null && snapshot !== null && assist !== null && !instantFlight
+    lockedMission !== null && snapshot !== null && assist !== null
       ? approachBandFor(
           snapshot,
           lockedMission.assignment,
           lockedMission.missionProfile,
-          assist.current,
+          advisoryAssist,
+        )
+      : null;
+
+  // At-range descent advisory (hands off to the band once inside the approach length).
+  const immersiveDescentGuidance =
+    lockedMission !== null && snapshot !== null && assist !== null && immersiveApproachBand === null
+      ? descentGuidanceFor(
+          {
+            latDeg: snapshot.latDeg,
+            lonDeg: snapshot.lonDeg,
+            altitudeFt: mToFt(snapshot.altitudeM),
+            groundSpeedKt: msToKt(snapshot.tasMs),
+          },
+          lockedMission.assignment,
+          lockedMission.missionProfile,
+          advisoryAssist,
         )
       : null;
 
@@ -958,7 +981,9 @@ export default function FlightSession({
           {/* PAPI is world furniture (#23): renders at EVERY assist level, unlike the
               assist-gated layers below — real airports don't turn their lights off. */}
           <PapiLayer mission={lockedMission} />
-          <MissionRouteLayer mission={lockedMission} assist={assist.current} />
+          {/* Instant flight runs assist=OFF but still gets a labeled destination + route line
+              (owner req): the layer skips the degenerate runway outline when there's no runway. */}
+          <MissionRouteLayer mission={lockedMission} assist={advisoryAssist} />
           <ApproachAssistLayer mission={lockedMission} assist={assist.current} />
           {/* The approach flight director (#22): a green lead aircraft flying the glide slope ahead
               of the player. FULL-assist landing aid, gated like the glide gates; sibling of the
@@ -997,6 +1022,7 @@ export default function FlightSession({
             immersiveNavCue={immersiveNavCue}
             immersiveApproachWarnings={immersiveApproachWarnings}
             immersiveApproachBand={immersiveApproachBand}
+            immersiveDescentGuidance={immersiveDescentGuidance}
             narrow={narrow}
             tapeRange={originParams ? tapeRangesFor(originParams) : null}
             decluttered={decluttered}

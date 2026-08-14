@@ -5,11 +5,13 @@ import {
   Cartesian3,
   CallbackProperty,
   Color,
+  type Entity,
   LabelStyle,
   VerticalOrigin,
 } from "cesium";
 import type { LockedMissionView } from "../mission/contract";
 import { assistFeatures, type AssistMode } from "../mission/assists";
+import { greatCircleDistanceNm } from "../mission/geo";
 import { runwayOutline } from "../mission/guidanceGeometry";
 import { hudSnapshot } from "../hud/snapshot";
 import { routeStartPoint } from "./missionRoutePath";
@@ -58,21 +60,38 @@ export default function MissionRouteLayer({
         show: new CallbackProperty(() => !useStore.getState().exterior, false),
       },
     });
-    const outline = runwayOutline(assignment);
-    const runway = viewer.entities.add({
-      polyline: {
-        positions: outline.map((point) =>
-          Cartesian3.fromDegrees(point.lonDeg, point.latDeg, point.altitudeFt * 0.3048 + 2)),
-        width: 3,
-        material: Color.ORANGE.withAlpha(0.95),
-        depthFailMaterial: Color.ORANGE.withAlpha(0.5),
-      },
-    });
+    // Instant flight targets a runway-free airport point (runwayLengthFt === 0): skip the
+    // degenerate outline, but still draw the route line + labeled marker so the destination reads.
+    let runway: Entity | undefined;
+    if (assignment.runwayLengthFt > 0) {
+      const outline = runwayOutline(assignment);
+      runway = viewer.entities.add({
+        polyline: {
+          positions: outline.map((point) =>
+            Cartesian3.fromDegrees(point.lonDeg, point.latDeg, point.altitudeFt * 0.3048 + 2)),
+          width: 3,
+          material: Color.ORANGE.withAlpha(0.95),
+          depthFailMaterial: Color.ORANGE.withAlpha(0.5),
+        },
+      });
+    }
+    // Drop the "· RWY --" when there is no assigned runway end (instant flight).
+    const rwyPart = assignment.runwayEndIdent === "--" ? "" : ` · RWY ${assignment.runwayEndIdent}`;
     const cue = viewer.entities.add({
       position: destination,
       point: { pixelSize: 9, color: Color.ORANGE, outlineColor: Color.BLACK, outlineWidth: 1 },
       label: {
-        text: `${assignment.airportIdent} · RWY ${assignment.runwayEndIdent}`,
+        // Live distance so the destination marker doubles as a range readout at any range.
+        text: new CallbackProperty(() => {
+          const snap = hudSnapshot.get();
+          const head = `${assignment.airportIdent}${rwyPart}`;
+          if (snap === null) return head;
+          const distanceNm = greatCircleDistanceNm(
+            snap.latDeg, snap.lonDeg,
+            assignment.assignedEnd.latDeg, assignment.assignedEnd.lonDeg,
+          );
+          return `${head}\n${distanceNm.toFixed(1)} NM`;
+        }, false),
         font: "12px monospace",
         fillColor: Color.CYAN,
         outlineColor: Color.BLACK,
@@ -85,7 +104,7 @@ export default function MissionRouteLayer({
     return () => {
       if (viewer.isDestroyed()) return;
       viewer.entities.remove(route);
-      viewer.entities.remove(runway);
+      if (runway) viewer.entities.remove(runway);
       viewer.entities.remove(cue);
     };
   }, [bundle?.viewer, mission, assist]);
