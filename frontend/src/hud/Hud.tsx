@@ -12,9 +12,11 @@
 import type { HudSnapshot } from "./snapshot";
 import type { AttitudeStyle } from "../sim/types";
 import ImmersiveHudBar, {
+  type ImmersiveHudFinalTurn,
   type ImmersiveHudNavCue,
   type ImmersiveHudVariant,
   type TapeRange,
+  roundTo10,
 } from "./ImmersiveHudBar";
 import type { ApproachBand } from "../mission/approachBand";
 import type { DescentGuidance } from "../mission/descentGuidance";
@@ -46,6 +48,24 @@ function HudDestinationCue({ navCue }: { navCue: ImmersiveHudNavCue | null }) {
     <div className="hud-destination hud-scrim" aria-label="Assigned destination">
       <span className="hud-destination-dest">{navCue.destination}</span>
       <span className="hud-destination-dist">{navCue.distanceNm.toFixed(1)} NM</span>
+    </div>
+  );
+}
+
+/*
+ * TURN FINAL callout (#88), desktop twin of the mobile NavDirector line. Heading + distance to
+ * the FAF and the on-slope target alt/speed, gone once inside the FAF distance (finalTurnCue
+ * itself hands off to null there — the approach band/threshold cue take over).
+ */
+function HudFinalTurnCue({ finalTurn }: { finalTurn: ImmersiveHudFinalTurn | null }) {
+  if (finalTurn === null) return null;
+  return (
+    // Stacks directly under .hud-destination (top: 78px) rather than overlapping it — both cues
+    // can be up at once (destination pointer + FAF turn) until finalTurnCue hands off on final.
+    <div className="hud-destination hud-scrim" style={{ top: 104 }} aria-label="Turn to final">
+      {`TURN FINAL ${Math.round(finalTurn.bearingDeg).toString().padStart(3, "0")}° · ` +
+        `${finalTurn.distanceNm.toFixed(1)} NM · ${roundTo10(finalTurn.targetAltFt)} FT · ` +
+        `${Math.round(finalTurn.targetSpeedKt)} KT`}
     </div>
   );
 }
@@ -82,6 +102,7 @@ export default function Hud({
   immersiveVariant = "balanced",
   onImmersiveVariantChange,
   immersiveNavCue = null,
+  finalTurn = null,
   immersiveApproachWarnings = [],
   immersiveApproachBand = null,
   immersiveDescentGuidance = null,
@@ -104,6 +125,8 @@ export default function Hud({
   immersiveVariant?: ImmersiveHudVariant;
   onImmersiveVariantChange?(variant: ImmersiveHudVariant): void;
   immersiveNavCue?: ImmersiveHudNavCue | null;
+  /** #88: TURN FINAL callout — heading/distance to the FAF + on-slope target alt/speed. */
+  finalTurn?: ImmersiveHudFinalTurn | null;
   immersiveApproachWarnings?: string[];
   /** #52: per-class suggested approach speed + glide-slope altitude band, shown during final. */
   immersiveApproachBand?: ApproachBand | null;
@@ -138,6 +161,7 @@ export default function Hud({
           variant={immersiveVariant}
           onVariantChange={onImmersiveVariantChange}
           navCue={immersiveNavCue}
+          finalTurn={finalTurn}
           approachWarnings={immersiveApproachWarnings}
           approachBand={immersiveApproachBand}
           descentGuidance={immersiveDescentGuidance}
@@ -187,6 +211,7 @@ export default function Hud({
       </div>
 
       <HudDestinationCue navCue={immersiveNavCue} />
+      <HudFinalTurnCue finalTurn={finalTurn} />
 
       {/* #47: desktop twin of the mobile edge turn-direction cue (#82) — reuses the same
           platform-agnostic helper/component, just mounted here instead of in the immersive bar

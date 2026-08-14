@@ -45,7 +45,7 @@ import { descentGuidanceFor } from "../mission/descentGuidance";
 import type { AssistMode } from "../mission/assists";
 import { releaseMissionLease, submitMissionResult } from "../mission/api";
 import { buildMissionResultPackage } from "../mission/resultPackage";
-import { assistFeatures, assistModeFromPreference, missionNavigationCue } from "../mission/assists";
+import { assistFeatures, assistModeFromPreference, finalTurnCue, missionNavigationCue } from "../mission/assists";
 import AssistControl from "../mission/AssistControl";
 import MissionRouteLayer from "../globe/MissionRouteLayer";
 import ApproachAssistLayer from "../globe/ApproachAssistLayer";
@@ -915,6 +915,17 @@ export default function FlightSession({
         })()
       : null;
 
+  // TURN FINAL callout (#88): heading + distance to the FAF and the on-slope target alt/speed,
+  // gated the same as the destination cue above (NAV+, plus instant flight). finalTurnCue itself
+  // hands off to null once inside the FAF distance, where the approach band/threshold cue take over.
+  const finalTurn =
+    lockedMission !== null &&
+    snapshot !== null &&
+    assist !== null &&
+    (instantFlight || assistFeatures(assist.current).destinationCue)
+      ? finalTurnCue(snapshot, lockedMission.assignment, lockedMission.missionProfile)
+      : null;
+
   const immersiveApproachWarnings =
     lockedMission !== null && snapshot !== null && assist !== null
       ? approachWarningsFor(
@@ -1020,6 +1031,7 @@ export default function FlightSession({
             immersiveVariant={immersiveHudVariant}
             onImmersiveVariantChange={setImmersiveHudVariant}
             immersiveNavCue={immersiveNavCue}
+            finalTurn={finalTurn}
             immersiveApproachWarnings={immersiveApproachWarnings}
             immersiveApproachBand={immersiveApproachBand}
             immersiveDescentGuidance={immersiveDescentGuidance}
