@@ -172,3 +172,25 @@ describe("heading-aware selection", () => {
     if (result.assigned) expect(result.best.airportIdent).toBe("BEHIND");
   });
 });
+
+describe("sweet-spot distance band", () => {
+  it("prefers an in-band airport over an equally-good too-close one", () => {
+    const profile = missionProfileForClass("c172s"); // band [8,25], weight 1.0
+    // both due east (in the 60° cone), equal runways; CLOSE (6 NM) is below the band min,
+    // BAND (15 NM) is inside it. Without the band, minutePenalty would pick CLOSE.
+    const close = airport("CLOSE", 6, { ...destinationPoint(snapshot.latDeg, snapshot.lonDeg, 90, 6) });
+    const band = airport("BAND", 15, { ...destinationPoint(snapshot.latDeg, snapshot.lonDeg, 90, 15) });
+    const result = assignMission({ snapshot, profile, datasetVersion: "t", airports: [close, band] });
+    expect(result.assigned).toBe(true);
+    if (result.assigned) expect(result.best.airportIdent).toBe("BAND");
+  });
+
+  it("prefers an in-band airport over an equally-good too-far one", () => {
+    const profile = missionProfileForClass("c172s");
+    const band = airport("BAND", 15, { ...destinationPoint(snapshot.latDeg, snapshot.lonDeg, 90, 15) });
+    const far = airport("FAR", 50, { ...destinationPoint(snapshot.latDeg, snapshot.lonDeg, 90, 50) });
+    const result = assignMission({ snapshot, profile, datasetVersion: "t", airports: [band, far] });
+    expect(result.assigned).toBe(true);
+    if (result.assigned) expect(result.best.airportIdent).toBe("BAND");
+  });
+});

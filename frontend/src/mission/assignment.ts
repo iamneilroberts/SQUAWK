@@ -54,14 +54,21 @@ function chooseRunwayEnd(runway: Runway, inboundBearingDeg: number, profile: Mis
   return ends[0]?.end ?? null;
 }
 
-function suitability(runway: Runway & { lengthFt: number; widthFt: number }, estimatedMinutes: number, profile: MissionProfile): number {
+function suitability(runway: Runway & { lengthFt: number; widthFt: number }, estimatedMinutes: number, distanceNm: number, profile: MissionProfile): number {
   const lengthMargin = clamp((runway.lengthFt - profile.runway.minLengthFt) / profile.runway.minLengthFt, 0, 2);
   const widthMargin = clamp((runway.widthFt - profile.runway.minWidthFt) / profile.runway.minWidthFt, 0, 2);
+  const bandPenalty =
+    distanceNm < profile.ranking.preferredBandMinNm
+      ? (profile.ranking.preferredBandMinNm - distanceNm) * profile.ranking.outsideBandPenaltyWeight
+      : distanceNm > profile.ranking.preferredBandMaxNm
+        ? (distanceNm - profile.ranking.preferredBandMaxNm) * profile.ranking.outsideBandPenaltyWeight
+        : 0;
   const score = lengthMargin * profile.ranking.lengthMarginWeight +
     widthMargin * profile.ranking.widthMarginWeight +
     (runway.lighted ? profile.ranking.lightedBonus : 0) +
     (runway.surface === "HARD" ? profile.ranking.hardSurfaceBonus : 0) -
-    estimatedMinutes * profile.ranking.minutePenalty;
+    estimatedMinutes * profile.ranking.minutePenalty -
+    bandPenalty;
   return round(score, 6);
 }
 
@@ -98,7 +105,7 @@ function bestForAirport(airport: MissionAirport, snapshot: MissionStartSnapshot,
       assignedEnd: { ...end, headingDeg: normalizeHeading(end.headingDeg) },
       distanceNm: round(distanceNm, 6),
       estimatedMinutes: round(estimatedMinutes, 6),
-      suitability: suitability(runway as Runway & { lengthFt: number; widthFt: number }, estimatedMinutes, profile),
+      suitability: suitability(runway as Runway & { lengthFt: number; widthFt: number }, estimatedMinutes, distanceNm, profile),
     });
   }
   candidates.sort(compareAssignments);
