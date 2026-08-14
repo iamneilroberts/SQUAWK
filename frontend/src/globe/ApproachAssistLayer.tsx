@@ -5,6 +5,7 @@ import { assistFeatures, type AssistMode } from "../mission/assists";
 import {
   approachGuidance,
   approachSurface,
+  finalApproachFix,
   surfaceQuads,
   type GuidancePoint,
 } from "../mission/guidanceGeometry";
@@ -66,6 +67,21 @@ export default function ApproachAssistLayer({
         },
       }));
     }
+    const faf = finalApproachFix(mission.assignment, mission.missionProfile.guidance);
+    entities.push(viewer.entities.add({
+      position: world(faf.point),
+      point: { pixelSize: 7, color: Color.ORANGE },
+      label: {
+        text: "FAF",
+        font: "11px monospace",
+        fillColor: Color.ORANGE,
+        outlineColor: Color.BLACK,
+        outlineWidth: 2,
+        style: LabelStyle.FILL_AND_OUTLINE,
+        verticalOrigin: VerticalOrigin.BOTTOM,
+        pixelOffset: new Cartesian2(0, -10),
+      },
+    }));
     return () => {
       if (viewer.isDestroyed()) return;
       for (const entity of entities) viewer.entities.remove(entity);
