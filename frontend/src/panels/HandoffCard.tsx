@@ -4,6 +4,7 @@
  * list is printed verbatim from buildSpawnState — clamping is legal, silent clamping is not.
  */
 import type { Contact } from "../data/types";
+import type { RunwayAssignment } from "../mission/types";
 import type { ClassParams } from "../sim/types";
 import type { SpawnResult } from "../takeover/spawn";
 import { disclosureLine } from "../takeover/eligibility";
@@ -27,6 +28,9 @@ export default function HandoffCard({
   matched,
   countdown,
   note,
+  assignment,
+  faceApproach,
+  onToggleFaceApproach,
 }: {
   contact: Contact;
   spawn: SpawnResult | null;
@@ -34,6 +38,9 @@ export default function HandoffCard({
   matched: boolean;
   countdown: number | null;
   note: string;
+  assignment: RunwayAssignment | null;
+  faceApproach: boolean;
+  onToggleFaceApproach: (enabled: boolean) => void;
 }) {
   // Reuses hud/format.ts's formatHeadingDeg rather than re-deriving the wrap: it rounds
   // BEFORE the final modulo, so a heading like 359.6° reads "000", not the "360" a naive
@@ -53,6 +60,7 @@ export default function HandoffCard({
       <Row label="ALTITUDE" value={spawn === null ? "—" : `${Math.round(mToFt(spawn.state.altitudeM))} FT`} />
       <Row label="SPEED" value={spawn === null ? "—" : `${Math.round(msToKt(spawn.state.tasMs))} KT`} />
       <Row label="HEADING" value={heading} />
+      <Row label="DESTINATION" value={assignment === null ? EM_DASH : `${assignment.airportIdent} RWY ${assignment.runwayEndIdent} · ${assignment.distanceNm.toFixed(1)} NM`} />
       <Row label="CALLSIGN" value={formatCallsign(contact.hex)} />
       <Row label="AIRCRAFT CLASS" value={params === null ? EM_DASH : formatClass(params.label)} />
 
@@ -61,6 +69,11 @@ export default function HandoffCard({
         GROUND SPEED IS USED AS TRUE AIRSPEED (STILL AIR) · ALTITUDE FROM{" "}
         {spawn === null ? EM_DASH : spawn.altitudeSource === "alt_geom" ? "ALT_GEOM" : "ALT_BARO"}
       </div>
+
+      <label className="handoff-row handoff-toggle">
+        <span className="label">HEADING → APPROACH</span>
+        <input type="checkbox" checked={faceApproach} onChange={(e) => onToggleFaceApproach(e.target.checked)} />
+      </label>
 
       <div className="label handoff-title">ADJUSTMENTS</div>
       {spawn === null || spawn.adjustments.length === 0 ? (

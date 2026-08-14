@@ -40,6 +40,7 @@ import TutorialPanel from "./tutorial/TutorialPanel";
 import FreeFlightPanel from "./freeflight/FreeFlightPanel";
 import { buildFreeFlightMission } from "./freeflight/freeFlight";
 import { buildInstantMission } from "./takeover/instantMission";
+import { shouldFaceApproach } from "./takeover/headingToFafPreference";
 import { nearestFlyableContact } from "./takeover/pickFlyable";
 import { loadAirports } from "./data/airports";
 import {
@@ -81,6 +82,15 @@ function canRetryMissionLock(error: unknown): boolean {
     "MISSION_DESTINATION_INVALID",
     "MISSION_IDEMPOTENCY_CONFLICT",
   ].includes(error.code ?? "");
+}
+
+/** Guarded read of the spawn-heading-to-FAF preference; default on when storage is unavailable. */
+function readFaceApproachPreference(): boolean {
+  try {
+    return shouldFaceApproach(typeof window === "undefined" ? null : window.localStorage);
+  } catch {
+    return true;
+  }
 }
 
 export default function App({ initialAuthToken = null }: { initialAuthToken?: string | null }) {
@@ -330,7 +340,10 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
       if (authStatus !== "authenticated") {
         // Anon: fly it now, instant + unranked — no selection/briefing round-trip.
         try {
-          const mission = buildInstantMission(nearest, airports, { missionId: crypto.randomUUID() });
+          const mission = buildInstantMission(nearest, airports, {
+            missionId: crypto.randomUUID(),
+            faceApproach: readFaceApproachPreference(),
+          });
           if (useStore.getState().startInstantFlight(mission)) return;
         } catch {
           // Unsupported/no-airport: leave selection untouched.
@@ -349,6 +362,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
       try {
         const mission = buildInstantMission(briefing.state.contact, airports, {
           missionId: crypto.randomUUID(),
+          faceApproach: readFaceApproachPreference(),
         });
         if (useStore.getState().startInstantFlight(mission)) return;
       } catch {
