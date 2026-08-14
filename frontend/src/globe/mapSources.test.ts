@@ -45,6 +45,17 @@ describe("attributionFor", () => {
     expect(on).toMatch(/PLACES/i);
   });
 
+  it("drops the public-domain OurAirports/places credits in compact flight mode, keeps the required ones (#81)", () => {
+    const compact = attributionFor({ basemap: "SAT", labelsOn: true, terrainNote, compact: true });
+    // Courtesy public-domain credits are dropped to fit the portrait flight strip...
+    expect(compact).not.toMatch(/OURAIRPORTS/i);
+    expect(compact).not.toMatch(/PLACES/i);
+    // ...but the legally-required imagery + CC-BY terrain + traffic credits stay.
+    expect(compact).toContain("IMAGERY © ESRI");
+    expect(compact).toContain(terrainNote);
+    expect(compact).toMatch(/TRAFFIC:/);
+  });
+
   it("says the terrain is still loading rather than crediting a source that has not attached", () => {
     const line = attributionFor({ basemap: "SAT", labelsOn: false, terrainNote: null });
     expect(line).toContain("TERRAIN LOADING…");

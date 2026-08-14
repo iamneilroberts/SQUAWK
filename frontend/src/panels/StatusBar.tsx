@@ -197,7 +197,8 @@ export default function StatusBar({ terrainNote, contactsChip, immersive = false
       )}
       {regions.clock && <span>{formatUtcClock(now)}</span>}
       <span className="flex-1" />
-      <span>{attributionFor({ basemap, labelsOn, terrainNote })}</span>
+      {/* #81: in mobile flight the attribution goes compact so it fits over the touch controls. */}
+      <span className="status-attribution">{attributionFor({ basemap, labelsOn, terrainNote, compact: immersive })}</span>
     </div>
   );
 }

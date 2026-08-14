@@ -1299,6 +1299,11 @@ body {
   inset: 0;
   pointer-events: none;
   z-index: 25;
+  /* Holding a button to repeat trim/flaps was selecting the button label (mobile long-press).
+     No control text is ever meant to be selectable. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* Virtual analog stick — bottom-left thumb. Round pad is the ONE place radius is allowed to
@@ -1448,7 +1453,11 @@ body {
    buttons' faint ghost outline) so it stands out as an emergency aid. */
 .touch-level-btn {
   position: absolute;
-  left: 50%;
+  /* #81 follow-up: on a narrow (portrait) phone a centered button collides with the bottom-left
+     stick (left 16px + 132px wide → right edge ~148px). max(50%, 210px) keeps it centered on wide
+     screens but shifts its center right of the stick (center ≥ 148 + 12 gap + 50 half-width) on
+     narrow ones, so the RE-SYNC/LEVEL buttons never touch the joystick. */
+  left: max(50%, 210px);
   transform: translateX(-50%);
   bottom: calc(max(12px, env(safe-area-inset-bottom)) + 56px);
   min-width: 100px;
@@ -1480,7 +1489,8 @@ body {
    at once without overlapping the stick/throttle/MENU. */
 .touch-resync-btn {
   position: absolute;
-  left: 50%;
+  /* Same narrow-screen stick-clearance shift as .touch-level-btn (owner: RE-SYNC touched the stick). */
+  left: max(50%, 210px);
   transform: translateX(-50%);
   bottom: calc(max(12px, env(safe-area-inset-bottom)) + 108px);
   min-width: 100px;
@@ -1819,6 +1829,16 @@ body {
   background: linear-gradient(0deg, rgba(5, 7, 10, 0.82), rgba(5, 7, 10, 0));
   opacity: 0.72;
   transition: opacity 0.5s ease;
+  /* #81: mobile flight — this bar is display-only (feed status + compact attribution). Keep it
+     UNDER the touch controls (they are z-index 25) AND non-interactive, so it can never eat a tap
+     on the button row it visually sits behind. Compact type + safe-area padding keep the required
+     attribution readable in the tight portrait strip without spilling up over the controls. */
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  font-size: 8px;
+  line-height: 1.35;
+  padding-bottom: max(2px, env(safe-area-inset-bottom));
 }
 .status-bar-faded { opacity: 0; }
 

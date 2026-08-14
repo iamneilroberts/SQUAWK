@@ -34,9 +34,13 @@ export function attributionFor(o: {
   basemap: BasemapKind;
   labelsOn: boolean;
   terrainNote: string | null;
+  /** Compact (#81): mobile flight strip — drop the OurAirports/places PUBLIC-DOMAIN credits
+   *  (courtesy, not legally required) so the line fits over the portrait touch controls. The
+   *  required Esri imagery + Re:Earth/Mapterhorn CC-BY terrain + traffic credits always stay. */
+  compact?: boolean;
 }): string {
   const parts = [BASEMAP_CREDIT[o.basemap], o.terrainNote ?? "TERRAIN LOADING…"];
-  if (o.labelsOn) parts.push(PLACES_CREDIT, AIRPORTS_CREDIT, NAVAIDS_CREDIT);
+  if (o.labelsOn && !o.compact) parts.push(PLACES_CREDIT, AIRPORTS_CREDIT, NAVAIDS_CREDIT);
   parts.push(TRAFFIC_CREDIT);
   return parts.join(" · ");
 }

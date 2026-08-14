@@ -2739,3 +2739,24 @@ marker label carries a **live distance** (`IDENT\n<dist> NM`) so it doubles as a
 range. The red dot the owner asked about is the PAPI light array (all red = below glide slope far out).
 
 Still open from that feedback: **#81** attribution overlapping the bottom controls in portrait (separate).
+
+## 2026-08-14 — #81 + portrait touch-control fixes (attribution overlap, RE-SYNC vs stick, text-select)
+
+Three portrait/mobile touch-layout fixes from owner device testing (#81 was closed prematurely — it
+persists in the portrait browser/narrow path, not just true fullscreen):
+
+1. **Attribution overlap (#81).** In mobile flight the `.status-bar-immersive` bar now (a) shows a
+   COMPACT attribution — `attributionFor({compact:true})` drops the OurAirports/places PUBLIC-DOMAIN
+   credits (courtesy, not legally required), keeping the required Esri imagery + Re:Earth/Mapterhorn
+   CC-BY terrain + traffic credits — and (b) is `pointer-events:none` + small (8px) + safe-area
+   padded. The touch buttons are already z-index 25 (above the z-5 bar) so taps were never actually
+   blocked; the fix is legibility + guaranteeing the bar can't eat a tap. Attribution stays visible
+   (CLAUDE.md data-sources rule) — only the public-domain courtesy credits move to the non-flight view.
+2. **RE-SYNC/LEVEL touched the joystick (portrait).** A center-anchored button collides with the
+   bottom-left stick (right edge ~148px) on a narrow screen. `left: max(50%, 210px)` keeps them
+   centered on wide screens but shifts their center right of the stick on narrow ones.
+3. **Holding a button selected its label text.** `user-select:none` (+ `-webkit-` + touch-callout)
+   on `.touch-controls` so long-press to repeat trim/flaps no longer selects the button text.
+
+All CSS/layout — owner device-verifies in portrait. The 210px stick-clearance and 8px attribution
+size are tunable.
