@@ -3,9 +3,29 @@ import { initialAssistState, selectAssist } from "./assistState";
 import {
   assistFeatures,
   assistModeFromPreference,
+  finalTurnCue,
   missionNavigationCue,
   nextAssistMode,
 } from "./assists";
+import { finalApproachFix } from "./guidanceGeometry";
+import { initialBearingDeg } from "./geo";
+import { missionProfileForClass } from "./profiles";
+import type { RunwayAssignment } from "./types";
+
+const assignment = {
+  airportElevationFt: 100,
+  runwayHeadingDeg: 90,
+  runwayLengthFt: 6000,
+  runwayWidthFt: 100,
+  assignedEnd: {
+    ident: "09",
+    latDeg: 30,
+    lonDeg: -88,
+    elevationFt: 110,
+    headingDeg: 90,
+    displacedThresholdFt: 0,
+  },
+} as RunwayAssignment;
 
 describe("mission assist modes", () => {
   it("maps the legacy profile default into FULL/NAV/OFF without reducing medium accounts", () => {
@@ -57,5 +77,28 @@ describe("mission assist modes", () => {
     expect(cue.bearingDeg).toBeCloseTo(89.75, 1);
     expect(cue.distanceNm).toBeGreaterThan(50);
     expect(cue.distanceNm).toBeLessThan(53);
+  });
+});
+
+describe("finalTurnCue", () => {
+  const profile = missionProfileForClass("c172s");
+
+  it("points to the FAF and carries on-slope alt + approach speed when en route", () => {
+    // own well outside the FAF distance, offset to the side of the centerline
+    const own = { latDeg: assignment.assignedEnd.latDeg + 0.3, lonDeg: assignment.assignedEnd.lonDeg + 0.3 };
+    const cue = finalTurnCue(own, assignment, profile);
+    expect(cue).not.toBeNull();
+    if (cue) {
+      const faf = finalApproachFix(assignment, profile.guidance);
+      expect(cue.bearingDeg).toBeCloseTo(initialBearingDeg(own.latDeg, own.lonDeg, faf.point.latDeg, faf.point.lonDeg), 6);
+      expect(cue.targetAltFt).toBeCloseTo(faf.altitudeFt, 6);
+      expect(cue.targetSpeedKt).toBe(profile.approach.targetSpeedKt);
+    }
+  });
+
+  it("returns null once inside the FAF distance (on final)", () => {
+    // own very close to the threshold
+    const own = { latDeg: assignment.assignedEnd.latDeg + 0.001, lonDeg: assignment.assignedEnd.lonDeg + 0.001 };
+    expect(finalTurnCue(own, assignment, profile)).toBeNull();
   });
 });
