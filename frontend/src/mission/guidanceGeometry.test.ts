@@ -3,12 +3,16 @@ import { missionProfileForClass } from "./profiles";
 import {
   approachGuidance,
   approachSurface,
+  directorDistanceNm,
+  DIRECTOR_LEAD_NM,
   glidepathToleranceFt,
   glideSlopeAltitudeFt,
+  positionAlongApproach,
   runwayOutline,
   surfaceQuads,
 } from "./guidanceGeometry";
 import { greatCircleDistanceNm } from "./geo";
+import { projectToRunwayFrame } from "./runwayGeometry";
 import type { RunwayAssignment } from "./types";
 
 const FEET_PER_NM = 6076.11549;
@@ -96,6 +100,47 @@ describe("glideSlopeAltitudeFt", () => {
   it("rides the glide slope one nautical mile out", () => {
     const expected = 110 + Math.tan((3 * Math.PI) / 180) * 1 * FEET_PER_NM;
     expect(glideSlopeAltitudeFt(assignment, guidance, 1)).toBeCloseTo(expected, 6);
+  });
+});
+
+describe("positionAlongApproach", () => {
+  const guidance = missionProfileForClass("c172s").guidance; // 3° slope
+
+  it("returns the threshold centerline point at distance 0, on the runway heading", () => {
+    const { point, approachHeadingDeg } = positionAlongApproach(assignment, guidance, 0);
+    expect(point.latDeg).toBeCloseTo(30, 6);
+    expect(point.lonDeg).toBeCloseTo(-88, 6);
+    expect(point.altitudeFt).toBeCloseTo(110, 6);
+    expect(approachHeadingDeg).toBe(90);
+  });
+
+  it("rides the shared glide slope on the centerline, outbound on the approach side", () => {
+    const { point } = positionAlongApproach(assignment, guidance, 1);
+    // altitude continuity with the gates + flyable surface
+    expect(point.altitudeFt).toBeCloseTo(glideSlopeAltitudeFt(assignment, guidance, 1), 6);
+    // exactly on the centerline (no cross-track), 1 nm back on the approach side (negative along-track)
+    const frame = projectToRunwayFrame(assignment, point);
+    expect(frame.crossTrackFt).toBeCloseTo(0, 3);
+    expect(frame.alongTrackFt).toBeCloseTo(-1 * FEET_PER_NM, 0);
+  });
+});
+
+describe("directorDistanceNm", () => {
+  it("leads own-ship toward the threshold by the default lead distance", () => {
+    expect(directorDistanceNm(5, 8)).toBeCloseTo(5 - DIRECTOR_LEAD_NM, 6);
+  });
+
+  it("parks at the threshold (0) once own-ship is within the lead distance", () => {
+    expect(directorDistanceNm(0.3, 8)).toBe(0);
+    expect(directorDistanceNm(0, 8)).toBe(0);
+  });
+
+  it("clamps to the approach length far out", () => {
+    expect(directorDistanceNm(20, 8)).toBe(8);
+  });
+
+  it("honors a custom lead distance", () => {
+    expect(directorDistanceNm(5, 8, 1.5)).toBeCloseTo(3.5, 6);
   });
 });
 

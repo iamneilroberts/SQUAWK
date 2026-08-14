@@ -50,6 +50,40 @@ export function glidepathToleranceFt(
   );
 }
 
+/** Threshold-relative default: the approach flight director (#22) rides this far ahead of the
+ *  player toward the threshold. Tunable policy constant — a fixed distance-ahead, not a look-ahead
+ *  time — so the guide sits at a legible, speed-independent lead. */
+export const DIRECTOR_LEAD_NM = 0.6;
+
+/** The centerline point on the glide slope `distanceNm` back from the threshold, plus the approach
+ *  heading (the runway heading — the direction a landing aircraft flies). This is the missing
+ *  centerline path the edge/surface helpers above never exposed; altitude reuses the shared
+ *  glide-slope helper so the point rides exactly on the gates and flyable surface. */
+export function positionAlongApproach(
+  assignment: RunwayAssignment,
+  guidance: MissionProfile["guidance"],
+  distanceNm: number,
+): { point: GuidancePoint; approachHeadingDeg: number } {
+  const threshold = assignment.assignedEnd;
+  const outbound = assignment.runwayHeadingDeg + 180;
+  const center = destinationPoint(threshold.latDeg, threshold.lonDeg, outbound, distanceNm);
+  return {
+    point: { ...center, altitudeFt: glideSlopeAltitudeFt(assignment, guidance, distanceNm) },
+    approachHeadingDeg: assignment.runwayHeadingDeg,
+  };
+}
+
+/** Distance-to-threshold the director should sit at: `leadNm` ahead of own-ship (toward the
+ *  threshold), clamped to `[0, approachLengthNm]`. Own-ship within the lead distance (at the flare /
+ *  over the threshold) clamps to 0, parking the guide at the threshold. */
+export function directorDistanceNm(
+  ownDistanceNm: number,
+  approachLengthNm: number,
+  leadNm: number = DIRECTOR_LEAD_NM,
+): number {
+  return Math.max(0, Math.min(approachLengthNm, ownDistanceNm - leadNm));
+}
+
 export function runwayOutline(assignment: RunwayAssignment): GuidancePoint[] {
   const threshold = assignment.assignedEnd;
   const elevationFt = runwayElevationFt(assignment);

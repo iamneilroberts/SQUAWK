@@ -47,6 +47,7 @@ import { assistFeatures, assistModeFromPreference, missionNavigationCue } from "
 import AssistControl from "../mission/AssistControl";
 import MissionRouteLayer from "../globe/MissionRouteLayer";
 import ApproachAssistLayer from "../globe/ApproachAssistLayer";
+import DirectorLayer from "../globe/DirectorLayer";
 import PapiLayer from "../globe/PapiLayer";
 import type {
   DebriefSubmission,
@@ -886,6 +887,10 @@ export default function FlightSession({
           <PapiLayer mission={lockedMission} />
           <MissionRouteLayer mission={lockedMission} assist={assist.current} />
           <ApproachAssistLayer mission={lockedMission} assist={assist.current} />
+          {/* The approach flight director (#22): a green lead aircraft flying the glide slope ahead
+              of the player. FULL-assist landing aid, gated like the glide gates; sibling of the
+              corridor surface, not a replacement for it. */}
+          <DirectorLayer mission={lockedMission} assist={assist.current} instantFlight={instantFlight} />
           {/* Screen-space assist chrome folds into the same video-player auto-hide as the HUD
               (owner 2026-08-11: assist elements take too much space — fade them out). The
               world-space Cesium layers above stay: they are the guidance itself. On narrow

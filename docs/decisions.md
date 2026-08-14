@@ -2584,3 +2584,42 @@ The altitude band reuses the existing glidepath tolerance (max(120 ft, 18% of gl
 approachAlerts ×1); extracted `glideSlopeAltitudeFt` + `glidepathToleranceFt` into guidanceGeometry.ts
 (the mission-layer home) and pointed all call sites, including the new `mission/approachBand.ts`, at
 them so the band and the HIGH/LOW approach calls agree on what "on path" means.
+
+## 2026-08-14 — #22 Approach flight director (green lead aircraft on the glide slope)
+
+A synthetic lead aircraft that flies the correct approach centerline a fixed distance ahead of the
+player, as a fly-through flight director. Rendered with the existing low-poly primitive
+(`createAircraftModel`) in a new **translucent green** `DIRECTOR_MODEL_STYLE` (`#39d353` @ α0.5) —
+distinct from the SIM amber player and the cyan ghost, so it reads as a UI guidance aid and can
+never be mistaken for the player's own aircraft or a real live contact.
+
+**Name — NOT "ghost".** "Ghost" already means the REAL ADS-B aircraft after takeover (dimmed cyan,
+`globe/ghost.ts`). The new guide is named **director** everywhere (`DirectorLayer`,
+`DIRECTOR_MODEL_STYLE`, `positionAlongApproach`, `directorDistanceNm`) to avoid the collision.
+
+**Pure geometry (TDD, `mission/guidanceGeometry.ts`).** Added `positionAlongApproach(assignment,
+guidance, distanceNm)` returning the centerline `{ point, approachHeadingDeg }` on the glide slope
+(altitude via the shared `glideSlopeAltitudeFt`, so the guide rides exactly on the gates + flyable
+surface); the file previously exposed only left/right EDGE segments, never the centerline. Lead
+policy is `directorDistanceNm(ownDistanceNm, approachLengthNm, leadNm=DIRECTOR_LEAD_NM)`: own-ship's
+distance-to-threshold minus the lead, clamped to `[0, approachLengthNm]`. **Lead = a fixed 0.6 nm
+ahead** (a distance, not a look-ahead time, so the guide sits at a speed-independent lead); the clamp
+to 0 parks it at the threshold at the flare / over the threshold. Both are unit-tested.
+
+**Per-frame mechanism.** `globe/DirectorLayer.tsx` follows the `ContactLayer` persist-across-effect
+pattern (model in a `useRef`, destroyed only on unmount, hidden when gated) and the `PapiLayer`
+`scene.preRender` idiom: each render frame reads `hudSnapshot.get()`, recomputes the director
+position, and calls `model.update()` — zero React churn. Oriented level on the approach heading via
+`quatFromHpr` (no faked pitch/roll). Uses `mission.classId` for the airframe shape.
+
+**Gating.** FULL assist only (mirrors `assistFeatures(assist).glideGates`), on the approach side
+(`projectToRunwayFrame(...).alongTrackFt < 0`) and within `approachLengthNm`, never on instant
+flight. Mounted as a sibling of `ApproachAssistLayer` in `FlightSession.tsx` under the same
+`lockedMission !== null && assist !== null && mode !== "ENDED"` guard.
+
+**Kept the corridor surface.** The #24 translucent glide-slope surface + glide gates in
+`ApproachAssistLayer` are unchanged — the director is ADDED alongside them, not a replacement.
+
+**3D is not unit-testable** (needs a browser): only the pure geometry is tested. Owner must eyeball
+the green guide on the glide slope in the running app, and confirm the lead distance, the green
+style, and that keeping the corridor surface + a lead aircraft together isn't visually busy.

@@ -60,6 +60,16 @@ export const GHOST_MODEL_STYLE: AircraftModelStyle = {
   color: Color.fromCssColorString("#5fd7e0").withAlpha(0.6),
 };
 
+/**
+ * The approach flight-director lead (issue #22): a translucent GREEN guide aircraft flying the
+ * correct glide slope a fixed distance ahead of the player. Green is neither the SIM amber nor the
+ * ghost cyan, so it reads as a UI guidance aid — never mistaken for the player's own aircraft nor
+ * for a real live contact. It is synthetic guidance, not a synthesized contact.
+ */
+export const DIRECTOR_MODEL_STYLE: AircraftModelStyle = {
+  color: Color.fromCssColorString("#39d353").withAlpha(0.5),
+};
+
 export type AircraftModel = {
   /** Re-place the solid model at an ECEF position with a body->ECEF attitude quaternion. */
   update(positionEcef: Vec3, attitude: Quat): void;
