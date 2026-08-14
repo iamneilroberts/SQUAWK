@@ -2623,3 +2623,45 @@ flight. Mounted as a sibling of `ApproachAssistLayer` in `FlightSession.tsx` und
 **3D is not unit-testable** (needs a browser): only the pure geometry is tested. Owner must eyeball
 the green guide on the glide slope in the running app, and confirm the lead distance, the green
 style, and that keeping the corridor surface + a lead aircraft together isn't visually busy.
+## 2026-08-14 — #3 Visual GPWS: sink-rate-aware ground proximity (replaces the fixed-500-ft floor)
+
+The old ground-proximity warning (`warningsFor` in `hud/format.ts`) pushed a plain `TERRAIN` message
+whenever AGL clearance was under a fixed 500 ft — a false positive that nagged continuously through
+any normal low-level flight and, worse, through a stabilized final approach, exactly when the pilot
+least needs a spurious alert. Replaced it with a **sink-rate-aware** annunciator modeled loosely on
+the real GPWS Mode 1 (Excessive Descent Rate) envelope: the closer to the ground, the less descent
+rate is tolerated. Steady low flight that is *not* descending dangerously is now silent.
+
+**New pure module `hud/gpws.ts`** — `gpwsWarningsFor(snapshot): string[]` reads `terrainClearanceM`
+(AGL) and `verticalSpeedMs` (sink rate). Two amber tiers driven by altitude-scaled thresholds:
+`SINK RATE` (caution) and a stronger `PULL UP` (warning). Folded into `warningsFor` (single call,
+smallest diff) so desktop `Hud.tsx` and mobile `ImmersiveHudBar` share one source of truth and the
+"never fade the chrome while a warning is up" behavior keeps working unchanged. `TERRAIN UNVERIFIED`
+still takes precedence and is never mixed with a proximity call — proximity is only ever claimed
+against a measured clearance (honest-data rule).
+
+**Threshold constants (tunable, documented in `gpws.ts`):**
+- caution (`SINK RATE`): `sinkFpm ≥ GPWS_SINK_BASE_FPM (1000) + AGL_ft × GPWS_SINK_SLOPE_FPM_PER_FT (1.0)`
+- warning (`PULL UP`): `sinkFpm ≥ GPWS_PULLUP_BASE_FPM (1600) + AGL_ft × GPWS_PULLUP_SLOPE_FPM_PER_FT (1.6)`
+- armed only below `GPWS_ARM_ALT_FT (2500)` ft AGL; a climb or level flight is always silent.
+
+Rationale: a normal stabilized approach descends ~600–800 fpm (3° airliner final) or far less
+(light single) near the ground, so the ~1000-fpm-at-the-surface caution floor clears it with margin,
+while a genuinely excessive descent for the height still trips. Loosely tracks the real Mode 1 low-
+altitude boundaries (~1000 fpm at the surface, ~1500 fpm at 500 ft for the caution). **These are
+tuning knobs pending owner review** against the flight model's real per-class approach profiles —
+same provisional status as CD0/e, the fighter envelope, and the #52 approach speeds.
+
+**AGL readout emphasis.** While a `SINK RATE`/`PULL UP` call is up (`groundProximityActive(snapshot)`),
+the existing AGL readout is amber-emphasised on both platforms (desktop `.hud-readout-alert`, mobile
+`.imm-agl-alert`) — a class toggle + CSS, reusing the already-computed `terrainClearanceM` (no
+re-sampling). `TERRAIN UNVERIFIED` deliberately does not emphasise: that readout already shows its
+honest em-dash and amber-lighting a dash would imply a proximity we cannot measure.
+
+**DEFERRED (owner's call) — a red "PULL UP" severity tier.** Real GPWS colors the hard `PULL UP`
+warning red, distinct from the amber caution. The design system is deliberately one-amber-one-cyan
+(CLAUDE.md), and adding a first-ever `--red` token is a design-system change that belongs to the
+owner, not this issue. Shipped **amber-only** now: both tiers render in the existing `--amber`, so
+`PULL UP` is a stronger *message* but not a stronger *color*. Proposed follow-up: introduce a red
+severity token and route `PULL UP` (and possibly `STALL`) to it, if the owner wants two-tier
+warning color. Left as a deferred decision here rather than implemented.

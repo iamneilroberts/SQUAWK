@@ -23,6 +23,7 @@ import {
   formatG, formatHeadingDeg, formatIasKt, formatLightPhase, formatSimRate,
   formatTasKt, formatVsiFpm, warningsFor,
 } from "./format";
+import { groundProximityActive } from "./gpws";
 import ControlStateCells from "./controls/ControlStateCells";
 
 /*
@@ -48,9 +49,13 @@ function HudDestinationCue({ navCue }: { navCue: ImmersiveHudNavCue | null }) {
   );
 }
 
-function Readout({ label, value, unit }: { label: string; value: string; unit?: string }) {
+function Readout({ label, value, unit, emphasis = false }: {
+  label: string; value: string; unit?: string;
+  /** #3: amber-emphasise this readout — the AGL cell wears it while a GPWS proximity call is up. */
+  emphasis?: boolean;
+}) {
   return (
-    <div className="hud-readout">
+    <div className={"hud-readout" + (emphasis ? " hud-readout-alert" : "")}>
       <span className="hud-readout-label">{label}</span>
       <span className="hud-readout-value">{value}</span>
       {unit ? <span className="hud-readout-unit">{unit}</span> : null}
@@ -110,6 +115,7 @@ export default function Hud({
 }) {
   if (snapshot === null) return null;
   const warnings = warningsFor(snapshot);
+  const aglAlert = groundProximityActive(snapshot);
   const simRate = formatSimRate(snapshot.simRate);
   const showBar = immersive || narrow;
   const rootClass =
@@ -166,7 +172,7 @@ export default function Hud({
       <div className="hud-right hud-scrim">
         <Readout label="ALT" value={formatAltFt(snapshot.altitudeM)} unit="FT" />
         <Readout label="VSI" value={formatVsiFpm(snapshot.verticalSpeedMs)} unit="FPM" />
-        <Readout label="AGL" value={formatClearanceFt(snapshot.terrainClearanceM)} unit="FT" />
+        <Readout label="AGL" value={formatClearanceFt(snapshot.terrainClearanceM)} unit="FT" emphasis={aglAlert} />
         <Readout label="T" value={formatAirtime(snapshot.airtimeS)} />
       </div>
 

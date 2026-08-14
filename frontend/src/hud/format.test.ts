@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  EM_DASH, TERRAIN_WARNING_FT, SIM_RATE_WARNING,
+  EM_DASH, SIM_RATE_WARNING,
   formatIasKt, formatTasKt, formatAltFt, formatVsiFpm, formatHeadingDeg, formatAoaDeg,
   formatG, formatThrottlePct, formatTrim, formatFlaps, formatGear, formatClearanceFt,
   formatAirtime, formatSimRate, formatCallsign, formatClass, formatLightPhase,
@@ -162,23 +162,33 @@ describe("warningsFor", () => {
   it("reports the g limit being reached", () => {
     expect(warningsFor(snap({ gLimited: true }))).toContain("G LIMIT");
   });
-  it("reports terrain proximity below 500 ft of clearance", () => {
-    expect(warningsFor(snap({ terrainClearanceM: ftToM(TERRAIN_WARNING_FT - 1) }))).toContain("TERRAIN");
-    expect(warningsFor(snap({ terrainClearanceM: ftToM(TERRAIN_WARNING_FT + 1) }))).not.toContain("TERRAIN");
+  it("surfaces the sink-rate-aware ground-proximity call from gpws (SINK RATE), not a fixed floor", () => {
+    // Low and descending hard trips the caution; low but level does NOT (the old false positive).
+    expect(warningsFor(snap({ terrainClearanceM: ftToM(400), verticalSpeedMs: fpmToMs(-2000) })))
+      .toContain("SINK RATE");
+    expect(warningsFor(snap({ terrainClearanceM: ftToM(400), verticalSpeedMs: 0 })))
+      .not.toContain("SINK RATE");
+  });
+  it("does not nag a normal low pass or stabilized approach (level or gentle descent, low AGL)", () => {
+    expect(warningsFor(snap({ terrainClearanceM: ftToM(300), verticalSpeedMs: fpmToMs(-600) })))
+      .toEqual([]);
   });
   it("reports unverified terrain, which is a different thing from being close to it", () => {
     const w = warningsFor(snap({ terrainUnverified: true }));
     expect(w).toContain("TERRAIN UNVERIFIED");
-    expect(w).not.toContain("TERRAIN");
+    expect(w).not.toContain("SINK RATE");
+    expect(w).not.toContain("PULL UP");
   });
   it("never claims terrain proximity when the ground has never been sampled", () => {
-    expect(warningsFor(snap({ terrainClearanceM: null, terrainUnverified: true })))
-      .not.toContain("TERRAIN");
+    const w = warningsFor(snap({ terrainClearanceM: null, verticalSpeedMs: fpmToMs(-3000) }));
+    expect(w).not.toContain("SINK RATE");
+    expect(w).not.toContain("PULL UP");
   });
   it("reports several at once, stall first", () => {
-    const w = warningsFor(snap({ stalled: true, gLimited: true, terrainClearanceM: 10 }));
+    const w = warningsFor(snap({ stalled: true, gLimited: true, terrainClearanceM: ftToM(100), verticalSpeedMs: fpmToMs(-2500) }));
     expect(w[0]).toBe("STALL");
     expect(w).toHaveLength(3);
+    expect(w).toContain("PULL UP");
   });
   it("reports a gear overspeed distinctly from IAS and Mach overspeed", () => {
     expect(warningsFor(snap({ gearOverspeed: true }))).toContain("GEAR O'SPD");
