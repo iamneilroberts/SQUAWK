@@ -22,7 +22,7 @@ import { degToRad, fpmToMs, ftToM, ktToMs, msToKt, mToFt } from "../sim/units";
 import { vDot } from "../sim/vec3";
 import { refreshDerived } from "../sim/aircraft";
 import type { AircraftClassId } from "../mission/types";
-import { normalizeHeading } from "../mission/geo";
+import { headingDeltaDeg, normalizeHeading } from "../mission/geo";
 
 const G0 = 9.80665;
 /** Minimum clearance when a pressure altitude has to be clamped onto real terrain. */
@@ -164,7 +164,7 @@ export function buildSpawnState(
   const headingRad = degToRad(headingDeg);
   if (
     opts.spawnHeadingDeg !== undefined &&
-    Math.abs(normalizeHeading(opts.spawnHeadingDeg) - normalizeHeading(liveTrackDeg)) > 0.5
+    headingDeltaDeg(opts.spawnHeadingDeg, liveTrackDeg) > 0.5
   ) {
     adjustments.push({
       field: "HEADING",
