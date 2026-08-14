@@ -5,6 +5,7 @@ import {
   approachSurface,
   directorDistanceNm,
   DIRECTOR_LEAD_NM,
+  finalApproachFix,
   glidepathToleranceFt,
   glideSlopeAltitudeFt,
   positionAlongApproach,
@@ -122,6 +123,21 @@ describe("positionAlongApproach", () => {
     const frame = projectToRunwayFrame(assignment, point);
     expect(frame.crossTrackFt).toBeCloseTo(0, 3);
     expect(frame.alongTrackFt).toBeCloseTo(-1 * FEET_PER_NM, 0);
+  });
+});
+
+describe("finalApproachFix", () => {
+  const baseGuidance = missionProfileForClass("c172s").guidance; // 3° slope
+
+  it("sits on the centerline at finalApproachFixNm, on-slope", () => {
+    const guidance = { ...baseGuidance, finalApproachFixNm: 5.5, approachLengthNm: 5, glideSlopeDeg: 3 };
+    const faf = finalApproachFix(assignment, guidance);
+    expect(faf.headingDeg).toBeCloseTo(assignment.runwayHeadingDeg, 6);
+    expect(faf.altitudeFt).toBeCloseTo(glideSlopeAltitudeFt(assignment, guidance, 5.5), 6);
+    // point matches positionAlongApproach at the same distance
+    const ref = positionAlongApproach(assignment, guidance, 5.5).point;
+    expect(faf.point.latDeg).toBeCloseTo(ref.latDeg, 9);
+    expect(faf.point.lonDeg).toBeCloseTo(ref.lonDeg, 9);
   });
 });
 
