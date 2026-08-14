@@ -73,6 +73,16 @@ export function positionAlongApproach(
   };
 }
 
+/** The final approach fix (FAF): the centerline point on the glide slope at
+ *  `guidance.finalApproachFixNm` back from the threshold. */
+export function finalApproachFix(
+  assignment: RunwayAssignment,
+  guidance: MissionProfile["guidance"],
+): { point: GuidancePoint; headingDeg: number; altitudeFt: number } {
+  const { point, approachHeadingDeg } = positionAlongApproach(assignment, guidance, guidance.finalApproachFixNm);
+  return { point, headingDeg: approachHeadingDeg, altitudeFt: point.altitudeFt };
+}
+
 /** Distance-to-threshold the director should sit at: `leadNm` ahead of own-ship (toward the
  *  threshold), clamped to `[0, approachLengthNm]`. Own-ship within the lead distance (at the flare /
  *  over the threshold) clamps to 0, parking the guide at the threshold. */
