@@ -407,6 +407,10 @@ body {
 .hud-readout-label { font-size: 10px; opacity: 0.7; min-width: 28px; }
 .hud-readout-value { font-size: 18px; }
 .hud-readout-unit { font-size: 10px; opacity: 0.7; }
+/* #3: AGL amber emphasis while a GPWS ground-proximity call (SINK RATE / PULL UP) is up. */
+.hud-readout-alert .hud-readout-label,
+.hud-readout-alert .hud-readout-value,
+.hud-readout-alert .hud-readout-unit { color: var(--amber); opacity: 1; }
 .hud-warnings {
   position: absolute;
   top: 46%;
@@ -1893,6 +1897,8 @@ body {
 }
 .imm-director-heading { color: var(--amber); font-size: 11px; white-space: nowrap; }
 .imm-director-secondary { color: var(--text); opacity: 0.68; font-size: 6px; white-space: nowrap; }
+/* #3: AGL amber emphasis on the mobile rails while a GPWS ground-proximity call is up. */
+.imm-agl-alert, .imm-agl-alert b { color: var(--amber); opacity: 1; }
 /* #52: suggested approach speed/altitude band — cyan (nominal guidance), a touch above secondary. */
 .imm-director-approach { color: var(--cyan); font-size: 8px; letter-spacing: 0.04em; white-space: nowrap; }
 .imm-bar-tapes .imm-director-approach { font-size: 10px; }

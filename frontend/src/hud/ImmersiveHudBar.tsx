@@ -19,6 +19,7 @@ import {
   formatVsiFpm,
   warningsFor,
 } from "./format";
+import { groundProximityActive } from "./gpws";
 import { radToDeg, mToFt, msToKt } from "../sim/units";
 
 export type BarField = { label: string; value: string; unit?: string };
@@ -178,7 +179,10 @@ function NavDirector({ snapshot, navCue, approachBand = null, compact = false }:
       )}
       {compact && (
         <span className="imm-director-secondary">
-          VSI {formatVsiFpm(snapshot.verticalSpeedMs)} · AGL {formatClearanceFt(snapshot.terrainClearanceM)}
+          VSI {formatVsiFpm(snapshot.verticalSpeedMs)} · AGL{" "}
+          <span className={groundProximityActive(snapshot) ? "imm-agl-alert" : undefined}>
+            {formatClearanceFt(snapshot.terrainClearanceM)}
+          </span>
         </span>
       )}
     </span>
@@ -267,7 +271,7 @@ function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange, approachBand }: 
           <NavDirector snapshot={snapshot} navCue={navCue} approachBand={approachBand} />
           <span className="imm-director-systems">
             <span>VSI <b>{formatVsiFpm(snapshot.verticalSpeedMs)}</b></span>
-            <span>AGL <b>{formatClearanceFt(snapshot.terrainClearanceM)}</b></span>
+            <span className={groundProximityActive(snapshot) ? "imm-agl-alert" : undefined}>AGL <b>{formatClearanceFt(snapshot.terrainClearanceM)}</b></span>
           </span>
         </span>
       </span>

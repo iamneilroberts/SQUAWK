@@ -6,10 +6,9 @@
 import type { HudSnapshot } from "./snapshot";
 import type { LightPhase } from "../world/dayNight";
 import { msToKt, mToFt, msToFpm, radToDeg } from "../sim/units";
+import { gpwsWarningsFor } from "./gpws";
 
 export const EM_DASH = "—";
-/** Terrain-proximity warning threshold, feet of clearance. */
-export const TERRAIN_WARNING_FT = 500;
 /** At or above this sim rate the loop is keeping up and says nothing. */
 export const SIM_RATE_WARNING = 0.95;
 
@@ -159,9 +158,9 @@ export function gearOverspeedFor(
 }
 
 /**
- * Warnings, most urgent first. TERRAIN (you are close to the ground) and TERRAIN UNVERIFIED
- * (we do not know where the ground is) are deliberately different messages — and proximity
- * is never claimed when clearance is unknown.
+ * Warnings, most urgent first. The ground-proximity calls (SINK RATE / PULL UP / TERRAIN
+ * UNVERIFIED) come from the sink-rate-aware GPWS module (gpws.ts) so desktop and mobile share
+ * one source of truth; proximity is never claimed when clearance is unknown.
  */
 export function warningsFor(s: HudSnapshot): string[] {
   const out: string[] = [];
@@ -170,9 +169,6 @@ export function warningsFor(s: HudSnapshot): string[] {
   if (s.machOverspeed) out.push("MMO");
   if (s.gearOverspeed) out.push("GEAR O'SPD");
   if (s.gLimited) out.push("G LIMIT");
-  if (s.terrainUnverified) out.push("TERRAIN UNVERIFIED");
-  else if (s.terrainClearanceM !== null && mToFt(s.terrainClearanceM) < TERRAIN_WARNING_FT) {
-    out.push("TERRAIN");
-  }
+  out.push(...gpwsWarningsFor(s));
   return out;
 }
