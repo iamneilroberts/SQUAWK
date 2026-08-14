@@ -148,6 +148,10 @@ export default function FlightSession({
   const hostRef = useRef<ReturnType<typeof createCesiumFlightHost> | null>(null);
   const keyboardRef = useRef<ReturnType<typeof createKeyboard> | null>(null);
   const terrainRef = useRef<TerrainService | null>(null);
+  // Terrain height resolved by the COUNTDOWN effect below, kept around so the faceApproach-toggle
+  // effect can rebuild the spawn (new heading only) without re-running terrain preload.
+  const countdownTerrainHeightMRef = useRef<number | null>(null);
+  const countdownTerrainResolvedRef = useRef(false);
   const releaseKeyRef = useRef<string | null>(null);
   const resultKeyRef = useRef<string | null>(null);
   const resyncNoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -330,6 +334,7 @@ export default function FlightSession({
   useEffect(() => {
     if (mode !== "COUNTDOWN" || !bundle || !lockedMission) return;
     let cancelled = false;
+    countdownTerrainResolvedRef.current = false;
     // Hoisted to effect scope (not returned from the async IIFE below, which is discarded —
     // `void (async () => {...})()` never surfaces an inner `return` to React) so the effect's
     // OWN cleanup can always reach it: ViewerHost replaces the `bundle` object when
@@ -366,6 +371,8 @@ export default function FlightSession({
             terrainHeightM: null,
           };
       if (cancelled) return;
+      countdownTerrainHeightMRef.current = preload.terrainHeightM;
+      countdownTerrainResolvedRef.current = true;
 
       const spawnHeadingDeg =
         faceApproach && !freeFlight
@@ -568,6 +575,8 @@ export default function FlightSession({
     // this mid-countdown for a field this effect never reads.
     // Deliberately depend on the bundle's stable members, not the bundle object; see above.
     // submitPendingResult owns refs/current mission and must not restart an active countdown.
+    // `faceApproach` is deliberately NOT a dep here — see the decoupled rebuild effect below;
+    // depending on it would restart the 3-2-1 timer and re-run terrain preload on every toggle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     mode,
@@ -577,8 +586,35 @@ export default function FlightSession({
     tutorial,
     freeFlight,
     instantFlight,
-    faceApproach,
   ]);
+
+  // Toggling HEADING → APPROACH mid-COUNTDOWN rebuilds ONLY the spawn (new heading), reusing the
+  // terrain height the effect above already resolved — deliberately decoupled so it never resets
+  // the 3-2-1 timer or reflashes "ACQUIRING TERRAIN…" (the countdown effect above owns those).
+  useEffect(() => {
+    if (mode !== "COUNTDOWN" || !lockedMission || !countdownTerrainResolvedRef.current) return;
+    const contact = lockedMission.contact;
+    const params = lockedMission.aircraftProfile;
+    if (params.id !== lockedMission.classId) return;
+    const spawnHeadingDeg =
+      faceApproach && !freeFlight
+        ? (() => {
+            const faf = finalApproachFix(lockedMission.assignment, lockedMission.missionProfile.guidance);
+            return initialBearingDeg(contact.lat, contact.lon, faf.point.latDeg, faf.point.lonDeg);
+          })()
+        : undefined;
+    setSpawn(buildLockedMissionSpawn(contact, lockedMission.classId, params, {
+      terrainHeightM: countdownTerrainHeightMRef.current,
+      spawnHeadingDeg,
+      ...(tutorial === null
+        ? {}
+        : { initialFlapDetent: params.flaps.length - 1, initialGearDown: true }),
+    }));
+    // Deliberately only `faceApproach`: this effect exists to react to the toggle, not to
+    // mode/lockedMission changes — those are already handled by the countdown effect above,
+    // which also seeds countdownTerrainResolvedRef/countdownTerrainHeightMRef before this can fire.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [faceApproach]);
 
   // Pause from FLYING: stop the physics loop and move the machine to PAUSED. Shared by desktop
   // Escape, the auto-pause on tab-hide, and the mobile MENU button (#58 — the mobile abort valve;
@@ -1037,7 +1073,8 @@ export default function FlightSession({
         <HandoffCard contact={lockedMission.contact} spawn={spawn} params={originParams}
           matched={originResolution?.matched ?? false} countdown={countdown} note={note}
           assignment={lockedMission.assignment}
-          faceApproach={faceApproach} onToggleFaceApproach={toggleFaceApproach} />
+          faceApproach={faceApproach} onToggleFaceApproach={toggleFaceApproach}
+          freeFlight={freeFlight} />
       )}
       {stripMountedForMode(mode) && (
         <>
