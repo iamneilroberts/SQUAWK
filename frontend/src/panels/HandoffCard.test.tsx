@@ -3,6 +3,7 @@ import HandoffCard from "./HandoffCard";
 import { buildSpawnState } from "../takeover/spawn";
 import { loadC172, loadClassById } from "../sim/params";
 import type { Contact } from "../data/types";
+import type { RunwayAssignment } from "../mission/types";
 
 const P = loadC172();
 const ga = (o: Partial<Contact> = {}): Contact => ({
@@ -28,7 +29,46 @@ function collectText(node: unknown, out: string[] = []): string[] {
   return out;
 }
 
-const render = (props: Parameters<typeof HandoffCard>[0]) => collectText(HandoffCard(props)).join(" ");
+type Props = Parameters<typeof HandoffCard>[0];
+// Newer required props (#88-followup) default to the pre-toggle behavior — facing the approach,
+// no destination fixture, not free flight — so every existing call site keeps working unchanged;
+// tests that care override just the one they need.
+type DefaultedProps = "assignment" | "faceApproach" | "onToggleFaceApproach" | "freeFlight";
+const render = (props: Omit<Props, DefaultedProps> & Partial<Pick<Props, DefaultedProps>>) =>
+  collectText(HandoffCard({
+    assignment: null,
+    faceApproach: true,
+    onToggleFaceApproach: () => {},
+    freeFlight: false,
+    ...props,
+  })).join(" ");
+
+const airportAssignment: RunwayAssignment = {
+  airportIdent: "KTST",
+  airportName: "Test Field",
+  airportLatDeg: 30.7,
+  airportLonDeg: -88.05,
+  airportElevationFt: 100,
+  runwayId: "09/27",
+  runwayIdent: "09/27",
+  runwayEndIdent: "27",
+  runwayHeadingDeg: 270,
+  runwayLengthFt: 5000,
+  runwayWidthFt: 100,
+  runwaySurface: "HARD",
+  runwayLighted: true,
+  assignedEnd: {
+    ident: "27",
+    latDeg: 30.71,
+    lonDeg: -88.06,
+    elevationFt: 100,
+    headingDeg: 270,
+    displacedThresholdFt: 0,
+  },
+  distanceNm: 4.2,
+  estimatedMinutes: 2,
+  suitability: 1,
+};
 
 describe("HandoffCard", () => {
   const spawn = buildSpawnState(ga(), P, { terrainHeightM: 20 });
@@ -95,5 +135,21 @@ describe("HandoffCard", () => {
     const text = render({ contact: nearNorth, spawn: nearNorthSpawn, params: P, matched: true, countdown: 3, note: "" });
     expect(text).toContain("000");
     expect(text).not.toContain("360");
+  });
+  it("shows the destination and the HEADING → APPROACH toggle for a real mission", () => {
+    const text = render({
+      contact: ga(), spawn, params: P, matched: true, countdown: 3, note: "",
+      assignment: airportAssignment, freeFlight: false,
+    });
+    expect(text).toContain("KTST RWY 27 · 4.2 NM");
+    expect(text).toContain("HEADING → APPROACH");
+  });
+  it("hides the destination and the toggle in free flight — no destination, heading never overridden", () => {
+    const text = render({
+      contact: ga(), spawn, params: P, matched: true, countdown: 3, note: "",
+      assignment: airportAssignment, freeFlight: true,
+    });
+    expect(text).not.toContain("KTST RWY 27 · 4.2 NM");
+    expect(text).not.toContain("HEADING → APPROACH");
   });
 });
