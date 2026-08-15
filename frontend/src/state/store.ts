@@ -144,6 +144,13 @@ type State = {
    * a distinct flag (not `freeFlight: true`) so those two debrief paths never blur.
    */
   instantFlight: boolean;
+  /**
+   * True when the running mission's spawn was repositioned (spawn chooser, reposition +
+   * unranked): a normal locked mission whose spawn skipped part of the route. Set by the
+   * spawn-build path when a reposition spawn mode is used; only affects the debrief — the
+   * flight is never submitted for a ranked result.
+   */
+  repositioned: boolean;
   assist: AssistState | null;
   endStats: FlightStats | null;
   /**
@@ -160,6 +167,7 @@ type State = {
   startInstantFlight(mission: LockedMissionView): boolean;
   setAssistMode(mode: AssistMode): void;
   setEndStats(s: FlightStats | null): void;
+  setRepositioned(on: boolean): void;
   /** Clears the session payload without touching the mode. */
   clearSession(): void;
   resetSession(): void;
@@ -221,6 +229,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   tutorial: null,
   freeFlight: false,
   instantFlight: false,
+  repositioned: false,
   assist: null,
   endStats: null,
 
@@ -389,6 +398,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       tutorial: null,
       freeFlight: false,
       instantFlight: false,
+      repositioned: false,
       origin: { hex: mission.contact.hex, snapshot: mission.contact },
       assist: initialAssistState(assistModeFromPreference(mission.assist)),
       endStats: null,
@@ -409,6 +419,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       tutorial,
       freeFlight: false,
       instantFlight: false,
+      repositioned: false,
       origin: { hex: mission.contact.hex, snapshot: mission.contact },
       assist: initialAssistState("FULL"),
       endStats: null,
@@ -431,6 +442,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       tutorial: null,
       freeFlight: true,
       instantFlight: false,
+      repositioned: false,
       origin: { hex: mission.contact.hex, snapshot: mission.contact },
       assist: initialAssistState(assistModeFromPreference(mission.assist)),
       endStats: null,
@@ -457,6 +469,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       tutorial: null,
       freeFlight: false,
       instantFlight: true,
+      repositioned: false,
       origin: { hex: mission.contact.hex, snapshot: mission.contact },
       assist: initialAssistState(assistModeFromPreference(mission.assist)),
       endStats: null,
@@ -476,6 +489,10 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
     set({ endStats: s });
   },
 
+  setRepositioned(on) {
+    set({ repositioned: on });
+  },
+
   clearSession() {
     set({
       origin: null,
@@ -483,6 +500,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       tutorial: null,
       freeFlight: false,
       instantFlight: false,
+      repositioned: false,
       assist: null,
       endStats: null,
       selectionLocked: false,
@@ -499,6 +517,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       tutorial: null,
       freeFlight: false,
       instantFlight: false,
+      repositioned: false,
       assist: null,
       endStats: null,
       selectionLocked: false,

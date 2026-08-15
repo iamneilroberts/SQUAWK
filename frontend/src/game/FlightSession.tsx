@@ -103,6 +103,10 @@ export default function FlightSession({
   const instantFlight = useStore((s) => s.instantFlight);
   // Both flags mark a purely client-side flight: no server lease to release, no result to submit.
   const local = freeFlight || instantFlight;
+  // Reposition spawn (spawn chooser): unlike freeFlight/instantFlight this keeps the lease and
+  // traffic polling — it only skips the ranked result submit on onEnd (below), so it is NOT
+  // folded into `local`.
+  const repositioned = useStore((s) => s.repositioned);
   const assist = useStore((s) => s.assist);
   const endStats = useStore((s) => s.endStats);
   const feedStatus = useStore((s) => s.feedStatus);
@@ -523,6 +527,20 @@ export default function FlightSession({
                 if (lockedMission.classId !== "biz" && lockedMission.classId !== "tprop") onTutorialCompleteRef.current?.(lockedMission.classId);
                 return;
               }
+              // Reposition spawn (spawn chooser): the spawn skipped part of the route, so the
+              // flight is local and unranked — no result submitted. A normal locked mission
+              // otherwise, so this sits after the freeFlight/instantFlight/tutorial short-circuits.
+              if (repositioned) {
+                pendingResultRef.current = null;
+                activeLessonRef.current = null;
+                setActiveLesson(null);
+                setDebrief({
+                  status: "unavailable",
+                  message: "REPOSITIONED — LOCAL AND UNRANKED. NO RESULT SUBMITTED.",
+                });
+                useStore.getState().fire("IMPACT");
+                return;
+              }
               if (coachingUsedRef.current) onCoachingCompleteRef.current?.();
               try {
                 const result = buildMissionResultPackage({
@@ -594,6 +612,7 @@ export default function FlightSession({
     tutorial,
     freeFlight,
     instantFlight,
+    repositioned,
   ]);
 
   // Toggling HEADING → APPROACH mid-COUNTDOWN rebuilds ONLY the spawn (new heading), reusing the
