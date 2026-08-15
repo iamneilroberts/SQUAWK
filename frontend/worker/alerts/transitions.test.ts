@@ -92,7 +92,7 @@ describe("alert transitions", () => {
 
   it("deduplicates repeated provider observations and applies a persisted cooldown", () => {
     const state = emptyAlertState(START);
-    for (let index = 0; index < 3; index += 1) {
+    for (let index = 0; index < 6; index += 1) {
       observeAlert(state, {
         type: "component-outcome",
         component: "provider",
@@ -102,11 +102,14 @@ describe("alert transitions", () => {
     }
     expect(state.outbox).toHaveLength(1);
     markAlertDelivered(state, state.outbox[0]!.alert.fingerprint);
-    observeAlert(state, { type: "component-outcome", component: "provider", outcome: "success", atMs: START + 10 });
-    expect(state.outbox).toHaveLength(1);
-    markAlertDelivered(state, state.outbox[0]!.alert.fingerprint);
-
+    // Recovery is silent (no recovery email) but still clears `active` internally, so a
+    // fresh run of failures below can re-trigger an active alert once cooldown allows it.
     for (let index = 0; index < 3; index += 1) {
+      observeAlert(state, { type: "component-outcome", component: "provider", outcome: "success", atMs: START + 10 + index });
+    }
+    expect(state.outbox).toHaveLength(0);
+
+    for (let index = 0; index < 6; index += 1) {
       observeAlert(state, {
         type: "component-outcome",
         component: "provider",
@@ -114,10 +117,14 @@ describe("alert transitions", () => {
         atMs: START + 20 + index,
       });
     }
+    // Still within the cooldown window from the first active alert, so no second is queued.
     expect(state.outbox).toHaveLength(0);
 
-    observeAlert(state, { type: "component-outcome", component: "provider", outcome: "success", atMs: START + ALERT_COOLDOWN_MS + 30 });
     for (let index = 0; index < 3; index += 1) {
+      observeAlert(state, { type: "component-outcome", component: "provider", outcome: "success", atMs: START + 30 + index });
+    }
+    observeAlert(state, { type: "component-outcome", component: "provider", outcome: "failure", atMs: START + ALERT_COOLDOWN_MS + 30 });
+    for (let index = 0; index < 6; index += 1) {
       observeAlert(state, {
         type: "component-outcome",
         component: "provider",
@@ -126,6 +133,35 @@ describe("alert transitions", () => {
       });
     }
     expect(state.outbox.at(-1)?.alert.phase).toBe("active");
+  });
+
+  it("never emails again while a flapping provider keeps falling short of 3 consecutive successes", () => {
+    const state = emptyAlertState(START);
+    for (let index = 0; index < 6; index += 1) {
+      observeAlert(state, {
+        type: "component-outcome",
+        component: "provider",
+        outcome: "failure",
+        atMs: START + index,
+      });
+    }
+    expect(state.outbox).toHaveLength(1);
+    expect(state.outbox[0]?.alert.phase).toBe("active");
+    markAlertDelivered(state, state.outbox[0]!.alert.fingerprint);
+
+    // Flap success/success/failure for many cycles: consecutiveSuccesses peaks at 2 (never
+    // the 3 needed to recover) and consecutiveFailures peaks at 1 (never the 6 needed for a
+    // repeat active alert). This is the real-world every-20-30-min SDR flap the owner reported.
+    let atMs = START + 100;
+    for (let cycle = 0; cycle < 30; cycle += 1) {
+      observeAlert(state, { type: "component-outcome", component: "provider", outcome: "success", atMs: atMs++ });
+      observeAlert(state, { type: "component-outcome", component: "provider", outcome: "success", atMs: atMs++ });
+      observeAlert(state, { type: "component-outcome", component: "provider", outcome: "failure", atMs: atMs++ });
+    }
+
+    expect(state.outbox).toHaveLength(0);
+    const provider = state.signals.find((candidate) => candidate.key === "provider-health");
+    expect(provider).toMatchObject({ active: true, consecutiveFailures: 1, consecutiveSuccesses: 0 });
   });
 
   it("retains failed deliveries and retries them with backoff", () => {

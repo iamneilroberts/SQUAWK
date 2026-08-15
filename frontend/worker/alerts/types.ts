@@ -6,7 +6,7 @@ import type {
 
 export const ALERT_RECIPIENT = "dneilroberts@gmail.com";
 export const ALERT_STATE_KEY = "alert-state:v1";
-export const ALERT_COOLDOWN_MS = 15 * 60 * 1_000;
+export const ALERT_COOLDOWN_MS = 60 * 60 * 1_000;
 export const ALERT_RETRY_BASE_MS = 60 * 1_000;
 
 export type AlertKind =
@@ -48,6 +48,7 @@ export type AlertSignalState = {
   key: string;
   active: boolean;
   consecutiveFailures: number;
+  consecutiveSuccesses: number;
   sequence: number;
 };
 

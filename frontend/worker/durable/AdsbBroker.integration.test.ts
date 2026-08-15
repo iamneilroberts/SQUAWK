@@ -449,7 +449,10 @@ describe("AdsbBroker", () => {
     });
   });
 
-  it("alerts once for sustained provider failure and once for recovery", async () => {
+  it("alerts once for sustained provider failure and stays silent on recovery", async () => {
+    // Recovery emails are intentionally suppressed for provider/component health (2026-08-15
+    // alert-dampen decision) so a flapping provider doesn't spam "recovered" notices; only
+    // the sustained-failure active alert should ever be delivered here.
     const target = stub();
     const clock = new FakeClock(START);
     const received: AlertNotification[] = [];
@@ -458,7 +461,7 @@ describe("AdsbBroker", () => {
       received.push(alert);
     });
 
-    for (let attempt = 0; attempt < 4; attempt += 1) {
+    for (let attempt = 0; attempt < 6; attempt += 1) {
       await command(target, {
         type: "health-record",
         component: "provider",
@@ -469,18 +472,14 @@ describe("AdsbBroker", () => {
     expect(received[0]).toMatchObject({ kind: "provider-health", phase: "active" });
 
     clock.advance(1);
-    await command(target, {
-      type: "health-record",
-      component: "provider",
-      outcome: "success",
-    });
-    await command(target, {
-      type: "health-record",
-      component: "provider",
-      outcome: "success",
-    });
-    expect(received).toHaveLength(2);
-    expect(received[1]).toMatchObject({ kind: "provider-health", phase: "recovery" });
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await command(target, {
+        type: "health-record",
+        component: "provider",
+        outcome: "success",
+      });
+    }
+    expect(received).toHaveLength(1);
   });
 
   it("keeps automatic and deployment modes stricter than administrator requests", async () => {

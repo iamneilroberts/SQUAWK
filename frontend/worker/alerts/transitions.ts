@@ -15,7 +15,8 @@ const API_MINIMUM_TOTAL = 20;
 const API_MINIMUM_FAILURES = 5;
 const API_FAILURE_RATE = 0.2;
 const API_RECOVERY_RATE = 0.05;
-const COMPONENT_FAILURE_COUNT = 3;
+const COMPONENT_FAILURE_COUNT = 6;
+const COMPONENT_RECOVERY_COUNT = 3;
 const MAX_TRACKED = 128;
 
 function count(value: unknown): value is number {
@@ -65,10 +66,13 @@ export function isAlertState(value: unknown): value is AlertCoordinatorState {
   const providerCapacity = value.providerCapacity;
   return (
     count(value.lastBrokerTransitionSequence) &&
-    Array.isArray(value.signals) && value.signals.length <= 32 && value.signals.every((signal) =>
-      record(signal) && typeof signal.key === "string" && signal.key.length <= 96 &&
-      typeof signal.active === "boolean" && count(signal.consecutiveFailures) && count(signal.sequence)
-    ) &&
+    Array.isArray(value.signals) && value.signals.length <= 32 && value.signals.every((signal) => {
+      if (!record(signal) || typeof signal.key !== "string" || signal.key.length > 96) return false;
+      if (typeof signal.active !== "boolean" || !count(signal.consecutiveFailures) || !count(signal.sequence)) return false;
+      // Backward-compat: older persisted states predate consecutiveSuccesses; default it to 0.
+      if (signal.consecutiveSuccesses === undefined) signal.consecutiveSuccesses = 0;
+      return count(signal.consecutiveSuccesses);
+    }) &&
     record(window) && count(window.startedAtMs) && count(window.total) && count(window.failures) &&
     Number(window.failures) <= Number(window.total) && typeof window.active === "boolean" && count(window.sequence) &&
     record(providerCapacity) && ["normal", "70", "90", "100"].includes(String(providerCapacity.band)) && count(providerCapacity.sequence) &&
@@ -88,7 +92,7 @@ function boundedPush(items: string[], value: string): void {
 function signal(state: AlertCoordinatorState, key: string): AlertSignalState {
   let current = state.signals.find((candidate) => candidate.key === key);
   if (current === undefined) {
-    current = { key, active: false, consecutiveFailures: 0, sequence: 0 };
+    current = { key, active: false, consecutiveFailures: 0, consecutiveSuccesses: 0, sequence: 0 };
     state.signals.push(current);
   }
   return current;
@@ -184,8 +188,13 @@ function rollApiWindow(state: AlertCoordinatorState, atMs: number): void {
 
 function observeComponent(state: AlertCoordinatorState, key: string, label: string, outcome: "success" | "failure", atMs: number): void {
   const current = signal(state, key);
-  if (outcome === "failure") current.consecutiveFailures += 1;
-  else current.consecutiveFailures = 0;
+  if (outcome === "failure") {
+    current.consecutiveFailures += 1;
+    current.consecutiveSuccesses = 0;
+  } else {
+    current.consecutiveSuccesses += 1;
+    current.consecutiveFailures = 0;
+  }
   if (!current.active && current.consecutiveFailures >= COMPONENT_FAILURE_COUNT) {
     current.active = true;
     current.sequence += 1;
@@ -193,13 +202,12 @@ function observeComponent(state: AlertCoordinatorState, key: string, label: stri
       fingerprint: `${key}:${current.sequence}:active`, signalKey: key, kind: key === "provider-health" ? "provider-health" : "component-health", phase: "active", severity: "error", occurredAtMs: atMs,
       title: `${label} failures detected`, threshold: `${COMPONENT_FAILURE_COUNT} consecutive failures`, action: "Inspect binding health and recent deploys", remainingCapacity: null,
     }), true);
-  } else if (current.active && outcome === "success") {
+  } else if (current.active && current.consecutiveSuccesses >= COMPONENT_RECOVERY_COUNT) {
     current.active = false;
     current.sequence += 1;
-    enqueue(state, notification({
-      fingerprint: `${key}:${current.sequence}:recovery`, signalKey: key, kind: key === "provider-health" ? "provider-health" : "component-health", phase: "recovery", severity: "recovery", occurredAtMs: atMs,
-      title: `${label} recovered`, threshold: "successful health observation", action: "Normal monitoring resumed", remainingCapacity: null,
-    }), true);
+    // Recovery email intentionally suppressed (2026-08-15 alert-dampen decision): a flapping
+    // provider that keeps recovering must not spam "recovered" notices. Sequence still
+    // advances so a future active alert gets a fresh, undeduplicated fingerprint.
   }
 }
 
@@ -229,11 +237,10 @@ export function observeAlert(state: AlertCoordinatorState, observation: AlertObs
       } else if (!observation.stale && provider.active) {
         provider.active = false;
         provider.consecutiveFailures = 0;
+        provider.consecutiveSuccesses = 0;
         provider.sequence += 1;
-        enqueue(state, notification({
-          fingerprint: `provider-health:${provider.sequence}:recovery`, signalKey: "provider-health", kind: "provider-health", phase: "recovery", severity: "recovery", occurredAtMs: observation.atMs,
-          title: "ADS-B provider data recovered", threshold: "fresh provider cache available", action: "Normal traffic refresh resumed", remainingCapacity: null,
-        }), true);
+        // Recovery email intentionally suppressed (2026-08-15 alert-dampen decision); see
+        // observeComponent for the matching component/provider-health rationale.
       }
       break;
     }
