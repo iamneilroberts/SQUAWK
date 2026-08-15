@@ -944,6 +944,7 @@ body {
 .gauge-hub { fill: var(--cyan); }
 .gauge-horizon { stroke: var(--cyan); stroke-width: 1.5; }
 .gauge-ladder { stroke: var(--grid); stroke-width: 1; }
+.gauge-ladder-num { fill: var(--cyan); font-family: var(--mono); font-size: 7px; opacity: 0.85; }
 .gauge-aircraft { fill: none; stroke: var(--amber); stroke-width: 1.5; }
 .gauge-lubber { fill: var(--amber); }
 .gauge-race { fill: none; stroke: var(--grid); stroke-width: 1; }
@@ -2326,8 +2327,13 @@ body {
 .efis-bug { }
 .efis-bug-limit { fill: var(--amber); }
 .efis-bug-flap { fill: var(--text); }
-.efis-adi-wrap { width: 148px; height: 148px; }
-.efis-adi { width: 120px; height: 120px; }
+/* Issue #35: the PFD's attitude ball is the "large realistic glass-cockpit attitude indicator"
+   the desktop declutter pass (#49/#78) grew the wrap for but left the dial itself at its old
+   120px, so the wrap's extra 28px sat as dead space instead of a bigger ball (the wrap has no
+   centering of its own — a smaller child just sits top-left). Sizing the dial to fill the wrap
+   is the fix; both now read as a genuinely large PFD centerpiece next to the speed/altitude tapes. */
+.efis-adi-wrap { width: 180px; height: 180px; }
+.efis-adi { width: 180px; height: 180px; }
 .efis-strip {
   display: flex;
   flex-wrap: wrap;

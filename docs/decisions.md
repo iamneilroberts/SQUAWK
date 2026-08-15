@@ -2936,3 +2936,39 @@ blocking, picking between the issue's own listed candidates:
 
 **Verification:** `frontend/src/takeover/callsignPool.test.ts` (new, 5 tests, red→green), full
 suite 1465/1465 pass, `npm run build` clean.
+
+## 2026-08-15 — #35 Larger, more realistic attitude indicator: scoped to the EFIS ball + GA data flip
+
+Issue #35 asked for a "large, realistic glass-cockpit attitude indicator per aircraft type." The
+ADI already existed (`AttitudeIndicator.tsx`, c98bc4e/62f0c8b) with a real artificial-horizon
+"ball" style — clipped sky/ground split, roll ring with major/minor bank ticks, pitch ladder,
+fixed aircraft reference — so the gap was narrower than a rebuild. Three surgical changes, no new
+rendering pipeline:
+
+1. **EFIS (b738/biz) ADI actually grown, not just its wrapper.** The #49/#78 desktop-declutter
+   pass grew `.efis-adi-wrap` from 120px to 148px but left `.efis-adi` (the dial itself) at
+   120px — the wrap has no centering, so the extra 28px was dead space, not a bigger ball. Both
+   now match at 180px: a real enlargement of the airliner's PFD centerpiece.
+2. **GA six-pack (c172s, tprop) moved from `attitudeStyle: "line"` to `"ball"`.** A real six-pack
+   attitude indicator IS a filled sky/ground ball with a bank scale — that is the literal
+   instrument, not a simplification of it. AF-006 (2026-08-07) added "ball" for the jets and left
+   the C172 on the pre-existing minimalist line horizon "unchanged," not as a deliberate
+   permanent choice; issue #35's "more realistic" reads directly onto finishing that. Six-pack
+   layout stays six equal 92px dials (that IS what makes it a "six-pack," matching spec D-2) —
+   only the attitude dial's own rendering changed, not its size relative to its neighbors.
+   `"line"` stays in the schema/tests (still valid data, still covered) even though no shipped
+   class selects it now.
+3. **Pitch-ladder rungs now carry their degree numbers** (`gauge-ladder-num`, both ends of each
+   rung) on the ball style — `gaugeMath.ts`'s `pitchLadderRungs()` already computed the label,
+   `AttitudeIndicator.tsx` just never rendered it. Mirrors what `HudDisplay.tsx`'s fighter ladder
+   already does; a bare line doesn't say how many degrees of climb/dive it marks.
+
+**Deferred, not guessed:** true bespoke per-type ADI *styling* (e.g. a distinct steam-gauge bezel
+texture vs. a flat-panel PFD frame) stays behind the `profiles.ts` `background` art seam, which
+is intentionally still `"transparent"` pending a dedicated art pass — inventing that styling here
+would be exactly the "guessing" the task called out to avoid.
+
+**Verification:** new failing→passing test in `AttitudeIndicator.test.tsx` (pitch-ladder labels
+render for the ball style), `params.test.ts` and `SixPack.test.tsx` updated for the C172's new
+`"ball"` style (with an explicit `"line"` fixture added so line-style coverage isn't lost). Full
+suite 142 files / 1469 tests pass (was 142/1468), `npm run build` clean.

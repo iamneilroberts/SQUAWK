@@ -21,6 +21,18 @@ function collectAttr(node: unknown, key: string, out: string[] = []): string[] {
 }
 const classNamesIn = (node: unknown) => collectAttr(node, "className").flatMap((c) => c.split(/\s+/));
 
+function collectText(node: unknown, out: string[] = []): string[] {
+  if (node === null || node === undefined || node === false || node === true) return out;
+  if (typeof node === "string" || typeof node === "number") { out.push(String(node)); return out; }
+  if (Array.isArray(node)) { for (const c of node) collectText(c, out); return out; }
+  const type = (node as { type?: unknown }).type;
+  const props = (node as { props?: unknown }).props;
+  if (typeof type === "function") return collectText((type as (p: unknown) => unknown)(props), out);
+  const withChildren = props as { children?: unknown } | undefined;
+  if (withChildren && "children" in withChildren) collectText(withChildren.children, out);
+  return out;
+}
+
 const snap = (o: Partial<HudSnapshot>): HudSnapshot => ({ rollRad: 0, pitchRad: 0, ...o } as HudSnapshot);
 
 describe("AttitudeIndicator (shared six-pack / immersive-bar geometry)", () => {
@@ -47,5 +59,17 @@ describe("AttitudeIndicator (shared six-pack / immersive-bar geometry)", () => {
     const el = AttitudeIndicator({ snapshot: snap({}), attitudeStyle: "ball", clipId: "immAdiClip" });
     expect(collectAttr(el, "id")).toContain("immAdiClip");
     expect(collectAttr(el, "clipPath")).toContain("url(#immAdiClip)");
+  });
+
+  // Issue #35: a real ADI's pitch ladder carries degree numbers on the rungs, not bare lines —
+  // that is what makes it readable as a climb/dive angle rather than decoration. The ball style
+  // is what every flying class now uses (SixPack's GA classes moved off the minimalist "line"
+  // style), so this is the one place the numbers need to land.
+  it("labels the ball style's pitch ladder rungs with their degree values", () => {
+    const ball = AttitudeIndicator({ snapshot: snap({}), attitudeStyle: "ball" });
+    const text = collectText(ball).join(" ");
+    expect(text).toContain("10");
+    expect(text).toContain("20");
+    expect(text).toContain("30");
   });
 });

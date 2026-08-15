@@ -129,8 +129,12 @@ describe("SixPack", () => {
   });
 
   it("renders the filled ball for a ball class and the line horizon for a line class", () => {
+    // Issue #35: the C172 itself now flies the realistic "ball" ADI (a real six-pack attitude
+    // indicator is a filled sky/ground ball, not a bare line — see params.test.ts), so the
+    // "line" side of this contrast needs its own explicit fixture rather than reading off `P`.
+    const lineParams = { ...P, display: { ...P.display, attitudeStyle: "line" as const } };
     const jetBall = { ...P, display: { asiMinKt: 60, asiMaxKt: 400, attitudeStyle: "ball" as const } };
-    const line = SixPack({ snapshot: snap(), params: P });          // attitudeStyle "line"
+    const line = SixPack({ snapshot: snap(), params: lineParams }); // attitudeStyle "line"
     const ball = SixPack({ snapshot: snap(), params: jetBall });    // attitudeStyle "ball"
     expect(classNamesIn(line)).toContain("gauge-horizon");          // existing line element
     expect(classNamesIn(line)).not.toContain("gauge-adi-sky");

@@ -52,12 +52,17 @@ export default function AttitudeIndicator({
                 <rect x={C - R} y={C} width={R * 2} height={R * 3} className="gauge-adi-ground" />
                 <line x1={C - 46} y1={C} x2={C + 46} y2={C} className="gauge-adi-horizon" />
                 {pitchLadderRungs().map((r) => (
-                  <line
-                    key={r.deg}
-                    x1={C - r.halfWidthPx} y1={C + round(r.px)}
-                    x2={C + r.halfWidthPx} y2={C + round(r.px)}
-                    className="gauge-ladder"
-                  />
+                  <g key={r.deg}>
+                    <line
+                      x1={C - r.halfWidthPx} y1={C + round(r.px)}
+                      x2={C + r.halfWidthPx} y2={C + round(r.px)}
+                      className="gauge-ladder"
+                    />
+                    {/* Degree numbers on both ends of the rung, as on a real ADI — the bare line
+                        alone doesn't say how many degrees of climb/dive it marks. */}
+                    <text x={C - r.halfWidthPx - 4} y={C + round(r.px) + 3} textAnchor="end" className="gauge-ladder-num">{r.label}</text>
+                    <text x={C + r.halfWidthPx + 4} y={C + round(r.px) + 3} textAnchor="start" className="gauge-ladder-num">{r.label}</text>
+                  </g>
                 ))}
               </g>
               {bankScaleTicks().map((t) => (

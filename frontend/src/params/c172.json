@@ -54,7 +54,7 @@
     { "label": "30", "dCL0": 0.9, "dStallAlphaRad": -0.0524, "dCD0": 0.04 }
   ],
   "gear": "fixed",
-  "display": { "asiMinKt": 40, "asiMaxKt": 180, "attitudeStyle": "line" },
+  "display": { "asiMinKt": 40, "asiMaxKt": 180, "attitudeStyle": "ball" },
   "sources": {
     "massKg": "typical 2-pax + fuel operating mass, research doc range 950-1050 kg. NOT max gross (1157 kg): the POH V-speeds are quoted at max gross, but hitting them at max gross would require a CLmax outside the sourced 1.47-1.58 range. Documented compromise, decisions.md B-006.",
     "wingAreaM2": "JSBSim c172x.xml, cross-checked Roskam (174 sq ft)",
