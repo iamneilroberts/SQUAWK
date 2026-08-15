@@ -1,8 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ViewerHost from "./globe/ViewerHost";
 import ContactLayer from "./globe/ContactLayer";
 import OverlayLayers from "./globe/OverlayLayers";
-import FlightSession from "./game/FlightSession";
+
+// FlightSession pulls in the sim engine, HUD, dashboards, tutorial, and mission machinery —
+// none of which the browse screen needs until TAKE CONTROLS. Deferring it to its own chunk
+// keeps the initial bundle small (issue #91).
+const FlightSession = lazy(() => import("./game/FlightSession"));
 import ContactList from "./panels/ContactList";
 import StatusBar from "./panels/StatusBar";
 import { useViewport } from "./layout/useViewport";
@@ -91,6 +95,17 @@ function readSpawnModePreference(): SpawnMode {
   } catch {
     return "faceApproach";
   }
+}
+
+/** On-brand Suspense fallback shown while the flight chunk loads. */
+function FlightSessionLoading() {
+  return (
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+      <span className="font-mono text-xs uppercase tracking-widest text-[#5fd7e0]">
+        LOADING FLIGHT&hellip;
+      </span>
+    </div>
+  );
 }
 
 export default function App({ initialAuthToken = null }: { initialAuthToken?: string | null }) {
@@ -517,13 +532,15 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
           <ViewerHost onTerrainNoteChange={setTerrainNote}>
             <ContactLayer />
             <OverlayLayers route={mode === "BROWSE" ? route : null} />
-            <FlightSession
-              coachingEnabled={profile?.tutorialState === "complete" && profile.coachingEnabled}
-              onTutorialComplete={completeTutorial}
-              onCoachingComplete={completeCoaching}
-              onSignInToRank={() => setSignInOpen(true)}
-              onFlyAgain={flyAgain}
-            />
+            <Suspense fallback={<FlightSessionLoading />}>
+              <FlightSession
+                coachingEnabled={profile?.tutorialState === "complete" && profile.coachingEnabled}
+                onTutorialComplete={completeTutorial}
+                onCoachingComplete={completeCoaching}
+                onSignInToRank={() => setSignInOpen(true)}
+                onFlyAgain={flyAgain}
+              />
+            </Suspense>
           </ViewerHost>
           {mode === "BROWSE" && (
             <button

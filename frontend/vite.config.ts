@@ -29,6 +29,14 @@ export default defineConfig(({ mode }) => {
             asset.names.some((name) => name === "admin.css")
               ? "admin-assets/[name]-[hash][extname]"
               : "assets/[name]-[hash][extname]",
+          // Cesium is huge and used only by the globe/browse screen — its own chunk lets it
+          // cache independently of app code and download in parallel (issue #91).
+          manualChunks: (id) => {
+            if (id.includes("node_modules/cesium")) return "cesium";
+            if (id.includes("node_modules/react-dom") || id.includes("node_modules/react/")) {
+              return "vendor";
+            }
+          },
         },
       },
     },
