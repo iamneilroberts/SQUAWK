@@ -44,7 +44,11 @@ export default function MissionRouteLayer({
     // frame is what caused the terrain-occlusion z-fight flicker on final.
     let lastStart: Cartesian3 | null = null;
     let lastPositions: Cartesian3[] = [];
-    const route = viewer.entities.add({
+    // At FULL assist the fixed approach ribbon (Feature 2, ApproachAssistLayer) is the landing
+    // guidance the player flies onto — this dogleg line re-anchors to the live aircraft position
+    // every frame and would swing/flicker against that fixed ribbon, so it's skipped there. NAV
+    // (no ribbon) keeps the line as the only route cue.
+    const route = features.approachCorridor ? undefined : viewer.entities.add({
       polyline: {
         // #50: start at the LIVE aircraft position so the line only ever shows the
         // remaining path — pre-spawn it falls back to the contact's real position.
@@ -113,7 +117,7 @@ export default function MissionRouteLayer({
     });
     return () => {
       if (viewer.isDestroyed()) return;
-      viewer.entities.remove(route);
+      if (route) viewer.entities.remove(route);
       if (runway) viewer.entities.remove(runway);
       viewer.entities.remove(cue);
     };
