@@ -37,7 +37,9 @@
     "gateSpacingNm": 1,
     "glideSlopeDeg": 3,
     "flareHeightFt": 35,
-    "finalApproachFixNm": 5.5
+    "finalApproachFixNm": 5.5,
+    "baseLegOffsetNm": 3,
+    "baseLegOffsetDeg": 45
   },
   "approach": {
     "targetSpeedKt": 118,

@@ -103,6 +103,8 @@ export type MissionProfile = {
     glideSlopeDeg: number;
     flareHeightFt: number;
     finalApproachFixNm: number;
+    baseLegOffsetNm: number;
+    baseLegOffsetDeg: number;
   };
   approach: {
     targetSpeedKt: number;
