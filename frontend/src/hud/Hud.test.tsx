@@ -82,6 +82,9 @@ describe("Hud", () => {
     const text = collectText(Hud({ snapshot: snap(), attribution: "" }));
     expect(text).toContain("C172 MODEL THIS BUILD");
   });
+  // Desktop declutter (#49): throttle/flaps/gear (ControlStateCells) moved OUT of the HUD and
+  // now live once, in the glass cockpit panel (dashboard/ControlState.tsx) — asserted in
+  // "desktop consolidated top bar" below. The HUD's own §9 readouts stay flight-data only.
   it("shows every §9 readout", () => {
     const tokens = collectText(Hud({ snapshot: snap(), attribution: "" }));
     const text = tokens.join(" ");
@@ -91,10 +94,6 @@ describe("Hud", () => {
     expect(text).toContain("270"); // heading
     expect(text).toContain("3.0"); // AoA
     expect(text).toContain("+1.0"); // g
-    expect(text).toContain("60%"); // throttle
-    expect(text).toContain("FLP"); // flaps icon cell label
-    expect(tokens).toContain("10"); // flap value (exact-token: "10" is a substring of "105")
-    expect(text).toContain("GEAR"); // gear icon cell label (icon-only, no text value)
     expect(text).toContain("01:05"); // airtime
   });
   it("shows the current sky light phase, tracking the time-aware lighting (issue #14)", () => {
@@ -151,8 +150,57 @@ describe("Hud", () => {
     expect(text).not.toContain("IMAGERY © ESRI");
   });
 
+  // ---- Desktop consolidated top bar (#49/#78): the desktop SIM banner + IAS/TAS/AOA/G column +
+  // ALT/VSI/AGL/T column + HDG readout — four separately-anchored clusters — collapse into ONE
+  // top bar, mirroring the mobile immersive bar's "one dense strip" idea. Control state (THR/
+  // FLAPS/GEAR) is no longer duplicated here either — it lives once, in the glass cockpit panel. ----
+  describe("desktop consolidated top bar (#49)", () => {
+    const has = (classes: string[], token: string) =>
+      classes.some((c) => c.split(/\s+/).includes(token));
+
+    it("renders one top bar instead of the old scattered corner clusters", () => {
+      const classes = collectClasses(Hud({ snapshot: snap(), attribution: "" }));
+      expect(has(classes, "hud-top-bar")).toBe(true);
+      // Broken-arm: the old per-corner clusters must be GONE, not merely renamed.
+      expect(has(classes, "hud-left")).toBe(false);
+      expect(has(classes, "hud-right")).toBe(false);
+      expect(has(classes, "hud-heading")).toBe(false);
+      expect(has(classes, "hud-banner")).toBe(false);
+      expect(has(classes, "hud-bottom")).toBe(false);
+      expect(has(classes, "imm-bar")).toBe(false);
+    });
+
+    it("still carries every §9 readout in the single bar", () => {
+      const text = collectText(Hud({ snapshot: snap(), attribution: "" })).join(" ");
+      expect(text).toContain("105"); // IAS
+      expect(text).toContain("118"); // TAS
+      expect(text).toContain("3500"); // altitude
+      expect(text).toContain("270"); // heading
+      expect(text).toContain("3.0"); // AoA
+      expect(text).toContain("+1.0"); // g
+      expect(text).toContain("01:05"); // airtime
+      expect(text).toContain("SKY DAY");
+    });
+
+    it("no longer duplicates the control-state row (moved into the glass cockpit panel)", () => {
+      const kinds = (node: unknown, out: string[] = []): string[] => {
+        if (!node || typeof node !== "object") return out;
+        if (Array.isArray(node)) { for (const c of node) kinds(c, out); return out; }
+        const type = (node as { type?: unknown }).type;
+        const props = (node as { props?: Record<string, unknown> }).props;
+        if (props?.kind) out.push(String(props.kind));
+        if (typeof type === "function") return kinds((type as (p: unknown) => unknown)(props), out);
+        if (props && "children" in props) kinds(props.children, out);
+        return out;
+      };
+      expect(kinds(Hud({ snapshot: snap(), attribution: "" }))).toEqual([]);
+    });
+  });
+
   // ---- Mobile immersive (#13 follow-up): the scattered corner clusters are replaced by ONE
-  // dense top bar. The desktop / non-immersive tree above must stay exactly as it is. ----
+  // dense top bar. Desktop (#49/#78) later got its OWN single top bar too — see "desktop
+  // consolidated top bar" below — so both platforms now render exactly one flight-data cluster,
+  // just different components (imm-bar for mobile, hud-top-bar for desktop). ----
   describe("immersive mobile flight", () => {
     const has = (classes: string[], token: string) =>
       classes.some((c) => c.split(/\s+/).includes(token));
@@ -161,16 +209,13 @@ describe("Hud", () => {
       const classes = collectClasses(Hud({ snapshot: snap(), attribution: "", immersive: true }));
       expect(has(classes, "imm-bar")).toBe(true); // the one bar is present
       // Broken-arm: the old scattered clusters must be GONE in immersive, not merely repositioned.
-      expect(has(classes, "hud-left")).toBe(false);
-      expect(has(classes, "hud-right")).toBe(false);
-      expect(has(classes, "hud-heading")).toBe(false);
+      expect(has(classes, "hud-top-bar")).toBe(false);
     });
 
-    it("keeps those scattered clusters on desktop / non-immersive (unchanged)", () => {
-      const classes = collectClasses(Hud({ snapshot: snap(), attribution: "" }));
-      expect(has(classes, "hud-left")).toBe(true);
-      expect(has(classes, "hud-right")).toBe(true);
-      expect(has(classes, "imm-bar")).toBe(false);
+    it("does not render the desktop top bar on mobile immersive", () => {
+      const classes = collectClasses(Hud({ snapshot: snap(), attribution: "", immersive: true }));
+      expect(has(classes, "hud-top-bar")).toBe(false);
+      expect(has(classes, "imm-bar")).toBe(true);
     });
 
     it("still shows the flight data, SIM badge and attribution in the bar (UI-002: callsign lives on the spawn/debrief cards, not here)", () => {

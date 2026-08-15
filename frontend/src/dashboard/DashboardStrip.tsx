@@ -24,6 +24,7 @@ import { loadC172 } from "../sim/params";
 import { useStore } from "../state/store";
 import { useViewport } from "../layout/useViewport";
 import { isNarrowViewport } from "../layout/viewport";
+import { formatAltFt, formatHeadingDeg, formatIasKt, formatVsiFpm } from "../hud/format";
 import { DEFAULT_NAV_RANGE_NM } from "./navMath";
 import { useWeather } from "./WeatherPanel";
 import { useNavWeather } from "./NavWeatherLayer";
@@ -118,12 +119,21 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  // #78: collapsed to a compact "mini-dash" rather than just a bare expand button — IAS/ALT/HDG/
+  // VSI stay glanceable while the pilot wants more of the outside view, same idea as the mobile
+  // immersive bar (#13) keeping the essentials up even at its most stripped-down.
   if (!state.open) {
     return (
       <div className="dash-strip dash-strip-closed">
-        <button type="button" className="status-chip-button" onClick={() => setState(toggleStrip)}>
-          COCKPIT [C]
-        </button>
+        <div className="dash-mini glass panel">
+          <span className="dash-mini-item">{`IAS ${formatIasKt(snapshot?.iasMs ?? null)}`}</span>
+          <span className="dash-mini-item">{`ALT ${formatAltFt(snapshot?.altitudeM ?? null)}`}</span>
+          <span className="dash-mini-item">{`HDG ${formatHeadingDeg(snapshot?.headingRad ?? null)}`}</span>
+          <span className="dash-mini-item">{`VSI ${formatVsiFpm(snapshot?.verticalSpeedMs ?? null)}`}</span>
+          <button type="button" className="status-chip-button" onClick={() => setState(toggleStrip)}>
+            COCKPIT [C]
+          </button>
+        </div>
       </div>
     );
   }
