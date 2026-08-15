@@ -347,19 +347,36 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
-.hud-banner {
+/* Desktop declutter (#49): ONE top bar replaces the old separately-anchored SIM banner
+   (top-center), IAS/TAS/AOA/G column (left), ALT/VSI/AGL/T column (right) and HDG readout
+   (top-center) — mirroring the single dense strip the mobile immersive bar already uses (#13).
+   SIM identity keeps the amber accent (ground rule #2: unmistakable sim state); the flight
+   readouts default to the root's cyan. Wraps on a narrow desktop window rather than clipping. */
+.hud-top-bar {
   position: absolute;
   top: 8px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 4px 10px;
-  border: 1px solid var(--amber);
-  background: rgba(5, 7, 10, 0.72);
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px 14px;
+  padding: 5px 12px;
+  max-width: min(94vw, 920px);
+}
+.hud-top-bar-sim {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
   color: var(--amber);
 }
+.hud-top-bar-sep {
+  align-self: stretch;
+  width: 1px;
+  background: var(--grid);
+}
+.hud-top-bar-sky { opacity: 0.85; }
 .hud-sim-badge {
   font-weight: 700;
   letter-spacing: 0.24em;
@@ -369,8 +386,6 @@ body {
   opacity: 0.75;
   font-size: 10px;
 }
-.hud-left { position: absolute; top: 25%; left: 16px; }
-.hud-right { position: absolute; top: 25%; right: 16px; text-align: right; }
 /* Issue #6: a translucent near-black backing so the cyan corner readouts stay legible over
    bright sky. A backing panel is the sanctioned fix — NOT a drop shadow (no-shadow rule). It
    matches the banner/warning panels: same rgba, 1px border, no radius. */
@@ -379,24 +394,6 @@ body {
   border: 1px solid rgba(95, 215, 224, 0.25);
   background: rgba(5, 7, 10, 0.72);
 }
-.hud-bottom {
-  position: absolute;
-  bottom: 28px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 20px;
-}
-.hud-heading {
-  position: absolute;
-  top: 44px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-.hud-heading-value { font-size: 20px; }
 .hud-readout {
   display: flex;
   align-items: baseline;
@@ -670,11 +667,14 @@ body {
 }
 .mission-cockpit-next { margin-top: 5px; color: var(--amber); text-align: center; }
 
+/* Desktop declutter (#49): was anchored top-left, its own separate corner cluster ("ASSIST +
+   destination chips top-left" in the owner's scatter complaint). Grouped under the top bar's
+   right edge instead of a fourth independent corner. */
 .assist-control {
   position: absolute;
   z-index: 32;
-  top: 4.5rem;
-  left: 0.75rem;
+  top: 3.2rem;
+  right: 0.75rem;
   display: grid;
   grid-template-columns: auto auto;
   gap: 0.1rem 0.55rem;
@@ -699,7 +699,7 @@ body {
    below, so there is no heading-relative pointer here anymore. */
 .hud-destination {
   position: absolute;
-  top: 78px;
+  top: 52px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -926,7 +926,7 @@ body {
   gap: 6px 10px;
 }
 .gauge { display: flex; flex-direction: column; align-items: center; }
-.gauge-face { width: 74px; height: 74px; }
+.gauge-face { width: 92px; height: 92px; }
 .gauge-bezel { fill: none; stroke: var(--grid); stroke-width: 1; }
 .gauge-tick { stroke: var(--grid); stroke-width: 1; }
 .gauge-needle { stroke: var(--cyan); stroke-width: 2; }
@@ -974,6 +974,8 @@ body {
    D-1/CD-006) — same rule as .end-overlay: the strip itself must not swallow the armed-resume
    click over its empty right-hand region, so only the panels and chip buttons re-enable
    pointer-events. */
+/* #78: centered rather than pinned bottom-left, so it reads as a cockpit panel in front of the
+   pilot instead of a strip tucked in a corner. */
 .dash-strip {
   position: absolute;
   left: 0;
@@ -981,13 +983,29 @@ body {
   bottom: 0;
   display: flex;
   align-items: flex-end;
+  justify-content: center;
   gap: 8px;
   padding: 6px 10px;
   pointer-events: none;
   font-size: 11px;
 }
-.dash-strip-closed { justify-content: flex-start; }
+.dash-strip-closed { justify-content: center; }
 .dash-strip-hide { align-self: flex-start; }
+/* #78: the collapsed "mini-dash" — a compact one-line readout instead of a bare toggle button,
+   so folding the full glass away doesn't lose the essential flight data (mirrors what the mobile
+   immersive bar keeps up at all times). */
+.dash-mini {
+  display: flex;
+  align-items: center;
+  gap: 4px 14px;
+  padding: 5px 10px;
+  pointer-events: auto;
+}
+.dash-mini-item {
+  color: var(--cyan);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
 .dash-panel { padding: 0; pointer-events: auto; }
 .dash-panel-header {
   display: flex;
@@ -1196,7 +1214,7 @@ body {
 
 /* ---- nav map: geographic, own ship centred, NORTH UP (complements the radar PPI) ---- */
 .navmap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.navmap-face { width: 168px; height: 168px; }
+.navmap-face { width: 200px; height: 200px; }
 /* Only the traffic group takes the dim — the airports are bundled, not a feed, and stay honest. */
 .navmap-dim { opacity: 0.45; }
 .navmap-ring { fill: none; stroke: var(--grid); stroke-width: 1; }
@@ -1636,13 +1654,9 @@ body {
   /* HUD shrinks to fit: readouts via a clamp() that tops out at the desktop size, gaps tighten.
      The SIM banner, warnings, heading and attribution are never dropped (spec §2.2 / §4). */
   .hud-readout-value { font-size: clamp(13px, 3.6vw, 18px); }
-  .hud-heading-value { font-size: clamp(15px, 4.4vw, 20px); }
   .hud-readout { gap: 4px; padding: 1px 0; }
-  .hud-left { left: 8px; }
-  .hud-right { right: 8px; }
   .hud-scrim { padding: 3px 6px; }
-  .hud-banner { gap: 8px; padding: 3px 8px; }
-  .hud-bottom { gap: 12px; bottom: 20px; }
+  .hud-top-bar { gap: 4px 8px; padding: 3px 8px; }
 
   /* Cockpit strip: when open on a narrow screen the panels STACK vertically as an overlay
      sheet instead of a bottom strip (spec §2.3), preserving PanelFrame chrome. The container
@@ -2246,9 +2260,10 @@ body {
   pointer-events: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 6px 8px;
-  max-width: 760px;
+  gap: 8px;
+  padding: 10px 14px;
+  max-width: 920px;
+  font-size: 12px;
 }
 .glass-header {
   display: flex;
@@ -2264,7 +2279,7 @@ body {
 .glass-primary {
   /* `background` is set inline per profile (the deferred realistic-art seam). */
   padding: 2px;
-  min-width: 300px;
+  min-width: 340px;
 }
 .glass-tactical { display: flex; flex-direction: column; gap: 2px; }
 .glass-region-label { color: var(--text); opacity: 0.6; }
@@ -2292,7 +2307,7 @@ body {
 .efis-row { display: flex; align-items: center; gap: 6px; }
 .efis-tape { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .efis-tape-label { color: var(--text); opacity: 0.6; font-size: 9px; }
-.efis-tape-face { width: 46px; height: 124px; }
+.efis-tape-face { width: 54px; height: 146px; }
 .efis-tape-frame { fill: none; stroke: var(--grid); stroke-width: 1; }
 .efis-tape-tick { stroke: var(--grid); stroke-width: 1; }
 .efis-tape-num { fill: var(--text); opacity: 0.75; font-family: var(--mono); font-size: 8px; }
@@ -2301,7 +2316,7 @@ body {
 .efis-bug { }
 .efis-bug-limit { fill: var(--amber); }
 .efis-bug-flap { fill: var(--text); }
-.efis-adi-wrap { width: 120px; height: 120px; }
+.efis-adi-wrap { width: 148px; height: 148px; }
 .efis-adi { width: 120px; height: 120px; }
 .efis-strip {
   display: flex;
@@ -2315,7 +2330,7 @@ body {
 
 /* ---- HUD (f5e primary): boresight, ladder, velocity vector, G/AOA/Mach ---- */
 .hud-display { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.hud-face { width: 300px; height: 232px; }
+.hud-face { width: 360px; height: 278px; }
 .hud-line { stroke: var(--cyan); stroke-width: 1; opacity: 0.7; }
 .hud-num { fill: var(--cyan); font-family: var(--mono); font-size: 8px; opacity: 0.8; }
 .hud-caret { fill: var(--amber); }

@@ -60,9 +60,9 @@ function HudDestinationCue({ navCue }: { navCue: ImmersiveHudNavCue | null }) {
 function HudFinalTurnCue({ finalTurn }: { finalTurn: ImmersiveHudFinalTurn | null }) {
   if (finalTurn === null) return null;
   return (
-    // Stacks directly under .hud-destination (top: 78px) rather than overlapping it — both cues
+    // Stacks directly under .hud-destination (top: 52px) rather than overlapping it — both cues
     // can be up at once (destination pointer + FAF turn) until finalTurnCue hands off on final.
-    <div className="hud-destination hud-scrim" style={{ top: 104 }} aria-label="Turn to final">
+    <div className="hud-destination hud-scrim" style={{ top: 78 }} aria-label="Turn to final">
       {`TURN FINAL ${Math.round(finalTurn.bearingDeg).toString().padStart(3, "0")}° · ` +
         `${finalTurn.distanceNm.toFixed(1)} NM · ${roundTo10(finalTurn.targetAltFt)} FT · ` +
         `${Math.round(finalTurn.targetSpeedKt)} KT`}
@@ -181,33 +181,33 @@ export default function Hud({
     );
   }
 
+  // Desktop declutter (#49): the SIM banner, IAS/TAS/AOA/G, ALT/VSI/AGL/T and the HDG readout
+  // used to be FOUR separately-anchored corner clusters (top-center banner, left column, right
+  // column, top-center heading). They are now ONE top bar, mirroring the mobile immersive bar's
+  // "one dense strip" approach (#13) instead of scattering flight data around the screen edges.
+  // Control state (THR/FLAPS/TRIM/GEAR) and SKY are no longer duplicated here — they live once,
+  // in the cockpit glass panel below (UnifiedGlass's control-state strip / mini-dash, #49).
   return (
     <div className={rootClass}>
-      <div className="hud-banner">
-        <span className="hud-sim-badge">SIM</span>
-        <span>{formatClass(snapshot.classLabel)}</span>
-        <span>{snapshot.callsign}</span>
-        <span className="hud-model-note">{snapshot.modelNote}</span>
-        {simRate ? <span className="hud-warning">{simRate}</span> : null}
-      </div>
-
-      <div className="hud-left hud-scrim">
+      <div className="hud-top-bar hud-scrim">
+        <span className="hud-top-bar-sim">
+          <span className="hud-sim-badge">SIM</span>
+          <span>{formatClass(snapshot.classLabel)}</span>
+          <span>{snapshot.callsign}</span>
+          <span className="hud-model-note">{snapshot.modelNote}</span>
+          {simRate ? <span className="hud-warning">{simRate}</span> : null}
+        </span>
+        <span className="hud-top-bar-sep" aria-hidden="true" />
         <Readout label="IAS" value={formatIasKt(snapshot.iasMs)} unit="KT" />
         <Readout label="TAS" value={formatTasKt(snapshot.tasMs)} unit="KT" />
-        <Readout label="AOA" value={formatAoaDeg(snapshot.aoaRad)} unit="°" />
-        <Readout label="G" value={formatG(snapshot.loadFactor)} />
-      </div>
-
-      <div className="hud-right hud-scrim">
+        <Readout label="HDG" value={formatHeadingDeg(snapshot.headingRad)} unit="°" />
         <Readout label="ALT" value={formatAltFt(snapshot.altitudeM)} unit="FT" />
         <Readout label="VSI" value={formatVsiFpm(snapshot.verticalSpeedMs)} unit="FPM" />
         <Readout label="AGL" value={formatClearanceFt(snapshot.terrainClearanceM)} unit="FT" emphasis={aglAlert} />
+        <Readout label="AOA" value={formatAoaDeg(snapshot.aoaRad)} unit="°" />
+        <Readout label="G" value={formatG(snapshot.loadFactor)} />
         <Readout label="T" value={formatAirtime(snapshot.airtimeS)} />
-      </div>
-
-      <div className="hud-heading">
-        <span className="hud-readout-label">HDG</span>
-        <span className="hud-heading-value">{formatHeadingDeg(snapshot.headingRad)}</span>
+        <span className="hud-top-bar-sky">{formatLightPhase(snapshot.lightPhase)}</span>
       </div>
 
       <HudDestinationCue navCue={immersiveNavCue} />
@@ -218,11 +218,6 @@ export default function Hud({
           tree. Left/right edge chevron for the required turn to the assigned destination;
           renders nothing when there is no destination. */}
       <EdgeTurnCue headingRad={snapshot.headingRad} navCue={immersiveNavCue} />
-
-      <div className="hud-bottom">
-        <HudControlRow snapshot={snapshot} />
-        <span>{formatLightPhase(snapshot.lightPhase)}</span>
-      </div>
 
       {warnings.length > 0 && (
         <div className="hud-warnings">
