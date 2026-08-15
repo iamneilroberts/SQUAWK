@@ -25,7 +25,7 @@
  */
 import { Billboard, BillboardCollection, Cartesian3, Color } from "cesium";
 import type { Contact, FeedStatus } from "../data/types";
-import { contactColor, contactRotationRad, makeChevronCanvas } from "./icons";
+import { contactColor, contactRotationRad, contactShape, makeIconCanvas } from "./icons";
 import { contactHeightM } from "../data/contactGeo";
 
 /** Ghost billboards are dimmed, not hidden — the real aircraft is still real. */
@@ -92,10 +92,12 @@ function scaleFor(hex: string, selectedHex: string | null): number {
   return hex === selectedHex ? 1.4 : 1;
 }
 
-/** Loads (or confirms) the billboard's icon for the contact's current color. */
+/** Loads (or confirms) the billboard's icon for the contact's current type/color. */
 function applyIcon(bb: Billboard, c: Contact): void {
+  const shape = contactShape(c);
   const color = contactColor(c);
-  bb.setImage(color, makeChevronCanvas(color));
+  const id = `${shape}:${color}`;
+  bb.setImage(id, makeIconCanvas(shape, color));
 }
 
 /**
