@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { missionProfileForClass } from "./profiles";
 import {
   approachGuidance,
+  approachRibbon,
   approachSurface,
   directorDistanceNm,
   DIRECTOR_LEAD_NM,
@@ -12,7 +13,7 @@ import {
   runwayOutline,
   surfaceQuads,
 } from "./guidanceGeometry";
-import { greatCircleDistanceNm } from "./geo";
+import { destinationPoint, greatCircleDistanceNm } from "./geo";
 import { projectToRunwayFrame } from "./runwayGeometry";
 import type { RunwayAssignment } from "./types";
 
@@ -234,6 +235,105 @@ describe("approachSurface", () => {
     const slope = Math.tan((odd.glideSlopeDeg * Math.PI) / 180);
     const last = sections[sections.length - 1];
     expect(last.left.altitudeFt).toBeCloseTo(100 + slope * odd.approachLengthNm * FEET_PER_NM, 6);
+  });
+});
+
+describe("approachRibbon", () => {
+  // Fixed, world-anchored 3-point path: base-leg entry -> FAF -> threshold. Unlike
+  // approachSurface (threshold..approachLengthNm), the ribbon runs the full
+  // threshold..finalApproachFixNm..(FAF+baseLegOffsetNm) length so it reaches the base-leg
+  // spawn point (spawnPlacement.baseLegPlacement uses the same FAF + baseLegOffset geometry).
+  const guidance = surfaceGuidance; // c172s: finalApproachFixNm 5.5, baseLegOffsetNm 3, baseLegOffsetDeg 45
+
+  it("tapers from corridorWidthFt at the far (base-entry) end to the runway width at the threshold", () => {
+    const sections = approachRibbon(surfaceAssignment, guidance);
+    expect(widthFt(sections[0])).toBeCloseTo(surfaceAssignment.runwayWidthFt, 0);
+    expect(widthFt(sections[sections.length - 1])).toBeCloseTo(guidance.corridorWidthFt, 0);
+  });
+
+  it("falls back to constant corridor width at the threshold when runway width is missing (0)", () => {
+    const noWidth = { ...surfaceAssignment, runwayWidthFt: 0 };
+    const sections = approachRibbon(noWidth, guidance);
+    expect(widthFt(sections[0])).toBeCloseTo(guidance.corridorWidthFt, 0);
+  });
+
+  it("passes through the FAF point, where the path bends (the dogleg)", () => {
+    const sections = approachRibbon(surfaceAssignment, guidance);
+    const faf = finalApproachFix(surfaceAssignment, guidance);
+    const midpoints = sections.map((section) => ({
+      latDeg: (section.left.latDeg + section.right.latDeg) / 2,
+      lonDeg: (section.left.lonDeg + section.right.lonDeg) / 2,
+      altitudeFt: (section.left.altitudeFt + section.right.altitudeFt) / 2,
+    }));
+    const atFaf = midpoints.some(
+      (mid) =>
+        greatCircleDistanceNm(mid.latDeg, mid.lonDeg, faf.point.latDeg, faf.point.lonDeg) < 1e-6 &&
+        Math.abs(mid.altitudeFt - faf.altitudeFt) < 1e-6,
+    );
+    expect(atFaf).toBe(true);
+  });
+
+  it("rides the glide slope from the threshold to the FAF", () => {
+    const sections = approachRibbon(surfaceAssignment, guidance);
+    const faf = finalApproachFix(surfaceAssignment, guidance);
+    for (const section of sections) {
+      const mid = {
+        latDeg: (section.left.latDeg + section.right.latDeg) / 2,
+        lonDeg: (section.left.lonDeg + section.right.lonDeg) / 2,
+      };
+      const distanceNm = greatCircleDistanceNm(
+        surfaceAssignment.assignedEnd.latDeg, surfaceAssignment.assignedEnd.lonDeg,
+        mid.latDeg, mid.lonDeg,
+      );
+      if (distanceNm > guidance.finalApproachFixNm + 1e-6) continue; // base-leg segment: see next test
+      const expected = glideSlopeAltitudeFt(surfaceAssignment, guidance, distanceNm);
+      expect(section.left.altitudeFt).toBeCloseTo(expected, 0);
+      expect(section.right.altitudeFt).toBeCloseTo(expected, 0);
+    }
+    // sanity: the FAF altitude itself is the boundary value between the two segments
+    expect(faf.altitudeFt).toBeCloseTo(
+      glideSlopeAltitudeFt(surfaceAssignment, guidance, guidance.finalApproachFixNm),
+      6,
+    );
+  });
+
+  it("flies level at FAF altitude on the base leg (matches spawnPlacement.baseLegPlacement)", () => {
+    const sections = approachRibbon(surfaceAssignment, guidance);
+    const faf = finalApproachFix(surfaceAssignment, guidance);
+    const last = sections[sections.length - 1];
+    // The far end is the base-leg entry: level with the FAF, not descending further.
+    expect(last.left.altitudeFt).toBeCloseTo(faf.altitudeFt, 0);
+    expect(last.right.altitudeFt).toBeCloseTo(faf.altitudeFt, 0);
+  });
+
+  it("reaches the base-leg entry point spawnPlacement uses (fixed, world-anchored — no live-position input)", () => {
+    const sections = approachRibbon(surfaceAssignment, guidance);
+    const faf = finalApproachFix(surfaceAssignment, guidance);
+    const outbound = faf.headingDeg + 180;
+    const expectedEntry = destinationPoint(
+      faf.point.latDeg, faf.point.lonDeg,
+      outbound + guidance.baseLegOffsetDeg,
+      guidance.baseLegOffsetNm,
+    );
+    const last = sections[sections.length - 1];
+    const midLat = (last.left.latDeg + last.right.latDeg) / 2;
+    const midLon = (last.left.lonDeg + last.right.lonDeg) / 2;
+    expect(greatCircleDistanceNm(midLat, midLon, expectedEntry.latDeg, expectedEntry.lonDeg)).toBeLessThan(1e-6);
+  });
+
+  it("produces enough continuous samples for a smooth bend at the FAF", () => {
+    const sections = approachRibbon(surfaceAssignment, guidance);
+    // At least one sample per gate spacing across the full (threshold + base-leg) length.
+    const totalLengthNm = guidance.finalApproachFixNm + guidance.baseLegOffsetNm;
+    expect(sections.length).toBeGreaterThanOrEqual(Math.floor(totalLengthNm / guidance.gateSpacingNm));
+    for (const section of sections) {
+      expect(Number.isFinite(section.left.latDeg)).toBe(true);
+      expect(Number.isFinite(section.left.altitudeFt)).toBe(true);
+      expect(Number.isFinite(section.right.latDeg)).toBe(true);
+      expect(Number.isFinite(section.right.altitudeFt)).toBe(true);
+    }
+    const quads = surfaceQuads(sections);
+    expect(quads).toHaveLength(sections.length - 1);
   });
 });
 

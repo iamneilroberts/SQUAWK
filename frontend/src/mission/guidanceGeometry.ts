@@ -200,6 +200,83 @@ export function approachSurface(
   });
 }
 
+/**
+ * Fixed, world-anchored ribbon (Feature 2): a single continuous tapering strip along the
+ * curved 3-point approach path base-leg entry -> FAF -> threshold — the same fixed points
+ * spawnPlacement.baseLegPlacement/onFinalPlacement use, never the live aircraft position, so
+ * the ribbon never swings frame to frame. Two straight tapering segments (mirroring
+ * approachSurface's sampling) share one cross-section at the FAF, which is the dogleg bend:
+ * - threshold -> FAF: on the glide slope (glideSlopeAltitudeFt), perpendicular to the runway
+ *   heading — identical math to approachSurface, just to finalApproachFixNm instead of
+ *   approachLengthNm (the FAF is normally beyond the old surface's far edge).
+ * - FAF -> base-leg entry: level at the FAF's altitude (matches baseLegPlacement's level base
+ *   leg, verticalRateFpm 0), perpendicular to the base-leg bearing (outbound + baseLegOffsetDeg).
+ * Width tapers linearly across the FULL path length (threshold..base-entry) from the runway
+ * width (0 at threshold) to guidance.corridorWidthFt (1 at the base-entry far end), so the FAF
+ * sits at an intermediate width — the taper doesn't reset at the bend.
+ */
+export function approachRibbon(
+  assignment: RunwayAssignment,
+  guidance: MissionProfile["guidance"],
+): GuidanceSegment[] {
+  const threshold = assignment.assignedEnd;
+  const outbound = assignment.runwayHeadingDeg + 180;
+  const thresholdWidthFt =
+    assignment.runwayWidthFt > 0 ? assignment.runwayWidthFt : guidance.corridorWidthFt;
+  const faf = finalApproachFix(assignment, guidance);
+  const legHeadingDeg = faf.headingDeg + 180 + guidance.baseLegOffsetDeg;
+  const totalLengthNm = guidance.finalApproachFixNm + guidance.baseLegOffsetNm;
+
+  const crossSection = (
+    center: { latDeg: number; lonDeg: number },
+    headingDeg: number,
+    alongTrackNm: number,
+    altitudeFt: number,
+  ): GuidanceSegment => {
+    const t = totalLengthNm > 0 ? alongTrackNm / totalLengthNm : 0;
+    const widthFt = thresholdWidthFt + (guidance.corridorWidthFt - thresholdWidthFt) * t;
+    const halfWidthNm = widthFt / 2 / FEET_PER_NM;
+    return {
+      left: point(center, headingDeg - 90, halfWidthNm, altitudeFt),
+      right: point(center, headingDeg + 90, halfWidthNm, altitudeFt),
+    };
+  };
+
+  // Segment 1: threshold (0) -> FAF (finalApproachFixNm), on the glide slope.
+  const finalDistances: number[] = [];
+  for (let d = 0; d < guidance.finalApproachFixNm - 1e-9; d += guidance.gateSpacingNm) {
+    finalDistances.push(d);
+  }
+  finalDistances.push(guidance.finalApproachFixNm);
+  const finalSections = finalDistances.map((distanceNm) =>
+    crossSection(
+      destinationPoint(threshold.latDeg, threshold.lonDeg, outbound, distanceNm),
+      assignment.runwayHeadingDeg,
+      distanceNm,
+      glideSlopeAltitudeFt(assignment, guidance, distanceNm),
+    ),
+  );
+
+  // Segment 2: FAF -> base-leg entry (baseLegOffsetNm beyond it), level at FAF altitude —
+  // the last finalDistances entry (exactly at the FAF) is the shared bend vertex, so this
+  // segment starts just past it and never duplicates that cross-section.
+  const baseDistances: number[] = [];
+  for (let d = guidance.gateSpacingNm; d < guidance.baseLegOffsetNm - 1e-9; d += guidance.gateSpacingNm) {
+    baseDistances.push(d);
+  }
+  if (guidance.baseLegOffsetNm > 1e-9) baseDistances.push(guidance.baseLegOffsetNm);
+  const baseSections = baseDistances.map((distanceFromFafNm) =>
+    crossSection(
+      destinationPoint(faf.point.latDeg, faf.point.lonDeg, legHeadingDeg, distanceFromFafNm),
+      legHeadingDeg,
+      guidance.finalApproachFixNm + distanceFromFafNm,
+      faf.altitudeFt,
+    ),
+  );
+
+  return [...finalSections, ...baseSections];
+}
+
 /** 4-corner rings between consecutive cross-sections — the renderer draws one polygon each. */
 export function surfaceQuads(sections: GuidanceSegment[]): GuidancePoint[][] {
   const quads: GuidancePoint[][] = [];
