@@ -2881,3 +2881,28 @@ single checkbox with a 4-option selector on the handoff card, and ships the core
 review READY (no Critical; one Important on-slope-vertical-rate fix applied). In-sim feel of
 B/C repositioning is unverifiable locally (no traffic feed, #66) — the owner's prod live pass is
 the real gate.
+
+## 2026-08-15 — #22 follow-up: director replaces the glide-slope line (ship-partial fix)
+
+`b9a491e` (#22) added the green flight-director lead aircraft but left the old #24 corridor
+surface + glide gates rendering alongside it — the issue asked for a *replacement*, not an
+addition ("replace the current glide-slope line with a plane-shaped guide... Applies to
+ApproachAssistLayer"). Closed the gap:
+
+- `globe/ApproachAssistLayer.tsx` no longer draws the translucent corridor surface (`approachSurface`
+  + `surfaceQuads`) or the per-gate cross-section polylines (`glideGates`) — those together were
+  "the glide-slope line." The layer now only places the two fixed-point references a moving guide
+  doesn't replace: the FLARE cue and the FAF marker, gated on `features.flareCue` (same FULL-assist
+  value `approachCorridor`/`glideGates` used, so no behavior change to *when* guidance shows, only
+  *what* renders).
+- `mission/assists.ts` untouched: `approachCorridor`/`glideGates` still gate `hud/approachAlerts.ts`'s
+  HIGH/LOW/NOT-LINED-UP text alerts, which are unrelated to this 3D visual.
+- `mission/guidanceGeometry.ts`'s `approachSurface`/`surfaceQuads` (pure, unit-tested #24 geometry)
+  are left in place even though no longer wired to a renderer — reusable, tested, and out of scope
+  to delete.
+- PAPI (#23) and the corridor's flare/FAF markers are unaffected — they're not "the line."
+
+**Verification:** `npx vitest run` 141 files / 1460 tests pass (no regressions — no test asserted
+the old corridor/gates rendering, since Cesium layers aren't unit-tested). `npm run build`
+(typecheck + vite build + service-worker manifest) clean. The 3D visual itself (director now the
+only moving guide on the glide slope) needs the owner's live-app eyeball pass, same as #22 itself.
