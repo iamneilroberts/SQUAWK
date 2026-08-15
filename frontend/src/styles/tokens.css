@@ -692,6 +692,15 @@ body {
 .assist-control strong { color: var(--amber); }
 .assist-control small { grid-column: 1 / -1; opacity: 0.72; }
 .assist-control-off { border-color: rgba(95, 215, 224, 0.5); }
+/* ASSIST relocated into the MENU/pause panel (owner 2026-08-15): it was an always-on HUD chip
+   gated `!narrow`, so mobile portrait flight never rendered it at all — unreachable there. The
+   MENU button (never fades, always reachable) now owns it. Reset the floating HUD-corner
+   positioning to a plain in-flow row inside .pause-card. */
+.pause-card .assist-control {
+  position: static;
+  min-width: 0;
+  width: 100%;
+}
 
 /* Desktop destination indicator (#47) — top-center, tucked under the HDG readout. Uses the same
    .hud-scrim backing/border as the corner clusters, so it reads over bright sky and matches the
@@ -1869,37 +1878,38 @@ body {
 /* ---- Immersive StatusBar: already collapsed to feed-status + attribution by statusBarRegions;
    here it dims slightly and fades with the video-player auto-hide. It STAYS in the DOM and
    reappears on tap — attribution is faded, never removed (CLAUDE.md data-sources safeguard).
-   In immersive it is pulled OUT of the column flow (position: fixed) and overlaid on the globe,
-   so it no longer eats a solid band beneath the globe — that band was the "letterbox" the owner
-   flagged. Low z-index + translucent keeps the touch buttons above readable.
-   Portrait declutter follow-up (owner feedback + screenshots): this bar used to sit flush at
-   bottom:0, i.e. directly BEHIND the CAM/GEAR/FLP/TRM button row (and the LEVEL/RE-SYNC/NAV-WX
-   chips stacked above it) — low z-index kept it un-tappable, but the compact attribution text
-   still visually bled through those controls and made both unreadable. It now sits in its own
-   thin band ABOVE the whole bottom control cluster (buttons + LEVEL/RE-SYNC/NAV-WX all resolve
-   above ~90px — see their own bottom offsets) instead of underneath it. ---- */
+   In immersive it is pulled OUT of the column flow (position: fixed) and overlaid on the globe.
+   Portrait declutter follow-up #2 (owner feedback + screenshots): a prior pass floated this bar
+   as a translucent box mid-right of the screen (clear of the stick/throttle columns) to avoid
+   sitting behind the CAM/GEAR/FLP/TRM button row — but the floating box itself got in the way,
+   overlapping the RE-SYNC/LEVEL chips. Owner's call: put it back on the thin bottom-row band
+   (full-width, single compact line, z-index BELOW the touch controls so it never eats a tap) and
+   rely on the fade — driven by the same chromeVisible/statusFaded signal the rest of the immersive
+   chrome (ImmersiveControl, FlightSession) uses — to get it out of the way once flight starts. The
+   touch-controls layer (buttons/stick/throttle, z-index 25) only mounts while FLYING, and that's
+   exactly when chromeVisible flips false and this bar starts fading (see ImmersiveControl.tsx's
+   auto-hide effect) — so the two are rarely both fully opaque at once, and even mid-fade this bar
+   is non-interactive and behind the buttons. ---- */
 .status-bar-immersive {
   position: fixed;
-  /* Inset clear of the stick (left column, ~148px wide incl. gap) and throttle (right column,
-     ~68px wide incl. gap) — this band's vertical range overlaps their height, so it must not
-     also run full-width or the feed-status/attribution text would sit on top of those controls. */
-  left: 156px;
-  right: 76px;
-  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 112px);
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 5;
   background: rgba(5, 7, 10, 0.55);
   opacity: 0.72;
   transition: opacity 0.5s ease;
-  /* #81: mobile flight — this bar is display-only (feed status + compact attribution). Keep it
+  /* #81/#2: mobile flight — this bar is display-only (feed status + compact attribution). Keep it
      UNDER the touch controls (they are z-index 25) AND non-interactive, so it can never eat a tap
      on the button row. Compact type keeps the required attribution readable in the tight
-     portrait strip without spilling into the controls below it. */
+     portrait strip without spilling into the controls above it. */
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
   font-size: 8px;
-  line-height: 1.35;
-  padding: 2px 12px;
+  line-height: 1.3;
+  padding: 2px max(8px, env(safe-area-inset-right)) max(2px, env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
 }
 .status-bar-faded { opacity: 0; }
 
@@ -2220,17 +2230,6 @@ body {
   }
 }
 
-@media (max-width: 767px) {
-  /* The A/C rail, its secondary row, AND the relocated control chips (FULL/EXIT · DCLTR · MENU at
-     safe-area+88px, 36px tall → bottom ~124px) occupy the top band. Keep the assist control below
-     all of it (#26) so it no longer collides with the right-anchored chips; the joystick/throttle
-     remain anchored to the bottom and are intentionally untouched. */
-  .assist-control {
-    top: max(132px, calc(env(safe-area-inset-top) + 128px));
-    left: max(8px, env(safe-area-inset-left));
-  }
-}
-
 @media (max-width: 360px) {
   .imm-bar-balanced { gap: 2px; padding-inline: 2px; }
   .imm-director-systems { gap: 3px; }
@@ -2459,11 +2458,6 @@ body {
   }
   .mobile-navwx-map { min-height: 168px; }
 }
-
-/* Screen-space assist chrome (ASSIST chip + destination cue) joins the video-player auto-hide:
-   fades with the rest of the informational chrome, tap restores. Stays in the DOM. */
-.mission-chrome { transition: opacity 0.5s ease; }
-.mission-chrome-faded { opacity: 0; pointer-events: none; }
 
 /* Funnel chips (SIGN IN / APP / PILOT) during immersive flight: dropped into their OWN band
    BELOW the FULL/DCLTR/MENU control row (which occupies safe-area+88px .. ~124px). Sitting them

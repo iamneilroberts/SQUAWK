@@ -50,8 +50,7 @@ import { descentGuidanceFor } from "../mission/descentGuidance";
 import type { AssistMode } from "../mission/assists";
 import { releaseMissionLease, submitMissionResult } from "../mission/api";
 import { buildMissionResultPackage } from "../mission/resultPackage";
-import { assistFeatures, assistModeFromPreference, finalTurnCue, missionNavigationCue } from "../mission/assists";
-import AssistControl from "../mission/AssistControl";
+import { assistFeatures, assistModeFromPreference, finalTurnCue, missionNavigationCue, nextAssistMode } from "../mission/assists";
 import MissionRouteLayer from "../globe/MissionRouteLayer";
 import ApproachAssistLayer from "../globe/ApproachAssistLayer";
 import DirectorLayer from "../globe/DirectorLayer";
@@ -1007,11 +1006,13 @@ export default function FlightSession({
   // airport"). Feeds the bar's NavDirector (relative-bearing arrow + distance) from the same
   // missionNavigationCue the big screen-space cue used; the bar replaces that cue on narrow.
   // The destination POINTER (which way is the airport + how far) is basic situational awareness,
-  // not a landing aid, so an instant flight always gets it even at OFF assist (its anonymous pilot
-  // never chose an assist level, and "fly a real plane and land it" needs a destination). It is the
-  // ONLY nav cue an instant flight can support: its airport is a real point but has no runway
-  // geometry, so route/runway-highlight/approach aids (the rest of NAV/FULL) would draw nothing
-  // meaningful — hence a pointer-only exception rather than bumping the assist level. (#47)
+  // not a landing aid, so an instant flight always gets it regardless of assist level (its
+  // anonymous pilot may not have touched the ASSIST control, and "fly a real plane and land it"
+  // needs a destination). Its airport is a real point but has no runway rectangle to highlight
+  // (MissionRouteLayer skips that degenerate outline), which is why this pointer is guaranteed as
+  // a floor rather than only appearing once NAV+ is selected — but the approach corridor/gates/
+  // flare (ApproachAssistLayer, FULL assist — the default for instant flight, owner 2026-08-15)
+  // draw fine off the mission profile's guidance geometry + the real inbound bearing. (#47)
   const immersiveNavCue =
     lockedMission !== null &&
     snapshot !== null &&
@@ -1051,10 +1052,12 @@ export default function FlightSession({
         )
       : [];
 
-  // Instant flight runs assist=OFF but still gets the nav cue + advisory guidance (owner req):
-  // treat it as NAV for the approach band / descent advisory, which gate on destinationCue. Its
-  // destination is the real nearest airport; note the altitude band/target is approximate there
-  // (airport elevation is unknown → sea-level datum). The per-class SPEED band is exact regardless.
+  // Instant flight defaults to FULL (owner 2026-08-15) but is still cyclable down via the ASSIST
+  // control; regardless of the chosen level it always gets at least the nav cue + advisory
+  // guidance (owner req) — treat it as NAV for the approach band / descent advisory, which gate on
+  // destinationCue. Its destination is the real nearest airport; note the altitude band/target is
+  // approximate there (airport elevation is unknown → sea-level datum). The per-class SPEED band
+  // is exact regardless.
   const advisoryAssist: AssistMode = instantFlight ? "NAV" : (assist?.current ?? "OFF");
 
   // #52: suggested approach speed + glide-slope altitude band on final.
@@ -1107,8 +1110,9 @@ export default function FlightSession({
           {/* PAPI is world furniture (#23): renders at EVERY assist level, unlike the
               assist-gated layers below — real airports don't turn their lights off. */}
           <PapiLayer mission={lockedMission} />
-          {/* Instant flight runs assist=OFF but still gets a labeled destination + route line
-              (owner req): the layer skips the degenerate runway outline when there's no runway. */}
+          {/* Instant flight defaults to FULL (owner 2026-08-15) but still always gets a labeled
+              destination + route line at minimum (owner req): the layer skips the degenerate
+              runway outline when there's no runway. */}
           <MissionRouteLayer mission={lockedMission} assist={advisoryAssist} />
           <ApproachAssistLayer mission={lockedMission} assist={assist.current} />
           {/* The approach flight director (#22): a green lead aircraft flying the glide slope ahead
@@ -1116,18 +1120,11 @@ export default function FlightSession({
               corridor surface + glide gates (ApproachAssistLayer now draws only the flare/FAF
               point references — see #22 follow-up). */}
           <DirectorLayer mission={lockedMission} assist={assist.current} instantFlight={instantFlight} />
-          {/* Screen-space assist chrome folds into the same video-player auto-hide as the HUD
-              (owner 2026-08-11: assist elements take too much space — fade them out). The
-              world-space Cesium layers above stay: they are the guidance itself. On narrow
-              (phone) the chrome is NOT rendered at all — the HUD bar's NavDirector carries the
-              destination pointer instead (owner: clean portrait view). */}
-          {!narrow && (
-            <div className={"mission-chrome" + (faded ? " mission-chrome-faded" : "")}>
-              {/* The destination cue now lives at the top of the HUD (Hud.tsx HudDestinationCue,
-                  #47) — a single heading-relative indicator that also covers instant flight. */}
-              <AssistControl />
-            </div>
-          )}
+          {/* The destination cue lives at the top of the HUD (Hud.tsx HudDestinationCue, #47) — a
+              single heading-relative indicator that also covers instant flight. The ASSIST
+              FULL/NAV/OFF cycle control itself now lives in the MENU panel (PauseOverlay, owner
+              2026-08-15) instead of an always-on HUD chip — it was invisible/unreachable on
+              mobile portrait (this block was gated `!narrow`, so it never rendered there at all). */}
         </>
       )}
       {mode === "COUNTDOWN" && lockedMission && (
@@ -1221,6 +1218,12 @@ export default function FlightSession({
           armed={resumeArmed}
           onArmResume={narrow ? resumeFlight : () => setResumeArmed(true)}
           onQuit={() => leaveToBrowse("QUIT")}
+          assist={assist}
+          onCycleAssist={
+            assist !== null
+              ? () => useStore.getState().setAssistMode(nextAssistMode(assist.current))
+              : undefined
+          }
         />
       )}
       {mode === "FLYING" && tutorial === null && activeLesson !== null && (

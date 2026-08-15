@@ -53,7 +53,9 @@ describe("buildInstantMission", () => {
     const view = buildInstantMission(gaContact(), AIRPORTS, {}, LOCKED_AT);
     expect(view.traffic.source).toBeNull();
     expect(view.traffic.cacheStatus).toBe("MISS");
-    expect(view.assist).toBe("none");
+    // Defaults to FULL (owner 2026-08-15): the corridor ribbon should show without the pilot
+    // touching the ASSIST control on a fresh/anonymous session.
+    expect(view.assist).toBe("medium");
     expect(view.reconstruction.disclosure).toContain("INSTANT");
     expect(view.reconstruction.disclosure).toContain("UNRANKED");
     expect(view.receipt).toContain("instant");
