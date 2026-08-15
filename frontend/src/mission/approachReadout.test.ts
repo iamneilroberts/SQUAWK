@@ -24,6 +24,9 @@ const assignment = {
 
 const profile = missionProfileForClass("c172s"); // 65 ± 5 KT, 3° slope, corridor 700 ft, approachLengthNm 5
 
+// Runway heading is 90 (assignment above); tracking it is "aligned"/established.
+const ALIGNED_HEADING = 90;
+
 /** A point `distanceNm` before the threshold on final (west of it), optionally offset `crossFt`
  *  right of the centerline (a small bearing nudge — close enough at these distances for fixtures). */
 function onFinal(distanceNm: number, crossFt = 0): { latDeg: number; lonDeg: number } {
@@ -39,7 +42,7 @@ describe("approachReadoutFor", () => {
   it("reads ON when altitude sits on the glide slope", () => {
     const alt = targetAltAt(3);
     const readout = approachReadoutFor(
-      { ...onFinal(3), altitudeFt: alt, iasKt: 65, groundSpeedKt: 65, verticalSpeedFpm: -345 },
+      { ...onFinal(3), altitudeFt: alt, iasKt: 65, groundSpeedKt: 65, verticalSpeedFpm: -345, headingDeg: ALIGNED_HEADING },
       assignment, profile,
     );
     expect(readout.targetAltFt).toBeCloseTo(alt, 0);
@@ -49,11 +52,11 @@ describe("approachReadoutFor", () => {
   it("reads HIGH well above the glide slope and LOW well below it", () => {
     const alt = targetAltAt(3);
     const high = approachReadoutFor(
-      { ...onFinal(3), altitudeFt: alt + 500, iasKt: 65, groundSpeedKt: 65, verticalSpeedFpm: 0 },
+      { ...onFinal(3), altitudeFt: alt + 500, iasKt: 65, groundSpeedKt: 65, verticalSpeedFpm: 0, headingDeg: ALIGNED_HEADING },
       assignment, profile,
     );
     const low = approachReadoutFor(
-      { ...onFinal(3), altitudeFt: alt - 500, iasKt: 65, groundSpeedKt: 65, verticalSpeedFpm: 0 },
+      { ...onFinal(3), altitudeFt: alt - 500, iasKt: 65, groundSpeedKt: 65, verticalSpeedFpm: 0, headingDeg: ALIGNED_HEADING },
       assignment, profile,
     );
     expect(high.altState).toBe("HIGH");
@@ -61,7 +64,7 @@ describe("approachReadoutFor", () => {
   });
 
   it("reads speed FAST/SLOW/ON against the profile's target ± band", () => {
-    const base = { ...onFinal(3), altitudeFt: targetAltAt(3), groundSpeedKt: 65, verticalSpeedFpm: -345 };
+    const base = { ...onFinal(3), altitudeFt: targetAltAt(3), groundSpeedKt: 65, verticalSpeedFpm: -345, headingDeg: ALIGNED_HEADING };
     expect(approachReadoutFor({ ...base, iasKt: 65 }, assignment, profile).speedState).toBe("ON");
     expect(approachReadoutFor({ ...base, iasKt: 80 }, assignment, profile).speedState).toBe("FAST");
     expect(approachReadoutFor({ ...base, iasKt: 50 }, assignment, profile).speedState).toBe("SLOW");
@@ -70,7 +73,7 @@ describe("approachReadoutFor", () => {
 
   it("computes time-to-landing from distance and groundspeed", () => {
     const readout = approachReadoutFor(
-      { ...onFinal(3), altitudeFt: targetAltAt(3), iasKt: 65, groundSpeedKt: 90, verticalSpeedFpm: -345 },
+      { ...onFinal(3), altitudeFt: targetAltAt(3), iasKt: 65, groundSpeedKt: 90, verticalSpeedFpm: -345, headingDeg: ALIGNED_HEADING },
       assignment, profile,
     );
     expect(readout.distanceNm).toBeCloseTo(3, 1);
@@ -79,7 +82,7 @@ describe("approachReadoutFor", () => {
 
   it("guards a stopped/near-stopped groundspeed instead of returning Infinity", () => {
     const readout = approachReadoutFor(
-      { ...onFinal(3), altitudeFt: targetAltAt(3), iasKt: 65, groundSpeedKt: 0, verticalSpeedFpm: 0 },
+      { ...onFinal(3), altitudeFt: targetAltAt(3), iasKt: 65, groundSpeedKt: 0, verticalSpeedFpm: 0, headingDeg: ALIGNED_HEADING },
       assignment, profile,
     );
     expect(readout.timeToLandingSec).toBeNull();
@@ -87,7 +90,7 @@ describe("approachReadoutFor", () => {
 
   it("computes the sink rate that rides the glide slope at the current groundspeed", () => {
     const readout = approachReadoutFor(
-      { ...onFinal(3), altitudeFt: targetAltAt(3), iasKt: 65, groundSpeedKt: 65, verticalSpeedFpm: -345 },
+      { ...onFinal(3), altitudeFt: targetAltAt(3), iasKt: 65, groundSpeedKt: 65, verticalSpeedFpm: -345, headingDeg: ALIGNED_HEADING },
       assignment, profile,
     );
     const expectedFpm = (65 * FEET_PER_NM / 60) * Math.tan((3 * Math.PI) / 180);
@@ -96,7 +99,7 @@ describe("approachReadoutFor", () => {
   });
 
   it("reads sink STEEP when descending much faster than the glide slope needs, SHALLOW when slower", () => {
-    const base = { ...onFinal(3), altitudeFt: targetAltAt(3), iasKt: 65, groundSpeedKt: 65 };
+    const base = { ...onFinal(3), altitudeFt: targetAltAt(3), iasKt: 65, groundSpeedKt: 65, headingDeg: ALIGNED_HEADING };
     const steep = approachReadoutFor({ ...base, verticalSpeedFpm: -900 }, assignment, profile);
     const shallow = approachReadoutFor({ ...base, verticalSpeedFpm: -50 }, assignment, profile);
     expect(steep.sinkState).toBe("STEEP");
@@ -104,7 +107,7 @@ describe("approachReadoutFor", () => {
   });
 
   it("reads course ON at the centerline, LEFT/RIGHT off it beyond the corridor half-width", () => {
-    const base = { altitudeFt: targetAltAt(3), iasKt: 65, groundSpeedKt: 65, verticalSpeedFpm: -345 };
+    const base = { altitudeFt: targetAltAt(3), iasKt: 65, groundSpeedKt: 65, verticalSpeedFpm: -345, headingDeg: ALIGNED_HEADING };
     const onCourse = approachReadoutFor({ ...onFinal(3), ...base }, assignment, profile);
     const right = approachReadoutFor({ ...onFinal(3, 500), ...base }, assignment, profile);
     const left = approachReadoutFor({ ...onFinal(3, -500), ...base }, assignment, profile);
@@ -114,16 +117,35 @@ describe("approachReadoutFor", () => {
   });
 
   it("carries the turn-to-final cue outside the FAF and drops it once established", () => {
-    const base = { altitudeFt: targetAltAt(7), iasKt: 65, groundSpeedKt: 65, verticalSpeedFpm: -345 };
+    const base = { altitudeFt: targetAltAt(7), iasKt: 65, groundSpeedKt: 65, verticalSpeedFpm: -345, headingDeg: ALIGNED_HEADING };
     // c172s finalApproachFixNm is 5.5 — 7 nm out is still outside it.
     const outside = approachReadoutFor({ ...onFinal(7), ...base }, assignment, profile);
     expect(outside.turnToFinal).not.toBeNull();
     expect(outside.turnToFinal!.distanceNm).toBeGreaterThan(0);
 
     const established = approachReadoutFor(
-      { ...onFinal(3), altitudeFt: targetAltAt(3), iasKt: 65, groundSpeedKt: 65, verticalSpeedFpm: -345 },
+      { ...onFinal(3), altitudeFt: targetAltAt(3), iasKt: 65, groundSpeedKt: 65, verticalSpeedFpm: -345, headingDeg: ALIGNED_HEADING },
       assignment, profile,
     );
     expect(established.turnToFinal).toBeNull();
+  });
+
+  it("keeps the turn cue (and never claims established) when crossing the corridor at an angle near the threshold", () => {
+    // Same near-centerline position/altitude as the established case above, but tracking 90° off
+    // the runway heading — crossing from the side, not tracking inbound on it. Owner bug report:
+    // this used to read "CRS ON CENTERLINE" purely from distance, ignoring heading entirely.
+    const crossing = approachReadoutFor(
+      { ...onFinal(3), altitudeFt: targetAltAt(3), iasKt: 65, groundSpeedKt: 65, verticalSpeedFpm: -345, headingDeg: 0 },
+      assignment, profile,
+    );
+    expect(crossing.turnToFinal).not.toBeNull();
+  });
+
+  it("still reads established with a small heading error inside tolerance", () => {
+    const readout = approachReadoutFor(
+      { ...onFinal(3), altitudeFt: targetAltAt(3), iasKt: 65, groundSpeedKt: 65, verticalSpeedFpm: -345, headingDeg: ALIGNED_HEADING + 10 },
+      assignment, profile,
+    );
+    expect(readout.turnToFinal).toBeNull();
   });
 });

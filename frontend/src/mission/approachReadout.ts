@@ -38,8 +38,11 @@ export type ApproachReadout = {
   sinkState: SinkState;
   courseState: CourseState;
   /** Heading/distance to the FAF (finalTurnCue passthrough), for the "turn to final" callout
-   *  before the aircraft is established — null once inside the FAF distance, where courseState
-   *  takes over as the on-course indicator. */
+   *  before the aircraft is established. Established requires BOTH being inside the FAF distance
+   *  AND tracking within the runway heading — null only then, where courseState takes over as the
+   *  on-course indicator; non-null (and shown in place of the full readout) even inside the FAF
+   *  distance if the aircraft is crossing the corridor at an angle, so a side approach never reads
+   *  as "on centerline". */
   turnToFinal: { bearingDeg: number; distanceNm: number } | null;
 };
 
@@ -53,6 +56,9 @@ export type ApproachReadoutInput = {
   groundSpeedKt: number;
   /** Signed, positive = climbing (matches HudSnapshot.verticalSpeedMs convention). */
   verticalSpeedFpm: number;
+  /** True heading/track, degrees — checked against the runway heading so a plane crossing the
+   *  corridor at an angle isn't reported as established just because it's distance-close. */
+  headingDeg: number;
 };
 
 export function approachReadoutFor(

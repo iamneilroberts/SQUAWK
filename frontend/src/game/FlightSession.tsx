@@ -45,7 +45,7 @@ import MobileNavWx from "../dashboard/MobileNavWx";
 import HandoffCard from "../panels/HandoffCard";
 import PauseOverlay from "../panels/PauseOverlay";
 import EndCard from "../panels/EndCard";
-import { degToRad, ktToMs, mToFt, msToFpm, msToKt } from "../sim/units";
+import { degToRad, ktToMs, mToFt, msToFpm, msToKt, radToDeg } from "../sim/units";
 import { descentGuidanceFor } from "../mission/descentGuidance";
 import { approachReadoutFor } from "../mission/approachReadout";
 import type { AssistMode } from "../mission/assists";
@@ -1040,7 +1040,11 @@ export default function FlightSession({
     snapshot !== null &&
     assist !== null &&
     (instantFlight || assistFeatures(assist.current).destinationCue)
-      ? finalTurnCue(snapshot, lockedMission.assignment, lockedMission.missionProfile)
+      ? finalTurnCue(
+          { latDeg: snapshot.latDeg, lonDeg: snapshot.lonDeg, headingDeg: radToDeg(snapshot.headingRad) },
+          lockedMission.assignment,
+          lockedMission.missionProfile,
+        )
       : null;
 
   const immersiveApproachWarnings =
@@ -1105,6 +1109,7 @@ export default function FlightSession({
             iasKt: msToKt(snapshot.iasMs),
             groundSpeedKt: msToKt(snapshot.tasMs),
             verticalSpeedFpm: msToFpm(snapshot.verticalSpeedMs),
+            headingDeg: radToDeg(snapshot.headingRad),
           },
           lockedMission.assignment,
           lockedMission.missionProfile,
