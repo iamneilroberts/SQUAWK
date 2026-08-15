@@ -2972,3 +2972,48 @@ would be exactly the "guessing" the task called out to avoid.
 render for the ball style), `params.test.ts` and `SixPack.test.tsx` updated for the C172's new
 `"ball"` style (with an explicit `"line"` fixture added so line-style coverage isn't lost). Full
 suite 142 files / 1469 tests pass (was 142/1468), `npm run build` clean.
+
+## 2026-08-15 — Prominent APPROACH GUIDANCE readout: expand the top HUD line, don't add a panel
+
+Owner req: make it easy to tell if you're on course/sink-rate/speed, with target alt/speed +
+distance + time-to-landing prominent. Placement decision (given, not re-litigated): expand the
+existing top HUD approach line rather than a new panel.
+
+**New pure module** `mission/approachReadout.ts` (`approachReadoutFor`) supersedes the old
+`#52`/`#88` inline text (`APCH lo-hi KT · lo-hi FT` and `TURN FINAL hdg · dist · alt · spd`) with
+one readout object: `targetAltFt`/`altState`, `targetSpeedKt`/`speedState`, `distanceNm`,
+`timeToLandingSec` (null — never Infinity — below 1 kt groundspeed), `targetSinkRateFpm`/
+`sinkState`, `courseState`, and `turnToFinal` (a straight `finalTurnCue` passthrough for the
+pre-final case). Every target/tolerance traces to existing data, nothing invented:
+- alt target/tolerance reuse `glideSlopeAltitudeFt`/`glidepathToleranceFt` (#52's own helpers).
+- speed target/tolerance reuse `profile.approach.targetSpeedKt`/`bandKt` — the same band already
+  painted on the IAS tape, so the new ON state can't disagree with the tape's cyan band.
+- course tolerance reuses `profile.guidance.corridorWidthFt / 2` — the same half-width the drawn
+  approach corridor uses, so "ON" can't disagree with the visible rails either. `courseState`
+  reads as the aircraft's position (LEFT/RIGHT of centerline), not a steering command — chosen
+  for testability or over an ILS-needle "fly toward" convention.
+- sink target is pure geometry (groundspeed × tan(glideSlopeDeg)), actual sink reuses the
+  existing `HudSnapshot.verticalSpeedMs`; tolerance (`SINK_TOLERANCE_FPM = 150`) is a new,
+  documented tuning constant — no existing profile field covers it.
+- groundspeed reuses the established `tasMs`-as-groundspeed convention (`descentGuidance.ts`,
+  still-air sim, no wind model) rather than inventing a separate groundspeed source.
+
+**Render**: one shared `ApproachReadoutBlock` (in `ImmersiveHudBar.tsx`) feeds both platforms —
+the mobile top bar (new full-width row under the existing compact bar) and desktop (`Hud.tsx`,
+replacing `HudFinalTurnCue`) — so they can't disagree. It fully replaces the old `finalTurn` prop
+plumbing end-to-end (`FlightSession.tsx` → `Hud.tsx` → `ImmersiveHudBar.tsx`); `approachBand` and
+`descentGuidance` stay wired for the tape-band visuals and the separate cruise-in (beyond
+`approachLengthNm`) DESC advisory, which is a different regime and out of scope here. Visibility
+gate (in `FlightSession.tsx`) mirrors the union of the old approach-band/turn-cue windows:
+`(instantFlight || destinationCue assist) && (approachBand !== null || finalTurnCue !== null)` —
+so the expanded block appears exactly where the old scattered cues used to, never in free flight.
+
+**Not available, honestly omitted:** no lateral-deviation *magnitude* readout (just the L/R/ON
+state) — showing feet-off-centerline wasn't asked for and would need UI real estate; no wind-aware
+groundspeed (the sim has none, so TAS-as-groundspeed is the existing honest convention, not new).
+
+**Verification:** new `mission/approachReadout.test.ts` (9 tests: alt HIGH/LOW/ON, speed FAST/
+SLOW/ON, distance/time-to-landing incl. the ~0-groundspeed null guard, target sink rate for a
+known glide angle, course LEFT/RIGHT/ON, turn-to-final hand-off). `ImmersiveHudBar.test.tsx`
+updated (old `"APCH 60-70 KT"` assertions replaced with the new block's own describe block, 6
+tests). Full suite 143 files / 1503 tests (was 142/1489), `npm run build` clean.
