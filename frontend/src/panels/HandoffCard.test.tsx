@@ -30,15 +30,15 @@ function collectText(node: unknown, out: string[] = []): string[] {
 }
 
 type Props = Parameters<typeof HandoffCard>[0];
-// Newer required props (#88-followup) default to the pre-toggle behavior — facing the approach,
-// no destination fixture, not free flight — so every existing call site keeps working unchanged;
-// tests that care override just the one they need.
-type DefaultedProps = "assignment" | "faceApproach" | "onToggleFaceApproach" | "freeFlight";
+// Newer required props (#88-followup, #90 spawn chooser) default to the pre-toggle behavior —
+// facing the approach, no destination fixture, not free flight — so every existing call site
+// keeps working unchanged; tests that care override just the one they need.
+type DefaultedProps = "assignment" | "spawnMode" | "onSpawnModeChange" | "freeFlight";
 const render = (props: Omit<Props, DefaultedProps> & Partial<Pick<Props, DefaultedProps>>) =>
   collectText(HandoffCard({
     assignment: null,
-    faceApproach: true,
-    onToggleFaceApproach: () => {},
+    spawnMode: "faceApproach",
+    onSpawnModeChange: () => {},
     freeFlight: false,
     ...props,
   })).join(" ");
@@ -136,20 +136,36 @@ describe("HandoffCard", () => {
     expect(text).toContain("000");
     expect(text).not.toContain("360");
   });
-  it("shows the destination and the HEADING → APPROACH toggle for a real mission", () => {
+  it("shows the destination and the spawn-mode selector for a real mission", () => {
     const text = render({
       contact: ga(), spawn, params: P, matched: true, countdown: 3, note: "",
       assignment: airportAssignment, freeFlight: false,
     });
     expect(text).toContain("KTST RWY 27 · 4.2 NM");
-    expect(text).toContain("HEADING → APPROACH");
+    expect(text).toContain("SPAWN");
+    expect(text).toContain("REAL");
+    expect(text).toContain("LINE UP");
+    expect(text).toContain("1 TURN");
+    expect(text).toContain("ON FINAL");
   });
-  it("hides the destination and the toggle in free flight — no destination, heading never overridden", () => {
+  it("hides the destination and the spawn-mode selector in free flight — no destination, heading never overridden", () => {
     const text = render({
       contact: ga(), spawn, params: P, matched: true, countdown: 3, note: "",
       assignment: airportAssignment, freeFlight: true,
     });
     expect(text).not.toContain("KTST RWY 27 · 4.2 NM");
-    expect(text).not.toContain("HEADING → APPROACH");
+    expect(text).not.toContain("LINE UP");
+  });
+  it("shows an UNRANKED note for a reposition mode, not for real/faceApproach", () => {
+    const repositioned = render({
+      contact: ga(), spawn, params: P, matched: true, countdown: 3, note: "",
+      assignment: airportAssignment, freeFlight: false, spawnMode: "final",
+    });
+    expect(repositioned).toContain("UNRANKED");
+    const real = render({
+      contact: ga(), spawn, params: P, matched: true, countdown: 3, note: "",
+      assignment: airportAssignment, freeFlight: false, spawnMode: "real",
+    });
+    expect(real).not.toContain("UNRANKED");
   });
 });

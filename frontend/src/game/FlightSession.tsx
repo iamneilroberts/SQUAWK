@@ -13,10 +13,11 @@ import type { GameEvent } from "./machine";
 import { useViewer } from "../globe/viewerContext";
 import { attributionFor } from "../globe/mapSources";
 import { checkPhysicalEligibility, resolveClass } from "../takeover/eligibility";
-import { shouldFaceApproach, setFaceApproach } from "../takeover/headingToFafPreference";
+import { readSpawnMode, writeSpawnMode, type SpawnMode } from "../takeover/spawnModePreference";
 import { buildLockedMissionSpawn, buildSpawnState, type SpawnResult } from "../takeover/spawn";
 import { initialBearingDeg } from "../mission/geo";
 import { finalApproachFix } from "../mission/guidanceGeometry";
+import { onFinalPlacement, baseLegPlacement } from "../mission/spawnPlacement";
 import { createTerrainService, type TerrainService } from "../world/terrain";
 import { createKeyboard } from "../input/keyboard";
 import { createCesiumFlightHost } from "../globe/cesiumFlightHost";
@@ -114,18 +115,19 @@ export default function FlightSession({
 
   const [spawn, setSpawn] = useState<SpawnResult | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
-  /** Spawn heading faces the FAF instead of the live track; default on, persisted (owner req). */
-  const [faceApproach, setFaceApproachState] = useState(() =>
-    shouldFaceApproach(typeof window === "undefined" ? null : window.localStorage));
-  const toggleFaceApproach = useCallback((enabled: boolean) => {
-    try { setFaceApproach(localStorage, enabled); } catch { /* storage unavailable — apply for this session */ }
-    setFaceApproachState(enabled);
+  /** Where the SIM aircraft spawns relative to the approach: real track, facing the FAF, one turn
+   *  out (base leg), or on final — default facing the FAF, persisted (owner req). */
+  const [spawnMode, setSpawnModeState] = useState<SpawnMode>(() =>
+    readSpawnMode(typeof window === "undefined" ? null : window.localStorage));
+  const setSpawnMode = useCallback((mode: SpawnMode) => {
+    try { writeSpawnMode(localStorage, mode); } catch { /* storage unavailable — apply for this session */ }
+    setSpawnModeState(mode);
   }, []);
-  // Mirrors `faceApproach` every render so the COUNTDOWN effect's async preload continuation (a
+  // Mirrors `spawnMode` every render so the COUNTDOWN effect's async preload continuation (a
   // closure created once, not re-run on toggle) reads the LATEST value instead of the stale one
   // captured when the effect started — otherwise a toggle during the preload window is dropped.
-  const faceApproachRef = useRef(faceApproach);
-  faceApproachRef.current = faceApproach;
+  const spawnModeRef = useRef(spawnMode);
+  spawnModeRef.current = spawnMode;
   const [note, setNote] = useState("");
   /** RESUME pressed, waiting for the canvas click that spec §6 requires. */
   const [resumeArmed, setResumeArmed] = useState(false);
@@ -153,8 +155,8 @@ export default function FlightSession({
   const hostRef = useRef<ReturnType<typeof createCesiumFlightHost> | null>(null);
   const keyboardRef = useRef<ReturnType<typeof createKeyboard> | null>(null);
   const terrainRef = useRef<TerrainService | null>(null);
-  // Terrain height resolved by the COUNTDOWN effect below, kept around so the faceApproach-toggle
-  // effect can rebuild the spawn (new heading only) without re-running terrain preload.
+  // Terrain height resolved by the COUNTDOWN effect below, kept around so the spawn-mode-change
+  // effect can rebuild the spawn without re-running terrain preload.
   const countdownTerrainHeightMRef = useRef<number | null>(null);
   const countdownTerrainResolvedRef = useRef(false);
   const releaseKeyRef = useRef<string | null>(null);
@@ -379,20 +381,33 @@ export default function FlightSession({
       countdownTerrainHeightMRef.current = preload.terrainHeightM;
       countdownTerrainResolvedRef.current = true;
 
-      const spawnHeadingDeg =
-        faceApproachRef.current && !freeFlight
-          ? (() => {
-              const faf = finalApproachFix(lockedMission.assignment, lockedMission.missionProfile.guidance);
-              return initialBearingDeg(contact.lat, contact.lon, faf.point.latDeg, faf.point.lonDeg);
-            })()
-          : undefined;
+      const mode = spawnModeRef.current;
+      let overrideOpts: Partial<Parameters<typeof buildLockedMissionSpawn>[3]> = {};
+      if (!freeFlight) {
+        if (mode === "faceApproach") {
+          const faf = finalApproachFix(lockedMission.assignment, lockedMission.missionProfile.guidance);
+          overrideOpts = { spawnHeadingDeg: initialBearingDeg(contact.lat, contact.lon, faf.point.latDeg, faf.point.lonDeg) };
+        } else if (mode === "base" || mode === "final") {
+          const place = mode === "final"
+            ? onFinalPlacement(lockedMission.assignment, lockedMission.missionProfile)
+            : baseLegPlacement(lockedMission.assignment, lockedMission.missionProfile);
+          overrideOpts = {
+            spawnPositionOverride: { latDeg: place.latDeg, lonDeg: place.lonDeg },
+            spawnAltitudeFtOverride: place.altitudeFt,
+            spawnSpeedKtOverride: place.speedKt,
+            spawnHeadingDeg: place.headingDeg,
+            ...(mode === "final" ? { initialGearDown: true, initialFlapDetent: params.flaps.length - 1 } : {}),
+          };
+        }
+      }
+      useStore.getState().setRepositioned(!freeFlight && (mode === "base" || mode === "final"));
       const built = buildLockedMissionSpawn(
         contact,
         lockedMission.classId,
         params,
         {
           terrainHeightM: preload.terrainHeightM,
-          spawnHeadingDeg,
+          ...overrideOpts,
           ...(tutorial === null
             ? {}
             : { initialFlapDetent: params.flaps.length - 1, initialGearDown: true }),
@@ -597,10 +612,10 @@ export default function FlightSession({
     // this mid-countdown for a field this effect never reads.
     // Deliberately depend on the bundle's stable members, not the bundle object; see above.
     // submitPendingResult owns refs/current mission and must not restart an active countdown.
-    // `faceApproach` is deliberately NOT a dep here — see the decoupled rebuild effect below;
-    // depending on it would restart the 3-2-1 timer and re-run terrain preload on every toggle.
-    // The spawn build inside reads `faceApproachRef.current`, not the closed-over `faceApproach`,
-    // so a toggle during the preload window (before countdownTerrainResolvedRef flips true, while
+    // `spawnMode` is deliberately NOT a dep here — see the decoupled rebuild effect below;
+    // depending on it would restart the 3-2-1 timer and re-run terrain preload on every change.
+    // The spawn build inside reads `spawnModeRef.current`, not the closed-over `spawnMode`,
+    // so a change during the preload window (before countdownTerrainResolvedRef flips true, while
     // the decoupled effect below still bails) isn't lost — it's picked up when preload resolves.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -613,33 +628,45 @@ export default function FlightSession({
     instantFlight,
   ]);
 
-  // Toggling HEADING → APPROACH mid-COUNTDOWN rebuilds ONLY the spawn (new heading), reusing the
-  // terrain height the effect above already resolved — deliberately decoupled so it never resets
-  // the 3-2-1 timer or reflashes "ACQUIRING TERRAIN…" (the countdown effect above owns those).
+  // Changing the spawn-mode choice mid-COUNTDOWN rebuilds ONLY the spawn, reusing the terrain
+  // height the effect above already resolved — deliberately decoupled so it never resets the
+  // 3-2-1 timer or reflashes "ACQUIRING TERRAIN…" (the countdown effect above owns those).
   useEffect(() => {
     if (mode !== "COUNTDOWN" || !lockedMission || !countdownTerrainResolvedRef.current) return;
     const contact = lockedMission.contact;
     const params = lockedMission.aircraftProfile;
     if (params.id !== lockedMission.classId) return;
-    const spawnHeadingDeg =
-      faceApproach && !freeFlight
-        ? (() => {
-            const faf = finalApproachFix(lockedMission.assignment, lockedMission.missionProfile.guidance);
-            return initialBearingDeg(contact.lat, contact.lon, faf.point.latDeg, faf.point.lonDeg);
-          })()
-        : undefined;
+    let overrideOpts: Partial<Parameters<typeof buildLockedMissionSpawn>[3]> = {};
+    if (!freeFlight) {
+      if (spawnMode === "faceApproach") {
+        const faf = finalApproachFix(lockedMission.assignment, lockedMission.missionProfile.guidance);
+        overrideOpts = { spawnHeadingDeg: initialBearingDeg(contact.lat, contact.lon, faf.point.latDeg, faf.point.lonDeg) };
+      } else if (spawnMode === "base" || spawnMode === "final") {
+        const place = spawnMode === "final"
+          ? onFinalPlacement(lockedMission.assignment, lockedMission.missionProfile)
+          : baseLegPlacement(lockedMission.assignment, lockedMission.missionProfile);
+        overrideOpts = {
+          spawnPositionOverride: { latDeg: place.latDeg, lonDeg: place.lonDeg },
+          spawnAltitudeFtOverride: place.altitudeFt,
+          spawnSpeedKtOverride: place.speedKt,
+          spawnHeadingDeg: place.headingDeg,
+          ...(spawnMode === "final" ? { initialGearDown: true, initialFlapDetent: params.flaps.length - 1 } : {}),
+        };
+      }
+    }
+    useStore.getState().setRepositioned(!freeFlight && (spawnMode === "base" || spawnMode === "final"));
     setSpawn(buildLockedMissionSpawn(contact, lockedMission.classId, params, {
       terrainHeightM: countdownTerrainHeightMRef.current,
-      spawnHeadingDeg,
+      ...overrideOpts,
       ...(tutorial === null
         ? {}
         : { initialFlapDetent: params.flaps.length - 1, initialGearDown: true }),
     }));
-    // Deliberately only `faceApproach`: this effect exists to react to the toggle, not to
+    // Deliberately only `spawnMode`: this effect exists to react to the choice changing, not to
     // mode/lockedMission changes — those are already handled by the countdown effect above,
     // which also seeds countdownTerrainResolvedRef/countdownTerrainHeightMRef before this can fire.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [faceApproach]);
+  }, [spawnMode]);
 
   // Pause from FLYING: stop the physics loop and move the machine to PAUSED. Shared by desktop
   // Escape, the auto-pause on tab-hide, and the mobile MENU button (#58 — the mobile abort valve;
@@ -1098,7 +1125,7 @@ export default function FlightSession({
         <HandoffCard contact={lockedMission.contact} spawn={spawn} params={originParams}
           matched={originResolution?.matched ?? false} countdown={countdown} note={note}
           assignment={lockedMission.assignment}
-          faceApproach={faceApproach} onToggleFaceApproach={toggleFaceApproach}
+          spawnMode={spawnMode} onSpawnModeChange={setSpawnMode}
           freeFlight={freeFlight} />
       )}
       {stripMountedForMode(mode) && (
