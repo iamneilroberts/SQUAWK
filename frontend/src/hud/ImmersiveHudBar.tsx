@@ -36,7 +36,7 @@ export type ImmersiveHudNavCue = {
 export type TapeRange = { min: number; max: number; step: number; major: number; pxPerUnit: number };
 
 /** Fixed tape viewport height in px. MUST equal the .tape-window height in tokens.css. */
-export const TAPE_WINDOW_PX = 44;
+export const TAPE_WINDOW_PX = 90;
 
 export function tapeTicks(range: TapeRange): { value: number; major: boolean; y: number }[] {
   const ticks: { value: number; major: boolean; y: number }[] = [];
@@ -201,21 +201,25 @@ function NavDirector({
   );
 }
 
-function BalancedRail({ snapshot, attitudeStyle, navCue, approachBand, descentGuidance }: {
+function BalancedRail({ snapshot, attitudeStyle, navCue, approachBand, descentGuidance, approachReadout }: {
   snapshot: HudSnapshot;
   attitudeStyle: AttitudeStyle;
   navCue: ImmersiveHudNavCue | null;
   approachBand: ApproachBand | null;
   descentGuidance: DescentGuidance | null;
+  approachReadout: ApproachReadout | null;
 }) {
   return (
-    <div className="imm-bar imm-bar-balanced" data-hud-variant="balanced">
-      <SimIdentity snapshot={snapshot} />
-      <CompactField label="IAS" value={formatIasKt(snapshot.iasMs)} unit="KT" />
-      <MiniAttitude snapshot={snapshot} attitudeStyle={attitudeStyle} />
-      <NavDirector snapshot={snapshot} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} compact />
-      <CompactField label="ALT" value={formatAltFt(snapshot.altitudeM)} unit="FT" />
-    </div>
+    <>
+      <div className="imm-bar imm-bar-balanced" data-hud-variant="balanced">
+        <SimIdentity snapshot={snapshot} />
+        <CompactField label="IAS" value={formatIasKt(snapshot.iasMs)} unit="KT" />
+        <MiniAttitude snapshot={snapshot} attitudeStyle={attitudeStyle} />
+        <NavDirector snapshot={snapshot} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} compact />
+        <CompactField label="ALT" value={formatAltFt(snapshot.altitudeM)} unit="FT" />
+      </div>
+      {approachReadout && <ApproachReadoutBlock readout={approachReadout} snapshot={snapshot} />}
+    </>
   );
 }
 
@@ -264,36 +268,50 @@ function Tape({ side, label, unit, value, range, band = null }: {
   );
 }
 
-function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange, approachBand, descentGuidance }: {
+/*
+ * Split HUD (owner-approved mock, 2026-08): the SPD/ALT tapes render themselves at the screen
+ * edges (position: absolute, see .imm-hud .imm-tape in tokens.css) rather than sitting inside
+ * the small ".imm-bar-tapes" card, so the runway/gates stay clear beneath them. They render as
+ * SIBLINGS of that card (not children) on purpose — `.imm-bar` (the shared card look every
+ * variant uses) sets `overflow: hidden`, which would clip an edge-hung tape back down to the
+ * card's own small box if the tape were nested inside it. What's left of "the bar" is just the
+ * small attitude + SIM + nav-director card — and the approach readout (when present) now renders
+ * ABOVE it, matching the mock's stacking (readout, then attitude, edges hung with tapes).
+ */
+function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange, approachBand, descentGuidance, approachReadout }: {
   snapshot: HudSnapshot;
   attitudeStyle: AttitudeStyle;
   navCue: ImmersiveHudNavCue | null;
   tapeRange: { ias: TapeRange; alt: TapeRange } | null;
   approachBand: ApproachBand | null;
   descentGuidance: DescentGuidance | null;
+  approachReadout: ApproachReadout | null;
 }) {
   return (
-    <div className="imm-bar imm-bar-tapes" data-hud-variant="tapes">
+    <>
+      {approachReadout && <ApproachReadoutBlock readout={approachReadout} snapshot={snapshot} />}
       <Tape
         side="left" label="IAS" unit="KT" value={msToKt(snapshot.iasMs)} range={tapeRange?.ias ?? null}
         band={approachBand ? { lo: approachBand.speed.loKt, hi: approachBand.speed.hiKt } : null}
       />
-      <span className="imm-director">
-        <MiniAttitude snapshot={snapshot} attitudeStyle={attitudeStyle} />
-        <span className="imm-director-stack">
-          <SimIdentity snapshot={snapshot} />
-          <NavDirector snapshot={snapshot} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} />
-          <span className="imm-director-systems">
-            <span>VSI <b>{formatVsiFpm(snapshot.verticalSpeedMs)}</b></span>
-            <span className={groundProximityActive(snapshot) ? "imm-agl-alert" : undefined}>AGL <b>{formatClearanceFt(snapshot.terrainClearanceM)}</b></span>
+      <div className="imm-bar imm-bar-tapes" data-hud-variant="tapes">
+        <span className="imm-director">
+          <MiniAttitude snapshot={snapshot} attitudeStyle={attitudeStyle} />
+          <span className="imm-director-stack">
+            <SimIdentity snapshot={snapshot} />
+            <NavDirector snapshot={snapshot} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} />
+            <span className="imm-director-systems">
+              <span>VSI <b>{formatVsiFpm(snapshot.verticalSpeedMs)}</b></span>
+              <span className={groundProximityActive(snapshot) ? "imm-agl-alert" : undefined}>AGL <b>{formatClearanceFt(snapshot.terrainClearanceM)}</b></span>
+            </span>
           </span>
         </span>
-      </span>
+      </div>
       <Tape
         side="right" label="ALT" unit="FT" value={mToFt(snapshot.altitudeM)} range={tapeRange?.alt ?? null}
         band={approachBand ? { lo: approachBand.altitude.loFt, hi: approachBand.altitude.hiFt } : null}
       />
-    </div>
+    </>
   );
 }
 
@@ -406,10 +424,8 @@ export default function ImmersiveHudBar({
   return (
     <div className={`imm-hud imm-hud-${variant}`}>
       {variant === "balanced"
-        ? <BalancedRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} />
-        : <TapeRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} tapeRange={tapeRange} approachBand={approachBand} descentGuidance={descentGuidance} />}
-
-      {approachReadout && <ApproachReadoutBlock readout={approachReadout} snapshot={snapshot} />}
+        ? <BalancedRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} approachReadout={approachReadout} />
+        : <TapeRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} tapeRange={tapeRange} approachBand={approachBand} descentGuidance={descentGuidance} approachReadout={approachReadout} />}
 
       {onVariantChange !== undefined && !decluttered && (
         <button

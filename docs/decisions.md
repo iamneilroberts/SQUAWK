@@ -3017,3 +3017,79 @@ SLOW/ON, distance/time-to-landing incl. the ~0-groundspeed null guard, target si
 known glide angle, course LEFT/RIGHT/ON, turn-to-final hand-off). `ImmersiveHudBar.test.tsx`
 updated (old `"APCH 60-70 KT"` assertions replaced with the new block's own describe block, 6
 tests). Full suite 143 files / 1503 tests (was 142/1489), `npm run build` clean.
+
+## 2026-08-15 — Split HUD: SPD/ALT tapes to the edges, mobile portrait (desktop scoped as follow-up)
+
+Owner-approved mocks (`mock-mobile.html` v4, `mock-desktop.html` v1 — deleted post-implementation,
+reference only) asked for flight instruments repositioned to the screen EDGES so the runway/gates
+stay clear on final. Scoped to **mobile portrait only** — the owner's primary test surface — per
+the dispatching agent's explicit risk-management instruction; desktop is a follow-up (below).
+
+**Finding that changed the plan:** the dispatch briefing described "today's" cockpit as a single
+centered/docked panel (`UnifiedGlass`/`DashboardStrip`) on both platforms. That's accurate for
+DESKTOP (`.dash-strip{position:absolute;bottom:0;justify-content:center}` — the literal "blocks
+the runway" bug the mocks show) but **not mobile**: `DashboardStrip` is desktop-only
+(`!narrow` gated in `FlightSession.tsx`); phones already get `ImmersiveHudBar`'s "tapes" variant
+(IAS tape / mini-ADI / ALT tape), pinned to a compact TOP bar, not a bottom-center panel. So on
+mobile there was no literal runway-occlusion bug today — the real gap was that the tapes variant
+was a small cramped top card instead of true edge instruments, and the mock's radar/throttle/
+control-chip corners already have real equivalents in the existing touch-control chrome (below).
+
+**What changed** (`frontend/src/hud/ImmersiveHudBar.tsx`, `frontend/src/styles/tokens.css`):
+- The "tapes" variant (`TapeRail`) is now the mobile Split HUD. `<Tape side="left">`/`<Tape
+  side="right">` render as `position: absolute` SIBLINGS of the small attitude/SIM/nav-director
+  card (`.imm-bar-tapes`), not children of it — `.imm-bar` sets `overflow: hidden` for the shared
+  card look, which would have clipped an edge-hung tape back down to the card's small box if
+  nested inside it. Tapes anchor `left/right: max(4px, safe-area-inset)`, `top: 160px`, `height:
+  120px` — tuned to clear `EdgeTurnCue` (top ~84–140px) above and the touch-throttle lever
+  (bottom ~46vh, starts well below 280px on any realistic phone height) below. NEEDS device
+  verification — these are estimated clearances from reading the CSS, not a live render (I cannot
+  see the render in this environment).
+- `TAPE_WINDOW_PX` (`ImmersiveHudBar.tsx`) and the matching `.tape-window` height (`tokens.css`)
+  moved 44px → 90px so the tape actually reads as a tall edge instrument, not a thumbnail. The
+  tick/offset math (`tapeTicks`, `tapeStripOffset`, `tapeBandBox`) is untouched — this only widens
+  the fixed viewport window, per the "reuse the internals, reposition the instrument" instruction.
+- Reordered so the expanded approach readout (`ApproachReadoutBlock`) renders ABOVE the attitude
+  card in the tapes variant (was below), matching the mock's stacking. Required moving the
+  `approachReadout &&` render from the parent `ImmersiveHudBar` into `BalancedRail`/`TapeRail`
+  each choosing their own order; `BalancedRail`'s order is unchanged (still after its row) so the
+  untouched "balanced" variant (HUD A) has zero visual change.
+- `.imm-bar-tapes` no longer a 3-column grid holding both tapes + the director; it's now a small
+  `width: fit-content` card holding just the attitude/SIM/nav-director stack.
+
+**What did NOT change, and why (mock vs. real touch-control layout conflict):** the mock's
+bottom-left "radar" corner and bottom-center "control chips" already have real, working
+equivalents that a literal corner-for-corner match would break:
+- Radar/tactical → `MobileNavWx`'s NAV/WX chip. Its current position (`bottom: 66px`, centered,
+  above the button row) was deliberately chosen (see its own code comment) to dodge the touch
+  stick (bottom-left, 132px) and throttle (right edge). Moving it into the mock's literal
+  bottom-left corner would put it under/behind the flight stick — a real usability regression, not
+  a cosmetic one. Left unmoved.
+- Throttle "thin bar, right side" → already exactly this: `TouchControls`' `ThrottleSlider`
+  (`.touch-throttle`, right edge, vertical, live THR% label). No change made.
+- Control-state chips "THR/FLP/TRM/GEAR, bottom-center" → already exactly this:
+  `TouchControls`' `.touch-buttons` row (GEAR/BRK/FLP−/FLP+/TRM▼/TRM▲, live icons/badges). Not the
+  same passive `ControlStateCells` component the desktop glass uses, but the same live state,
+  interactive rather than read-only (it has to be — mobile flies via touch). No change made.
+
+**[C] collapse:** desktop's `[C]` (`DashboardStrip.tsx` `toggleStrip`/`dash-mini`) is completely
+untouched by this mobile-only change — still works exactly as before. Mobile has no keyboard, so
+there is no literal `[C]`; the nearest analog is the existing `DCLTR` toggle (`decluttered` store
+state, threaded through `Hud.tsx`/`ImmersiveHudBar.tsx`), but today it deliberately hides only
+informational chrome (the HUD-A/C layout-picker button) and NOT the instrument rail — the code
+comment is explicit that flight instruments stay up even when decluttered/faded, by design
+(safety: you don't hide IAS/ALT/attitude while flying, unlike traffic labels or a variant-picker
+button). Repurposing DCLTR to also hide the Split-HUD tapes would reverse that documented intent
+without a product decision behind it, so I left it alone. A dedicated mobile "collapse the edge
+instruments to a mini-readout" (mirroring desktop's `dash-mini`) is a clean, cheap follow-up if
+wanted — new store bit, gate `TapeRail`, small tap target — but is a new feature, not a reposition.
+
+**Desktop scope (explicit follow-up, not done):** the real "panel blocks the runway" bug
+(`.dash-strip`/`.glass`, `UnifiedGlass.tsx`/`DashboardStrip.tsx`) is untouched. Desktop has real
+width to spare (per `mock-desktop.html`'s v2/v3 "keep the full rich panel, dock it to a side"
+alternates) — worth a fresh look at whether desktop should get the same edge-tape treatment or the
+side-dock alternative, as its own scoped pass.
+
+**Verification:** `npm run build` clean; full suite 143 files / 1510 tests, unchanged from
+baseline (no test edits were needed — class names (`imm-bar-tapes`, `imm-tape`, `data-side`,
+`tape-strip`, `tape-tick`) and all text-content assertions were preserved by construction).

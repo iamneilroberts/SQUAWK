@@ -2061,17 +2061,28 @@ body {
 .ar-off .ar-cell-value, .ar-off .ar-cell-bottom { color: var(--amber); opacity: 1; }
 .ar-cell-dist .ar-cell-value, .ar-cell-time .ar-cell-value { color: var(--text); }
 
-/* C — instrument-like speed/altitude edge tapes around the real shared attitude indicator. */
+/* C / Split HUD — SPD (left) and ALT (right) tapes hang from the screen EDGES (position: absolute,
+ * out of the compact bar's flow) so the runway/gates stay clear underneath (owner-approved mock,
+ * 2026-08). `.imm-bar-tapes` is left holding only the small attitude + SIM + nav-director card;
+ * .imm-tape positions itself independently. Placement is tuned to clear the existing mobile chrome
+ * it shares the edges with: EdgeTurnCue (top ~84-140px) above, the touch throttle lever (bottom
+ * ~46vh, starts well below 280px on any realistic phone height) below. NEEDS device verification —
+ * these are estimated clearances, not measured on a physical screen.
+ */
 .imm-hud .imm-bar-tapes {
-  display: grid;
-  grid-template-columns: clamp(56px, 16vw, 86px) minmax(0, 1fr) clamp(60px, 17vw, 92px);
-  gap: 6px;
-  padding: 6px 8px;
-  min-height: 66px;
+  display: flex;
+  justify-content: center;
+  width: fit-content;
+  margin: 0 auto;
+  padding: 4px 8px;
+  min-height: 0;
 }
 .imm-hud .imm-tape {
-  position: relative;
-  align-self: stretch;
+  position: absolute;
+  top: 160px;
+  height: 120px;
+  width: clamp(56px, 16vw, 86px);
+  z-index: 26;
   overflow: hidden;
   padding: 3px;
   display: grid;
@@ -2081,8 +2092,11 @@ body {
   border-radius: 9px;
   background: linear-gradient(180deg, rgba(40, 56, 66, 0.5), rgba(10, 16, 22, 0.55));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  pointer-events: none;
 }
-.imm-hud .tape-window { position: relative; width: 100%; height: 44px; overflow: hidden; } /* == TAPE_WINDOW_PX */
+.imm-hud .imm-tape[data-side="left"] { left: max(4px, env(safe-area-inset-left)); }
+.imm-hud .imm-tape[data-side="right"] { right: max(4px, env(safe-area-inset-right)); }
+.imm-hud .tape-window { position: relative; width: 100%; height: 90px; overflow: hidden; } /* == TAPE_WINDOW_PX */
 .imm-hud .tape-strip { position: absolute; left: 0; right: 0; bottom: 0; will-change: transform; }
 /* #52: suggested approach band — a cyan (nominal) translucent range on the IAS/ALT tapes. */
 .imm-hud .tape-band {
