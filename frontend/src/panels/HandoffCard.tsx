@@ -9,7 +9,8 @@ import type { ClassParams } from "../sim/types";
 import type { SpawnResult } from "../takeover/spawn";
 import { disclosureLine } from "../takeover/eligibility";
 import { isRepositionMode, type SpawnMode } from "../takeover/spawnModePreference";
-import { EM_DASH, formatCallsign, formatClass, formatHeadingDeg } from "../hud/format";
+import { CALLSIGN_PRESETS, resolveCallsign } from "../takeover/callsignPool";
+import { EM_DASH, formatClass, formatHeadingDeg } from "../hud/format";
 import { mToFt, msToKt } from "../sim/units";
 import { hprFromQuat } from "../sim/quat";
 
@@ -33,6 +34,8 @@ export default function HandoffCard({
   spawnMode,
   onSpawnModeChange,
   freeFlight,
+  callsignPreset = null,
+  onCallsignPresetChange = () => {},
 }: {
   contact: Contact;
   spawn: SpawnResult | null;
@@ -46,6 +49,10 @@ export default function HandoffCard({
   /** Free flight has no destination (inert HOME assignment) and always keeps the player's chosen
    *  heading — the DESTINATION row and spawn-mode selector are misleading there, so hide both. */
   freeFlight: boolean;
+  /** Chosen preset name (#20), or null for the default SIM-<hex>. Defaulted in tests/older
+   *  call sites so this stays optional there. */
+  callsignPreset?: string | null;
+  onCallsignPresetChange?: (preset: string | null) => void;
 }) {
   // Reuses hud/format.ts's formatHeadingDeg rather than re-deriving the wrap: it rounds
   // BEFORE the final modulo, so a heading like 359.6° reads "000", not the "360" a naive
@@ -68,7 +75,19 @@ export default function HandoffCard({
       {!freeFlight && (
         <Row label="DESTINATION" value={assignment === null ? EM_DASH : `${assignment.airportIdent} RWY ${assignment.runwayEndIdent} · ${assignment.distanceNm.toFixed(1)} NM`} />
       )}
-      <Row label="CALLSIGN" value={formatCallsign(contact.hex)} />
+      <div className="handoff-row">
+        <span className="label">CALLSIGN</span>
+        <select
+          className="handoff-callsign-select"
+          value={callsignPreset ?? ""}
+          onChange={(e) => onCallsignPresetChange(e.target.value === "" ? null : e.target.value)}
+        >
+          <option value="">{resolveCallsign(contact.hex, null)}</option>
+          {CALLSIGN_PRESETS.map((p) => (
+            <option key={p} value={p}>{resolveCallsign(contact.hex, p)}</option>
+          ))}
+        </select>
+      </div>
       <Row label="AIRCRAFT CLASS" value={params === null ? EM_DASH : formatClass(params.label)} />
 
       <div className="handoff-disclosure">

@@ -2881,3 +2881,34 @@ single checkbox with a 4-option selector on the handoff card, and ships the core
 review READY (no Critical; one Important on-slope-vertical-rate fix applied). In-sim feel of
 B/C repositioning is unverifiable locally (no traffic feed, #66) — the owner's prod live pass is
 the real gate.
+
+## 2026-08-15 — #20 Player-chosen SIM callsign from a preset pool
+
+Issue #20 left several scheme choices open (`SIM-<hex>` + display name vs. `SIM-<WACKY>`,
+persistence, free-type) for a follow-up brainstorm. Implemented the minimal reading rather than
+blocking, picking between the issue's own listed candidates:
+
+1. **`SIM-<PRESET>` replaces the hex suffix, not `SIM-<hex>` plus a nickname.** Chosen because it
+   is literally one of the two candidates the issue proposed, keeps a single "callsign" concept
+   (no new second field to thread through `flightLoop`/`HudSnapshot`/`EndCard`), and the SIM
+   prefix — the actual unmistakability mechanism per ground rule 2 — is unconditionally preserved
+   either way. Default (no choice) stays exactly `SIM-<hex>`, unchanged from today.
+2. **Presets-only, no free-type in v1.** The issue itself flagged free-type's profanity/
+   impersonation risk as open; a curated word list (MAVERICK, GOOSE, ICEMAN, VIPER, HOTSHOT,
+   ROOSTER, WILDCARD, MOOSE, BANANA-1, TUMBLEWEED — `frontend/src/takeover/callsignPool.ts`) can
+   never take the letters+digits shape of a genuine feed callsign, so it satisfies "must not
+   masquerade as a real aircraft" without any validation code.
+3. **No uniqueness/collision check against the live feed.** A real contact's callsign never
+   starts with `SIM-`, so a chosen preset can't be confused with the genuine aircraft's ghost —
+   there's nothing to check.
+4. **Not persisted across sessions**, unlike `spawnMode`. Picked fresh (or left default) each
+   spawn via `HandoffCard`'s new CALLSIGN `<select>`; simplest option, easy to add a
+   `localStorage` key later (mirroring `spawnModePreference.ts`) if the owner wants it to stick.
+5. **`ImmersiveHudBar` still shows only the SIM badge, not the callsign text** — that's UI-002
+   (owner decision, `ImmersiveHudBar.tsx` `SimIdentity`): callsign is set-once identity that
+   belongs on the spawn card and debrief, not the live rail. The issue's "flows to the SIM badge
+   area on ImmersiveHudBar" is read as "the SIM-identity surfaces," satisfied by HandoffCard +
+   EndCard (the two places callsign text already renders) without reopening UI-002.
+
+**Verification:** `frontend/src/takeover/callsignPool.test.ts` (new, 5 tests, red→green), full
+suite 1465/1465 pass, `npm run build` clean.

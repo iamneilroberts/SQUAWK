@@ -776,6 +776,16 @@ body {
   cursor: pointer;
 }
 .spawnmode-opts button.sel { border-color: var(--amber); color: var(--amber); }
+.handoff-callsign-select {
+  background: transparent;
+  border: 1px solid var(--grid);
+  color: var(--cyan);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 4px;
+}
 .handoff-countdown {
   text-align: center;
   font-size: 44px;

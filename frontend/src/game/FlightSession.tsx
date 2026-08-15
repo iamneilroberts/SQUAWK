@@ -25,7 +25,8 @@ import { createFlightLoop } from "./flightLoop";
 import { preloadTerrain } from "../globe/terrainPreload";
 import { createCountdownTimer } from "./countdownTimer";
 import { hudSnapshot } from "../hud/snapshot";
-import { formatCallsign, warningsFor } from "../hud/format";
+import { warningsFor } from "../hud/format";
+import { resolveCallsign } from "../takeover/callsignPool";
 import { approachWarningsFor } from "../hud/approachAlerts";
 import { approachBandFor } from "../mission/approachBand";
 import Hud from "../hud/Hud";
@@ -128,6 +129,11 @@ export default function FlightSession({
   // captured when the effect started — otherwise a toggle during the preload window is dropped.
   const spawnModeRef = useRef(spawnMode);
   spawnModeRef.current = spawnMode;
+  /** Player-chosen SIM callsign preset (#20), or null for the default SIM-<hex>. Chosen on the
+   *  spawn card each takeover — not persisted, unlike spawnMode, to keep this addition minimal. */
+  const [callsignPreset, setCallsignPreset] = useState<string | null>(null);
+  const callsignPresetRef = useRef(callsignPreset);
+  callsignPresetRef.current = callsignPreset;
   const [note, setNote] = useState("");
   /** RESUME pressed, waiting for the canvas click that spec §6 requires. */
   const [resumeArmed, setResumeArmed] = useState(false);
@@ -446,7 +452,7 @@ export default function FlightSession({
             heldKeys: keyboard.held,
             // Live view of the touch analog axes (Option B); `{}` on desktop -> no override.
             analog: () => touchAxesRef.current,
-            callsign: formatCallsign(contact.hex),
+            callsign: resolveCallsign(contact.hex, callsignPresetRef.current),
             landing: {
               assignment: lockedMission.assignment,
               profile: lockedMission.missionProfile,
@@ -1128,7 +1134,8 @@ export default function FlightSession({
           matched={originResolution?.matched ?? false} countdown={countdown} note={note}
           assignment={lockedMission.assignment}
           spawnMode={spawnMode} onSpawnModeChange={setSpawnMode}
-          freeFlight={freeFlight} />
+          freeFlight={freeFlight}
+          callsignPreset={callsignPreset} onCallsignPresetChange={setCallsignPreset} />
       )}
       {stripMountedForMode(mode) && (
         <>
