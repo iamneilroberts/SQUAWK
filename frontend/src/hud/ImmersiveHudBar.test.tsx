@@ -365,21 +365,17 @@ describe("approach band (#52)", () => {
     expect(classNamesIn(tree).filter((c) => c === "tape-band").length).toBe(2);
   });
 
-  it("shows the suggested speed and altitude band as a director line", () => {
-    const tree = ImmersiveHudBar({
-      snapshot: snap(), attitudeStyle: "ball", variant: "tapes",
-      navCue: { destination: "KADS", bearingDeg: 0, distanceNm: 3 }, approachBand,
-    });
-    const text = collectText(tree).join(" ");
-    expect(text).toContain("APCH 60-70 KT");
-  });
+  // #52's inline "APCH 60-70 KT" director-line text was superseded by the expanded
+  // ApproachReadoutBlock (owner req 2026-08: target alt/speed/sink, course, distance and
+  // time-to-landing, all prominent) — driven by its own `approachReadout` prop, tested below.
+  // approachBand still drives the tape bands (still covered above) and the DESC/APCH exclusivity
+  // gate (covered by the descent-advisory test below).
 
-  it("draws no band and no director line when not on approach", () => {
+  it("draws no band when not on approach", () => {
     const tree = ImmersiveHudBar({
       snapshot: snap(), attitudeStyle: "ball", variant: "tapes", tapeRange, approachBand: null,
     });
     expect(classNamesIn(tree).filter((c) => c === "tape-band").length).toBe(0);
-    expect(collectText(tree).join(" ")).not.toContain("APCH");
   });
 
   it("shows the descent advisory at range, and defers to the approach band on final", () => {
@@ -392,13 +388,86 @@ describe("approach band (#52)", () => {
     const farText = collectText(far).join(" ");
     expect(farText).toContain("DESC");
     expect(farText).toContain("FPM");
-    // On final the approach band takes over; the descent line is suppressed.
+    // On final the approach band takes over; the descent line is suppressed (the expanded
+    // readout, driven separately by `approachReadout`, takes its place — see below).
     const near = ImmersiveHudBar({
       snapshot: snap(), attitudeStyle: "ball", variant: "tapes", approachBand, descentGuidance,
     });
     const nearText = collectText(near).join(" ");
-    expect(nearText).toContain("APCH 60-70 KT");
     expect(nearText).not.toContain("DESC");
+  });
+});
+
+describe("expanded approach readout (owner req 2026-08)", () => {
+  const readout = {
+    distanceNm: 3,
+    targetAltFt: 1065,
+    altState: "ON" as const,
+    targetSpeedKt: 65,
+    speedState: "FAST" as const,
+    timeToLandingSec: 177,
+    targetSinkRateFpm: 345,
+    sinkState: "ON" as const,
+    courseState: "ON" as const,
+    turnToFinal: null,
+  };
+
+  // Some cells interpolate an expression next to literal text as separate JSX children (e.g.
+  // {value} NM); collectText walks each text node individually, so normalize repeated whitespace
+  // before matching rather than asserting on JSX's internal child boundaries.
+  const norm = (s: string) => s.replace(/\s+/g, " ");
+
+  it("shows target alt/speed/sink next to the live value, with an ON/off-tolerance state", () => {
+    const tree = ImmersiveHudBar({
+      snapshot: { ...snap(), altitudeM: ftToM(1065), iasMs: ktToMs(80), verticalSpeedMs: fpmToMs(-345) },
+      attitudeStyle: "ball", variant: "tapes", approachReadout: readout,
+    });
+    const text = norm(collectText(tree).join(" "));
+    expect(text).toContain("TGT 1070 · ON"); // roundTo10(1065)
+    expect(text).toContain("TGT 65 · FAST");
+    expect(text).toContain("TGT − 350 · ON");
+  });
+
+  it("shows distance and time-to-landing, formatted m:ss", () => {
+    const tree = ImmersiveHudBar({
+      snapshot: snap(), attitudeStyle: "ball", variant: "tapes", approachReadout: readout,
+    });
+    const text = norm(collectText(tree).join(" "));
+    expect(text).toContain("3.0 NM");
+    expect(text).toContain("2:57"); // 177s
+  });
+
+  it("shows the em-dash for time-to-landing rather than a fabricated value when groundspeed is ~0", () => {
+    const stopped = { ...readout, timeToLandingSec: null };
+    const tree = ImmersiveHudBar({
+      snapshot: snap(), attitudeStyle: "ball", variant: "tapes", approachReadout: stopped,
+    });
+    expect(collectText(tree)).toContain(EM_DASH);
+  });
+
+  it("shows the course state, ON centerline or off it", () => {
+    const off = { ...readout, courseState: "LEFT" as const };
+    const tree = ImmersiveHudBar({
+      snapshot: snap(), attitudeStyle: "ball", variant: "tapes", approachReadout: off,
+    });
+    expect(collectText(tree).join(" ")).toContain("L OF CENTERLINE");
+  });
+
+  it("shows the turn-to-final heading/distance before established, instead of the full readout", () => {
+    const turning = { ...readout, turnToFinal: { bearingDeg: 190, distanceNm: 6.4 } };
+    const tree = ImmersiveHudBar({
+      snapshot: snap(), attitudeStyle: "ball", variant: "tapes", approachReadout: turning,
+    });
+    const text = collectText(tree).join(" ");
+    expect(text).toContain("TURN TO FINAL 190° · 6.4 NM");
+    expect(text).not.toContain("TGT"); // no full readout cells yet
+  });
+
+  it("renders no readout block at all when there is none", () => {
+    const tree = ImmersiveHudBar({
+      snapshot: snap(), attitudeStyle: "ball", variant: "tapes", approachReadout: null,
+    });
+    expect(classNamesIn(tree)).not.toContain("ar-block");
   });
 });
 
