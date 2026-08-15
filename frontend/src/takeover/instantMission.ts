@@ -152,7 +152,14 @@ export function buildInstantMission(
     missionProfile: profile,
     assignment,
     versions,
-    assist: "none",
+    // Owner 2026-08-15: default a fresh/anonymous session to FULL (the corridor ribbon should
+    // show without the pilot touching the ASSIST control) rather than OFF. The airport-point
+    // assignment above has no real runway, but ApproachAssistLayer's ribbon/flare/FAF geometry is
+    // driven entirely by the mission profile's guidance knobs + this real inbound bearing — it
+    // renders a sensible (if sea-level-datum-approximate) corridor, not a degenerate one. The
+    // green flight-director stays off regardless (DirectorLayer's own `instantFlight` gate in
+    // FlightSession.tsx), and the pilot can still cycle assist down via the ASSIST control.
+    assist: "medium",
     reconstruction: {
       disclosure: "INSTANT FLIGHT — LOCAL AND UNRANKED",
       terrainHeightM: null,
