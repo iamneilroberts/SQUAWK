@@ -501,6 +501,17 @@ describe("admin control routes", () => {
       userId: USER_ID,
       missionId: MISSION_ID,
     });
+
+    // Regression for #62: the admin UI re-fetches active sessions immediately after terminate
+    // resolves, and that read must reflect the just-committed abandonment, not a stale mission row.
+    const sessions = await router.fetch(
+      new Request("https://fly.voygent.app/api/admin/sessions?limit=10"),
+      runtime(),
+    );
+    expect(sessions.status).toBe(200);
+    const sessionsBody = await sessions.json() as { data: { sessions: Array<{ userId: string; mission: unknown }> } };
+    const targetRow = sessionsBody.data.sessions.find((row) => row.userId === USER_ID);
+    expect(targetRow?.mission).toBeNull();
   });
 
   it("unbans the target and restores an active user when no other ban remains", async () => {
