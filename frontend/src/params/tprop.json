@@ -31,7 +31,7 @@
     { "label": "FULL", "dCL0": 0.8, "dStallAlphaRad": -0.07, "dCD0": 0.06 }
   ],
   "gear": "retractable",
-  "display": { "asiMinKt": 40, "asiMaxKt": 300, "attitudeStyle": "line" },
+  "display": { "asiMinKt": 40, "asiMaxKt": 300, "attitudeStyle": "ball" },
   "sources": {
     "massKg": "TUNING KNOB (cruise/climb) — 5.7 t mid-mission weight (King Air 350 MTOW 6.804 t / 15,000 lb). Pinned by the FL280 cruise trim + sea-level climb tests. Source verification pending (POH).",
     "wingAreaM2": "TUNING KNOB — 28.8 m^2 (~310 sq ft published King Air 350 wing area); wing loading ~198 kg/m^2 at 5.7 t. Source verification pending.",

@@ -20,7 +20,10 @@ describe("loadC172", () => {
     expect(p.limits.vleIasMs).toBeGreaterThan(0);
     expect(p.display.asiMinKt).toBe(40);
     expect(p.display.asiMaxKt).toBe(180);
-    expect(p.display.attitudeStyle).toBe("line");
+    // Issue #35: a real GA six-pack attitude indicator IS a filled sky/ground ball with a bank
+    // scale — that's the actual instrument, not a simplification of it — so the C172 moved off
+    // the minimalist "line" style onto the same "ball" ADI the jets use (decisions.md).
+    expect(p.display.attitudeStyle).toBe("ball");
   });
   it("has an aspect ratio consistent with its span and area", () => {
     const p = loadC172();
