@@ -1508,8 +1508,10 @@ body {
    the .touch-buttons row (which sits at max(12px,safe-bottom) with ~46px-tall buttons) — clear
    of the stick (bottom-left), throttle (right edge) and MENU (above the throttle, right). Only
    rendered by JS while the plane is off-level (shouldShowLevelButton), so it reads as a beginner
-   help prompt that appears/disappears with the assist itself. Solid amber fill (vs. the other
-   buttons' faint ghost outline) so it stands out as an emergency aid. */
+   help prompt that appears/disappears with the assist itself.
+   Sized as a small chip (owner: portrait FPV declutter) — same padding/font/border as the
+   NAV/WX chip (.mobile-navwx-chip) rather than a large button, so it reads as one more piece of
+   HUD instrumentation instead of a dominant control. */
 .touch-level-btn {
   position: absolute;
   /* #81 follow-up: on a narrow (portrait) phone a centered button collides with the bottom-left
@@ -1519,16 +1521,13 @@ body {
   left: max(50%, 210px);
   transform: translateX(-50%);
   bottom: calc(max(12px, env(safe-area-inset-bottom)) + 56px);
-  min-width: 100px;
-  min-height: 44px;
-  padding: 8px 20px;
-  border: 2px solid var(--amber);
+  padding: 3px 8px;
+  border: 1px solid var(--amber);
   background: rgba(255, 176, 0, 0.22);
   color: var(--amber);
   font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-size: 11px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   border-radius: 0;
   pointer-events: auto;
@@ -1544,24 +1543,22 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .touch-level-btn { animation: none; }
 }
-/* RE-SYNC arcade assist (#5b): same amber pill as LEVEL, sitting one row higher so both can show
-   at once without overlapping the stick/throttle/MENU. */
+/* RE-SYNC arcade assist (#5b): same amber chip as LEVEL, sitting one row higher so both can show
+   at once without overlapping the stick/throttle/MENU. Gap tightened to match the shorter chip
+   (was tuned for the old ~44px-tall button). */
 .touch-resync-btn {
   position: absolute;
   /* Same narrow-screen stick-clearance shift as .touch-level-btn (owner: RE-SYNC touched the stick). */
   left: max(50%, 210px);
   transform: translateX(-50%);
-  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 108px);
-  min-width: 100px;
-  min-height: 44px;
-  padding: 8px 20px;
-  border: 2px solid var(--amber);
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 84px);
+  padding: 3px 8px;
+  border: 1px solid var(--amber);
   background: rgba(255, 176, 0, 0.22);
   color: var(--amber);
   font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-size: 11px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   border-radius: 0;
   pointer-events: auto;
@@ -1872,28 +1869,37 @@ body {
 /* ---- Immersive StatusBar: already collapsed to feed-status + attribution by statusBarRegions;
    here it dims slightly and fades with the video-player auto-hide. It STAYS in the DOM and
    reappears on tap — attribution is faded, never removed (CLAUDE.md data-sources safeguard).
-   In immersive it is pulled OUT of the column flow (position: fixed) and overlaid on the globe's
-   bottom edge, so it no longer eats a solid band beneath the globe — that band was the "letterbox"
-   the owner flagged. Low z-index + translucent keeps the touch buttons above readable. ---- */
+   In immersive it is pulled OUT of the column flow (position: fixed) and overlaid on the globe,
+   so it no longer eats a solid band beneath the globe — that band was the "letterbox" the owner
+   flagged. Low z-index + translucent keeps the touch buttons above readable.
+   Portrait declutter follow-up (owner feedback + screenshots): this bar used to sit flush at
+   bottom:0, i.e. directly BEHIND the CAM/GEAR/FLP/TRM button row (and the LEVEL/RE-SYNC/NAV-WX
+   chips stacked above it) — low z-index kept it un-tappable, but the compact attribution text
+   still visually bled through those controls and made both unreadable. It now sits in its own
+   thin band ABOVE the whole bottom control cluster (buttons + LEVEL/RE-SYNC/NAV-WX all resolve
+   above ~90px — see their own bottom offsets) instead of underneath it. ---- */
 .status-bar-immersive {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  /* Inset clear of the stick (left column, ~148px wide incl. gap) and throttle (right column,
+     ~68px wide incl. gap) — this band's vertical range overlaps their height, so it must not
+     also run full-width or the feed-status/attribution text would sit on top of those controls. */
+  left: 156px;
+  right: 76px;
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 112px);
   z-index: 5;
-  background: linear-gradient(0deg, rgba(5, 7, 10, 0.82), rgba(5, 7, 10, 0));
+  background: rgba(5, 7, 10, 0.55);
   opacity: 0.72;
   transition: opacity 0.5s ease;
   /* #81: mobile flight — this bar is display-only (feed status + compact attribution). Keep it
      UNDER the touch controls (they are z-index 25) AND non-interactive, so it can never eat a tap
-     on the button row it visually sits behind. Compact type + safe-area padding keep the required
-     attribution readable in the tight portrait strip without spilling up over the controls. */
+     on the button row. Compact type keeps the required attribution readable in the tight
+     portrait strip without spilling into the controls below it. */
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
   font-size: 8px;
   line-height: 1.35;
-  padding-bottom: max(2px, env(safe-area-inset-bottom));
+  padding: 2px 12px;
 }
 .status-bar-faded { opacity: 0; }
 

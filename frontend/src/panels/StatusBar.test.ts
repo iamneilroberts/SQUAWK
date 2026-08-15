@@ -21,6 +21,16 @@ describe("statusBarRegions (immersive collapse)", () => {
     expect(statusBarRegions(true).browseControls).toBe(false);
     expect(statusBarRegions(true).clock).toBe(false);
   });
+  it("hides the API debug chip only while BOTH immersive and decluttered (#89 follow-up)", () => {
+    expect(statusBarRegions(true, true).apiDebug).toBe(false);
+    expect(statusBarRegions(true, false).apiDebug).toBe(true);
+    expect(statusBarRegions(false, true).apiDebug).toBe(true);
+    expect(statusBarRegions(false, false).apiDebug).toBe(true);
+  });
+  it("never lets decluttered hide feed-status or attribution (honesty + attribution rules)", () => {
+    expect(statusBarRegions(true, true).feedStatus).toBe(true);
+    expect(statusBarRegions(true, true).attribution).toBe(true);
+  });
 });
 
 describe("formatUtcClock", () => {

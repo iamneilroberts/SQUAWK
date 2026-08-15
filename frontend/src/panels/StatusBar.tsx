@@ -67,19 +67,26 @@ export function contactsChipLabel(count: number): string {
  * feed-status chip (which also names the live traffic source) and the imagery/terrain attribution
  * line — and hides the browse chrome (contacts, radius, basemap, labels, clock, terrain-tier
  * chip). Normal mode (desktop, browse, non-immersive mobile flight) shows everything, exactly as
- * before, so desktop is unchanged.
+ * before, so desktop is unchanged. feedStatus and attribution are NEVER conditional on
+ * `decluttered` — that would violate the same honesty/attribution rules (CLAUDE.md, immersive.ts);
+ * `decluttered` only ever affects the tiny API debug chip, which is dev-facing chrome, not a
+ * required disclosure.
  */
-export function statusBarRegions(immersive: boolean): {
+export function statusBarRegions(immersive: boolean, decluttered: boolean = false): {
   feedStatus: boolean;
   attribution: boolean;
   browseControls: boolean;
   clock: boolean;
+  /** Portrait declutter (#89 follow-up): the cache-age/system-mode debug chip is secondary
+   *  chrome, so it hides while decluttered — only while immersive, so desktop/browse keep it. */
+  apiDebug: boolean;
 } {
   return {
     feedStatus: true,
     attribution: true,
     browseControls: !immersive,
     clock: !immersive,
+    apiDebug: !(immersive && decluttered),
   };
 }
 
@@ -103,9 +110,14 @@ type StatusBarProps = {
    * faded, never removed (CLAUDE.md data-sources legal safeguard).
    */
   faded?: boolean;
+  /** Manual declutter (#57/#89): hides the secondary API debug chip while immersive. Never
+   *  affects feedStatus/attribution — see statusBarRegions. */
+  decluttered?: boolean;
 };
 
-export default function StatusBar({ terrainNote, contactsChip, immersive = false, faded = false }: StatusBarProps) {
+export default function StatusBar(
+  { terrainNote, contactsChip, immersive = false, faded = false, decluttered = false }: StatusBarProps,
+) {
   const feedStatus = useStore((s) => s.feedStatus);
   const feedSource = useStore((s) => s.feedSource);
   const tutorial = useStore((s) => s.tutorial);
@@ -128,7 +140,7 @@ export default function StatusBar({ terrainNote, contactsChip, immersive = false
   }, []);
 
   const chipClass = feedStatus === "live" ? "status-chip-live" : "status-chip-warn";
-  const regions = statusBarRegions(immersive);
+  const regions = statusBarRegions(immersive, decluttered);
   const className =
     "status-bar" +
     (immersive ? " status-bar-immersive" : "") +
@@ -143,8 +155,10 @@ export default function StatusBar({ terrainNote, contactsChip, immersive = false
         <span className="status-chip-warn">FEEDS UNREACHABLE</span>
       )}
       {/* Tiny API debug chip (owner 2026-08-12): cache age + non-NORMAL capacity mode, so
-          "is it me or the feed?" is answerable at a glance. Honest: no age = em-dash. */}
-      {tutorial === null && (
+          "is it me or the feed?" is answerable at a glance. Honest: no age = em-dash. Hidden
+          while decluttered+immersive (#89 follow-up) — dev-facing chrome, not a required
+          disclosure like feedStatus/attribution above. */}
+      {regions.apiDebug && tutorial === null && (
         <span className={systemMode === "NORMAL" ? "status-chip-live" : "status-chip-warn"}>
           {`API ${cacheAgeSeconds === null ? "—" : `${Math.round(cacheAgeSeconds)}S`}${
             systemMode === "NORMAL" ? "" : ` · ${systemMode.replace("_", "-")}`
