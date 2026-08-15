@@ -629,8 +629,11 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
             }
           >
             {/* Declutter (#57): the APP button and the signed-in PILOT callsign chip are
-                informational, not controls — hide them on the manual DCLTR toggle. SIGN IN
-                stays reachable (a real action, not chrome) even when decluttered. */}
+                informational, not controls — hide them on the manual DCLTR toggle. SIGN IN stays
+                reachable in BROWSE (a real action, not chrome) even when decluttered — but while
+                FLYING+decluttered (portrait FPV declutter follow-up) it's mid-flight clutter with
+                nothing to act on, so it hides there too; DCLTR itself always stays visible to
+                bring it back. */}
             <PwaPanel
               mode={mode}
               open={appPanelOpen}
@@ -645,9 +648,11 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
             {mode === "BROWSE" && <LeaderboardPanel />}
             <div className="auth-control">
               {profile === null ? (
-                <button className="status-chip-button" onClick={() => requireSignIn()}>
-                  {authStatus === "loading" ? "SESSION…" : "SIGN IN"}
-                </button>
+                !(mode === "FLYING" && decluttered) && (
+                  <button className="status-chip-button" onClick={() => requireSignIn()}>
+                    {authStatus === "loading" ? "SESSION…" : "SIGN IN"}
+                  </button>
+                )
               ) : (
                 !decluttered && (
                   <ProfilePanel
@@ -697,6 +702,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
         }
         immersive={immersiveActive || mobileFlight}
         faded={statusFaded}
+        decluttered={decluttered}
       />
     </div>
   );
