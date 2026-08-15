@@ -4,7 +4,7 @@
  * FLYING would fight the FPV camera.
  */
 import { useEffect, useRef } from "react";
-import { Cartesian3, Cartographic, Math as CesiumMath, Rectangle } from "cesium";
+import { Cartesian3, Math as CesiumMath } from "cesium";
 import type { Label } from "cesium";
 import { useStore } from "../state/store";
 import { syncBillboards, visibleContactsForBillboards } from "./contactBillboards";
@@ -18,19 +18,21 @@ const M_PER_DEG_LAT = 111_320;
 const M_PER_NM = 1852;
 
 /**
- * Browse camera's opening tilt (issue #68): an oblique pitch instead of straight-down, so the
- * globe's 3D-ness (contacts standing off the terrain) reads immediately instead of only once
- * the user tilts manually. 0 = level with the horizon, -90deg (PI_OVER_TWO) = straight down.
+ * Browse camera's opening "hero oblique" (issue #68). The old approach hovered the camera
+ * straight over home and only rotated it in place — from directly overhead the horizon never
+ * enters the frame, so at a 150 NM radius (very high altitude) even a -45deg pitch still reads
+ * as a flat 2D map. Instead we PLACE the camera back (south) of home and low, looking north, so
+ * home sits mid-frame with the ground receding to a visible horizon + Earth curvature above —
+ * the dramatic 3D first impression. 0 = level with the horizon, -90deg = straight down; a
+ * shallower (less negative) pitch shows more sky/horizon.
  */
-const BROWSE_TILT_PITCH_RAD = CesiumMath.toRadians(-45);
+const BROWSE_TILT_PITCH_RAD = CesiumMath.toRadians(-25);
 /**
- * `camera.setView({ destination: Rectangle })` sizes the camera height assuming a nadir
- * (straight-down) view, then swaps in whatever `orientation.pitch` is given without re-solving
- * position — so at the nadir height, an oblique pitch pushes the far edge of the radius ring
- * out of frame. Scale the framing height up to pull the camera back along the same sightline
- * and keep the ring (and contacts) on screen. Tune alongside BROWSE_TILT_PITCH_RAD.
+ * Camera altitude as a multiple of the view radius (metres). Lower = closer/more dramatic
+ * foreground; higher = more of the radius ring visible. The southward standoff is then derived
+ * so the pitched sightline lands on home (see the effect). Tune alongside BROWSE_TILT_PITCH_RAD.
  */
-const BROWSE_TILT_HEIGHT_SCALE = 1.6;
+const BROWSE_CAM_ALT_RADIUS_FACTOR = 0.85;
 
 /**
  * Bounding rectangle (degrees) for a circle of `radiusNm` centred on `centerLat`/`centerLon` —
@@ -79,18 +81,16 @@ export default function ContactLayer() {
     // savedCenter ignored for now; custom locations return once ADS-B supports them.
     const center = home;
     if (!center || !bundle || mode !== "BROWSE") return;
-    const rect = radiusRectangleDeg(center.lat, center.lon, radiusNm);
-    const rectangle = Rectangle.fromDegrees(rect.west, rect.south, rect.east, rect.north);
-    // Nadir framing height for the rectangle, then raised per BROWSE_TILT_HEIGHT_SCALE so the
-    // oblique pitch below still keeps the radius ring in frame (see comment on the constants).
-    const nadirCarto = Cartographic.fromCartesian(
-      bundle.viewer.camera.getRectangleCameraCoordinates(rectangle),
-    );
-    const destination = Cartesian3.fromRadians(
-      nadirCarto.longitude,
-      nadirCarto.latitude,
-      nadirCarto.height * BROWSE_TILT_HEIGHT_SCALE,
-    );
+    // Hero oblique (#68): place the camera BACK (south) of home and low, looking north, so the
+    // ground recedes to a visible horizon instead of hovering straight overhead. Altitude scales
+    // with the view radius; the southward standoff = altitude / tan(|pitch|) puts the pitched
+    // sightline on home so it sits mid-frame. Re-runs on radiusNm change, preserving #42's
+    // "RADIUS chip re-frames the camera" behaviour.
+    const radiusM = radiusNm * M_PER_NM;
+    const altM = radiusM * BROWSE_CAM_ALT_RADIUS_FACTOR;
+    const standoffM = altM / Math.tan(Math.abs(BROWSE_TILT_PITCH_RAD));
+    const camLat = center.lat - standoffM / M_PER_DEG_LAT;
+    const destination = Cartesian3.fromDegrees(center.lon, camLat, altM);
     bundle.viewer.camera.setView({
       destination,
       orientation: { heading: 0, pitch: BROWSE_TILT_PITCH_RAD, roll: 0 },
