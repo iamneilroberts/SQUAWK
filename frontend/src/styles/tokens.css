@@ -2365,11 +2365,16 @@ body {
    than claiming their own screen position — they are pilot-invoked overlays, open only on
    request, unlike the always-on bottom panel this layout replaces. */
 .dash-primary {
+  /* Moved off center to the TOP-LEFT corner (owner 2026-08-15): in FPV the real horizon is
+     visible out the window and HDG/SPD/ALT/THR are already on the edges + top bar + bottom strip,
+     so the attitude/EFIS card front-and-center just obscured the runway. Tucked to the corner and
+     shrunk; still fully present, WX/CTRL folds still drop down. Top-right holds SIGN IN/DCLTR/FULL. */
   position: absolute;
-  top: 160px;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: min(90vw, 400px);
+  top: 12px;
+  left: 12px;
+  transform: scale(0.82);
+  transform-origin: top left;
+  max-width: min(46vw, 340px);
   z-index: 5;
 }
 .dash-aux { max-width: min(86vw, 380px); }
