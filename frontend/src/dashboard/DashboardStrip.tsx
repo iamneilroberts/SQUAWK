@@ -47,17 +47,18 @@ export function stripMountedForMode(mode: Mode): boolean {
 }
 
 /**
- * The glass opens with weather closed and the controls quick reference visible on desktop. On a
- * narrow viewport it starts folded shut (`open: false`) with help closed — but the dashboard is
- * desktop-gated in FlightSession, so on the phone it never mounts at all; the flag is kept only
- * for back-compat.
+ * The glass opens with weather and the controls quick reference both closed — the keymap list is
+ * on-demand (Slash / the CONTROLS toggle chip), not something that should cover the instruments
+ * every flight. On a narrow viewport it also starts folded shut (`open: false`) — but the
+ * dashboard is desktop-gated in FlightSession, so on the phone it never mounts at all; the flag is
+ * kept only for back-compat.
  */
 export function defaultStripState(narrow = false): StripState {
   return {
     open: !narrow,
     navRangeNm: DEFAULT_NAV_RANGE_NM,
     showWeather: false,
-    showHelp: !narrow,
+    showHelp: false,
   };
 }
 
