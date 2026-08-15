@@ -223,7 +223,13 @@ function BalancedRail({ snapshot, attitudeStyle, navCue, approachBand, descentGu
   );
 }
 
-function Tape({ side, label, unit, value, range, band = null }: {
+/*
+ * Exported (not just used by TapeRail below) so the desktop Split-HUD (UnifiedGlass.tsx) can hang
+ * the SAME SPD/ALT edge tapes off the screen edges — one implementation of the tape math/markup
+ * for both platforms, styled per-platform in tokens.css (mobile: `.imm-hud .imm-tape`; desktop:
+ * `.dash-strip .imm-tape`).
+ */
+export function Tape({ side, label, unit, value, range, band = null }: {
   side: "left" | "right";
   label: string;
   unit: string;

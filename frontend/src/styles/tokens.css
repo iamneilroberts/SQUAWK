@@ -1004,27 +1004,27 @@ body {
    D-1/CD-006) — same rule as .end-overlay: the strip itself must not swallow the armed-resume
    click over its empty right-hand region, so only the panels and chip buttons re-enable
    pointer-events. */
-/* #78: centered rather than pinned bottom-left, so it reads as a cockpit panel in front of the
-   pilot instead of a strip tucked in a corner. */
+/* Split HUD (owner-approved mock, 2026-08): each instrument is its own card hung off a screen
+   EDGE (see the .dash-primary/.dash-tactical/.dash-control-strip/.imm-tape rules below), not one
+   panel docked bottom-center — that panel used to sit over the runway/gates on final. `.dash-strip`
+   is now just the full-viewport absolute positioning CONTEXT every edge card hangs off; it has no
+   layout (flex/flow) of its own, so it carries no width/height opinion for its children. */
 .dash-strip {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 8px;
-  padding: 6px 10px;
+  inset: 0;
   pointer-events: none;
   font-size: 11px;
 }
-.dash-strip-closed { justify-content: center; }
 .dash-strip-hide { align-self: flex-start; }
 /* #78: the collapsed "mini-dash" — a compact one-line readout instead of a bare toggle button,
    so folding the full glass away doesn't lose the essential flight data (mirrors what the mobile
-   immersive bar keeps up at all times). */
+   immersive bar keeps up at all times). Self-positions bottom-center now that `.dash-strip` above
+   no longer flex-centers its children. */
 .dash-mini {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 4px 14px;
@@ -1685,16 +1685,10 @@ body {
   .hud-scrim { padding: 3px 6px; }
   .hud-top-bar { gap: 4px 8px; padding: 3px 8px; }
 
-  /* Cockpit strip: when open on a narrow screen the panels STACK vertically as an overlay
-     sheet instead of a bottom strip (spec §2.3), preserving PanelFrame chrome. The container
-     stays pointer-events:none (the armed-resume click rule); the panels re-enable it. */
-  .dash-strip {
-    flex-direction: column;
-    align-items: stretch;
-    max-height: 78vh;
-    padding-bottom: max(6px, env(safe-area-inset-bottom));
-  }
-  .dash-strip-closed { flex-direction: row; }
+  /* NOTE: DashboardStrip only ever mounts at >=1024px (FlightSession gates it `!narrow`, and
+     MOBILE_BREAKPOINT_PX is 1024) — this query's old `.dash-strip` narrow-stack override is
+     unreachable for it and was removed with the Split-HUD desktop relayout. `.dash-panel` below
+     still serves PanelFrame's own narrow treatment elsewhere. */
   .dash-panel { width: 100%; }
 }
 
@@ -2322,12 +2316,14 @@ body {
 }
 
 /* ========================================================================
- * Unified glass cockpit (desktop-only redesign). ONE panel: per-class primary
- * (left), merged tactical map (right), control-state strip (bottom), weather /
- * controls folds. LORAN vector language only — 1px borders, translucent
- * near-black, amber/cyan, monospace, no radius, no shadow. The realistic
- * dashboard ART is DEFERRED: the seam is `.glass-primary`'s `background`, set
- * per-profile inline (transparent now) so the later art pass touches only that.
+ * Unified glass cockpit — Split HUD (desktop-only, owner-approved mock 2026-08). Each instrument
+ * is its own small card hung off a screen EDGE (position: absolute, see .dash-primary /
+ * .dash-tactical / .dash-control-strip / the .imm-tape block below) instead of one panel docked
+ * bottom-center — that panel used to sit over the runway/gates on final, which is the bug this
+ * relayout fixes. LORAN vector language only — 1px borders, translucent near-black, amber/cyan,
+ * monospace, no radius, no shadow. The realistic dashboard ART is DEFERRED: the seam is
+ * `.glass-primary`'s `background`, set per-profile inline (transparent now) so the later art pass
+ * touches only that.
  * ======================================================================== */
 .glass {
   pointer-events: auto;
@@ -2335,7 +2331,6 @@ body {
   flex-direction: column;
   gap: 8px;
   padding: 10px 14px;
-  max-width: 920px;
   font-size: 12px;
 }
 .glass-header {
@@ -2348,28 +2343,136 @@ body {
 }
 .glass-title { color: var(--text); opacity: 0.85; }
 .glass-header-actions { display: flex; gap: 4px; }
-.glass-main { display: flex; align-items: flex-start; gap: 12px; }
 .glass-primary {
   /* `background` is set inline per profile (the deferred realistic-art seam). */
   padding: 2px;
-  min-width: 340px;
 }
-.glass-tactical { display: flex; flex-direction: column; gap: 2px; }
 .glass-region-label { color: var(--text); opacity: 0.6; }
-.glass-control-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  border-top: 1px solid var(--grid);
-  padding-top: 5px;
-}
-.glass-control-strip .control-state { margin-top: 0; padding-top: 0; border-top: 0; }
 .glass-aux {
   border-top: 1px solid var(--grid);
   padding-top: 5px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* Primary face card — small, top-center, docked under the top HUD's SIM bar / destination cue /
+   approach readout stack (Hud.tsx: .hud-top-bar top:8px, .hud-destination top:52px,
+   .hud-approach-readout top:78px, ~55px tall — that stack ends well before 160px). Kept at its natural
+   per-class size (six-pack/EFIS/HUD are NOT rescaled — no internals touched); `max-width` is a
+   soft cap only, so the widest face (the f5e HUD reticle) never crowds the SPD/ALT edge tapes on
+   a 1024px-wide desktop window. Weather/controls folds (.dash-aux) drop from this card rather
+   than claiming their own screen position — they are pilot-invoked overlays, open only on
+   request, unlike the always-on bottom panel this layout replaces. */
+.dash-primary {
+  position: absolute;
+  top: 160px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(90vw, 400px);
+  z-index: 5;
+}
+.dash-aux { max-width: min(86vw, 380px); }
+
+/* Tactical map (NavMap — own-ship + traffic + airports + range rings; it already absorbed the
+   old heading-up RadarScope, see NavMap.tsx) — bottom-left corner, shrunk to a corner-sized face. */
+.dash-tactical {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 5;
+}
+.dash-tactical .navmap-face { width: 140px; height: 140px; }
+
+/* Control-state strip (reused ControlState: THR/FLAPS/TRIM/GEAR) + VSI/AGL — bottom-center, one
+   line, clear of the runway threshold the old bottom-docked panel used to sit on. */
+.dash-control-strip {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 16px;
+  z-index: 5;
+}
+.dash-control-strip .control-state { margin-top: 0; padding-top: 0; border-top: 0; }
+
+/* SPD (left) / ALT (right) edge tapes reuse the mobile Split-HUD's `Tape` component verbatim
+ * (hud/ImmersiveHudBar.tsx, exported for this) — `.imm-tape`/`.tape-window`/`.tape-strip`/
+ * `.tape-tick`/`.tape-band`/`.tape-ptr` are its fixed classNames, one tape implementation for both
+ * platforms. Mobile styles that markup under `.imm-hud .imm-tape` (top-anchored, rounded chrome
+ * tuned for phone use); desktop styles the SAME markup here under `.dash-strip .imm-tape` with the
+ * flat LORAN look the rest of the glass cockpit uses, at true mid-height (top:50%) — inboard of
+ * EdgeTurnCue (#47/#82), which owns the true 6px edge at that same top:50% band, so the tapes sit
+ * at 74px to avoid overlapping it. TAPE_WINDOW_PX (90px, ImmersiveHudBar.tsx) is a constant the
+ * tape strip math is built around — `.tape-window`'s height must stay 90px on both platforms.
+ */
+.dash-strip .imm-tape {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 60px;
+  height: 150px;
+  z-index: 5;
+  overflow: hidden;
+  padding: 3px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 2px;
+  border: 1px solid var(--grid);
+  background: rgba(5, 7, 10, 0.82);
+  pointer-events: none;
+}
+.dash-strip .imm-tape[data-side="left"] { left: 74px; }
+.dash-strip .imm-tape[data-side="right"] { right: 74px; }
+.dash-strip .imm-tape .imm-field-label { font-size: 9px; opacity: 0.7; text-align: center; }
+.dash-strip .tape-window { position: relative; width: 100%; height: 90px; overflow: hidden; } /* == TAPE_WINDOW_PX */
+.dash-strip .tape-strip { position: absolute; left: 0; right: 0; bottom: 0; will-change: transform; }
+/* #52-equivalent seam: a target-band highlight, same idea as mobile's — desktop passes band=null
+   (no approach-band data is wired to DashboardStrip yet) so this paints only if that changes. */
+.dash-strip .tape-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: rgba(95, 215, 224, 0.14);
+  border-top: 1px solid rgba(95, 215, 224, 0.5);
+  border-bottom: 1px solid rgba(95, 215, 224, 0.5);
+  pointer-events: none;
+}
+.dash-strip .tape-tick { position: absolute; height: 1px; background: var(--grid); }
+.dash-strip .tape-tick.major { width: 13px; background: var(--cyan); opacity: 0.7; }
+.dash-strip .tape-tick.minor { width: 7px; }
+.dash-strip .imm-tape[data-side="left"] .tape-tick { left: 3px; }
+.dash-strip .imm-tape[data-side="right"] .tape-tick { right: 3px; }
+.dash-strip .tape-tick .tt-label { position: absolute; top: -5px; font-size: 7px; color: var(--text); opacity: 0.75; }
+.dash-strip .imm-tape[data-side="left"] .tape-tick .tt-label { left: 16px; }
+.dash-strip .imm-tape[data-side="right"] .tape-tick .tt-label { right: 16px; text-align: right; }
+.dash-strip .tape-ptr {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  right: 3px;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.dash-strip .tape-ptr .imm-field-value {
+  min-width: 36px;
+  padding: 2px 4px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--cyan);
+  border: 1px solid var(--cyan);
+  border-radius: 2px;
+  background: rgba(5, 7, 10, 0.9);
 }
 
 /* ---- EFIS PFD (b738 primary): attitude ball + speed/altitude tapes ---- */
