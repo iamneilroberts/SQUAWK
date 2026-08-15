@@ -103,10 +103,6 @@ export default function FlightSession({
   const instantFlight = useStore((s) => s.instantFlight);
   // Both flags mark a purely client-side flight: no server lease to release, no result to submit.
   const local = freeFlight || instantFlight;
-  // Reposition spawn (spawn chooser): unlike freeFlight/instantFlight this keeps the lease and
-  // traffic polling — it only skips the ranked result submit on onEnd (below), so it is NOT
-  // folded into `local`.
-  const repositioned = useStore((s) => s.repositioned);
   const assist = useStore((s) => s.assist);
   const endStats = useStore((s) => s.endStats);
   const feedStatus = useStore((s) => s.feedStatus);
@@ -530,7 +526,10 @@ export default function FlightSession({
               // Reposition spawn (spawn chooser): the spawn skipped part of the route, so the
               // flight is local and unranked — no result submitted. A normal locked mission
               // otherwise, so this sits after the freeFlight/instantFlight/tutorial short-circuits.
-              if (repositioned) {
+              // Read imperatively (not the reactive hook) so toggling the spawn mode mid-COUNTDOWN
+              // doesn't sit in this effect's dep array and restart the countdown/terrain preload —
+              // mirrors `highestAssist`'s `useStore.getState().assist?.highestUsed` read above.
+              if (useStore.getState().repositioned) {
                 pendingResultRef.current = null;
                 activeLessonRef.current = null;
                 setActiveLesson(null);
@@ -612,7 +611,6 @@ export default function FlightSession({
     tutorial,
     freeFlight,
     instantFlight,
-    repositioned,
   ]);
 
   // Toggling HEADING → APPROACH mid-COUNTDOWN rebuilds ONLY the spawn (new heading), reusing the
