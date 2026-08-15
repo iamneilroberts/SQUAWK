@@ -164,7 +164,11 @@ export async function listAdminActiveSessions(
   nowMs: number,
   limit: number,
 ) {
-  const result = await db.prepare(
+  // Admin mutations (e.g. flight.terminate) commit just before this is read, and the admin
+  // UI re-fetches immediately after — a plain read here can land on a D1 read replica that
+  // hasn't caught up yet, showing a mission that was already abandoned. Pin this query to the
+  // primary via the D1 Sessions API so admins always see the true post-mutation state (#62).
+  const result = await db.withSession("first-primary").prepare(
     `SELECT s.id AS session_id, s.user_id, u.handle, u.status AS user_status,
             s.expires_at, s.last_seen_at, s.device_label, s.created_at,
             m.id AS mission_id, m.aircraft_class, m.airport_icao, m.locked_at,
