@@ -277,6 +277,34 @@ export function approachRibbon(
   return [...finalSections, ...baseSections];
 }
 
+/**
+ * Edge rails + gates (owner decision 2026-08-15, replaces the flat translucent corridor
+ * surface — edge-on from the cockpit it read as a faint fan, unusable). Reuses approachRibbon's
+ * curved, tapering cross-sections (base-leg entry -> FAF -> threshold, the dogleg the player
+ * turns onto) so the rails, gates, and the ribbon fill (kept as a pure function, no longer
+ * rendered) all agree exactly on where the corridor sits. `leftRail`/`rightRail` are the full
+ * dense point lists (smooth through the FAF bend); `gates` is an evenly-spaced subset — a few
+ * fly-through cross-sections, not one at every ribbon sample — skipping the threshold itself
+ * (index 0), since a gate at touchdown is redundant with landing.
+ */
+export function approachRails(
+  assignment: RunwayAssignment,
+  guidance: MissionProfile["guidance"],
+  gateCount = 5,
+): { leftRail: GuidancePoint[]; rightRail: GuidancePoint[]; gates: GuidanceSegment[] } {
+  const sections = approachRibbon(assignment, guidance);
+  const usable = sections.length - 1;
+  const gates: GuidanceSegment[] = [];
+  for (let i = 1; i <= gateCount && usable > 0; i += 1) {
+    gates.push(sections[Math.round((i * usable) / gateCount)]);
+  }
+  return {
+    leftRail: sections.map((section) => section.left),
+    rightRail: sections.map((section) => section.right),
+    gates,
+  };
+}
+
 /** 4-corner rings between consecutive cross-sections — the renderer draws one polygon each. */
 export function surfaceQuads(sections: GuidanceSegment[]): GuidancePoint[][] {
   const quads: GuidancePoint[][] = [];

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { missionProfileForClass } from "./profiles";
 import {
   approachGuidance,
+  approachRails,
   approachRibbon,
   approachSurface,
   directorDistanceNm,
@@ -346,5 +347,35 @@ describe("surfaceQuads", () => {
       sections[0].left, sections[1].left, sections[1].right, sections[0].right,
     ]);
     for (const quad of quads) expect(quad).toHaveLength(4);
+  });
+});
+
+describe("approachRails", () => {
+  // Edge rails + gates (owner decision 2026-08-15, replaces the flat corridor surface). Built
+  // directly on approachRibbon's curved cross-sections, so the rails/gates agree with the
+  // ribbon's own shape tests above (dogleg at the FAF, taper to runway width at the threshold).
+  const guidance = surfaceGuidance; // c172s: finalApproachFixNm 5.5, baseLegOffsetNm 3
+
+  it("threads both rails through every ribbon cross-section, unmodified", () => {
+    const sections = approachRibbon(surfaceAssignment, guidance);
+    const rails = approachRails(surfaceAssignment, guidance);
+    expect(rails.leftRail).toEqual(sections.map((s) => s.left));
+    expect(rails.rightRail).toEqual(sections.map((s) => s.right));
+  });
+
+  it("picks gateCount gates, all from the ribbon, skipping the threshold (index 0)", () => {
+    const sections = approachRibbon(surfaceAssignment, guidance);
+    const rails = approachRails(surfaceAssignment, guidance, 5);
+    expect(rails.gates).toHaveLength(5);
+    for (const gate of rails.gates) {
+      expect(sections).toContainEqual(gate);
+      expect(gate).not.toEqual(sections[0]);
+    }
+  });
+
+  it("includes the far (base-entry) end as the last gate", () => {
+    const sections = approachRibbon(surfaceAssignment, guidance);
+    const rails = approachRails(surfaceAssignment, guidance, 5);
+    expect(rails.gates[rails.gates.length - 1]).toEqual(sections[sections.length - 1]);
   });
 });
