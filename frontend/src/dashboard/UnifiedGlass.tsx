@@ -1,19 +1,21 @@
 /*
- * The unified "glass" cockpit panel (desktop-only redesign): ONE panel replacing the old
- * five-panel strip (INSTRUMENTS / RADAR / NAVMAP / WEATHER / CONTROLS). Layout:
- *   - LEFT  : the per-class PRIMARY flight instruments, chosen by DATA (the class -> profile
- *             registry, profiles.ts) and mapped to a component through PRIMARY_COMPONENTS below.
- *             There is no `if (class === ...)` here — the primary is a table lookup.
- *   - RIGHT : the merged TACTICAL map. The old RADAR (heading-up PPI) and NAVMAP (north-up
- *             geographic) collapse into ONE geographic map. NavMap already renders the radar's
- *             traffic (it calls radarMath.blipsFor via navMath.navContacts) plus airports, range
- *             rings, own-ship and the range selector — so it IS the combined tactical picture,
- *             and the redundant heading-up scope is retired (RadarScope/radarMath live on inside
- *             NavMap). Reuse, don't rewrite.
- *   - BOTTOM: the control-state strip — THR / FLAPS / TRIM / GEAR (reused ControlState verbatim)
- *             plus VSI / AGL from the same hud/format formatters.
- * WEATHER and CONTROLS (keymap help) fold in behind small header toggles so both stay reachable
- * without cluttering the flight instruments.
+ * The unified "glass" cockpit — Split-HUD desktop layout (owner-approved mock, 2026-08). Fixes
+ * the bug where the old ONE centered bottom panel sat over the runway/gates on final: every
+ * instrument is now its own small card hung off a landscape screen EDGE, leaving the center
+ * (where the runway grows on approach) clear. Pieces, each the SAME reused component as before:
+ *   - SPD / ALT edge tapes  : hard-left / hard-right, reusing the exact `Tape` component + tape
+ *                             math the mobile Split-HUD already ships (hud/ImmersiveHudBar.tsx) —
+ *                             one tape implementation for both platforms.
+ *   - Primary face          : the per-class instrument (six-pack GA / EFIS airliner / HUD
+ *                             fighter), chosen by DATA (profiles.ts -> PRIMARY_COMPONENTS below,
+ *                             never an `if (class === ...)`), docked top-center under the
+ *                             approach readout instead of bottom-center.
+ *   - TACTICAL map          : NavMap (own-ship + traffic + airports + range rings; it already
+ *                             absorbed the old heading-up RadarScope, see NavMap.tsx), bottom-left
+ *                             corner.
+ *   - Control-state strip   : THR / FLAPS / TRIM / GEAR (reused ControlState verbatim) + VSI/AGL,
+ *                             bottom-center, one line.
+ * WEATHER and CONTROLS (keymap help) still fold in behind the primary card's header toggles.
  *
  * Hook-free body like DashboardStripBody: all state/handlers are props, so the test walks the
  * element tree without jsdom and proves per-class selection directly.
@@ -24,6 +26,8 @@ import type { Contact, FeedStatus } from "../data/types";
 import type { HudSnapshot } from "../hud/snapshot";
 import type { ClassParams } from "../sim/types";
 import { formatVsiFpm, formatClearanceFt } from "../hud/format";
+import { msToKt, mToFt } from "../sim/units";
+import { Tape, tapeRangesFor } from "../hud/ImmersiveHudBar";
 import { profileForClass, type PrimaryKind } from "./profiles";
 import SixPack from "./SixPack";
 import EfisDisplay from "./EfisDisplay";
@@ -85,9 +89,31 @@ export function UnifiedGlassBody({
   onToggleStrip(): void;
 }) {
   const profile = profileForClass(params.id);
+  const tapeRange = tapeRangesFor(params);
   return (
     <div className="dash-strip">
-      <section className="glass panel">
+      {/* SPD — hard-left edge. Same Tape component/math as mobile's Split-HUD; range null (honest
+          em-dash, ground rule #1) rather than fabricating a reading when there is no snapshot. */}
+      <Tape
+        side="left"
+        label="SPD"
+        unit="KT"
+        value={snapshot ? msToKt(snapshot.iasMs) : 0}
+        range={snapshot ? tapeRange.ias : null}
+      />
+      {/* ALT — hard-right edge. */}
+      <Tape
+        side="right"
+        label="ALT"
+        unit="FT"
+        value={snapshot ? mToFt(snapshot.altitudeM) : 0}
+        range={snapshot ? tapeRange.alt : null}
+      />
+
+      {/* Per-class primary face — small, top-center, under the top HUD's approach readout stack
+          (Hud.tsx's SIM bar / destination cue / approach readout). `background` is the deferred
+          realistic-art seam. */}
+      <section className="glass panel dash-primary">
         <header className="glass-header">
           <span className="glass-title label">GLASS · {params.label}</span>
           <div className="glass-header-actions">
@@ -111,57 +137,56 @@ export function UnifiedGlassBody({
           </div>
         </header>
 
-        <div className="glass-main">
-          {/* LEFT — per-class primary. `background` is the deferred realistic-art seam. */}
-          <div
-            className="glass-primary"
-            data-primary={profile.primary}
-            style={{ background: profile.background }}
-          >
-            <CockpitPrimary snapshot={snapshot} params={params} />
-          </div>
-
-          {/* RIGHT — merged tactical map (NavMap = geographic own-ship + rings + traffic + airports). */}
-          <div className="glass-tactical">
-            <span className="glass-region-label label">TACTICAL</span>
-            <NavMap
-              snapshot={snapshot}
-              airports={airports}
-              contacts={contacts}
-              feedStatus={feedStatus}
-              ghostHex={ghostHex}
-              navRangeNm={navRangeNm}
-              feedRadiusNm={feedRadiusNm}
-              onRangeChange={onNavRangeChange}
-              showRadar={showWeather}
-              navWeather={navWeather}
-              showBasemap
-            />
-          </div>
-        </div>
-
-        {/* BOTTOM — control-state strip: reused ControlState (THR/FLAPS/TRIM/GEAR) + VSI/AGL. */}
-        <div className="glass-control-strip">
-          <ControlState snapshot={snapshot} />
-          <div className="control-state">
-            <span className="control-state-item">{`VSI ${formatVsiFpm(snapshot?.verticalSpeedMs ?? null)}`}</span>
-            <span className="control-state-item">{`AGL ${formatClearanceFt(snapshot?.terrainClearanceM ?? null)}`}</span>
-          </div>
+        <div
+          className="glass-primary"
+          data-primary={profile.primary}
+          style={{ background: profile.background }}
+        >
+          <CockpitPrimary snapshot={snapshot} params={params} />
         </div>
 
         {showWeather && (
-          <div className="glass-aux">
+          <div className="glass-aux dash-aux">
             <span className="glass-region-label label">WEATHER</span>
             <WeatherPanelBody state={weather} />
           </div>
         )}
         {showHelp && (
-          <div className="glass-aux">
+          <div className="glass-aux dash-aux">
             <span className="glass-region-label label">CONTROLS</span>
             <ControlsHelp />
           </div>
         )}
       </section>
+
+      {/* Tactical map (NavMap = geographic own-ship + rings + traffic + airports; it already
+          absorbed the old heading-up RadarScope) — bottom-left corner. */}
+      <div className="glass panel dash-tactical">
+        <span className="glass-region-label label">TACTICAL</span>
+        <NavMap
+          snapshot={snapshot}
+          airports={airports}
+          contacts={contacts}
+          feedStatus={feedStatus}
+          ghostHex={ghostHex}
+          navRangeNm={navRangeNm}
+          feedRadiusNm={feedRadiusNm}
+          onRangeChange={onNavRangeChange}
+          showRadar={showWeather}
+          navWeather={navWeather}
+          showBasemap
+        />
+      </div>
+
+      {/* Control-state strip: reused ControlState (THR/FLAPS/TRIM/GEAR) + VSI/AGL — bottom-center,
+          one line. */}
+      <div className="glass panel dash-control-strip">
+        <ControlState snapshot={snapshot} />
+        <div className="control-state">
+          <span className="control-state-item">{`VSI ${formatVsiFpm(snapshot?.verticalSpeedMs ?? null)}`}</span>
+          <span className="control-state-item">{`AGL ${formatClearanceFt(snapshot?.terrainClearanceM ?? null)}`}</span>
+        </div>
+      </div>
     </div>
   );
 }
