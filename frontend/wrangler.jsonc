@@ -16,7 +16,13 @@
     "FORCE_MODE": "NORMAL",
     "AUTH_FROM_EMAIL": "sign-in@fly.voygent.app",
     "CLOUDFLARE_ACCOUNT_ID": "5c2997e723bf93da998a627e799cd443",
-    "REQUEST_ANALYTICS_DATASET": "voygent_adsb_game_requests_local"
+    "REQUEST_ANALYTICS_DATASET": "voygent_adsb_game_requests_local",
+    "ADSB_PROVIDER_PRIMARY": "https://sdr.voygent.app/adsb?lat={lat}&lon={lon}&radius={radius}",
+    "ADSB_PROVIDER_FALLBACK": "https://api.airplanes.live/v2/point/{lat}/{lon}/{radius}",
+    "ADSB_PROVIDER_RESERVE": "https://api.adsb.lol/v2/point/{lat}/{lon}/{radius}",
+    "UPSTREAM_MIN_INTERVAL": "1",
+    "UPSTREAM_DAILY_LIMIT": "500",
+    "UPSTREAM_MAX_RADIUS_NM": "250"
   },
   "d1_databases": [
     {
@@ -76,7 +82,13 @@
         "PUBLIC_ORIGIN": "https://voygent-adsb-game-staging.somotravel.workers.dev",
         "TURNSTILE_SITE_KEY": "0x4AAAAAAEMNrkMteVREAOpe",
         "CLOUDFLARE_ACCOUNT_ID": "5c2997e723bf93da998a627e799cd443",
-        "REQUEST_ANALYTICS_DATASET": "voygent_adsb_game_requests_staging"
+        "REQUEST_ANALYTICS_DATASET": "voygent_adsb_game_requests_staging",
+        "ADSB_PROVIDER_PRIMARY": "https://sdr.voygent.app/adsb?lat={lat}&lon={lon}&radius={radius}",
+        "ADSB_PROVIDER_FALLBACK": "https://api.airplanes.live/v2/point/{lat}/{lon}/{radius}",
+        "ADSB_PROVIDER_RESERVE": "https://api.adsb.lol/v2/point/{lat}/{lon}/{radius}",
+        "UPSTREAM_MIN_INTERVAL": "1",
+        "UPSTREAM_DAILY_LIMIT": "500",
+        "UPSTREAM_MAX_RADIUS_NM": "250"
       },
       "d1_databases": [
         {
