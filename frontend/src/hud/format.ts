@@ -115,6 +115,15 @@ export function formatAirtime(seconds: number): string {
   return `${mm}:${ss}`;
 }
 
+/** Approach-readout time-to-landing (m:ss). Null (groundspeed ~0) reads as an em-dash, never 0:00. */
+export function formatTimeToLandingSec(seconds: number | null): string {
+  if (dash(seconds)) return EM_DASH;
+  const total = Math.max(0, Math.round(seconds));
+  const mm = Math.floor(total / 60);
+  const ss = String(total % 60).padStart(2, "0");
+  return `${mm}:${ss}`;
+}
+
 /** Null when the sim is keeping up; otherwise the honest multiplier. */
 export function formatSimRate(rate: number): string | null {
   if (rate >= SIM_RATE_WARNING) return null;

@@ -721,6 +721,16 @@ body {
 }
 .hud-destination-dest { font-weight: 700; letter-spacing: 0.14em; }
 .hud-destination-dist { opacity: 0.85; }
+
+/* Desktop twin of the mobile .ar-block (owner req 2026-08): stacks under .hud-destination,
+   top-center, same expanded approach-readout markup so the two platforms can't disagree. */
+.hud-approach-readout {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.hud-approach-readout .ar-block { margin-top: 0; }
 .mission-reconfirm {
   margin-top: 12px;
   padding: 9px;
@@ -2017,6 +2027,39 @@ body {
 /* #52: suggested approach speed/altitude band — cyan (nominal guidance), a touch above secondary. */
 .imm-director-approach { color: var(--cyan); font-size: 8px; letter-spacing: 0.04em; white-space: nowrap; }
 .imm-bar-tapes .imm-director-approach { font-size: 10px; }
+
+/* The expanded approach-guidance readout (owner req 2026-08): a second, bigger row under the top
+   bar — target alt/speed/sink next to the live value + state, course vs centerline, distance and
+   time-to-landing. Same visual language/backing as .imm-bar so it reads as part of the same
+   instrument, just grown. */
+.ar-block {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px 14px;
+  margin-top: 4px;
+  padding: 6px 10px;
+  border: 1px solid rgba(150, 205, 220, 0.28);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(30, 44, 54, 0.62) 0%, rgba(8, 13, 18, 0.82) 60%),
+    rgba(6, 10, 14, 0.4);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(3px);
+  pointer-events: none;
+}
+.ar-block-turn { padding: 8px 12px; }
+.ar-turn { color: var(--amber); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; white-space: nowrap; }
+.ar-cell { display: flex; flex-direction: column; gap: 1px; min-width: 56px; }
+.ar-cell-wide { flex: 1 1 100%; min-width: 0; }
+.ar-cell-top { display: flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+.ar-cell-label { font-size: 8px; opacity: 0.62; letter-spacing: 0.1em; }
+.ar-cell-value { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+.ar-cell-bottom { font-size: 9px; opacity: 0.7; letter-spacing: 0.03em; white-space: nowrap; }
+.ar-on .ar-cell-value { color: var(--cyan); }
+.ar-off .ar-cell-value, .ar-off .ar-cell-bottom { color: var(--amber); opacity: 1; }
+.ar-cell-dist .ar-cell-value, .ar-cell-time .ar-cell-value { color: var(--text); }
 
 /* C — instrument-like speed/altitude edge tapes around the real shared attitude indicator. */
 .imm-hud .imm-bar-tapes {

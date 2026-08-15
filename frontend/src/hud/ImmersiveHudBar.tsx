@@ -10,6 +10,7 @@ import type { HudSnapshot } from "./snapshot";
 import type { AttitudeStyle } from "../sim/types";
 import type { ApproachBand } from "../mission/approachBand";
 import type { DescentGuidance } from "../mission/descentGuidance";
+import type { ApproachReadout } from "../mission/approachReadout";
 import AttitudeIndicator from "../dashboard/AttitudeIndicator";
 import {
   EM_DASH,
@@ -17,6 +18,7 @@ import {
   formatClearanceFt,
   formatHeadingDeg,
   formatIasKt,
+  formatTimeToLandingSec,
   formatVsiFpm,
   warningsFor,
 } from "./format";
@@ -29,14 +31,6 @@ export type ImmersiveHudNavCue = {
   destination: string;
   bearingDeg: number;
   distanceNm: number;
-};
-
-/** TURN FINAL callout (#88): heading + distance to the FAF and the on-slope target alt/speed. */
-export type ImmersiveHudFinalTurn = {
-  bearingDeg: number;
-  distanceNm: number;
-  targetAltFt: number;
-  targetSpeedKt: number;
 };
 
 export type TapeRange = { min: number; max: number; step: number; major: number; pxPerUnit: number };
@@ -175,13 +169,12 @@ function descentLineText(g: DescentGuidance): string {
 }
 
 function NavDirector({
-  snapshot, navCue, approachBand = null, descentGuidance = null, finalTurn = null, compact = false,
+  snapshot, navCue, approachBand = null, descentGuidance = null, compact = false,
 }: {
   snapshot: HudSnapshot;
   navCue: ImmersiveHudNavCue | null;
   approachBand?: ApproachBand | null;
   descentGuidance?: DescentGuidance | null;
-  finalTurn?: ImmersiveHudFinalTurn | null;
   compact?: boolean;
 }) {
   return (
@@ -190,24 +183,11 @@ function NavDirector({
         {navCue === null ? "NO DESTINATION SET" : `${navCue.destination} · ${navCue.distanceNm.toFixed(1)} NM`}
       </span>
       <span className="imm-director-heading">HDG {formatHeadingDeg(snapshot.headingRad)}°</span>
-      {approachBand && (
-        <span className="imm-director-approach">
-          {`APCH ${Math.round(approachBand.speed.loKt)}-${Math.round(approachBand.speed.hiKt)} KT · ` +
-            `${roundTo10(approachBand.altitude.loFt)}-${roundTo10(approachBand.altitude.hiFt)} FT`}
-        </span>
-      )}
-      {/* At range the approach band is silent; show the descent-to-approach advisory instead. */}
+      {/* Cruise-in advisory (beyond the approach): target altitude to be at by the approach entry.
+          Once on final (approachBand active) the ApproachReadoutBlock (below, full-width) takes
+          over with the expanded readout — #52/#88's old inline text lines are superseded by it. */}
       {approachBand === null && descentGuidance && (
         <span className="imm-director-approach">{descentLineText(descentGuidance)}</span>
-      )}
-      {/* #88: TURN FINAL — the FAF heading/distance + on-slope target, before the approach band or
-          descent advisory take over closer in. finalTurnCue is null once inside the FAF distance. */}
-      {finalTurn && (
-        <span className="imm-director-approach">
-          {`TURN FINAL ${Math.round(finalTurn.bearingDeg).toString().padStart(3, "0")}° · ` +
-            `${finalTurn.distanceNm.toFixed(1)} NM · ${roundTo10(finalTurn.targetAltFt)} FT · ` +
-            `${Math.round(finalTurn.targetSpeedKt)} KT`}
-        </span>
       )}
       {compact && (
         <span className="imm-director-secondary">
@@ -221,20 +201,19 @@ function NavDirector({
   );
 }
 
-function BalancedRail({ snapshot, attitudeStyle, navCue, approachBand, descentGuidance, finalTurn }: {
+function BalancedRail({ snapshot, attitudeStyle, navCue, approachBand, descentGuidance }: {
   snapshot: HudSnapshot;
   attitudeStyle: AttitudeStyle;
   navCue: ImmersiveHudNavCue | null;
   approachBand: ApproachBand | null;
   descentGuidance: DescentGuidance | null;
-  finalTurn: ImmersiveHudFinalTurn | null;
 }) {
   return (
     <div className="imm-bar imm-bar-balanced" data-hud-variant="balanced">
       <SimIdentity snapshot={snapshot} />
       <CompactField label="IAS" value={formatIasKt(snapshot.iasMs)} unit="KT" />
       <MiniAttitude snapshot={snapshot} attitudeStyle={attitudeStyle} />
-      <NavDirector snapshot={snapshot} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} finalTurn={finalTurn} compact />
+      <NavDirector snapshot={snapshot} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} compact />
       <CompactField label="ALT" value={formatAltFt(snapshot.altitudeM)} unit="FT" />
     </div>
   );
@@ -285,14 +264,13 @@ function Tape({ side, label, unit, value, range, band = null }: {
   );
 }
 
-function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange, approachBand, descentGuidance, finalTurn }: {
+function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange, approachBand, descentGuidance }: {
   snapshot: HudSnapshot;
   attitudeStyle: AttitudeStyle;
   navCue: ImmersiveHudNavCue | null;
   tapeRange: { ias: TapeRange; alt: TapeRange } | null;
   approachBand: ApproachBand | null;
   descentGuidance: DescentGuidance | null;
-  finalTurn: ImmersiveHudFinalTurn | null;
 }) {
   return (
     <div className="imm-bar imm-bar-tapes" data-hud-variant="tapes">
@@ -304,7 +282,7 @@ function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange, approachBand, de
         <MiniAttitude snapshot={snapshot} attitudeStyle={attitudeStyle} />
         <span className="imm-director-stack">
           <SimIdentity snapshot={snapshot} />
-          <NavDirector snapshot={snapshot} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} finalTurn={finalTurn} />
+          <NavDirector snapshot={snapshot} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} />
           <span className="imm-director-systems">
             <span>VSI <b>{formatVsiFpm(snapshot.verticalSpeedMs)}</b></span>
             <span className={groundProximityActive(snapshot) ? "imm-agl-alert" : undefined}>AGL <b>{formatClearanceFt(snapshot.terrainClearanceM)}</b></span>
@@ -319,6 +297,80 @@ function TapeRail({ snapshot, attitudeStyle, navCue, tapeRange, approachBand, de
   );
 }
 
+/**
+ * The expanded approach-guidance readout (owner req: make course/sink-rate correctness, target
+ * alt/speed, distance and time-to-landing easy to read at a glance). One shared block feeds both
+ * HUD layouts (mobile top bar below; desktop mirrors it in Hud.tsx) so they can't disagree.
+ * Cyan when a value is within tolerance (ON), amber the moment it drifts outside it. Before the
+ * aircraft is established on final, `readout.turnToFinal` (finalTurnCue passthrough) takes over
+ * with just the turn heading + distance to the FAF — there is nothing to hold on course/speed/sink
+ * yet.
+ */
+export function ApproachReadoutBlock({ readout, snapshot }: {
+  readout: ApproachReadout;
+  snapshot: HudSnapshot;
+}) {
+  if (readout.turnToFinal) {
+    const bearing = Math.round(readout.turnToFinal.bearingDeg).toString().padStart(3, "0");
+    return (
+      <div className="ar-block ar-block-turn">
+        <span className="ar-turn">
+          {`TURN TO FINAL ${bearing}° · ${readout.turnToFinal.distanceNm.toFixed(1)} NM`}
+        </span>
+      </div>
+    );
+  }
+
+  const courseText =
+    readout.courseState === "ON" ? "ON CENTERLINE"
+      : readout.courseState === "LEFT" ? "L OF CENTERLINE" : "R OF CENTERLINE";
+  const sinkTargetFpm = Math.round(readout.targetSinkRateFpm / 50) * 50;
+
+  return (
+    <div className="ar-block">
+      <span className={`ar-cell ${readout.altState === "ON" ? "ar-on" : "ar-off"}`}>
+        <span className="ar-cell-top">
+          <span className="ar-cell-label">ALT</span>
+          <span className="ar-cell-value">{formatAltFt(snapshot.altitudeM)}</span>
+        </span>
+        <span className="ar-cell-bottom">TGT {roundTo10(readout.targetAltFt)} · {readout.altState}</span>
+      </span>
+      <span className={`ar-cell ${readout.speedState === "ON" ? "ar-on" : "ar-off"}`}>
+        <span className="ar-cell-top">
+          <span className="ar-cell-label">SPD</span>
+          <span className="ar-cell-value">{formatIasKt(snapshot.iasMs)}</span>
+        </span>
+        <span className="ar-cell-bottom">TGT {Math.round(readout.targetSpeedKt)} · {readout.speedState}</span>
+      </span>
+      <span className={`ar-cell ${readout.sinkState === "ON" ? "ar-on" : "ar-off"}`}>
+        <span className="ar-cell-top">
+          <span className="ar-cell-label">SINK</span>
+          <span className="ar-cell-value">{formatVsiFpm(snapshot.verticalSpeedMs)}</span>
+        </span>
+        <span className="ar-cell-bottom">TGT −{sinkTargetFpm} · {readout.sinkState}</span>
+      </span>
+      <span className={`ar-cell ar-cell-wide ${readout.courseState === "ON" ? "ar-on" : "ar-off"}`}>
+        <span className="ar-cell-top">
+          <span className="ar-cell-label">CRS</span>
+          <span className="ar-cell-value">{courseText}</span>
+        </span>
+      </span>
+      <span className="ar-cell ar-cell-dist">
+        <span className="ar-cell-top">
+          <span className="ar-cell-label">DIST</span>
+          <span className="ar-cell-value">{readout.distanceNm.toFixed(1)} NM</span>
+        </span>
+      </span>
+      <span className="ar-cell ar-cell-time">
+        <span className="ar-cell-top">
+          <span className="ar-cell-label">TIME</span>
+          <span className="ar-cell-value">{formatTimeToLandingSec(readout.timeToLandingSec)}</span>
+        </span>
+      </span>
+    </div>
+  );
+}
+
 export default function ImmersiveHudBar({
   snapshot,
   attitudeStyle,
@@ -328,7 +380,7 @@ export default function ImmersiveHudBar({
   approachWarnings = [],
   approachBand = null,
   descentGuidance = null,
-  finalTurn = null,
+  approachReadout = null,
   tapeRange = null,
   decluttered = false,
   toggleFaded = false,
@@ -341,8 +393,8 @@ export default function ImmersiveHudBar({
   approachWarnings?: string[];
   approachBand?: ApproachBand | null;
   descentGuidance?: DescentGuidance | null;
-  /** #88: TURN FINAL callout — heading/distance to the FAF + on-slope target alt/speed. */
-  finalTurn?: ImmersiveHudFinalTurn | null;
+  /** The expanded approach readout (target alt/speed/sink, course, distance + time-to-landing). */
+  approachReadout?: ApproachReadout | null;
   tapeRange?: { ias: TapeRange; alt: TapeRange } | null;
   /** Manual declutter (#57): hides the HUD-A/C layout toggle, an informational-only control. */
   decluttered?: boolean;
@@ -354,8 +406,10 @@ export default function ImmersiveHudBar({
   return (
     <div className={`imm-hud imm-hud-${variant}`}>
       {variant === "balanced"
-        ? <BalancedRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} finalTurn={finalTurn} />
-        : <TapeRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} tapeRange={tapeRange} approachBand={approachBand} descentGuidance={descentGuidance} finalTurn={finalTurn} />}
+        ? <BalancedRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} approachBand={approachBand} descentGuidance={descentGuidance} />
+        : <TapeRail snapshot={snapshot} attitudeStyle={attitudeStyle} navCue={navCue} tapeRange={tapeRange} approachBand={approachBand} descentGuidance={descentGuidance} />}
+
+      {approachReadout && <ApproachReadoutBlock readout={approachReadout} snapshot={snapshot} />}
 
       {onVariantChange !== undefined && !decluttered && (
         <button

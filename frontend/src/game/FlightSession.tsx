@@ -45,8 +45,9 @@ import MobileNavWx from "../dashboard/MobileNavWx";
 import HandoffCard from "../panels/HandoffCard";
 import PauseOverlay from "../panels/PauseOverlay";
 import EndCard from "../panels/EndCard";
-import { degToRad, ktToMs, mToFt, msToKt } from "../sim/units";
+import { degToRad, ktToMs, mToFt, msToFpm, msToKt } from "../sim/units";
 import { descentGuidanceFor } from "../mission/descentGuidance";
+import { approachReadoutFor } from "../mission/approachReadout";
 import type { AssistMode } from "../mission/assists";
 import { releaseMissionLease, submitMissionResult } from "../mission/api";
 import { buildMissionResultPackage } from "../mission/resultPackage";
@@ -1087,6 +1088,29 @@ export default function FlightSession({
         )
       : null;
 
+  // The expanded approach readout (owner req 2026-08): target alt/speed/sink + course + distance/
+  // time-to-landing, prominent in the top HUD. Same "on approach" window the band/turn cue above
+  // already established — shown once either is active, so it supersedes both their old inline text
+  // without changing when guidance appears. groundspeed reuses the tasMs-as-groundspeed convention
+  // above (still air, no wind model); IAS drives the speed state, matching the tape-band cue.
+  const immersiveApproachReadout =
+    lockedMission !== null && snapshot !== null && assist !== null &&
+    (instantFlight || assistFeatures(assist.current).destinationCue) &&
+    (immersiveApproachBand !== null || finalTurn !== null)
+      ? approachReadoutFor(
+          {
+            latDeg: snapshot.latDeg,
+            lonDeg: snapshot.lonDeg,
+            altitudeFt: mToFt(snapshot.altitudeM),
+            iasKt: msToKt(snapshot.iasMs),
+            groundSpeedKt: msToKt(snapshot.tasMs),
+            verticalSpeedFpm: msToFpm(snapshot.verticalSpeedMs),
+          },
+          lockedMission.assignment,
+          lockedMission.missionProfile,
+        )
+      : null;
+
   const dismissLesson = () => {
     activeLessonRef.current = null;
     setActiveLesson(null);
@@ -1148,7 +1172,7 @@ export default function FlightSession({
             immersiveVariant={immersiveHudVariant}
             onImmersiveVariantChange={setImmersiveHudVariant}
             immersiveNavCue={immersiveNavCue}
-            finalTurn={finalTurn}
+            approachReadout={immersiveApproachReadout}
             immersiveApproachWarnings={immersiveApproachWarnings}
             immersiveApproachBand={immersiveApproachBand}
             immersiveDescentGuidance={immersiveDescentGuidance}
