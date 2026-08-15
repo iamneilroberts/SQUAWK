@@ -1,30 +1,20 @@
-# #52 Approach speed/altitude band — CHECKLIST
+# Checklist — Feature 1: Spawn Chooser  ✅ BUILD COMPLETE (pending owner sign-off)
 
-_Updated: 2026-08-13 — approach-band_
+Built from `docs/superpowers/plans/2026-08-14-spawn-chooser.md` via subagent-driven development.
 
-Owner decisions: explicit per-class `approach` field + BOTH display surfaces (NavDirector text line + tape bands).
+- [x] `/branch spawn-chooser` — isolated worktree off main; node_modules + .env symlinked
+- [x] Task 1 — base-leg guidance knobs (34d66fc, review clean)
+- [x] Task 2 — spawnPlacement geometry (54479cf, review clean)
+- [x] Task 3 — spawn position/altitude/speed/vsi overrides (fb4cc62, review clean)
+- [x] Task 4 — 4-way spawnModePreference + #90 migration (0f6021a, review clean)
+- [x] Task 5 — repositioned flag + onEnd unranked short-circuit (a8c0d32→3b33a0d, 1 fix: countdown decouple)
+- [x] Task 6 — 4-way chooser UI + wiring + delete old pref (2dcec5b, opus review approved)
+- [x] Whole-branch opus review — READY, no Critical
+- [x] Final fix wave — on-slope vertical rate + wording (760e000, re-review clean)
+- [x] decisions.md entry appended
+- [ ] **PENDING OWNER:** push branch + open PR
+- [ ] **PENDING OWNER:** deploy to prod for live pass (do NOT merge until sign-off)
 
-## Data
-- [x] `approach: { targetSpeedKt; bandKt }` on MissionProfile (types.ts)
-- [x] Validate `approach` (positive, bandKt < targetSpeedKt) — profiles.ts + tests
-- [x] `approach` block in all 5 JSONs (surgical insert, no reformat): c172s 65±5, b738 150±10, f5e 155±12, biz 118±10, tprop 118±10
-- [x] decisions.md entry (tuning knobs, Phase-B verification)
+Verification: full unit suite 1455 pass · tsc clean · build clean · merges onto main (d1ab7cd) with no conflicts.
 
-## Pure logic (TDD)
-- [x] Extract glideSlopeAltitudeFt + glidepathToleranceFt into guidanceGeometry.ts
-- [x] Deduped 3 glide-slope formula copies (approachGuidance, approachSurface, approachAlerts)
-- [x] mission/approachBand.ts approachBandFor(...) — gating + speed band + altitude band
-
-## Display
-- [x] NavDirector strip line "APCH lo-hi KT · lo-hi FT" (cyan)
-- [x] tapeBandBox + cyan band overlay on IAS + ALT tapes
-- [x] Wired FlightSession -> Hud -> ImmersiveHudBar (excludes instant flight)
-- [x] CSS: .tape-band, .imm-director-approach
-
-## Ship
-- [x] Gate: typecheck clean, 1401 unit tests pass, lint 0 errors (5 pre-existing globe warnings)
-- [x] Production build clean
-- [x] Committed
-- [ ] Owner sign-off to deploy
-- [ ] Deploy (ff-merge both, npm run deploy:production, push both)
-- [ ] Owner device-verify on final approach -> close #52 -> prune worktree
+_Updated: 2026-08-14 — spawn-chooser (build complete)_

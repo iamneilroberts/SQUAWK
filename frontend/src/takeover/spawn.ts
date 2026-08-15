@@ -47,6 +47,10 @@ export function buildLockedMissionSpawn(
     initialFlapDetent?: number;
     initialGearDown?: boolean;
     spawnHeadingDeg?: number;
+    spawnPositionOverride?: { latDeg: number; lonDeg: number };
+    spawnAltitudeFtOverride?: number;
+    spawnSpeedKtOverride?: number;
+    spawnVerticalRateFpmOverride?: number;
   },
 ): SpawnResult {
   if (aircraftProfile.id !== classId) {
@@ -63,6 +67,10 @@ export function buildSpawnState(
     initialFlapDetent?: number;
     initialGearDown?: boolean;
     spawnHeadingDeg?: number;
+    spawnPositionOverride?: { latDeg: number; lonDeg: number };
+    spawnAltitudeFtOverride?: number;
+    spawnSpeedKtOverride?: number;
+    spawnVerticalRateFpmOverride?: number;
   },
 ): SpawnResult {
   const adjustments: SpawnAdjustment[] = [];
@@ -77,7 +85,7 @@ export function buildSpawnState(
   const altitudeSource: "alt_geom" | "alt_baro" = altGeomM !== null ? "alt_geom" : "alt_baro";
   let altitudeM = altGeomM ?? (altBaroFt === null ? 0 : ftToM(altBaroFt));
 
-  if (altitudeSource === "alt_baro") {
+  if (altitudeSource === "alt_baro" && opts.spawnAltitudeFtOverride === undefined) {
     if (opts.terrainHeightM === null) {
       adjustments.push({
         field: "ALTITUDE",
@@ -106,6 +114,16 @@ export function buildSpawnState(
     }
   }
 
+  if (opts.spawnAltitudeFtOverride !== undefined) {
+    adjustments.push({
+      field: "ALTITUDE",
+      from: `${Math.round(mToFt(altitudeM))} FT`,
+      to: `${Math.round(opts.spawnAltitudeFtOverride)} FT`,
+      reason: "Set to a specific altitude for takeover setup (unranked).",
+    });
+    altitudeM = ftToM(opts.spawnAltitudeFtOverride);
+  }
+
   if (altitudeM > params.limits.serviceCeilingM) {
     adjustments.push({
       field: "ALTITUDE",
@@ -117,7 +135,16 @@ export function buildSpawnState(
   }
 
   // ---- speed: ground speed approximates TAS (still air, v1 scope) ----
-  const snapshotKt = contact.gs ?? 0;
+  const liveSnapshotKt = contact.gs ?? 0;
+  const snapshotKt = opts.spawnSpeedKtOverride ?? liveSnapshotKt;
+  if (opts.spawnSpeedKtOverride !== undefined) {
+    adjustments.push({
+      field: "SPEED",
+      from: `${Math.round(liveSnapshotKt)} KT`,
+      to: `${Math.round(opts.spawnSpeedKtOverride)} KT`,
+      reason: "Set to a specific speed for takeover setup (unranked).",
+    });
+  }
   let tasMs = ktToMs(snapshotKt);
   const vsMin = 1.3 * stallSpeedIasMs(params, flapDetent);
   const vneMax = 0.9 * params.limits.vneIasMs;
@@ -156,8 +183,18 @@ export function buildSpawnState(
   }
 
   // ---- attitude: flight path from the vertical rate, body pitched by the trimmed AoA ----
-  const latRad = degToRad(contact.lat);
-  const lonRad = degToRad(contact.lon);
+  const spawnLatDeg = opts.spawnPositionOverride?.latDeg ?? contact.lat;
+  const spawnLonDeg = opts.spawnPositionOverride?.lonDeg ?? contact.lon;
+  if (opts.spawnPositionOverride) {
+    adjustments.push({
+      field: "POSITION",
+      from: `${contact.lat.toFixed(3)},${contact.lon.toFixed(3)}`,
+      to: `${spawnLatDeg.toFixed(3)},${spawnLonDeg.toFixed(3)}`,
+      reason: "Repositioned onto the approach for takeover setup (unranked).",
+    });
+  }
+  const latRad = degToRad(spawnLatDeg);
+  const lonRad = degToRad(spawnLonDeg);
   const position = geodeticToEcef(latRad, lonRad, altitudeM);
   const liveTrackDeg = contact.track ?? 0;
   const headingDeg = opts.spawnHeadingDeg ?? liveTrackDeg;
@@ -170,10 +207,10 @@ export function buildSpawnState(
       field: "HEADING",
       from: `${Math.round(normalizeHeading(liveTrackDeg)).toString().padStart(3, "0")} LIVE`,
       to: `${Math.round(normalizeHeading(headingDeg)).toString().padStart(3, "0")} TO APPROACH`,
-      reason: "Pointed at the approach fix for takeover setup (HEADING → APPROACH toggle).",
+      reason: "Heading set for takeover approach setup.",
     });
   }
-  if (contact.baro_rate === null) {
+  if (contact.baro_rate === null && opts.spawnVerticalRateFpmOverride === undefined) {
     adjustments.push({
       field: "VERTICAL RATE",
       from: "—",
@@ -181,7 +218,17 @@ export function buildSpawnState(
       reason: "No baro_rate in the feed.",
     });
   }
-  const verticalSpeedMs = contact.baro_rate === null ? 0 : fpmToMs(contact.baro_rate);
+  if (opts.spawnVerticalRateFpmOverride !== undefined) {
+    adjustments.push({
+      field: "VERTICAL RATE",
+      from: contact.baro_rate === null ? "—" : `${Math.round(contact.baro_rate)} FPM`,
+      to: `${Math.round(opts.spawnVerticalRateFpmOverride)} FPM`,
+      reason: "Set to a specific vertical rate for takeover setup (unranked).",
+    });
+  }
+  const verticalSpeedMs = opts.spawnVerticalRateFpmOverride !== undefined
+    ? fpmToMs(opts.spawnVerticalRateFpmOverride)
+    : (contact.baro_rate === null ? 0 : fpmToMs(contact.baro_rate));
   const fpaRad =
     tasMs > 0.1 ? Math.asin(Math.min(1, Math.max(-1, verticalSpeedMs / tasMs))) : 0;
 

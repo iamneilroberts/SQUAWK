@@ -261,6 +261,29 @@ describe("spawnHeadingDeg override", () => {
   });
 });
 
+describe("full spawn override", () => {
+  it("moves position/altitude/speed and discloses each", () => {
+    const contact = ga();
+    const over = buildSpawnState(contact, P, {
+      terrainHeightM: null,
+      spawnPositionOverride: { latDeg: contact.lat + 0.2, lonDeg: contact.lon + 0.2 },
+      spawnAltitudeFtOverride: 2500,
+      spawnSpeedKtOverride: 90,
+      spawnHeadingDeg: 90,
+    });
+    const fields = over.adjustments.map((a) => a.field);
+    expect(fields).toContain("POSITION");
+    expect(fields).toContain("ALTITUDE");
+    expect(fields).toContain("SPEED");
+    // altitude actually applied (state carries metres; ~2500 ft)
+    expect(over.state.altitudeM).toBeCloseTo(2500 * 0.3048, 0);
+  });
+  it("omitting overrides is unchanged", () => {
+    const base = buildSpawnState(ga(), P, { terrainHeightM: null });
+    expect(base.adjustments.some((a) => ["POSITION", "ALTITUDE", "SPEED"].includes(a.field))).toBe(false);
+  });
+});
+
 describe("buildSpawnState — gear (GR-006)", () => {
   it("spawns a retractable class gear-up (fixes the acceptance-flight GEAR DOWN-at-cruise bug)", () => {
     const b738 = loadB738();

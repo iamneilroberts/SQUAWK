@@ -762,6 +762,20 @@ body {
 .handoff-adjust-field { color: var(--amber); }
 .handoff-adjust-reason { color: var(--text); opacity: 0.75; font-size: 10px; }
 .handoff-note { color: var(--amber); padding-top: 6px; font-size: 11px; }
+.handoff-spawnmode { align-items: center; }
+.spawnmode-opts { display: flex; gap: 4px; }
+.spawnmode-opts button {
+  background: transparent;
+  border: 1px solid var(--grid);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+.spawnmode-opts button.sel { border-color: var(--amber); color: var(--amber); }
 .handoff-countdown {
   text-align: center;
   font-size: 44px;

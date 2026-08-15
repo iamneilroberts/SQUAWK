@@ -8,6 +8,7 @@ import type { RunwayAssignment } from "../mission/types";
 import type { ClassParams } from "../sim/types";
 import type { SpawnResult } from "../takeover/spawn";
 import { disclosureLine } from "../takeover/eligibility";
+import { isRepositionMode, type SpawnMode } from "../takeover/spawnModePreference";
 import { EM_DASH, formatCallsign, formatClass, formatHeadingDeg } from "../hud/format";
 import { mToFt, msToKt } from "../sim/units";
 import { hprFromQuat } from "../sim/quat";
@@ -29,8 +30,8 @@ export default function HandoffCard({
   countdown,
   note,
   assignment,
-  faceApproach,
-  onToggleFaceApproach,
+  spawnMode,
+  onSpawnModeChange,
   freeFlight,
 }: {
   contact: Contact;
@@ -40,10 +41,10 @@ export default function HandoffCard({
   countdown: number | null;
   note: string;
   assignment: RunwayAssignment | null;
-  faceApproach: boolean;
-  onToggleFaceApproach: (enabled: boolean) => void;
+  spawnMode: SpawnMode;
+  onSpawnModeChange: (mode: SpawnMode) => void;
   /** Free flight has no destination (inert HOME assignment) and always keeps the player's chosen
-   *  heading — the DESTINATION row and HEADING → APPROACH toggle are misleading there, so hide both. */
+   *  heading — the DESTINATION row and spawn-mode selector are misleading there, so hide both. */
   freeFlight: boolean;
 }) {
   // Reuses hud/format.ts's formatHeadingDeg rather than re-deriving the wrap: it rounds
@@ -77,10 +78,24 @@ export default function HandoffCard({
       </div>
 
       {!freeFlight && (
-        <label className="handoff-row handoff-toggle">
-          <span className="label">HEADING → APPROACH</span>
-          <input type="checkbox" checked={faceApproach} onChange={(e) => onToggleFaceApproach(e.target.checked)} />
-        </label>
+        <div className="handoff-row handoff-spawnmode">
+          <span className="label">SPAWN</span>
+          <span className="spawnmode-opts">
+            {(["real", "faceApproach", "base", "final"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                className={spawnMode === m ? "sel" : ""}
+                onClick={() => onSpawnModeChange(m)}
+              >
+                {{ real: "REAL", faceApproach: "LINE UP", base: "1 TURN", final: "ON FINAL" }[m]}
+              </button>
+            ))}
+          </span>
+        </div>
+      )}
+      {!freeFlight && isRepositionMode(spawnMode) && (
+        <div className="handoff-note">REPOSITIONED · LOCAL & UNRANKED</div>
       )}
 
       <div className="label handoff-title">ADJUSTMENTS</div>

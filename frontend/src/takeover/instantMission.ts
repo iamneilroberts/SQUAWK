@@ -10,6 +10,8 @@ import { DATA_VERSIONS } from "../shared/versions";
 import { loadClassById } from "../sim/params";
 import { resolveClass } from "./eligibility";
 import { buildLockedMissionSpawn } from "./spawn";
+import { onFinalPlacement, baseLegPlacement } from "../mission/spawnPlacement";
+import type { SpawnMode } from "./spawnModePreference";
 
 /**
  * B2 — instant anonymous flight (fly-first / sign-in-later). Takes over a REAL live contact with
@@ -24,8 +26,8 @@ import { buildLockedMissionSpawn } from "./spawn";
 export type InstantMissionOptions = {
   /** Caller-supplied mission id (crypto.randomUUID in the browser); defaults to a stable id. */
   missionId?: string;
-  /** Spawn facing the final approach fix instead of the live track. Default on (true). */
-  faceApproach?: boolean;
+  /** Where the SIM aircraft spawns relative to the approach. Default `"faceApproach"`. */
+  spawnMode?: SpawnMode;
 };
 
 /** Stable default id so a pure test needs no random source. */
@@ -106,16 +108,27 @@ export function buildInstantMission(
     scoringVersion: profile.scoringVersion,
   });
   // Spawn the player's SIM aircraft from the real contact (no terrain sample in this pure path;
-  // the spawn builder trusts alt_geom as the ellipsoidal datum, same as free flight). When facing
-  // the approach (default on), the heading points at the FAF instead of the live track.
-  const faceApproach = opts.faceApproach ?? true;
-  const spawnHeadingDeg = faceApproach
-    ? (() => {
-        const faf = finalApproachFix(assignment, profile.guidance);
-        return initialBearingDeg(contact.lat, contact.lon, faf.point.latDeg, faf.point.lonDeg);
-      })()
-    : undefined;
-  const spawn = buildLockedMissionSpawn(contact, classId, params, { terrainHeightM: null, spawnHeadingDeg });
+  // the spawn builder trusts alt_geom as the ellipsoidal datum, same as free flight). Mode picks
+  // where relative to the approach it spawns; default faces the FAF instead of the live track.
+  const spawnMode = opts.spawnMode ?? "faceApproach";
+  let overrideOpts: Partial<Parameters<typeof buildLockedMissionSpawn>[3]> = {};
+  if (spawnMode === "faceApproach") {
+    const faf = finalApproachFix(assignment, profile.guidance);
+    overrideOpts = { spawnHeadingDeg: initialBearingDeg(contact.lat, contact.lon, faf.point.latDeg, faf.point.lonDeg) };
+  } else if (spawnMode === "base" || spawnMode === "final") {
+    const place = spawnMode === "final"
+      ? onFinalPlacement(assignment, profile)
+      : baseLegPlacement(assignment, profile);
+    overrideOpts = {
+      spawnPositionOverride: { latDeg: place.latDeg, lonDeg: place.lonDeg },
+      spawnAltitudeFtOverride: place.altitudeFt,
+      spawnSpeedKtOverride: place.speedKt,
+      spawnVerticalRateFpmOverride: place.verticalRateFpm,
+      spawnHeadingDeg: place.headingDeg,
+      ...(spawnMode === "final" ? { initialGearDown: true, initialFlapDetent: params.flaps.length - 1 } : {}),
+    };
+  }
+  const spawn = buildLockedMissionSpawn(contact, classId, params, { terrainHeightM: null, ...overrideOpts });
 
   return {
     schemaVersion: 1,

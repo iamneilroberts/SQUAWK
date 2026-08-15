@@ -40,7 +40,7 @@ import TutorialPanel from "./tutorial/TutorialPanel";
 import FreeFlightPanel from "./freeflight/FreeFlightPanel";
 import { buildFreeFlightMission } from "./freeflight/freeFlight";
 import { buildInstantMission } from "./takeover/instantMission";
-import { shouldFaceApproach } from "./takeover/headingToFafPreference";
+import { readSpawnMode, type SpawnMode } from "./takeover/spawnModePreference";
 import { nearestFlyableContact } from "./takeover/pickFlyable";
 import { loadAirports } from "./data/airports";
 import {
@@ -84,12 +84,12 @@ function canRetryMissionLock(error: unknown): boolean {
   ].includes(error.code ?? "");
 }
 
-/** Guarded read of the spawn-heading-to-FAF preference; default on when storage is unavailable. */
-function readFaceApproachPreference(): boolean {
+/** Guarded read of the spawn-mode preference; defaults (faceApproach) when storage is unavailable. */
+function readSpawnModePreference(): SpawnMode {
   try {
-    return shouldFaceApproach(typeof window === "undefined" ? null : window.localStorage);
+    return readSpawnMode(typeof window === "undefined" ? null : window.localStorage);
   } catch {
-    return true;
+    return "faceApproach";
   }
 }
 
@@ -342,7 +342,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
         try {
           const mission = buildInstantMission(nearest, airports, {
             missionId: crypto.randomUUID(),
-            faceApproach: readFaceApproachPreference(),
+            spawnMode: readSpawnModePreference(),
           });
           if (useStore.getState().startInstantFlight(mission)) return;
         } catch {
@@ -362,7 +362,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
       try {
         const mission = buildInstantMission(briefing.state.contact, airports, {
           missionId: crypto.randomUUID(),
-          faceApproach: readFaceApproachPreference(),
+          spawnMode: readSpawnModePreference(),
         });
         if (useStore.getState().startInstantFlight(mission)) return;
       } catch {

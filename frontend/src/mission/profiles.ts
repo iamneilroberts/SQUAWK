@@ -62,11 +62,15 @@ export function validateMissionProfile(value: unknown): MissionProfile {
   for (const label of rankingNames) assertFiniteNonNegative(profile.ranking[label], `ranking.${label}`);
   const guidanceNames = [
     "approachLengthNm", "corridorWidthFt", "gateSpacingNm", "glideSlopeDeg", "flareHeightFt", "finalApproachFixNm",
+    "baseLegOffsetNm", "baseLegOffsetDeg",
   ] as const;
   if (Object.keys(profile.guidance ?? {}).sort().join(",") !== [...guidanceNames].sort().join(",")) {
     throw new Error("guidance fields are invalid");
   }
-  for (const label of guidanceNames) assertFinitePositive(profile.guidance[label], `guidance.${label}`);
+  for (const label of guidanceNames.filter((name) => name !== "baseLegOffsetDeg")) {
+    assertFinitePositive(profile.guidance[label], `guidance.${label}`);
+  }
+  assertFiniteNonNegative(profile.guidance.baseLegOffsetDeg, "guidance.baseLegOffsetDeg");
   if (profile.guidance.gateSpacingNm > profile.guidance.approachLengthNm) {
     throw new Error("guidance gate spacing exceeds approach length");
   }

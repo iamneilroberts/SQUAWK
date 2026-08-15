@@ -2844,3 +2844,40 @@ dropped).
 opus whole-branch review APPROVE (one fix wave for two Minor UI findings + a follow-up for a
 self-inflicted toggle race and a HandoffCard test-props gap). Live in-app pass (spawn heading,
 card distance, band-appropriate airport, free-flight guard) pending owner run on prod (#66).
+
+## 2026-08-14 — G-0xx · Spawn chooser (4-way) supersedes the #90 HEADING→APPROACH toggle
+
+Feature 1 (spec `docs/superpowers/specs/2026-08-14-spawn-chooser-design.md`). Replaces #90's
+single checkbox with a 4-option selector on the handoff card, and ships the core of #87
+(skip-to-landing-approach) as option C.
+
+1. **Four spawn modes.** `real` (pure live position + heading, ranked) · `faceApproach`
+   ("LINE UP" — real position, heading toward the FAF = #90's behavior, ranked, **default**) ·
+   `base` ("1 TURN" — reposition to a 45° base-leg entry, **unranked**) · `final` ("ON FINAL" —
+   reposition to the FAF on-slope/on-speed with gear + full flaps, **unranked**). Pref key
+   `adsb.spawn-mode.v1`; migrates #90's `adsb.handoff-heading-to-faf.v1` (`"off"`→`real`,
+   else→`faceApproach`).
+2. **Repositioning teleports ONLY the SIM aircraft**, client-side. The genuine aircraft's ghost
+   stays on the live feed; no feed data synthesized (ground rule #1). Every reposition
+   (position/altitude/speed/heading/vertical-rate) is disclosed on the handoff card ADJUSTMENTS
+   list, reusing the spawn builder's existing disclosure surface.
+3. **Unranked is fully client-side — zero backend.** A `repositioned` store flag routes `base`/
+   `final` flights through `onEnd` to a local `"unavailable"` debrief and never calls
+   `submitMissionResult`. No worker/schema/signing changes. `real`/`faceApproach` still rank
+   normally.
+4. **Base-leg geometry.** `baseLegPlacement` offsets from the FAF along the outbound reciprocal
+   swung out by `guidance.baseLegOffsetDeg` (45°) at `guidance.baseLegOffsetNm` (3 NM) — new
+   per-profile tuning knobs — so one turn rolls onto final. On-slope descent rate is set for
+   `final` (−V·sin(glideslope)); base leg spawns level. **Deferred (tunable):** base-leg altitude
+   uses the FAF altitude rather than the glideslope altitude at its along-track distance (~600 ft
+   low); left for the owner's live-pass tuning via the base-leg knobs.
+5. **Countdown decoupling preserved.** The chooser reads the mode via a ref in the big COUNTDOWN
+   spawn-build effect and via state in the decoupled reaction effect (per #90's fix); `repositioned`
+   is read imperatively in `onEnd`, kept OUT of the big effect's deps, so toggling the choice
+   rebuilds only the spawn and never restarts the countdown.
+
+**Execution:** subagent-driven development (6 tasks, per-task + opus whole-branch review).
+**Verification:** full unit suite 1455 pass, `tsc` + `npm run build` clean, opus whole-branch
+review READY (no Critical; one Important on-slope-vertical-rate fix applied). In-sim feel of
+B/C repositioning is unverifiable locally (no traffic feed, #66) — the owner's prod live pass is
+the real gate.

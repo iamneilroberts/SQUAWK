@@ -225,6 +225,16 @@ describe("session state", () => {
     useStore.getState().startLockedMission(lockedMission());
     expect(useStore.getState().instantFlight).toBe(false);
   });
+  it("resetSession and other start actions clear the repositioned flag (spawn chooser)", () => {
+    useStore.getState().resetSession();
+    useStore.getState().setRepositioned(true);
+    expect(useStore.getState().repositioned).toBe(true);
+    useStore.getState().resetSession();
+    expect(useStore.getState().repositioned).toBe(false);
+    useStore.getState().setRepositioned(true);
+    useStore.getState().startLockedMission(lockedMission());
+    expect(useStore.getState().repositioned).toBe(false);
+  });
   it("tracks highest assist monotonically for the locked flight", () => {
     useStore.getState().resetSession();
     useStore.getState().startLockedMission(lockedMission("none"));
