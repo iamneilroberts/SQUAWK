@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { contactColor, contactRotationRad, INELIGIBLE_COLOR } from "./icons";
+import { contactColor, contactRotationRad, contactShape, INELIGIBLE_COLOR } from "./icons";
 import type { Contact } from "../data/types";
 
 // t defaults to a resolvable GA designator so the base contact is takeover-eligible;
@@ -22,6 +22,30 @@ describe("contactColor", () => {
     expect(color).toBe(INELIGIBLE_COLOR);
     expect(color).not.toBe("#5fd7e0");
     expect(color).not.toBe("#ffb000");
+  });
+});
+
+describe("contactShape", () => {
+  it("maps c172s (GA) to light", () => {
+    expect(contactShape(contact({ t: "C172" }))).toBe("light");
+  });
+  it("maps b738 (airliner) to narrowbody", () => {
+    expect(contactShape(contact({ t: "A320" }))).toBe("narrowbody");
+  });
+  it("maps biz to regional", () => {
+    expect(contactShape(contact({ t: "C25A" }))).toBe("regional");
+  });
+  it("maps tprop to turboprop", () => {
+    expect(contactShape(contact({ t: "BE20" }))).toBe("turboprop");
+  });
+  it("maps f5e (fighter) to fighter", () => {
+    expect(contactShape(contact({ t: "F16" }))).toBe("fighter");
+  });
+  it("maps an unsupported/unknown type to generic", () => {
+    expect(contactShape(contact({ t: "ZZZZ" }))).toBe("generic");
+  });
+  it("maps a missing type to generic", () => {
+    expect(contactShape(contact({ t: null }))).toBe("generic");
   });
 });
 
