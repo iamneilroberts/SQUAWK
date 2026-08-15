@@ -62,19 +62,45 @@ export function groupKeymap(
   return [...byAction.entries()].map(([action, keys]) => ({ action, keys }));
 }
 
+/**
+ * Codes the flight sampler (controls.ts) never reads — camera, session and UI chrome — vs.
+ * everything else, which moves the aircraft. This is the #79 "flight controls vs cockpit
+ * chrome" split; it lives here rather than in KEYMAP because it's a *presentation* grouping,
+ * not part of the code -> action contract the sampler and the rest of the app share.
+ */
+const COCKPIT_CHROME_CODES = new Set<string>(["KeyQ", "Escape", "KeyE", "KeyC", "KeyY", "Slash"]);
+
+type ControlsHelpRow = { action: string; keys: string[] };
+
+function ControlsHelpGroup({ title, rows }: { title: string; rows: ControlsHelpRow[] }) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="controls-help-group">
+      <span className="controls-help-group-title">{title}</span>
+      <div className="controls-help-list">
+        {rows.map((row) => (
+          <div className="controls-help-row" key={row.action}>
+            <span className="controls-help-keys">
+              {row.keys.map((code) => (
+                <kbd className="controls-help-key" key={code}>{keyLabel(code)}</kbd>
+              ))}
+            </span>
+            <span className="controls-help-action">{row.action}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ControlsHelp() {
+  const rows = groupKeymap(KEYMAP);
+  const flightRows = rows.filter((row) => !COCKPIT_CHROME_CODES.has(row.keys[0]));
+  const chromeRows = rows.filter((row) => COCKPIT_CHROME_CODES.has(row.keys[0]));
   return (
     <div className="controls-help">
-      {groupKeymap(KEYMAP).map((row) => (
-        <div className="controls-help-row" key={row.action}>
-          <span className="controls-help-keys">
-            {row.keys.map((code) => (
-              <kbd className="controls-help-key" key={code}>{keyLabel(code)}</kbd>
-            ))}
-          </span>
-          <span className="controls-help-action">{row.action}</span>
-        </div>
-      ))}
+      <ControlsHelpGroup title="FLIGHT CONTROLS" rows={flightRows} />
+      <ControlsHelpGroup title="COCKPIT" rows={chromeRows} />
     </div>
   );
 }

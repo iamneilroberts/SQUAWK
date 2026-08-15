@@ -1029,22 +1029,38 @@ body {
   letter-spacing: 0.04em;
   padding-top: 4px;
 }
-.controls-help {
+/* Two side-by-side groups (flight controls / cockpit chrome, #79) rather than one tall list —
+   at 21 rows a single column either clipped under a fixed max-height or forced a scroll the
+   owner read as "cut off" (#46). Splitting into columns lets everything render at once within
+   the glass panel's existing width instead. */
+.controls-help { display: flex; gap: 18px; flex-wrap: wrap; font-size: 10px; }
+.controls-help-group { display: flex; flex-direction: column; gap: 3px; min-width: 200px; }
+.controls-help-group-title {
+  color: var(--text);
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 9px;
+}
+.controls-help-list {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 2px 10px;
-  max-height: 150px;
-  overflow-y: auto;
-  font-size: 10px;
+  gap: 3px 10px;
 }
 .controls-help-row { display: contents; }
 .controls-help-keys { display: flex; gap: 3px; }
 .controls-help-key {
+  display: inline-block;
+  min-width: 14px;
+  text-align: center;
   border: 1px solid var(--grid);
-  padding: 0 4px;
+  border-bottom-width: 2px;
+  padding: 1px 4px;
   color: var(--cyan);
   font-family: var(--mono);
+  font-size: 10px;
   border-radius: 0;
+  background: rgba(95, 215, 224, 0.06);
 }
 .controls-help-action { color: var(--text); opacity: 0.8; }
 

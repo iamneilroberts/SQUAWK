@@ -65,4 +65,29 @@ describe("ControlsHelp", () => {
     expect(text).toContain(KEYMAP.Slash);
     expect(text).toContain("?");
   });
+  it("renders EVERY groupKeymap row, not a scrolled-off subset (#46)", () => {
+    const text = rendered();
+    for (const row of groupKeymap(KEYMAP)) {
+      expect(text, `help panel is missing row "${row.action}"`).toContain(row.action);
+    }
+  });
+  it("splits into FLIGHT CONTROLS and COCKPIT groups (#79)", () => {
+    const text = rendered();
+    expect(text).toContain("FLIGHT CONTROLS");
+    expect(text).toContain("COCKPIT");
+  });
+  it("puts camera/session/UI chrome in COCKPIT and everything else in FLIGHT CONTROLS", () => {
+    const text = rendered();
+    const flightIdx = text.indexOf("FLIGHT CONTROLS");
+    const cockpitIdx = text.indexOf("COCKPIT");
+    expect(flightIdx).toBeGreaterThanOrEqual(0);
+    expect(cockpitIdx).toBeGreaterThan(flightIdx);
+    // Flight-relevant actions land before the COCKPIT heading...
+    expect(text.indexOf(KEYMAP.ArrowUp)).toBeLessThan(cockpitIdx);
+    expect(text.indexOf(KEYMAP.KeyB)).toBeLessThan(cockpitIdx);
+    // ...camera/UI chrome lands after it.
+    expect(text.indexOf(KEYMAP.KeyE)).toBeGreaterThan(cockpitIdx);
+    expect(text.indexOf(KEYMAP.KeyC)).toBeGreaterThan(cockpitIdx);
+    expect(text.indexOf(KEYMAP.Slash)).toBeGreaterThan(cockpitIdx);
+  });
 });
