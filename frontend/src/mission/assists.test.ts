@@ -82,10 +82,16 @@ describe("mission assist modes", () => {
 
 describe("finalTurnCue", () => {
   const profile = missionProfileForClass("c172s");
+  // Runway heading is 90 (assignment above) — aligned means tracking ~090.
+  const ALIGNED_HEADING = 90;
+  const CROSSING_HEADING = 0; // 90° off the runway heading — clearly crossing, not inbound
 
   it("points to the FAF and carries on-slope alt + approach speed when en route", () => {
     // own well outside the FAF distance, offset to the side of the centerline
-    const own = { latDeg: assignment.assignedEnd.latDeg + 0.3, lonDeg: assignment.assignedEnd.lonDeg + 0.3 };
+    const own = {
+      latDeg: assignment.assignedEnd.latDeg + 0.3, lonDeg: assignment.assignedEnd.lonDeg + 0.3,
+      headingDeg: ALIGNED_HEADING,
+    };
     const cue = finalTurnCue(own, assignment, profile);
     expect(cue).not.toBeNull();
     if (cue) {
@@ -96,9 +102,31 @@ describe("finalTurnCue", () => {
     }
   });
 
-  it("returns null once inside the FAF distance (on final)", () => {
-    // own very close to the threshold
-    const own = { latDeg: assignment.assignedEnd.latDeg + 0.001, lonDeg: assignment.assignedEnd.lonDeg + 0.001 };
+  it("returns null once inside the FAF distance AND aligned with the runway heading (established)", () => {
+    // own very close to the threshold, tracking the runway heading
+    const own = {
+      latDeg: assignment.assignedEnd.latDeg + 0.001, lonDeg: assignment.assignedEnd.lonDeg + 0.001,
+      headingDeg: ALIGNED_HEADING,
+    };
+    expect(finalTurnCue(own, assignment, profile)).toBeNull();
+  });
+
+  it("still cues a turn inside the FAF distance if the aircraft is crossing at an angle", () => {
+    // Same near-threshold position as the established case above, but tracking 90° off the
+    // runway heading — crossing the corridor from the side, not inbound on it.
+    const own = {
+      latDeg: assignment.assignedEnd.latDeg + 0.001, lonDeg: assignment.assignedEnd.lonDeg + 0.001,
+      headingDeg: CROSSING_HEADING,
+    };
+    const cue = finalTurnCue(own, assignment, profile);
+    expect(cue).not.toBeNull();
+  });
+
+  it("treats a small heading error (within tolerance) as still aligned/established", () => {
+    const own = {
+      latDeg: assignment.assignedEnd.latDeg + 0.001, lonDeg: assignment.assignedEnd.lonDeg + 0.001,
+      headingDeg: ALIGNED_HEADING + 15,
+    };
     expect(finalTurnCue(own, assignment, profile)).toBeNull();
   });
 });

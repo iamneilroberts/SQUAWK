@@ -20,6 +20,16 @@ function world(point: GuidancePoint): Cartesian3 {
   return Cartesian3.fromDegrees(point.lonDeg, point.latDeg, point.altitudeFt * 0.3048);
 }
 
+/** Midpoint of a rail cross-section pair — exact on the centerline since left/right are
+ *  symmetric perpendicular offsets from it (same construction approachRails/approachRibbon use). */
+function midpoint(a: GuidancePoint, b: GuidancePoint): GuidancePoint {
+  return {
+    latDeg: (a.latDeg + b.latDeg) / 2,
+    lonDeg: (a.lonDeg + b.lonDeg) / 2,
+    altitudeFt: (a.altitudeFt + b.altitudeFt) / 2,
+  };
+}
+
 /** Closed 4-corner loop for one gate: a square hoop centered on the cross-section, sized to its
  *  actual (tapered) width so gates shrink toward the threshold with the rails they sit between. */
 function gateHoop(section: GuidanceSegment): Cartesian3[] {
@@ -45,28 +55,26 @@ export default function ApproachAssistLayer({
   useEffect(() => {
     const viewer = bundle?.viewer;
     const features = assistFeatures(assist);
-    // Fixed-point references (flare cue, FAF) plus, at FULL assist, edge RAILS + GATES along the
+    // Fixed-point references (flare cue, FAF) plus, at FULL assist, a CENTERLINE + GATES along the
     // curved corridor (base-leg entry -> FAF -> threshold, the dogleg the player turns onto) —
     // world-anchored geometry from the assigned runway + guidance knobs only, no live-position
     // input, so it never swings frame to frame. Replaces the flat translucent surface (owner
-    // decision 2026-08-15): edge-on from the cockpit it read as a faint fan, unusable. Both
-    // gate on the same FULL-only flags.
+    // decision 2026-08-15): edge-on from the cockpit it read as a faint fan, unusable. The two edge
+    // rails that originally bounded the corridor were dropped in favor of the gates alone (owner
+    // 2026-08): with both rails visible from most viewing angles they crisscrossed into visual
+    // clutter — the square gates already mark the corridor width at each cross-section, so a single
+    // centerline reference (this rail's midpoint at every cross-section, still on the glide slope)
+    // is enough to show the line to fly without the crossing lines. Both gate on the same FULL-only
+    // flags.
     if (viewer === undefined || viewer.isDestroyed() || (!features.flareCue && !features.approachCorridor)) return;
     const guidance = mission.missionProfile.guidance;
     const entities: ReturnType<typeof viewer.entities.add>[] = [];
     if (features.approachCorridor) {
       const rails = approachRails(mission.assignment, guidance);
+      const centerline = rails.leftRail.map((left, i) => midpoint(left, rails.rightRail[i]));
       entities.push(viewer.entities.add({
         polyline: {
-          positions: rails.leftRail.map(world),
-          width: 3,
-          material: RAIL_COLOR,
-          depthFailMaterial: RAIL_DEPTH_FAIL_COLOR,
-        },
-      }));
-      entities.push(viewer.entities.add({
-        polyline: {
-          positions: rails.rightRail.map(world),
+          positions: centerline.map(world),
           width: 3,
           material: RAIL_COLOR,
           depthFailMaterial: RAIL_DEPTH_FAIL_COLOR,
