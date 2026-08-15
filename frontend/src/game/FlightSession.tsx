@@ -395,6 +395,7 @@ export default function FlightSession({
             spawnPositionOverride: { latDeg: place.latDeg, lonDeg: place.lonDeg },
             spawnAltitudeFtOverride: place.altitudeFt,
             spawnSpeedKtOverride: place.speedKt,
+            spawnVerticalRateFpmOverride: place.verticalRateFpm,
             spawnHeadingDeg: place.headingDeg,
             ...(mode === "final" ? { initialGearDown: true, initialFlapDetent: params.flaps.length - 1 } : {}),
           };
@@ -649,6 +650,7 @@ export default function FlightSession({
           spawnPositionOverride: { latDeg: place.latDeg, lonDeg: place.lonDeg },
           spawnAltitudeFtOverride: place.altitudeFt,
           spawnSpeedKtOverride: place.speedKt,
+          spawnVerticalRateFpmOverride: place.verticalRateFpm,
           spawnHeadingDeg: place.headingDeg,
           ...(spawnMode === "final" ? { initialGearDown: true, initialFlapDetent: params.flaps.length - 1 } : {}),
         };

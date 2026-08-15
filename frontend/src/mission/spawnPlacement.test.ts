@@ -30,6 +30,12 @@ describe("onFinalPlacement", () => {
     expect(p.altitudeFt).toBeCloseTo(faf.altitudeFt, 6);
     expect(p.headingDeg).toBeCloseTo(assignment.runwayHeadingDeg, 6);
     expect(p.speedKt).toBe(profile.approach.targetSpeedKt);
+    // On-slope descent rate: negative (descending), matching the -glideSlopeDeg flight-path
+    // angle formula (101.269 converts kt to ft/min).
+    const expectedRateFpm =
+      -(profile.approach.targetSpeedKt * 101.269) * Math.sin(profile.guidance.glideSlopeDeg * Math.PI / 180);
+    expect(p.verticalRateFpm).toBeLessThan(0);
+    expect(p.verticalRateFpm).toBeCloseTo(expectedRateFpm, 6);
   });
 });
 
@@ -45,5 +51,6 @@ describe("baseLegPlacement", () => {
     const toFaf = initialBearingDeg(p.latDeg, p.lonDeg, faf.point.latDeg, faf.point.lonDeg);
     expect(headingDeltaDeg(p.headingDeg, toFaf)).toBeLessThan(1);
     expect(p.speedKt).toBe(profile.approach.targetSpeedKt);
+    expect(p.verticalRateFpm).toBe(0);
   });
 });

@@ -207,7 +207,7 @@ export function buildSpawnState(
       field: "HEADING",
       from: `${Math.round(normalizeHeading(liveTrackDeg)).toString().padStart(3, "0")} LIVE`,
       to: `${Math.round(normalizeHeading(headingDeg)).toString().padStart(3, "0")} TO APPROACH`,
-      reason: "Pointed at the approach fix for takeover setup (HEADING → APPROACH toggle).",
+      reason: "Heading set for takeover approach setup.",
     });
   }
   if (contact.baro_rate === null && opts.spawnVerticalRateFpmOverride === undefined) {

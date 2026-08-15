@@ -123,6 +123,7 @@ export function buildInstantMission(
       spawnPositionOverride: { latDeg: place.latDeg, lonDeg: place.lonDeg },
       spawnAltitudeFtOverride: place.altitudeFt,
       spawnSpeedKtOverride: place.speedKt,
+      spawnVerticalRateFpmOverride: place.verticalRateFpm,
       spawnHeadingDeg: place.headingDeg,
       ...(spawnMode === "final" ? { initialGearDown: true, initialFlapDetent: params.flaps.length - 1 } : {}),
     };

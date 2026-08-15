@@ -4,16 +4,22 @@ import type { MissionProfile, RunwayAssignment } from "./types";
 
 export type Placement = {
   latDeg: number; lonDeg: number; altitudeFt: number; headingDeg: number; speedKt: number;
+  verticalRateFpm: number;
 };
 
 export function onFinalPlacement(assignment: RunwayAssignment, profile: MissionProfile): Placement {
   const faf = finalApproachFix(assignment, profile.guidance);
+  // On-slope descent rate: the sink rate that holds a -glideSlopeDeg flight-path angle at
+  // approach speed (101.269 converts kt to ft/min). Negative = descending.
+  const verticalRateFpm =
+    -(profile.approach.targetSpeedKt * 101.269) * Math.sin(profile.guidance.glideSlopeDeg * Math.PI / 180);
   return {
     latDeg: faf.point.latDeg,
     lonDeg: faf.point.lonDeg,
     altitudeFt: faf.altitudeFt,
     headingDeg: faf.headingDeg,
     speedKt: profile.approach.targetSpeedKt,
+    verticalRateFpm,
   };
 }
 
@@ -33,5 +39,7 @@ export function baseLegPlacement(assignment: RunwayAssignment, profile: MissionP
     altitudeFt: faf.altitudeFt,
     headingDeg: initialBearingDeg(entry.latDeg, entry.lonDeg, faf.point.latDeg, faf.point.lonDeg),
     speedKt: profile.approach.targetSpeedKt,
+    // Level on base leg — still maneuvering toward final, not yet on the glideslope.
+    verticalRateFpm: 0,
   };
 }
