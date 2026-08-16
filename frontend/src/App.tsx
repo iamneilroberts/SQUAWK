@@ -271,6 +271,12 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
   // repositioning even before the player requests true fullscreen (owner declutter 2026-08-11).
   const mobileFlight = narrow && mode === "FLYING";
   const statusFaded = (immersiveActive || mobileFlight) && !chromeVisible;
+  // #hud-chrome-rework: on the plain (non-fullscreen) desktop split-HUD, SIGN IN moves out of the
+  // top-right corner — the compass + FULL own that corner now — and down to the bottom-right,
+  // grouped with MENU (tokens.css .top-controls-desktop-flying / .menu-toggle's desktop rule).
+  // Scoped OFF immersiveActive/mobileFlight on purpose: those already have their own funnel-chip
+  // treatment (.top-controls-immersive) that this does not touch.
+  const desktopFlying = mode === "FLYING" && !narrow && !immersiveActive;
 
   const focusContacts = useCallback(() => {
     if (browseDrawer) setContactsOpen(true);
@@ -642,6 +648,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
             className={
               "top-controls" +
               (immersiveActive || mobileFlight ? " top-controls-immersive" : "") +
+              (desktopFlying ? " top-controls-desktop-flying" : "") +
               (statusFaded ? " top-controls-faded" : "")
             }
           >

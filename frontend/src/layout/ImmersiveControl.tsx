@@ -33,8 +33,6 @@ export default function ImmersiveControl(
   const immersive = useStore((s) => s.immersive);
   const setImmersive = useStore((s) => s.setImmersive);
   const setChromeVisible = useStore((s) => s.setChromeVisible);
-  const decluttered = useStore((s) => s.decluttered);
-  const setDeclutter = useStore((s) => s.setDeclutter);
   const { width } = useViewport();
   const narrow = isNarrowViewport(width);
   // Auto-hide arms on ANY narrow flight (owner 2026-08-11: clutter never faded in a plain browser
@@ -98,23 +96,14 @@ export default function ImmersiveControl(
       >
         {immersive ? "EXIT ⤢" : "FULL ⤢"}
       </button>
-      {/* Manual declutter (#57): a sibling chip to the left of FULL/EXIT so the two never
-          overlap (see .declutter-toggle in tokens.css). Independent of the auto-hide above —
-          this hides informational chrome (HUD toggle, APP/PILOT chips, traffic labels) on a
-          deliberate tap, not on an idle timer. */}
-      <button
-        type="button"
-        className={"immersive-toggle declutter-toggle" +
-          (decluttered ? " declutter-toggle-on" : "") + (faded ? " immersive-toggle-faded" : "")}
-        onClick={() => setDeclutter(!decluttered)}
-        aria-pressed={decluttered}
-      >
-        DCLTR
-      </button>
-      {/* MENU (#58, owner 2026-08-13): the ONE control that never fades. Everything else in this
-          row (FULL/EXIT · DCLTR), the NAV/WX chip and the HUD-A/C toggle hide while flying; MENU
-          stays so the pilot always has a way in. Tapping it PAUSES (mode off FLYING), which reveals
-          all the faded chrome for use while stopped. It's the abort valve too — one tap out. */}
+      {/* MENU (#58, owner 2026-08-13; DCLTR removed #hud-chrome-rework — the manual declutter
+          chip is gone, `decluttered` in the store now has no toggle, see decisions.md): the ONE
+          control that never fades. Everything else in this row (FULL/EXIT), the NAV/WX chip and
+          the HUD-A/C toggle hide while flying; MENU stays so the pilot always has a way in.
+          Tapping it PAUSES (mode off FLYING), which reveals all the faded chrome for use while
+          stopped. It's the abort valve too — one tap out. On desktop it moves to the bottom-right
+          corner, grouped with the relocated SIGN IN chip (App.tsx .top-controls, tokens.css
+          @media min-width:1024px) — mobile keeps its lever-relative position untouched. */}
       <button
         type="button"
         className="immersive-toggle menu-toggle"

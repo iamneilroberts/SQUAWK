@@ -49,4 +49,11 @@ describe("ControlStateCells value-tone thresholds (#48)", () => {
     expect(tones(ControlStateCells({ snapshot: snap({ hasSpeedbrake: true, speedbrake: true }) })).speedbrake).toBe("amber");
     expect(tones(ControlStateCells({ snapshot: snap({ hasSpeedbrake: false }) })).speedbrake).toBeUndefined();
   });
+  // #hud-chrome-rework: the split-HUD's bottom control strip hides throttle now (ControlState.tsx
+  // passes hideThrottle) since the right-edge ThrottleIndicator gauge is the prominent readout.
+  // Defaulting to shown keeps the (currently unused) HudControlRow caller unaffected.
+  it("shows throttle by default, hides it when the caller passes hideThrottle", () => {
+    expect(tones(ControlStateCells({ snapshot: snap() })).throttle).toBeDefined();
+    expect(tones(ControlStateCells({ snapshot: snap(), hideThrottle: true })).throttle).toBeUndefined();
+  });
 });

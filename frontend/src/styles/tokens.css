@@ -714,10 +714,13 @@ body {
 /* Desktop destination indicator (#47) — top-center, tucked under the HDG readout. Uses the same
    .hud-scrim backing/border as the corner clusters, so it reads over bright sky and matches the
    HUD language. Fixed reference only (name + range) — the turn direction moved to the edge cue
-   below, so there is no heading-relative pointer here anymore. */
+   below, so there is no heading-relative pointer here anymore.
+   #hud-chrome-rework: top raised 52 -> 78 so this cue clears .hud-top-bar even when the bar wraps
+   to a second row at common desktop widths (the bar is centered/wraps by content, not measured —
+   78px gives a full extra row's worth of headroom over the single-row case). */
 .hud-destination {
   position: absolute;
-  top: 52px;
+  top: 78px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -1789,19 +1792,6 @@ body {
   top: max(75px, calc(env(safe-area-inset-top) + 71px));
 }
 
-/* ---- The DCLTR toggle (#57): reuses .immersive-toggle's look, but sits to the LEFT of
-   FULL/EXIT (same top offset) instead of stacking below it, so it never collides with the
-   ENTER/EXIT chip or the "Add to Home Screen" hint that can appear beneath it. 84px clears the
-   FULL/EXIT chip's own width (~64-72px) plus a gap. ---- */
-.declutter-toggle {
-  right: calc(max(8px, env(safe-area-inset-right)) + 84px);
-}
-.declutter-toggle-on {
-  border-color: var(--amber);
-  color: var(--amber);
-  background: rgba(255, 176, 0, 0.12);
-}
-
 /* ---- MENU / abort (#48, owner 2026-08-13): floats just ABOVE the throttle lever, right-aligned
    with it, in BOTH orientations. The old bottom-LEFT corner overlapped the CAM button in portrait
    and the attribution in landscape; sitting above the lever clears both. position:fixed + top/left
@@ -1852,6 +1842,18 @@ body {
   .menu-toggle {
     /* throttle bottom + (100dvh - 272px) height + 10px gap */
     bottom: calc(max(72px, calc(env(safe-area-inset-bottom) + 64px)) + 100dvh - 262px);
+  }
+}
+
+/* #hud-chrome-rework: desktop MENU drops the mobile lever-relative formula above — there is no
+   on-screen touch throttle to float above on a desktop window, so that math was landing MENU at
+   an arbitrary height instead of a corner. Plain bottom-right, grouped with the relocated SIGN IN
+   chip stacked above it (App.tsx .top-controls-desktop-flying). Placed after the orientation
+   blocks above so it wins the cascade on a landscape desktop window. */
+@media (min-width: 1024px) {
+  .menu-toggle {
+    bottom: 20px;
+    right: 20px;
   }
 }
 
@@ -2285,6 +2287,18 @@ body {
 .edge-turn-degrees { font-size: 20px; font-weight: 600; }
 .edge-turn-oncourse { font-size: 11px; letter-spacing: 0.14em; opacity: 0.85; }
 
+/* #hud-chrome-rework: desktop-only — pull the cue INBOARD of the edge tapes/instrument column so
+   it never paints over SPD (left) or the COMPASS/ALT/THROTTLE column (right). Mobile is untouched
+   (still the true 6px edge, base rule above) — there are no edge tapes to dodge there.
+   left:144 clears SPD (left:74, width:60 -> spans 74-134) with a 10px gap.
+   right:132 clears the widest right-column card, the compass (right:16, width:104 -> spans
+   16-120), with a 12px gap — also clear of ALT (60 wide) and the throttle gauge (84 wide),
+   both narrower and at the same 16px offset. */
+@media (min-width: 1024px) {
+  .edge-turn-cue[data-side="left"] { left: 144px; }
+  .edge-turn-cue[data-side="right"] { right: 132px; }
+}
+
 @media (max-width: 1023px) {
   /* Mobile immersive placement (#82, unchanged): the clear band BELOW the top status bar
      (bottom ~62px) and, on the right, ABOVE the MENU chip (top ~140px) / throttle lever. The left
@@ -2377,8 +2391,9 @@ body {
 }
 
 /* Primary face card — small, top-center, docked under the top HUD's SIM bar / destination cue /
-   approach readout stack (Hud.tsx: .hud-top-bar top:8px, .hud-destination top:52px,
-   .hud-approach-readout top:78px, ~55px tall — that stack ends well before 160px). Kept at its natural
+   approach readout stack (Hud.tsx: .hud-top-bar top:8px, .hud-destination top:78px,
+   .hud-approach-readout top:104px, #hud-chrome-rework raised both to clear a wrapped 2-row top
+   bar — that stack ends well before 160px). Kept at its natural
    per-class size (six-pack/EFIS/HUD are NOT rescaled — no internals touched); `max-width` is a
    soft cap only, so the widest face (the f5e HUD reticle) never crowds the SPD/ALT edge tapes on
    a 1024px-wide desktop window. Weather/controls folds (.dash-aux) drop from this card rather
@@ -2456,6 +2471,17 @@ body {
 }
 .dash-strip .imm-tape[data-side="left"] { left: 74px; }
 .dash-strip .imm-tape[data-side="right"] { right: 74px; }
+/* #hud-chrome-rework: ALT moves UP off true mid-height to sit directly under the new compass
+   card (.dash-compass below) — the right edge is now one column: COMPASS · ALT · THROTTLE.
+   SPD (left) is untouched — still true mid-height, nothing asked to move it. 284px = compass's
+   top (140) + its card height (~119, label+dial+padding+border) + a ~25px gap. right:16px lines
+   its right edge up with the compass/throttle cards below/above it (all three share one edge,
+   unlike SPD's separate 74px). EdgeTurnCue (below) is pulled inboard past this whole column. */
+.dash-strip .imm-tape[data-side="right"] {
+  top: 284px;
+  right: 16px;
+  transform: none;
+}
 .dash-strip .imm-tape .imm-field-label { font-size: 9px; opacity: 0.7; text-align: center; }
 .dash-strip .tape-window { position: relative; width: 100%; height: 90px; overflow: hidden; } /* == TAPE_WINDOW_PX */
 .dash-strip .tape-strip { position: absolute; left: 0; right: 0; bottom: 0; will-change: transform; }
@@ -2499,6 +2525,88 @@ body {
   border-radius: 2px;
   background: rgba(5, 7, 10, 0.9);
 }
+
+/* ---- Compass card — small top-right heading instrument (#hud-chrome-rework, owner-approved
+   mock "Compass S · signin moved"). Mirrors AttitudeIndicator's LORAN styling (bracket-corner
+   `.panel`, 1px borders, cyan/amber, monospace) but stands on its own as a screen-edge card, like
+   `.dash-tactical`. Sits BELOW the FULL toggle (`.immersive-toggle`, top ~96..132px) and the top
+   HUD bar (even wrapped to two rows, ~66px tall) so neither corner-fights the compass at common
+   desktop widths — see the ALT tape (above) and throttle gauge (below) for the rest of the
+   column. */
+.dash-compass {
+  position: absolute;
+  top: 140px;
+  right: 16px;
+  width: 104px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 5;
+}
+.compass-card { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
+.compass-card-label { color: var(--text); opacity: 0.7; }
+.compass-face-wrap { position: relative; width: 88px; height: 88px; }
+.compass-face { width: 88px; height: 88px; }
+.compass-tick-major { stroke: var(--cyan); stroke-width: 1; opacity: 0.85; }
+.compass-tick-minor { stroke: var(--grid); stroke-width: 1; }
+.compass-cardinal { fill: var(--text); font-family: var(--mono); font-size: 11px; font-weight: 700; }
+.compass-tick-label { fill: var(--text); font-family: var(--mono); font-size: 8px; opacity: 0.75; }
+.compass-digital {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 1px 5px;
+  border: 1px solid var(--grid);
+  background: rgba(5, 7, 10, 0.85);
+  color: var(--cyan);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* ---- Throttle gauge — prominent vertical bar under ALT, right edge (#hud-chrome-rework). Fill
+   is solid cyan (no gradient, CLAUDE.md's LORAN rules), rising from the bottom; the WET zone is a
+   static amber placard mark for afterburner-capable classes only (ThrottleIndicator.tsx). 446px =
+   ALT's top (284) + its height (150) + a 12px gap. */
+.dash-throttle-card {
+  position: absolute;
+  top: 446px;
+  right: 16px;
+  width: 84px;
+  padding: 6px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 5;
+}
+.dash-throttle { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
+.dash-throttle-label { color: var(--text); opacity: 0.7; }
+.dash-throttle-bar {
+  position: relative;
+  width: 34px;
+  height: 140px;
+  border: 1px solid var(--grid);
+  background: rgba(5, 7, 10, 0.65);
+}
+.dash-throttle-wet-zone {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 16%;
+  border-bottom: 1px dashed var(--amber);
+  background: rgba(255, 176, 0, 0.08);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+.dash-throttle-wet-zone span { color: var(--amber); font-size: 8px; letter-spacing: 0.1em; margin-top: 1px; }
+.dash-throttle-fill { position: absolute; left: 0; right: 0; bottom: 0; background: var(--cyan); opacity: 0.85; }
+.dash-throttle-fill-amber { background: var(--amber); }
+.dash-throttle-pct { color: var(--cyan); font-size: 20px; font-weight: 700; letter-spacing: 0.02em; }
+.dash-throttle-pct-amber { color: var(--amber); }
 
 /* ---- EFIS PFD (b738 primary): attitude ball + speed/altitude tapes ---- */
 .efis { display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -2656,6 +2764,22 @@ body {
   transition: opacity 0.5s ease;
 }
 .top-controls-faded { opacity: 0; pointer-events: none; }
+
+/* #hud-chrome-rework: on the plain (non-fullscreen) desktop split-HUD, SIGN IN drops out of the
+   top-right corner — the compass card + FULL own it now — down to the bottom-right, stacked
+   directly above MENU (bottom:20px, ~36px tall, tokens.css desktop .menu-toggle rule) with a 10px
+   gap: 66 = 20 + 36 + 10. Only .auth-control (SIGN IN or the signed-in ProfilePanel chip) is
+   present in .top-controls here — the BROWSE-only funnel chips (APP/tutorial/leaderboard) are
+   absent while FLYING — so repositioning the whole container IS repositioning that one chip; the
+   sign-in/profile behavior itself (App.tsx) is untouched. Scoped off .top-controls-immersive on
+   purpose — fullscreen desktop keeps its existing funnel-chip treatment above, untouched. */
+.top-controls-desktop-flying {
+  position: fixed;
+  top: auto;
+  left: auto;
+  bottom: 66px;
+  right: 20px;
+}
 
 /* Quiet "best in landscape / app mode" nudge — replaces the old rotate modal. Fades out as the
    flight starts (owner 2026-08-12). */

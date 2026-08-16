@@ -6,7 +6,7 @@ import {
   SLIP_FULL_SCALE_BETA_DEG, SLIP_BALL_TRAVEL_PX, SLIP_BALL_SIGN,
   asiNeedle, asiArcs, asiTicks, altimeterNeedle, altimeterDrum, vsiNeedle,
   attitudePitchOffsetPx, attitudeRollDeg, pitchLadderRungs, bankScaleTicks,
-  headingCardDeg, turnSymbolBankDeg, slipBallOffsetPx,
+  headingCardDeg, compassTicks, turnSymbolBankDeg, slipBallOffsetPx,
 } from "./gaugeMath";
 import { loadC172 } from "../sim/params";
 import { stallSpeedIasMs } from "../sim/forces";
@@ -202,6 +202,27 @@ describe("directional gyro", () => {
   });
   it("returns null when heading is unknown", () => {
     expect(headingCardDeg(null)).toBeNull();
+  });
+});
+
+describe("compass card ticks (hud chrome rework)", () => {
+  it("marks every 10 degrees, 36 ticks in total", () => {
+    const ticks = compassTicks();
+    expect(ticks).toHaveLength(36);
+    expect(ticks.map((t) => t.deg)).toEqual(expect.arrayContaining([0, 10, 170, 350]));
+  });
+  it("majors land every 30 degrees", () => {
+    const ticks = compassTicks();
+    expect(ticks.find((t) => t.deg === 30)!.major).toBe(true);
+    expect(ticks.find((t) => t.deg === 10)!.major).toBe(false);
+  });
+  it("reads N/E/S/W at the four cardinal majors only", () => {
+    const ticks = compassTicks();
+    expect(ticks.find((t) => t.deg === 0)!.cardinal).toBe("N");
+    expect(ticks.find((t) => t.deg === 90)!.cardinal).toBe("E");
+    expect(ticks.find((t) => t.deg === 180)!.cardinal).toBe("S");
+    expect(ticks.find((t) => t.deg === 270)!.cardinal).toBe("W");
+    expect(ticks.find((t) => t.deg === 30)!.cardinal).toBeNull();
   });
 });
 
