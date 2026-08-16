@@ -15,7 +15,7 @@ describe("modelDimsForClass", () => {
   });
 
   it("is a pure lookup, not a branch — the map holds exactly the known classes", () => {
-    expect(Object.keys(MODEL_DIMS).sort()).toEqual(["b738", "biz", "c172s", "f5e", "tprop"]);
+    expect(Object.keys(MODEL_DIMS).sort()).toEqual(["b738", "biz", "c172s", "f5e", "r44", "tprop"]);
   });
 
   it("throws on an unknown id rather than silently substituting (a bug, not data)", () => {

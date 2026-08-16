@@ -33,17 +33,18 @@ export function contactRotationRad(track: number | null): number {
 }
 
 /**
- * Aircraft planform silhouette for a contact's billboard icon. Covers the 5 flyable classes
- * plus a generic fallback for anything unresolved (ground rule 3 — unknown renders as
- * unknown, not invented).
+ * Aircraft planform silhouette for a contact's billboard icon. Covers the flyable classes plus
+ * a generic fallback for anything unresolved (ground rule 3 — unknown renders as unknown, not
+ * invented).
  */
-export type ContactShape = "light" | "narrowbody" | "regional" | "turboprop" | "fighter" | "generic";
+export type ContactShape = "light" | "narrowbody" | "regional" | "turboprop" | "fighter" | "helicopter" | "generic";
 
 /*
  * Top-down planform paths, copied verbatim from LORAN's globe/icons.ts `PATHS` (64x64
  * viewBox, nose at top/y=0, tail at bottom) so Cesium's billboard rotation maps directly to
- * ADS-B `track` the same way LORAN's does. Only the shapes adsb-game's 5 flyable classes need
- * are copied; LORAN also has heavy/widebody/helicopter, out of scope here.
+ * ADS-B `track` the same way LORAN's does. Only the fixed-wing shapes are copied from LORAN;
+ * "helicopter" (#30) is a simple hand-drawn silhouette — rotor disc, cabin, tail boom, tail
+ * rotor — not lifted from LORAN.
  */
 const PATHS: Record<ContactShape, string> = {
   narrowbody:
@@ -57,6 +58,11 @@ const PATHS: Record<ContactShape, string> = {
     "M32 1 L34 14 L35 30 L52 48 L52 54 L35 46 L34.5 54 L40 60 L40 62 L32 58 L24 62 L24 60 L29.5 54 L29 46 L12 54 L12 48 L29 30 L30 14 Z",
   light:
     "M32 6 L34 14 L34 27 L56 27 L56 32 L34 32 L34 48 L42 55 L42 58 L32 55 L22 58 L22 55 L30 48 L30 32 L8 32 L8 27 L30 27 L30 14 Z",
+  helicopter:
+    "M46 16 L42 26 L32 30 L22 26 L18 16 L22 6 L32 2 L42 6 Z" + // rotor disc (octagon)
+    " M36 18 L37 26 L34 34 L30 34 L27 26 L28 18 Z" + // cabin
+    " M31 34 L33 34 L33 56 L31 56 Z" + // tail boom
+    " M32 54 L36 58 L32 62 L28 58 Z", // tail rotor
   generic:
     "M32 3 L34 12 L34.5 30 L56 45 L56 49 L34.5 41 L34 52 L41 58 L41 61 L32 57 L23 61 L23 58 L30 52 L29.5 41 L8 49 L8 45 L29.5 30 L30 12 Z",
 };
@@ -68,6 +74,7 @@ const CLASS_TO_SHAPE: Record<AircraftClassId, ContactShape> = {
   biz: "regional",
   tprop: "turboprop",
   f5e: "fighter",
+  r44: "helicopter",
 };
 
 /**

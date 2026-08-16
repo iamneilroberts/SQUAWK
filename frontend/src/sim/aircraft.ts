@@ -10,11 +10,23 @@
  * Euler does, and it is four lines a DBA can read. Documented in decisions.md B-007.
  */
 import type { ClassParams, ControlVector, SimState } from "./types";
-import { computeForces, advanceGearPosition } from "./forces";
+import { computeForces, advanceGearPosition, type ForceResult } from "./forces";
+import { computeRotorForces } from "./rotorForces";
 import { ecefToGeodetic, geodeticSurfaceNormal } from "./geo";
 import { qIntegrate } from "./quat";
 import { FIXED_DT } from "./integrator";
 import { vAdd, vDot, vScale } from "./vec3";
+
+/**
+ * The ONE model-selection seam (#30): every other function in this file, and forces.ts /
+ * rotorForces.ts themselves, are written with no knowledge of the other model. Adding a third
+ * force model is one more case here, not a scattered set of `if` branches through the physics.
+ */
+function computeForcesFor(state: SimState, controls: ControlVector, params: ClassParams): ForceResult {
+  return params.modelKind === "rotor"
+    ? computeRotorForces(state, controls, params)
+    : computeForces(state, controls, params);
+}
 
 /** Recompute the derived readouts on a state without advancing time. */
 export function refreshDerived(
@@ -24,7 +36,7 @@ export function refreshDerived(
 ): SimState {
   const geo = ecefToGeodetic(state.position);
   const withAlt: SimState = { ...state, altitudeM: geo.heightM };
-  const f = computeForces(withAlt, controls, params);
+  const f = computeForcesFor(withAlt, controls, params);
   return {
     ...withAlt,
     tasMs: f.tasMs,
@@ -46,7 +58,7 @@ export function stepAircraft(
   params: ClassParams,
   dt: number = FIXED_DT,
 ): SimState {
-  const f = computeForces(state, controls, params);
+  const f = computeForcesFor(state, controls, params);
 
   // Semi-implicit: new derivatives first...
   const velocity = vAdd(state.velocity, vScale(f.forceEcef, dt / params.massKg));

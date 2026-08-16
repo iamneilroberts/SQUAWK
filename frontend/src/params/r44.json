@@ -1,0 +1,61 @@
+{
+  "id": "r44",
+  "label": "R44",
+  "modelNote": "R44-CLASS ROTOR MODEL (LOW FIDELITY)",
+  "modelKind": "rotor",
+  "massKg": 1089,
+  "wingAreaM2": 79.5,
+  "wingSpanM": 10.06,
+  "aspectRatio": 1,
+  "aero": {
+    "cl0": 13.7, "clAlphaPerRad": 0.01, "stallAlphaRad": 1.0, "postStallDecayRad": 0.1,
+    "cd0": 0.001, "gearDragCd0": 0.0, "speedbrakeCd0": 0.0, "oswaldE": 0.8, "cyBeta": 0.0
+  },
+  "control": {
+    "rollRateMaxRadS": 0.8, "pitchRateMaxRadS": 0.6, "yawRateMaxRadS": 0.5,
+    "rollDampingPerS": 3.0, "pitchDampingPerS": 3.0, "yawDampingPerS": 3.0,
+    "pitchStiffnessPerS2": 0.1, "yawStiffnessPerS2": 0.1, "refDynamicPressurePa": 100,
+    "trimAlphaCenterRad": 0.0, "trimAlphaRangeRad": 0.1
+  },
+  "propulsion": {
+    "maxPowerW": 183000, "lapseModel": "none", "propEfficiency": 0.75,
+    "propPeakSpeedMs": 30, "afterburnerFactor": 1.0
+  },
+  "limits": {
+    "vneIasMs": 66.85, "vnoIasMs": 60.0, "vfeIasMs": 66.85, "gLimitPos": 3.5,
+    "gLimitNeg": -0.5, "serviceCeilingM": 4267, "mmo": 0.9, "vleIasMs": 66.85
+  },
+  "flaps": [
+    { "label": "N/A", "dCL0": 0.0, "dStallAlphaRad": 0.0, "dCD0": 0.0 }
+  ],
+  "gear": "fixed",
+  "display": { "asiMinKt": 1, "asiMaxKt": 150, "attitudeStyle": "line" },
+  "rotor": {
+    "maxThrustN": 17800,
+    "rollRateMaxRadS": 0.8, "pitchRateMaxRadS": 0.6, "yawRateMaxRadS": 0.5,
+    "rollDampingPerS": 3.0, "pitchDampingPerS": 3.0, "yawDampingPerS": 3.0,
+    "dragPerVelocity": 427
+  },
+  "sources": {
+    "modelKind": "\"rotor\" — a rotorcraft generates lift regardless of forward speed and has no stall floor, which the shared fixed-wing lift/AoA/stall shape (forces.ts) cannot represent as data. sim/rotorForces.ts is the second, simple force model this class uses instead; sim/aircraft.ts's computeForcesFor is the one place that picks it. Issue #30.",
+    "massKg": "R44 Raven II max gross weight, 2400 lb = 1089 kg. Published spec.",
+    "wingAreaM2": "REPURPOSED FIELD — main rotor disc area, not a wing: pi*(10.06/2)^2 = 79.5 m^2 (33 ft rotor diameter, published spec). This class has no wing; the field exists only to satisfy the shared ClassParams schema. Read by ONE thing outside sim/rotorForces.ts: sim/forces.ts::stallSpeedIasMs (via clMaxFor), which the cosmetic ASI arc (dashboard/gaugeMath.ts::asiArcs) and the LANDED/CRASHED speed gate (game/classify.ts) both call generically for every class. rotorForces.ts itself never reads this field.",
+    "wingSpanM": "REPURPOSED FIELD — main rotor diameter, 10.06 m (33 ft, published spec). Not read by rotorForces.ts; present only to satisfy the schema.",
+    "aspectRatio": "Inert placeholder (must be positive) — no wing, no aspect ratio. Not read by rotorForces.ts.",
+    "aero": "The ENTIRE aero block is UNUSED BY THE ROTOR FORCE MODEL — sim/rotorForces.ts never reads params.aero. It exists only because ClassParams is one shared schema across 5 fixed-wing classes and this rotor class. cl0/clAlphaPerRad/stallAlphaRad are the one exception with a real (if indirect) effect: clMaxFor(cl0=13.7, clAlphaPerRad=0.01, stallAlphaRad=1.0) -> clMax ~= 13.71, chosen so stallSpeedIasMs(this class) computes to ~4 m/s (~7.7 kt) — not a real airfoil number, but deliberately small enough that (a) the ASI's white/green arcs (gaugeMath.ts::asiArcs, which assumes every class has a stall speed) collapse to a negligible sliver near the bottom of the dial instead of a nonsensical one, and (b) game/classify.ts's LANDED/CRASHED gate (must touch down under 1.3x this 'stall speed') reads as 'under ~10 kt groundspeed' — a reasonable controlled-hover-landing threshold for a helicopter, not an arbitrary one. postStallDecayRad/cd0/gearDragCd0/speedbrakeCd0/oswaldE/cyBeta have no live reader at all for this class (liftCoefficient/dragCoefficient/computeForces are never called on a rotor class) and are set to small, harmless placeholders purely to pass validateClassParams's positivity checks.",
+    "control": "The ENTIRE control block is UNUSED BY THE ROTOR FORCE MODEL — sim/rotorForces.ts reads params.rotor, not params.control (a rotor's cyclic/pedal authority does not scale with dynamic pressure the way a control surface's does, so controlAuthority()/qBar-gating do not apply). Present only to satisfy the shared schema; values are harmless placeholders (rollRateMaxRadS etc. loosely mirror params.rotor's real numbers below so a stray future reader is not misled by wildly different figures, but nothing reads them).",
+    "propulsion": "UNUSED BY THE ROTOR FORCE MODEL — sim/rotorForces.ts does its own altitude-density thrust scaling directly (see params.rotor below), not via forces.ts's POWER_LAPSE_MODELS. maxPowerW 183,000 W is the real Lycoming O-540 rating (245 hp) for reference only. lapseModel \"none\" is the honest value for 'this table is not consulted' rather than picking piston/turboprop and implying a lapse model that is not actually applied.",
+    "limits.vneIasMs": "130 KIAS = 66.85 m/s — real published R44 Vne. LIVE: takeover/spawn.ts clamps a rotor spawn's speed to 0.9x this.",
+    "limits.vnoIasMs": "Approximate caution-band boundary for the cosmetic ASI yellow arc; no published Vno for this class (helicopters do not carry the fixed-wing Vno/Vne split the same way) — a TUNING KNOB, not a source figure.",
+    "limits.vfeIasMs": "Set equal to vneIasMs: this class has no flaps (see flaps below), so the white/flap-speed arc never binds.",
+    "limits.gLimitPos": "~3.5 g, R44 POH-adjacent figure for reference. NOT enforced — sim/rotorForces.ts always reports gLimited: false (no structural-limit model for this class, honestly declared rather than silently clamped).",
+    "limits.gLimitNeg": "Real R44s prohibit negative-g / low-g pushovers (mast-bumping risk on a semi-rigid rotor) — a small negative placeholder for the same unenforced, informational-only field as gLimitPos.",
+    "limits.serviceCeilingM": "14,000 ft = 4267 m published density-altitude-limited service ceiling. LIVE: takeover/spawn.ts clamps a rotor spawn's altitude to this.",
+    "limits.mmo": "Inert placeholder set high (0.9) so it never binds — Mach compressibility is not a concern at rotorcraft speeds. Not read by rotorForces.ts.",
+    "limits.vleIasMs": "Unused: gear is \"fixed\" (skids), so hud/format.ts::gearOverspeedFor is always false for this class regardless of this value. Set equal to vneIasMs for consistency.",
+    "flaps": "Single inert detent — this class has no flaps. flapDetent stays 0 for the whole flight; buildFlapDetentFields (game/flightLoop.ts) reads flaps[0].label only for the HUD's flap readout.",
+    "gear": "\"fixed\" — skids, not retractable. Always reported as fully extended (sim/forces.ts::advanceGearPosition pins gearPosition to 1 for any fixed-gear class); KeyG is inert, matching every other fixed-gear class.",
+    "display": "ASI 0-150 kt spans hover through just past Vne. attitudeStyle \"line\" (steam-gauge horizon, closest of the two available faces to a real R44 panel).",
+    "rotor": "TUNING KNOBS (owner live-pass candidate — the least-certain numbers in this file, per the task brief). maxThrustN 17,800 N sizes hover collective (weight / (maxThrustN * densityRatio)) to ~0.6 at sea level, the 'mid/hover collective ~= weight, more climbs, less descends' shape the brief asked for, leaving headroom to climb and altitude margin before hover becomes impossible. rollRateMaxRadS/pitchRateMaxRadS/yawRateMaxRadS (46/34/29 deg/s) and their matching *DampingPerS (3.0, a ~0.33 s time constant to reach a commanded rate) are plausible-feeling low-speed-rotorcraft numbers, not measured. dragPerVelocity 427 N per m/s (= massKg*G0/25) sizes a ~25 m/s (~4900 fpm) terminal descent rate at ZERO collective — deliberately fast to keep 'cut all power' a real emergency, while a much smaller PARTIAL collective deficit gives a slow, controllable descent (e.g. half of hover collective yields a ~4 m/s / ~800 fpm steady descent) — see sim/rotorForces.test.ts's 'controllable descent rate' assertion."
+  }
+}

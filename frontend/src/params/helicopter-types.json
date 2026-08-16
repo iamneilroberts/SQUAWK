@@ -1,0 +1,13 @@
+{
+  "note": "ICAO type designators treated as R44-class light/medium helicopters for the class resolver (issue #30 — owner: A119 seen repeatedly near Mobile). Data, not code: adding a type here is the only thing needed to fly it as the rotor model. All fly the SAME low-fidelity rotor model (sim/rotorForces.ts) regardless of real size/weight class — a genuine per-type rotorcraft model is out of scope for v1.",
+  "designators": [
+    "R22", "R44", "R66",
+    "A119",
+    "EC20", "EC30", "EC35", "EC45",
+    "AS50", "AS55", "AS65",
+    "B06", "B407", "B412", "B429",
+    "H500", "H600", "MD52", "MD60",
+    "S76", "S92",
+    "G2CA"
+  ]
+}
