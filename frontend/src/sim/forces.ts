@@ -196,6 +196,31 @@ export function controlAuthority(qBarPa: number, params: ClassParams): number {
 }
 
 /**
+ * Auto-coordination gain (#92): synthetic rudder deflection per radian of sideslip. Tuned to
+ * null the ball in a normal turn without hunting; an owner live-feel knob, not a physical
+ * constant. Class-independent for now (scaled by dynamic-pressure authority downstream) — if a
+ * class ever needs its own coordination strength, promote this to a ClassParams field.
+ */
+export const AUTO_COORD_GAIN = 6.0;
+
+/**
+ * Sideslip-nulling auto-rudder for pointer/touch pilots (#92) — turns feel coordinated without a
+ * third input axis. When the pilot isn't commanding rudder, synthesise a rudder input toward the
+ * ball-centred (zero-sideslip) direction, reinforcing the passive weathercock; as manual rudder
+ * rises, fade the synthetic term out so full deflection is pure pilot input (a deliberate slip
+ * still works). Returns the effective yaw axis in [-1, 1] to feed the yaw-rate command.
+ *
+ * The synthetic term shares the SIGN of the weathercock restoring moment (`+yawStiffness *
+ * sideslip`), so it adds to — never fights — the existing coordination physics.
+ */
+export function autoCoordinatedYaw(sideslipRad: number, manualYaw: number): number {
+  const auto = Math.min(1, Math.max(-1, AUTO_COORD_GAIN * sideslipRad));
+  const manualMag = Math.min(1, Math.abs(manualYaw));
+  const blended = manualYaw + (1 - manualMag) * auto;
+  return Math.min(1, Math.max(-1, blended));
+}
+
+/**
  * Retractable gear travels between fully up (0) and fully down (1) over one shared transition
  * time — data-independent of class (GR-002): a per-class transition time would add a required
  * ClassParams field for one cosmetic-plus-drag knob, and no class in this sim needs a different
@@ -288,7 +313,10 @@ export function computeForces(
   const alphaTrim = c.trimAlphaCenterRad + controls.trim * c.trimAlphaRangeRad;
   const pCmd = controls.roll * c.rollRateMaxRadS * authority;
   const qCmd = controls.pitch * c.pitchRateMaxRadS * authority;
-  const rCmd = controls.yaw * c.yawRateMaxRadS * authority;
+  // Auto-coordination (#92): pointer/touch pilots have no rudder axis, so when the pilot isn't
+  // commanding rudder we synthesise a coordinating input from sideslip (manual rudder overrides).
+  const effectiveYaw = autoCoordinatedYaw(sideslipRad, controls.yaw);
+  const rCmd = effectiveYaw * c.yawRateMaxRadS * authority;
 
   const ratesDotBody: Vec3 = {
     x: (pCmd - state.rates.x) * c.rollDampingPerS,

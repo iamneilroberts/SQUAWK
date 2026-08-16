@@ -2,9 +2,11 @@ import { describe, it, expect } from "vitest";
 import {
   liftCoefficient, dragCoefficient, clMaxFor, stallAlphaFor, stallSpeedIasMs,
   thrustNewtons, controlAuthority, computeForces, turbofanPowerLapse, POWER_LAPSE_MODELS,
+  autoCoordinatedYaw,
 } from "./forces";
 import type { ForceResult } from "./forces";
 import { loadC172, loadB738 } from "./params";
+import { isaDensity } from "./isa";
 import { degToRad, ftToM } from "./units";
 import { quatFromHpr, qRotate, qRotateInverse } from "./quat";
 import { geodeticToEcef, geodeticSurfaceNormal } from "./geo";
@@ -268,5 +270,64 @@ describe("speedbrake drag (#51)", () => {
     const off = computeForces(stateAt(alt, tas), { ...CONTROLS, speedbrake: false }, P);
     const on = computeForces(stateAt(alt, tas), { ...CONTROLS, speedbrake: true }, P);
     expect(vLength(vSub(off.forceEcef, on.forceEcef))).toBeCloseTo(0, 6);
+  });
+});
+
+/**
+ * A state whose body is yawed `yawDeg` off a north-tracking, level velocity vector, so the
+ * relative wind hits at an angle — i.e. a real, non-zero sideslip — with everything else neutral
+ * (level wings, zero body rates). This is the state auto-coordination is meant to clean up.
+ */
+function stateWithSideslip(altM: number, tasMs: number, yawDeg: number): SimState {
+  const base = stateAt(altM, tasMs, 0, 0);
+  return { ...base, attitude: quatFromHpr(base.position, degToRad(yawDeg), 0, 0) };
+}
+
+describe("autoCoordinatedYaw (auto-coordination, #92)", () => {
+  it("does nothing with no sideslip and no rudder", () => {
+    expect(autoCoordinatedYaw(0, 0)).toBe(0);
+  });
+
+  it("synthesises a rudder input on the restoring side (same sign as sideslip)", () => {
+    expect(autoCoordinatedYaw(0.05, 0)).toBeGreaterThan(0);
+    expect(autoCoordinatedYaw(-0.05, 0)).toBeLessThan(0);
+  });
+
+  it("is symmetric in sideslip", () => {
+    expect(autoCoordinatedYaw(0.05, 0)).toBeCloseTo(-autoCoordinatedYaw(-0.05, 0), 12);
+  });
+
+  it("grows with sideslip, then clamps to [-1, 1]", () => {
+    expect(autoCoordinatedYaw(0.06, 0)).toBeGreaterThan(autoCoordinatedYaw(0.02, 0));
+    expect(autoCoordinatedYaw(100, 0)).toBe(1);
+    expect(autoCoordinatedYaw(-100, 0)).toBe(-1);
+  });
+
+  it("is fully suppressed by full manual rudder — full deflection is pure pilot input", () => {
+    expect(autoCoordinatedYaw(0.2, 1)).toBe(1);
+    expect(autoCoordinatedYaw(0.2, -1)).toBe(-1);
+  });
+
+  it("fades the synthetic term as manual rudder rises", () => {
+    const atIdle = autoCoordinatedYaw(0.1, 0);
+    const atHalf = autoCoordinatedYaw(0.1, 0.5);
+    expect(atHalf).toBeGreaterThanOrEqual(0.5);          // manual command is honoured
+    expect(atHalf - 0.5).toBeLessThan(atIdle);            // less auto than at idle
+  });
+
+  it("computeForces: idle rudder + sideslip yields a restoring yaw STRONGER than weathercock alone", () => {
+    const alt = ftToM(5000);
+    const tas = 60;
+    const r = computeForces(stateWithSideslip(alt, tas, 8), CONTROLS, P); // CONTROLS.yaw === 0
+    const beta = r.sideslipRad;
+    expect(Math.abs(beta)).toBeGreaterThan(0.01);
+
+    const qBar = 0.5 * isaDensity(alt) * tas * tas;
+    const authority = controlAuthority(qBar, P);
+    const weathercockOnly = P.control.yawStiffnessPerS2 * beta * authority;
+
+    // Auto-rudder reinforces the passive weathercock: same sign, strictly larger magnitude.
+    expect(Math.sign(r.ratesDotBody.z)).toBe(Math.sign(weathercockOnly));
+    expect(Math.abs(r.ratesDotBody.z)).toBeGreaterThan(Math.abs(weathercockOnly));
   });
 });
