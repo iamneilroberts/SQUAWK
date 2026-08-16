@@ -30,6 +30,7 @@
   ],
   "gear": "fixed",
   "display": { "asiMinKt": 1, "asiMaxKt": 150, "attitudeStyle": "line" },
+  "lookArc": { "yawDeg": 140, "pitchUpDeg": 50, "pitchDownDeg": 80 },
   "rotor": {
     "maxThrustN": 17800,
     "rollRateMaxRadS": 0.8, "pitchRateMaxRadS": 0.6, "yawRateMaxRadS": 0.5,
@@ -37,6 +38,7 @@
     "dragPerVelocity": 427
   },
   "sources": {
+    "lookArc": "// tunable — helicopter family (issue #44 follow-up): huge chin bubble and doors give the widest yaw and deepest pitch-down of any class here (looking straight down at the LZ is routine), traded for a lower ceiling on pitch-up (rotor mast/roof).",
     "modelKind": "\"rotor\" — a rotorcraft generates lift regardless of forward speed and has no stall floor, which the shared fixed-wing lift/AoA/stall shape (forces.ts) cannot represent as data. sim/rotorForces.ts is the second, simple force model this class uses instead; sim/aircraft.ts's computeForcesFor is the one place that picks it. Issue #30.",
     "massKg": "R44 Raven II max gross weight, 2400 lb = 1089 kg. Published spec.",
     "wingAreaM2": "REPURPOSED FIELD — main rotor disc area, not a wing: pi*(10.06/2)^2 = 79.5 m^2 (33 ft rotor diameter, published spec). This class has no wing; the field exists only to satisfy the shared ClassParams schema. Read by ONE thing outside sim/rotorForces.ts: sim/forces.ts::stallSpeedIasMs (via clMaxFor), which the cosmetic ASI arc (dashboard/gaugeMath.ts::asiArcs) and the LANDED/CRASHED speed gate (game/classify.ts) both call generically for every class. rotorForces.ts itself never reads this field.",

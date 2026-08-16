@@ -132,14 +132,12 @@ describe("createKeyboard", () => {
     expect(kb.held.has("KeyY")).toBe(false);
     kb.dispose();
   });
-  it("captures KeyQ and preventDefaults it — free-look holds it while pointer-locked (issue #9)", () => {
-    expect(GAME_KEY_CODES.has("KeyQ")).toBe(true);
+  it("does NOT capture KeyQ — hold-Q pointer-lock look was replaced by right-drag (issue #44 follow-up)", () => {
+    expect(GAME_KEY_CODES.has("KeyQ")).toBe(false);
     const t = fakeTarget();
     const kb = createKeyboard(t);
-    const e = keyEvent("KeyQ");
-    t.fire("keydown", e);
-    expect(kb.held.has("KeyQ")).toBe(true);
-    expect(e.defaultPrevented).toBe(true);
+    t.fire("keydown", keyEvent("KeyQ"));
+    expect(kb.held.has("KeyQ")).toBe(false);
     kb.dispose();
   });
   it("does not capture or preventDefault a ctrl/cmd/alt-modified game key (browser shortcuts)", () => {

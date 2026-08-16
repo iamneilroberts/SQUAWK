@@ -188,6 +188,18 @@ export type ClassParams = {
     asiMaxKt: number;
     attitudeStyle: AttitudeStyle;
   };
+  /**
+   * Cockpit head-look arc (issue #44 follow-up): how far the free-look accumulator
+   * (globe/lookAround.ts) can swing before it clamps, e.g. a bubble canopy sees much more of
+   * the sky than a light single boxed in by wing struts and a low ceiling. Degrees in the data
+   * file; converted to radians only at the edge (globe/cesiumFlightHost.ts), never here.
+   */
+  lookArc: {
+    /** Symmetric yaw clamp: the view can swing this far either side of straight ahead. */
+    yawDeg: number;
+    pitchUpDeg: number;
+    pitchDownDeg: number;
+  };
   /** Free-text provenance for every number above; displayed nowhere, read by humans. */
   sources: Record<string, string>;
 };

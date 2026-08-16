@@ -62,6 +62,26 @@ export function applyMouseDelta(
   };
 }
 
+/**
+ * Per-class head-look arc, radians (issue #44 follow-up). Converted from the degree-authored
+ * `ClassParams.lookArc` at the edge (globe/cesiumFlightHost.ts) — this module only ever sees
+ * radians, matching every other angle in here.
+ */
+export type LookArcRad = { yawRad: number; pitchUpRad: number; pitchDownRad: number };
+
+/**
+ * Clamp an offset to a per-class arc — a fighter's bubble canopy lets the accumulator swing much
+ * further than a GA single's strut-and-doorframe cockpit before this saturates it. Yaw is
+ * symmetric (±yawRad); pitch is not, since a panel/floor below reads differently than a headliner
+ * above. Pure and order-independent from applyMouseDelta: call this right after accumulating.
+ */
+export function clampToLookArc(offset: LookOffset, arc: LookArcRad): LookOffset {
+  return {
+    yawRad: clamp(offset.yawRad, -arc.yawRad, arc.yawRad),
+    pitchRad: clamp(offset.pitchRad, -arc.pitchDownRad, arc.pitchUpRad),
+  };
+}
+
 /** One decay step of a single axis toward 0, snapping to exactly 0 once it is close enough. */
 function decayAxis(v: number, factor: number): number {
   const next = v * factor;

@@ -142,6 +142,7 @@ export function validateClassParams(raw: unknown): ClassParams {
   const propulsion = asRecord(o.propulsion, "params.propulsion");
   const limits = asRecord(o.limits, "params.limits");
   const display = asRecord(o.display, "params.display");
+  const lookArc = asRecord(o.lookArc, "params.lookArc");
 
   return {
     id,
@@ -222,6 +223,11 @@ export function validateClassParams(raw: unknown): ClassParams {
       asiMinKt: positive(display, "asiMinKt", "params.display"),
       asiMaxKt: positive(display, "asiMaxKt", "params.display"),
       attitudeStyle: attitudeStyle(display, "params.display"),
+    },
+    lookArc: {
+      yawDeg: positive(lookArc, "yawDeg", "params.lookArc"),
+      pitchUpDeg: positive(lookArc, "pitchUpDeg", "params.lookArc"),
+      pitchDownDeg: positive(lookArc, "pitchDownDeg", "params.lookArc"),
     },
     sources: asRecord(o.sources, "params.sources") as Record<string, string>,
   };

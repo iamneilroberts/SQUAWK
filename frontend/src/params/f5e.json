@@ -54,6 +54,7 @@
   ],
   "gear": "retractable",
   "display": { "asiMinKt": 80, "asiMaxKt": 800, "attitudeStyle": "ball" },
+  "lookArc": { "yawDeg": 160, "pitchUpDeg": 85, "pitchDownDeg": 35 },
   "sources": {
     "massKg": "TUNING KNOB (climb) — 8500 kg combat weight (F-5E empty ~4.35 t, MTOW ~11.2 t). With the book-sourced thrust gives T/W ~0.37 dry / ~0.54 wet and a burner best-climb of ~20900 fpm at 10000 ft (dry ~11700 fpm), in the credible band below the published ~34500 fpm sea-level initial rate. Confirmed by the burner-climb envelope test (> 5000 fpm, wet > dry). Phase B source verification pending (CLAUDE.md).",
     "wingAreaM2": "17.28 m^2 (F-5E published reference wing area).",
@@ -88,6 +89,7 @@
     "mmo": "0.95 — capped subsonic (spec §7): the model has no wave-drag physics, so the Mach annunciator trips here. Supersonic + wave drag deferred to issue #2 (decisions AF-005).",
     "flaps": "0 / maneuvering (MNVR) / full — F-5E flap positions. dCL0/dStallAlpha/dCD0 are TUNING KNOBS.",
     "display": "ASI face 80-800 kt spans the fighter band; attitudeStyle ball (full horizon disc).",
-    "gear": "retractable — the F-5E has retractable gear."
+    "gear": "retractable — the F-5E has retractable gear.",
+    "lookArc": "// tunable — fighter family (issue #44 follow-up): bubble canopy, near-unrestricted visibility — wide yaw (almost over-the-shoulder), high pitch-up (canopy bow barely intrudes), still floor/panel-limited looking down."
   }
 }

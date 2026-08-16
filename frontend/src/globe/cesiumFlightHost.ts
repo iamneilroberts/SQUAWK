@@ -7,12 +7,16 @@ import { Cartesian3, type Viewer } from "cesium";
 import type { FlightHost } from "../game/flightLoop";
 import { createFpvCamera } from "./fpvCamera";
 import { hprFromQuat } from "../sim/quat";
+import { loadClassById } from "../sim/params";
+import { degToRad } from "../sim/units";
 import {
   ZERO_LOOK,
   applyMouseDelta,
+  clampToLookArc,
   easeToward,
   LOOK_SENSITIVITY_RAD_PER_PX,
   LOOK_EASE_RATE_PER_S,
+  type LookArcRad,
   type LookOffset,
 } from "./lookAround";
 import {
@@ -55,6 +59,15 @@ export function createCesiumFlightHost(viewer: Viewer, classId: string): CesiumF
   const camera = createFpvCamera(viewer);
   let look: LookOffset = ZERO_LOOK;
   let looking = false;
+  // Degrees->radians conversion happens exactly HERE, at the edge between the degree-authored
+  // params file and this module's radian math (issue #44 follow-up) — nothing downstream of
+  // this point ever sees degrees.
+  const classLookArc = loadClassById(classId).lookArc;
+  const lookArc: LookArcRad = {
+    yawRad: degToRad(classLookArc.yawDeg),
+    pitchUpRad: degToRad(classLookArc.pitchUpDeg),
+    pitchDownRad: degToRad(classLookArc.pitchDownDeg),
+  };
 
   // Exterior chase/orbit state — camera only, never near the physics.
   const chaseDefault: OrbitState = defaultOrbit(classId);
@@ -110,7 +123,7 @@ export function createCesiumFlightHost(viewer: Viewer, classId: string): CesiumF
     },
     applyLook(dx, dy) {
       if (!looking) return;
-      look = applyMouseDelta(look, dx, dy, LOOK_SENSITIVITY_RAD_PER_PX);
+      look = clampToLookArc(applyMouseDelta(look, dx, dy, LOOK_SENSITIVITY_RAD_PER_PX), lookArc);
     },
     toggleExterior() {
       exterior = !exterior;

@@ -32,6 +32,7 @@
   ],
   "gear": "retractable",
   "display": { "asiMinKt": 40, "asiMaxKt": 350, "attitudeStyle": "ball" },
+  "lookArc": { "yawDeg": 100, "pitchUpDeg": 40, "pitchDownDeg": 25 },
   "sources": {
     "massKg": "TUNING KNOB — 2,857 kg (6,300 lb), the T-6A Texan II published max gross weight (single PT6A-68 turboprop military/civil trainer). Source verification pending (issue #8 — owner starting-list item).",
     "wingAreaM2": "16.69 m^2 (179.6 sq ft published T-6A reference wing area); wing loading ~171 kg/m^2 at 2,857 kg. Source verification pending.",
@@ -69,6 +70,7 @@
     "serviceCeilingM": "9,448.8 m (31,000 ft) — the T-6A's published certified service ceiling. Made honest in-model by the turboprop lapse (turbopropCornerM 5500 + turbopropLapseExp 2.2): full-throttle best climb there measures ~170 fpm, a real barely-climbing ceiling.",
     "flaps": "0/APPR/FULL — simplified trainer schedule mirroring tprop; dCL0/dStallAlpha/dCD0 are TUNING KNOBS giving monotonically falling stall speeds and rising drag.",
     "display": "ASI 40-350 kt spans the trainer band (faster top end than the King Air, slower than the jets); attitudeStyle ball — the T-6A has a modern all-glass EFIS cockpit (Rockwell Collins Pro Line 21), unlike the King Air's steam-gauge six-pack, so it shares the jets' full attitude-disc rendering.",
-    "gear": "retractable — the T-6A has retractable tricycle gear."
+    "gear": "retractable — the T-6A has retractable tricycle gear.",
+    "lookArc": "// tunable — GA/turboprop family (issue #44 follow-up), owner instruction: same arc as c172/c130."
   }
 }

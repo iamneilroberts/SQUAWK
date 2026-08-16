@@ -24,6 +24,7 @@ describe("loadC172", () => {
     // scale — that's the actual instrument, not a simplification of it — so the C172 moved off
     // the minimalist "line" style onto the same "ball" ADI the jets use (decisions.md).
     expect(p.display.attitudeStyle).toBe("ball");
+    expect(p.lookArc).toEqual({ yawDeg: 100, pitchUpDeg: 40, pitchDownDeg: 25 });
   });
   it("has an aspect ratio consistent with its span and area", () => {
     const p = loadC172();
@@ -165,6 +166,16 @@ describe("validateClassParams", () => {
     const raw = JSON.parse(JSON.stringify(c172Raw)) as Record<string, unknown>;
     delete raw.display;
     expect(() => validateClassParams(raw)).toThrow(/display/);
+  });
+  it("rejects a missing lookArc block (issue #44 follow-up)", () => {
+    const raw = JSON.parse(JSON.stringify(c172Raw)) as Record<string, unknown>;
+    delete raw.lookArc;
+    expect(() => validateClassParams(raw)).toThrow(/lookArc/);
+  });
+  it("rejects a non-positive lookArc.pitchDownDeg", () => {
+    const raw = JSON.parse(JSON.stringify(c172Raw)) as Record<string, unknown>;
+    (raw.lookArc as Record<string, unknown>).pitchDownDeg = 0;
+    expect(() => validateClassParams(raw)).toThrow(/lookArc/);
   });
   it("rejects an unknown attitudeStyle", () => {
     const raw = JSON.parse(JSON.stringify(c172Raw)) as Record<string, unknown>;

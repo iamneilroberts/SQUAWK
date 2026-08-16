@@ -34,7 +34,6 @@ export const KEYMAP: Readonly<Record<string, string>> = {
   KeyL: "return to level (assist)",
   KeyB: "speedbrake extend/retract",
   KeyR: "afterburner dry/wet",
-  KeyQ: "hold — look around",
   Escape: "pause",
   // Cockpit chrome, not flight controls: the sampler matches on codes and never sees these.
   // They live here so ControlsHelp can render the keymap without a second, hand-copied list.

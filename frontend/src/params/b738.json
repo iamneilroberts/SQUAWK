@@ -60,6 +60,7 @@
   ],
   "gear": "retractable",
   "display": { "asiMinKt": 60, "asiMaxKt": 400, "attitudeStyle": "ball" },
+  "lookArc": { "yawDeg": 110, "pitchUpDeg": 35, "pitchDownDeg": 20 },
   "sources": {
     "massKg": "TUNING KNOB (cruise/ceiling) — 66 t operating mass, between OpenAP 737-800 OEW 41.4 t and MTOW 79 t (spec §3 ~79 t is the MTOW upper bound). Pinned by the FL350 cruise trim test; a typical mid-mission cruise weight.",
     "wingAreaM2": "737-800 reference wing area 124.6 m^2 (Boeing / OpenAP).",
@@ -94,6 +95,7 @@
     "serviceCeilingM": "41000 ft = 12497 m, 737-800 certified ceiling. Reached in-model via the shared turbofan thrust lapse (forces.ts, corner FL380 pinned by this target): full-throttle best climb there measures ~190 fpm (barely climbing), a real ceiling.",
     "flaps": "737 detents 0/1/2/5/10/15/25/30/40. dCL0/dStallAlpha/dCD0 are TUNING KNOBS giving monotonically falling stall speeds and rising drag across the schedule.",
     "display": "ASI face 60-400 kt spans the jet band; attitudeStyle ball (full horizon disc for the airliner).",
-    "gear": "retractable — 737 has retractable gear."
+    "gear": "retractable — 737 has retractable gear.",
+    "lookArc": "// tunable — airliner family (issue #44 follow-up): a bigger cockpit with side windows than a GA single, but still framed by a flight-deck structure — wider yaw than GA, shallower pitch (glareshield/panel block the down view, overhead panel blocks up)."
   }
 }

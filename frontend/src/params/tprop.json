@@ -32,6 +32,7 @@
   ],
   "gear": "retractable",
   "display": { "asiMinKt": 40, "asiMaxKt": 300, "attitudeStyle": "ball" },
+  "lookArc": { "yawDeg": 100, "pitchUpDeg": 40, "pitchDownDeg": 25 },
   "sources": {
     "massKg": "TUNING KNOB (cruise/climb) — 5.7 t mid-mission weight (King Air 350 MTOW 6.804 t / 15,000 lb). Pinned by the FL280 cruise trim + sea-level climb tests. Source verification pending (POH).",
     "wingAreaM2": "TUNING KNOB — 28.8 m^2 (~310 sq ft published King Air 350 wing area); wing loading ~198 kg/m^2 at 5.7 t. Source verification pending.",
@@ -69,6 +70,7 @@
     "serviceCeilingM": "10,668 m (35,000 ft) — King Air 350 certified service ceiling. Made honest in-model by the turboprop lapse (turbopropCornerM 6858 + turbopropLapseExp 2.5): full-throttle best climb there measures ~217 fpm — a real barely-climbing ceiling inside the test's 0-500 fpm band, reached because the steep stratospheric shaft-power falloff runs the climb out at the certified altitude. Source verification pending.",
     "flaps": "0/APPR/FULL — simplified King Air schedule; dCL0/dStallAlpha/dCD0 are TUNING KNOBS giving monotonically falling stall speeds and rising drag.",
     "display": "ASI 40-300 kt spans the turboprop band; attitudeStyle line (steam-gauge horizon, like the C172 — a King Air panel reads closer to the GA six-pack than an EFIS disc). ATTITUDE_STYLES in params.ts accepts only line|ball, so the six-pack intent is carried by 'line' here; the dashboard PRIMARY (six-pack vs EFIS) is chosen in Task 2's dashboard/profiles.ts, not this file.",
-    "gear": "retractable — King Air 350 has retractable tricycle gear."
+    "gear": "retractable — King Air 350 has retractable tricycle gear.",
+    "lookArc": "// tunable — GA/turboprop family (issue #44 follow-up): same arc as c172/t6/c130."
   }
 }
