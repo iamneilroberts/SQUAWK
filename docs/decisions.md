@@ -3166,3 +3166,29 @@ baseline (no test edits were needed — class names (`imm-bar-tapes`, `imm-tape`
   cramped for its large flight deck — flagged for tuning.
 - Shipped: main `cca7bdb`, prod Worker Version `264ed389` (fly.voygent.app). #44 left OPEN pending
   owner live feel-pass + arc tuning.
+
+## 2026-08-16 — #92 auto-coordinated turns (auto-rudder)
+
+- **Pointer/touch pilots have no rudder axis**, so turns were uncoordinated (skiddy). Added
+  sideslip-nulling auto-rudder in `sim/forces.ts`: when the pilot isn't commanding rudder, the
+  yaw command is synthesised from sideslip (`autoCoordinatedYaw`), reinforcing the existing
+  passive weathercock (`+yawStiffness·sideslip`) and driving the ball to centre.
+- **On for every input method** (owner decision), not pointer/touch-only — most flight games
+  auto-coordinate, and keyboard A/D still overrides: the synthetic term fades out as manual rudder
+  rises (`manual + (1-|manual|)·auto`), so full deflection is pure pilot input and a deliberate
+  slip still works.
+- **Stays RANKED** (owner decision) — it's a control-mapping aid like the sprung keyboard stick /
+  KeyL level-assist, not a difficulty cheat, so unlike time-compression/skip it does not flag the
+  flight unranked. Zero ranking wiring needed.
+- **Sideslip-nulling feedback**, not bank feedforward (owner decision) — self-correcting, no bank
+  geometry, augments the existing physics, trivially unit-testable. Chosen over the crisper
+  feedforward+trim law to keep it bounded.
+- **Placed in `forces.ts`, not `controls.ts`** — the sampler has no sideslip (a force/state
+  quantity); forces already computes `sideslipRad` and holds `controls.yaw`, so no plumbing.
+  Helicopters (`rotorForces.ts`, sideslip always 0) are untouched — coordination is fixed-wing.
+- **`AUTO_COORD_GAIN = 6.0`** is a single class-independent module constant (scaled downstream by
+  dynamic-pressure authority), an owner live-feel knob — promote to a ClassParams field only if a
+  class ever needs its own strength. No 8-file cascade.
+- No envelope regressions: straight/symmetric flight has ~zero sideslip so the term stays inert
+  (full sim suite 213 pass). Shipped: main `b87277f`, prod Worker Version `e08d6398`
+  (fly.voygent.app). #92 left OPEN pending owner live feel-pass + gain tuning.
