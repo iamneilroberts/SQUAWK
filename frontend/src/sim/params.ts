@@ -3,12 +3,13 @@
  * rather than producing NaN somewhere inside the integrator three seconds into a flight.
  * A hand-written validator (not a schema library) keeps the dependency list untouched.
  */
-import type { ClassParams, FlapDetent, LapseModel } from "./types";
+import type { ClassParams, FlapDetent, LapseModel, ModelKind, RotorParams } from "./types";
 import c172Raw from "../params/c172.json";
 import b738Raw from "../params/b738.json";
 import f5eRaw from "../params/f5e.json";
 import bizRaw from "../params/biz.json";
 import tpropRaw from "../params/tprop.json";
+import r44Raw from "../params/r44.json";
 
 function asRecord(value: unknown, path: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -65,6 +66,32 @@ function attitudeStyle(obj: Record<string, unknown>, path: string): "line" | "ba
   return v as "line" | "ball";
 }
 
+const MODEL_KINDS: readonly ModelKind[] = ["fixed-wing", "rotor"];
+
+/** Absent means "fixed-wing" — every existing param file predates this field (#30). */
+function modelKind(obj: Record<string, unknown>, path: string): ModelKind {
+  if (obj.modelKind === undefined) return "fixed-wing";
+  const v = str(obj, "modelKind", path);
+  if (!MODEL_KINDS.includes(v as ModelKind)) {
+    throw new Error(`${path}.modelKind must be one of: ${MODEL_KINDS.join(", ")}`);
+  }
+  return v as ModelKind;
+}
+
+function rotorParams(raw: unknown, path: string): RotorParams {
+  const o = asRecord(raw, path);
+  return {
+    maxThrustN: positive(o, "maxThrustN", path),
+    rollRateMaxRadS: positive(o, "rollRateMaxRadS", path),
+    pitchRateMaxRadS: positive(o, "pitchRateMaxRadS", path),
+    yawRateMaxRadS: positive(o, "yawRateMaxRadS", path),
+    rollDampingPerS: positive(o, "rollDampingPerS", path),
+    pitchDampingPerS: positive(o, "pitchDampingPerS", path),
+    yawDampingPerS: positive(o, "yawDampingPerS", path),
+    dragPerVelocity: positive(o, "dragPerVelocity", path),
+  };
+}
+
 function flapDetent(raw: unknown, index: number): FlapDetent {
   const path = `flaps[${index}]`;
   const o = asRecord(raw, path);
@@ -85,6 +112,16 @@ export function validateClassParams(raw: unknown): ClassParams {
   const id = str(o, "id", "params");
   const label = str(o, "label", "params");
   const modelNote = str(o, "modelNote", "params");
+  const kind = modelKind(o, "params");
+  // Required exactly when the class flies the rotor model — a rotor class missing its tuning
+  // data, or a fixed-wing class carrying a stray rotor block, is a params-file bug, not data.
+  if (kind === "rotor" && o.rotor === undefined) {
+    throw new Error('params.rotor is required when modelKind is "rotor"');
+  }
+  if (kind === "fixed-wing" && o.rotor !== undefined) {
+    throw new Error('params.rotor must be omitted when modelKind is "fixed-wing"');
+  }
+  const rotor = o.rotor === undefined ? undefined : rotorParams(o.rotor, "params.rotor");
   const massKg = positive(o, "massKg", "params");
   const wingAreaM2 = positive(o, "wingAreaM2", "params");
   const wingSpanM = positive(o, "wingSpanM", "params");
@@ -108,6 +145,8 @@ export function validateClassParams(raw: unknown): ClassParams {
     id,
     label,
     modelNote,
+    modelKind: kind,
+    ...(rotor === undefined ? {} : { rotor }),
     massKg,
     wingAreaM2,
     wingSpanM,
@@ -226,6 +265,14 @@ export function loadTprop(): ClassParams {
   return cachedTprop;
 }
 
+let cachedR44: ClassParams | null = null;
+
+/** The R44-class light piston helicopter (rotor model — see sim/rotorForces.ts). */
+export function loadR44(): ClassParams {
+  if (cachedR44 === null) cachedR44 = validateClassParams(r44Raw);
+  return cachedR44;
+}
+
 /** Resolve a class id (from resolveClass) to its validated params. Unknown id is a bug, not data. */
 export function loadClassById(id: string): ClassParams {
   switch (id) {
@@ -234,6 +281,7 @@ export function loadClassById(id: string): ClassParams {
     case "f5e": return loadF5e();
     case "biz": return loadBiz();
     case "tprop": return loadTprop();
+    case "r44": return loadR44();
     default: throw new Error(`unknown class id: ${id}`);
   }
 }

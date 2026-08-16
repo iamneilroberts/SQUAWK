@@ -540,9 +540,14 @@ export default function FlightSession({
                   },
                 });
                 useStore.getState().fire("IMPACT");
-                // biz and tprop have no tutorial (definitions.ts has no biz/tprop entry), so this
-                // callback's narrower signature never needs to name them — guard rather than widen the type.
-                if (lockedMission.classId !== "biz" && lockedMission.classId !== "tprop") onTutorialCompleteRef.current?.(lockedMission.classId);
+                // biz, tprop, and r44 have no tutorial (definitions.ts has no entry for any of
+                // them), so this callback's narrower signature never needs to name them — guard
+                // rather than widen the type.
+                if (
+                  lockedMission.classId !== "biz" &&
+                  lockedMission.classId !== "tprop" &&
+                  lockedMission.classId !== "r44"
+                ) onTutorialCompleteRef.current?.(lockedMission.classId);
                 return;
               }
               // Reposition spawn (spawn chooser): the spawn skipped part of the route, so the

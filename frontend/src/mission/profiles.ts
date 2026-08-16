@@ -3,6 +3,7 @@ import b738Raw from "./profiles/b738.json";
 import f5eRaw from "./profiles/f5e.json";
 import bizRaw from "./profiles/biz.json";
 import tpropRaw from "./profiles/tprop.json";
+import r44Raw from "./profiles/r44.json";
 import type { AircraftClassId, MissionProfile } from "./types";
 
 function assertFinitePositive(value: unknown, label: string): asserts value is number {
@@ -28,7 +29,7 @@ function deepFreeze<T>(value: T): T {
 export function validateMissionProfile(value: unknown): MissionProfile {
   if (typeof value !== "object" || value === null) throw new Error("mission profile must be an object");
   const profile = value as MissionProfile;
-  if (!(["c172s", "b738", "f5e", "biz", "tprop"] as const).includes(profile.classId)) throw new Error("invalid mission class");
+  if (!(["c172s", "b738", "f5e", "biz", "tprop", "r44"] as const).includes(profile.classId)) throw new Error("invalid mission class");
   for (const [label, version] of [
     ["profileVersion", profile.profileVersion],
     ["assignmentVersion", profile.assignmentVersion],
@@ -126,6 +127,7 @@ const profiles: Record<AircraftClassId, MissionProfile> = {
   f5e: deepFreeze(validateMissionProfile(f5eRaw)),
   biz: deepFreeze(validateMissionProfile(bizRaw)),
   tprop: deepFreeze(validateMissionProfile(tpropRaw)),
+  r44: deepFreeze(validateMissionProfile(r44Raw)),
 };
 
 export function missionProfileForClass(classId: AircraftClassId): MissionProfile {
@@ -133,5 +135,5 @@ export function missionProfileForClass(classId: AircraftClassId): MissionProfile
 }
 
 export function allMissionProfiles(): MissionProfile[] {
-  return [profiles.c172s, profiles.b738, profiles.f5e, profiles.biz, profiles.tprop];
+  return [profiles.c172s, profiles.b738, profiles.f5e, profiles.biz, profiles.tprop, profiles.r44];
 }

@@ -13,8 +13,9 @@
  * not the hand-set object.
  */
 import type { Contact } from "../data/types";
-import type { ClassParams, ControlVector, SimState } from "../sim/types";
+import type { ClassParams, ControlVector, Quat, SimState, Vec3 } from "../sim/types";
 import { dragCoefficient, liftCoefficient, POWER_LAPSE_MODELS, stallSpeedIasMs } from "../sim/forces";
+import { hoverCollective } from "../sim/rotorForces";
 import { iasToTas, isaDensity, speedOfSoundMs, tasToIas } from "../sim/isa";
 import { geodeticSurfaceNormal, geodeticToEcef } from "../sim/geo";
 import { qRotate, quatFromHpr } from "../sim/quat";
@@ -146,40 +147,56 @@ export function buildSpawnState(
     });
   }
   let tasMs = ktToMs(snapshotKt);
-  const vsMin = 1.3 * stallSpeedIasMs(params, flapDetent);
-  const vneMax = 0.9 * params.limits.vneIasMs;
-  const iasMs = tasToIas(tasMs, altitudeM);
-  if (iasMs < vsMin) {
-    tasMs = iasToTas(vsMin, altitudeM);
-    adjustments.push({
-      field: "SPEED",
-      from: `${Math.round(snapshotKt)} KT`,
-      to: `${Math.round(msToKt(tasMs))} KT`,
-      reason: `Below 1.3 x stall speed for the ${params.label} — raised to avoid spawning stalled.`,
-    });
-  } else if (iasMs > vneMax) {
-    tasMs = iasToTas(vneMax, altitudeM);
-    adjustments.push({
-      field: "SPEED",
-      from: `${Math.round(snapshotKt)} KT`,
-      to: `${Math.round(msToKt(tasMs))} KT`,
-      reason: `Above 0.9 x Vne for the ${params.label} — lowered into the envelope.`,
-    });
-  }
+  if (params.modelKind === "rotor") {
+    // Rotor spawn (#30): a helicopter has no stall floor and no compressibility limit at these
+    // speeds — hover (0 kt) up through Vne is all legitimate, so only the Vne ceiling applies.
+    const vneMax = 0.9 * params.limits.vneIasMs;
+    const iasMs = tasToIas(tasMs, altitudeM);
+    if (iasMs > vneMax) {
+      tasMs = iasToTas(vneMax, altitudeM);
+      adjustments.push({
+        field: "SPEED",
+        from: `${Math.round(snapshotKt)} KT`,
+        to: `${Math.round(msToKt(tasMs))} KT`,
+        reason: `Above 0.9 x Vne for the ${params.label} — lowered into the envelope.`,
+      });
+    }
+  } else {
+    const vsMin = 1.3 * stallSpeedIasMs(params, flapDetent);
+    const vneMax = 0.9 * params.limits.vneIasMs;
+    const iasMs = tasToIas(tasMs, altitudeM);
+    if (iasMs < vsMin) {
+      tasMs = iasToTas(vsMin, altitudeM);
+      adjustments.push({
+        field: "SPEED",
+        from: `${Math.round(snapshotKt)} KT`,
+        to: `${Math.round(msToKt(tasMs))} KT`,
+        reason: `Below 1.3 x stall speed for the ${params.label} — raised to avoid spawning stalled.`,
+      });
+    } else if (iasMs > vneMax) {
+      tasMs = iasToTas(vneMax, altitudeM);
+      adjustments.push({
+        field: "SPEED",
+        from: `${Math.round(snapshotKt)} KT`,
+        to: `${Math.round(msToKt(tasMs))} KT`,
+        reason: `Above 0.9 x Vne for the ${params.label} — lowered into the envelope.`,
+      });
+    }
 
-  // Vne is an IAS limit and is toothless at altitude (low density -> low IAS for a high TAS),
-  // so a fast contact spawning high can clear the check above yet still sit past Mmo. Clamp
-  // TAS to the class's Mmo at this altitude too, or the HUD's MMO annunciator trips the instant
-  // the "trimmed" handoff card hands over control.
-  const mmoTasMax = params.limits.mmo * speedOfSoundMs(altitudeM);
-  if (tasMs > mmoTasMax) {
-    adjustments.push({
-      field: "SPEED",
-      from: `${Math.round(msToKt(tasMs))} KT`,
-      to: `${Math.round(msToKt(mmoTasMax))} KT`,
-      reason: `Above Mmo (M${params.limits.mmo.toFixed(2)}) for the ${params.label} — lowered into the envelope.`,
-    });
-    tasMs = mmoTasMax;
+    // Vne is an IAS limit and is toothless at altitude (low density -> low IAS for a high TAS),
+    // so a fast contact spawning high can clear the check above yet still sit past Mmo. Clamp
+    // TAS to the class's Mmo at this altitude too, or the HUD's MMO annunciator trips the instant
+    // the "trimmed" handoff card hands over control.
+    const mmoTasMax = params.limits.mmo * speedOfSoundMs(altitudeM);
+    if (tasMs > mmoTasMax) {
+      adjustments.push({
+        field: "SPEED",
+        from: `${Math.round(msToKt(tasMs))} KT`,
+        to: `${Math.round(msToKt(mmoTasMax))} KT`,
+        reason: `Above Mmo (M${params.limits.mmo.toFixed(2)}) for the ${params.label} — lowered into the envelope.`,
+      });
+      tasMs = mmoTasMax;
+    }
   }
 
   // ---- attitude: flight path from the vertical rate, body pitched by the trimmed AoA ----
@@ -232,40 +249,56 @@ export function buildSpawnState(
   const fpaRad =
     tasMs > 0.1 ? Math.asin(Math.min(1, Math.max(-1, verticalSpeedMs / tasMs))) : 0;
 
-  // AoA that makes lift equal weight at this speed and density — spawn trimmed, not lurching.
-  const rho = isaDensity(altitudeM);
-  const qBar = 0.5 * rho * tasMs * tasMs;
-  const clNeeded = qBar > 0 ? (params.massKg * G0) / (qBar * params.wingAreaM2) : 0;
-  const flap = params.flaps[flapDetent];
-  const alphaTrimRad = Math.min(
-    params.aero.stallAlphaRad,
-    (clNeeded - (params.aero.cl0 + flap.dCL0)) / params.aero.clAlphaPerRad,
-  );
-
-  const flightPath = quatFromHpr(position, headingRad, fpaRad, 0);
-  const attitude = quatFromHpr(position, headingRad, fpaRad + alphaTrimRad, 0);
-  const velocity = qRotate(flightPath, { x: tasMs, y: 0, z: 0 });
-
-  // ---- controls: the throttle that holds this speed, and the trim that holds this AoA ----
-  const cl = liftCoefficient(alphaTrimRad, params, flap);
   // GR-006: the default/live path keeps retractable gear up (the honest airborne-cruise state).
   // A deterministic landing tutorial may explicitly request gear down; fixed gear stays pinned down.
   const gearDownAtSpawn = params.gear === "fixed" || opts.initialGearDown === true;
   const gearPositionAtSpawn = gearDownAtSpawn ? 1 : 0;
-  const dragN = (dragCoefficient(cl, params, flap) + params.aero.gearDragCd0 * gearPositionAtSpawn) *
-    qBar * params.wingAreaM2;
-  const thrustCapacityN =
-    (params.propulsion.propEfficiency * params.propulsion.maxPowerW *
-      POWER_LAPSE_MODELS[params.propulsion.lapseModel](altitudeM, params)) /
-    Math.max(tasMs, params.propulsion.propPeakSpeedMs);
-  const throttle = thrustCapacityN > 0 ? Math.min(1, Math.max(0, dragN / thrustCapacityN)) : 0;
-  const trim = Math.min(
-    1,
-    Math.max(
-      -1,
-      (alphaTrimRad - params.control.trimAlphaCenterRad) / params.control.trimAlphaRangeRad,
-    ),
-  );
+
+  let attitude: Quat, velocity: Vec3, throttle: number, trim: number;
+  if (params.modelKind === "rotor") {
+    // Rotor spawn (#30): no wing, no AoA to trim toward — spawn level (roll/pitch 0) at the
+    // collective that holds a hover at this altitude (params.rotor drives translation via
+    // attitude, not a separate cyclic-trim solve; see sim/rotorForces.ts). The velocity vector
+    // still follows the live vertical rate, same as the fixed-wing path — a live contact that
+    // was climbing or descending keeps doing so kinematically for the first instant, and the
+    // rotor model's own drag term settles it from there.
+    const flightPath = quatFromHpr(position, headingRad, fpaRad, 0);
+    attitude = quatFromHpr(position, headingRad, 0, 0);
+    velocity = qRotate(flightPath, { x: tasMs, y: 0, z: 0 });
+    throttle = hoverCollective(params, altitudeM);
+    trim = 0;
+  } else {
+    // AoA that makes lift equal weight at this speed and density — spawn trimmed, not lurching.
+    const rho = isaDensity(altitudeM);
+    const qBar = 0.5 * rho * tasMs * tasMs;
+    const clNeeded = qBar > 0 ? (params.massKg * G0) / (qBar * params.wingAreaM2) : 0;
+    const flap = params.flaps[flapDetent];
+    const alphaTrimRad = Math.min(
+      params.aero.stallAlphaRad,
+      (clNeeded - (params.aero.cl0 + flap.dCL0)) / params.aero.clAlphaPerRad,
+    );
+
+    const flightPath = quatFromHpr(position, headingRad, fpaRad, 0);
+    attitude = quatFromHpr(position, headingRad, fpaRad + alphaTrimRad, 0);
+    velocity = qRotate(flightPath, { x: tasMs, y: 0, z: 0 });
+
+    // ---- the throttle that holds this speed, and the trim that holds this AoA ----
+    const cl = liftCoefficient(alphaTrimRad, params, flap);
+    const dragN = (dragCoefficient(cl, params, flap) + params.aero.gearDragCd0 * gearPositionAtSpawn) *
+      qBar * params.wingAreaM2;
+    const thrustCapacityN =
+      (params.propulsion.propEfficiency * params.propulsion.maxPowerW *
+        POWER_LAPSE_MODELS[params.propulsion.lapseModel](altitudeM, params)) /
+      Math.max(tasMs, params.propulsion.propPeakSpeedMs);
+    throttle = thrustCapacityN > 0 ? Math.min(1, Math.max(0, dragN / thrustCapacityN)) : 0;
+    trim = Math.min(
+      1,
+      Math.max(
+        -1,
+        (alphaTrimRad - params.control.trimAlphaCenterRad) / params.control.trimAlphaRangeRad,
+      ),
+    );
+  }
   const controls: ControlVector = {
     pitch: 0, roll: 0, yaw: 0, throttle, flapDetent, trim,
     gearDown: gearDownAtSpawn,
@@ -285,7 +318,9 @@ export function buildSpawnState(
     altitudeM,
     tasMs,
     iasMs: tasToIas(tasMs, altitudeM),
-    aoaRad: alphaTrimRad,
+    // Placeholder — refreshDerived (below) is the source of truth via computeForcesFor, which
+    // reports 0 for a rotor class and the real trimmed AoA for a fixed-wing one either way.
+    aoaRad: 0,
     sideslipRad: 0,
     verticalSpeedMs: vDot(velocity, geodeticSurfaceNormal(position)),
     loadFactor: 1,

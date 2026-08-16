@@ -127,6 +127,26 @@ export const MODEL_DIMS: Readonly<Record<string, ModelDims>> = {
     finHeightM: 3.9, // tall T-tail
     fuselageRadiusM: 0.85,
   },
+  // buildAirframe (aircraftGeometry.ts) always draws a fuselage + wing + tailplane + fin — it has
+  // no rotor-disc/tail-boom shape, and adding one is a Phase E art-pass job, not this issue's
+  // scope (#30). Wing/tail spans are kept deliberately tiny (near-zero) rather than real rotor-
+  // diameter numbers so this reads as a plain tapered fuselage with stub nubs, not a misleadingly
+  // fixed-wing-shaped aircraft. Present so modelDimsForClass("r44") does not throw — this class
+  // still needs a body to render for the ghost/chase-cam paths (globe/chaseCamera.ts,
+  // globe/aircraftModel.ts).
+  r44: {
+    lengthM: 9.8, // fuselage + tail boom, no rotor blades (R44 published overall length ~11.7 m)
+    wingSpanM: 0.6,
+    wingSweepRad: 0,
+    wingChordM: 0.4,
+    wingXFrac: 0.35,
+    wingZFrac: 0,
+    wingTipChordFrac: 1,
+    tailSpanM: 0.6,
+    tailChordM: 0.3,
+    finHeightM: 0.5,
+    fuselageRadiusM: 0.65, // ~1.3 m cabin width, R44 published spec
+  },
 };
 
 /**

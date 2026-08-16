@@ -33,12 +33,48 @@ export type FlapDetent = {
   dCD0: number;
 };
 
+/**
+ * Which force model this class flies (#30). "fixed-wing" is the lift/AoA/stall model in
+ * forces.ts; "rotor" is the simplified hover-capable model in rotorForces.ts — a genuinely
+ * different force shape (rotor lift does not depend on forward speed and has no stall floor),
+ * not a data file on the fixed-wing shape. sim/aircraft.ts is the ONE place that reads this
+ * to pick which compute-forces function runs; nothing else branches on it.
+ */
+export type ModelKind = "fixed-wing" | "rotor";
+
+/**
+ * Simplified rotorcraft tuning data (#30), read only by sim/rotorForces.ts. Deliberately NOT a
+ * rotor-aero model: no autorotation, vortex-ring-state, ground-effect, or blade dynamics — see
+ * rotorForces.ts's header comment for the full non-goals list. The bar is hover, translate, and
+ * a controlled descent to landing.
+ */
+export type RotorParams = {
+  /** Sea-level, full-collective thrust, N. Scaled by air-density ratio at altitude. */
+  maxThrustN: number;
+  rollRateMaxRadS: number;
+  pitchRateMaxRadS: number;
+  yawRateMaxRadS: number;
+  rollDampingPerS: number;
+  pitchDampingPerS: number;
+  yawDampingPerS: number;
+  /**
+   * Linear drag, N per m/s of ECEF velocity (still air, so this is ground-speed too) — opposes
+   * translation and descent alike. The one term keeping this model from accelerating unbounded;
+   * also what makes descent rate self-limiting (a stable terminal velocity, not a runaway).
+   */
+  dragPerVelocity: number;
+};
+
 export type ClassParams = {
   id: string;
   /** Real type this parameter set is based on, e.g. "C172S". */
   label: string;
   /** Honest disclosure shown on the handoff card, e.g. "C172 MODEL THIS BUILD". */
   modelNote: string;
+  /** Which force model this class flies. Defaults to "fixed-wing" when a params file omits it. */
+  modelKind: ModelKind;
+  /** Present only when modelKind === "rotor"; sim/params.ts requires it in that case. */
+  rotor?: RotorParams;
   massKg: number;
   wingAreaM2: number;
   wingSpanM: number;
