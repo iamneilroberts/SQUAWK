@@ -744,7 +744,11 @@ export default function FlightSession({
     );
     loop.resync(newSpawn);
     useStore.getState().setRepositioned(true);
-  }, [lockedMission, freeFlight, bundle]);
+    // #87: auto-resume after the skip so the player is flying the final immediately, rather than
+    // being left in the pause menu with no obvious way back. resumeFlight unpauses + fires RESUME;
+    // pointer-lock mouse-look re-acquires on the next hold-Q as usual (nothing here needs it).
+    resumeFlight();
+  }, [lockedMission, freeFlight, bundle, resumeFlight]);
 
   // ---- Esc pauses; visibilitychange auto-pauses (spec §5, §6) ----
   useEffect(() => {
