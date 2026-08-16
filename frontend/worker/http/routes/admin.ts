@@ -410,6 +410,30 @@ export function createAdminRoutes(
     },
   });
 
+  const trafficSources = defineRoute({
+    method: "GET",
+    path: "/api/admin/traffic-sources",
+    family: "admin-traffic-sources",
+    boundary: "admin",
+    admission: "recovery",
+    security: readSecurity(),
+    limiter: { name: "admin", retryAfterSeconds: 1 },
+    validate: ({ request }) => {
+      queryValues(request, []);
+      return undefined;
+    },
+    handler: async ({ env }) => {
+      const runtime = env as Env;
+      const snapshot = await readBrokerAdminSnapshot(runtime.ADSB_BROKER, forceMode(runtime), dependencies.broker);
+      return { data: {
+        capturedAtMs: snapshot.capturedAtMs,
+        trafficSources: snapshot.trafficSources,
+        source: "application-snapshot",
+        authoritativeBilling: false,
+      } };
+    },
+  });
+
   const activeSessions = defineRoute({
     method: "GET",
     path: "/api/admin/sessions",
@@ -898,6 +922,7 @@ export function createAdminRoutes(
     overview,
     analytics,
     capacity,
+    trafficSources,
     activeSessions,
     events,
     eventExport,

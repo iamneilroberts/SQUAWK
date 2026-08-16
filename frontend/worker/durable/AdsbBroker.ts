@@ -21,6 +21,7 @@ import {
   fetchProviderTraffic,
   ProviderConfigurationError,
   ProviderUnavailableError,
+  providerKey,
   readProviderSettings,
   type ProviderAttemptGate,
   type ProviderSettings,
@@ -28,6 +29,7 @@ import {
 } from "../adsb/provider";
 import { normalizeRegion, type NormalizedRegion } from "../adsb/region";
 import {
+  effectiveState,
   emptyCircuitStore,
   isCircuitStore,
   recordProviderOutcome,
@@ -1179,6 +1181,56 @@ export class AdsbBroker extends DurableObject<Env> {
       presence.sort((left, right) => right.lastSeenAtMs - left.lastSeenAtMs);
       const queuedByPriority: [number, number, number, number] = [0, 0, 0, 0];
       for (const { priority } of this.#providerQueue) queuedByPriority[priority] += 1;
+      // Read-only: loadProviderCircuits() only reads provider-circuit:v1 -- no put() here.
+      const circuits = await loadProviderCircuits(transaction);
+      let templates: readonly string[] = [];
+      let providerDailyLimit: number | null = null;
+      try {
+        const settings = this.#settings();
+        templates = settings.templates;
+        providerDailyLimit = settings.dailyLimit;
+      } catch {
+        // Provider settings misconfigured -- report no configured providers rather than fail
+        // this read-only admin snapshot (the other panels stay usable for diagnosis).
+      }
+      const trafficSources: BrokerAdminSnapshot["trafficSources"] = {
+        providers: templates.map((template) => {
+          const key = providerKey(template);
+          const record = circuits.providers.find((candidate) => candidate.providerKey === key);
+          if (record === undefined) {
+            return {
+              providerKey: key,
+              state: "closed" as const,
+              consecutiveFailures: 0,
+              cooldownRemainingMs: 0,
+              lastOutcome: null,
+              lastOutcomeAtMs: null,
+            };
+          }
+          const providerState = effectiveState(record, nowMs);
+          return {
+            providerKey: key,
+            state: providerState,
+            consecutiveFailures: record.consecutiveFailures,
+            cooldownRemainingMs: providerState === "open"
+              ? Math.max(0, record.cooldownUntilMs - nowMs)
+              : 0,
+            lastOutcome: record.lastOutcome,
+            lastOutcomeAtMs: record.lastOutcomeAtMs,
+          };
+        }),
+        budget: {
+          band: brokerStatus.budgetBand,
+          admittedRequests: {
+            used: brokerStatus.admittedRequests,
+            limit: DAILY_ADMITTED_REQUEST_LIMIT,
+          },
+          providerRequests: {
+            used: brokerStatus.providerRequests,
+            limit: providerDailyLimit,
+          },
+        },
+      };
       const snapshot: BrokerAdminSnapshot = {
         capturedAtMs: nowMs,
         status: brokerStatus,
@@ -1190,6 +1242,7 @@ export class AdsbBroker extends DurableObject<Env> {
           inFlightRegions: this.#trafficInFlight.size,
           runningPriority: this.#providerRunningPriority,
         },
+        trafficSources,
       };
       await transaction.put(STATE_KEY, state);
       await transaction.put(TRAFFIC_INDEX_KEY, index);
