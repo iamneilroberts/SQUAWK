@@ -1,5 +1,6 @@
 import { AssistControlBody } from "../mission/AssistControl";
 import type { AssistState } from "../mission/assistState";
+import { TIME_COMPRESSION_FACTORS, type TimeCompressionFactor } from "../game/timeCompression";
 
 /*
  * Esc pauses (spec §6). It cannot be made to mean "quit": Esc always exits pointer lock and
@@ -17,6 +18,11 @@ import type { AssistState } from "../mission/assistState";
  * prop-driven component like the rest of the panel — the caller (FlightSession, which already
  * reads assist from the store) supplies the state and the cycle handler. Unarmed only — the
  * armed "click the globe" prompt is a transient confirmation, not a menu.
+ *
+ * TIME COMPRESSION + SKIP TO FINAL (#87) live here for the same reason ASSIST does: the pause
+ * menu is the one reliably reachable control surface on every platform. Both mark the flight
+ * UNRANKED for a ranked mission (mission/unrankedReason.ts) — omitted unless the caller wires the
+ * handler, same `prop !== undefined` gating as ASSIST, so existing callers/tests are unaffected.
  */
 export default function PauseOverlay({
   armed,
@@ -24,6 +30,10 @@ export default function PauseOverlay({
   onQuit,
   assist = null,
   onCycleAssist,
+  timeCompression = 1,
+  onSetTimeCompression,
+  skipToFinalAvailable = false,
+  onSkipToFinal,
 }: {
   /** True once RESUME has been pressed and we are waiting for the canvas click. */
   armed: boolean;
@@ -32,6 +42,12 @@ export default function PauseOverlay({
   /** Null while no mission is locked (shouldn't happen while PAUSED, but keeps this safe/pure). */
   assist?: AssistState | null;
   onCycleAssist?(): void;
+  /** Active factor (#87); defaults to 1x. Meaningless without onSetTimeCompression. */
+  timeCompression?: TimeCompressionFactor;
+  onSetTimeCompression?(factor: TimeCompressionFactor): void;
+  /** True only with a real destination/approach assigned (not free flight). */
+  skipToFinalAvailable?: boolean;
+  onSkipToFinal?(): void;
 }) {
   if (armed) {
     return (
@@ -57,6 +73,35 @@ export default function PauseOverlay({
         </button>
         {assist !== null && onCycleAssist && (
           <AssistControlBody assist={assist} onCycle={onCycleAssist} />
+        )}
+        {onSetTimeCompression && (
+          <>
+            <div className="label">TIME COMPRESSION</div>
+            <div className="compression-row">
+              {TIME_COMPRESSION_FACTORS.map((factor) => (
+                <button
+                  key={factor}
+                  type="button"
+                  className={
+                    "control-button" + (factor === timeCompression ? " control-button-active" : "")
+                  }
+                  onClick={() => onSetTimeCompression(factor)}
+                >
+                  {factor}×
+                </button>
+              ))}
+            </div>
+            {timeCompression > 1 && (
+              <div className="takeover-reason">
+                LIVE TRAFFIC REAL-TIME — MARKS THIS FLIGHT UNRANKED
+              </div>
+            )}
+          </>
+        )}
+        {skipToFinalAvailable && onSkipToFinal && (
+          <button type="button" className="control-button" onClick={onSkipToFinal}>
+            SKIP TO FINAL (UNRANKED)
+          </button>
         )}
       </div>
     </div>

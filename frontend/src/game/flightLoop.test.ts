@@ -187,6 +187,68 @@ describe("flight loop stepping", () => {
   });
 });
 
+describe("flight loop time compression (#87)", () => {
+  it("defaults to 1x", () => {
+    const { loop } = makeLoop();
+    expect(loop.getTimeCompression()).toBe(1);
+  });
+
+  it("scales elapsed WALL time, not the fixed physics dt — 4x runs ~4x the steps for the same wall-clock gap", () => {
+    const { loop: loop1x, host: host1x } = makeLoop();
+    loop1x.start();
+    host1x.frame(1000);
+    host1x.frame(1050); // 50 ms real -> 3 steps at 1x
+    const flown1x = loop1x.getState().timeS;
+    loop1x.stop();
+
+    const { loop: loop4x, host: host4x } = makeLoop();
+    loop4x.start();
+    loop4x.setTimeCompression(4);
+    host4x.frame(1000);
+    host4x.frame(1050); // the SAME 50 ms real, scaled to 200 ms of sim time -> 12 steps
+    const flown4x = loop4x.getState().timeS;
+    loop4x.stop();
+
+    expect(flown4x).toBeCloseTo(flown1x * 4, 9);
+    // Every one of those steps is still exactly FIXED_DT — the physics dt itself never grew,
+    // only the number of 1/60 s steps taken per rendered frame did.
+    expect(flown4x / FIXED_DT).toBeCloseTo(12, 9);
+  });
+
+  it("publishes the active factor on the HUD snapshot", () => {
+    const { loop, host, snaps } = makeLoop();
+    loop.start();
+    loop.setTimeCompression(2);
+    host.frame(1000);
+    host.frame(1100);
+    expect(snaps[snaps.length - 1].timeCompression).toBe(2);
+    loop.stop();
+  });
+
+  it("auto-resets to 1x once the aircraft is within the near-ground floor", () => {
+    // 500 ft over flat ground: inside the ~1000 ft auto-reset floor from the very first tick.
+    const spawn = buildSpawnState(ga(), P, { terrainHeightM: 0, spawnAltitudeFtOverride: 500 });
+    const { loop, host } = makeLoop({ spawn, groundHeight: 0 });
+    loop.start();
+    loop.setTimeCompression(4);
+    expect(loop.getTimeCompression()).toBe(4);
+    host.frame(1000);
+    host.frame(1016); // one real tick is enough to sample terrain and trip the auto-reset
+    expect(loop.getTimeCompression()).toBe(1);
+    loop.stop();
+  });
+
+  it("does not auto-reset comfortably above the floor", () => {
+    const { loop, host } = makeLoop(); // default spawn: ~3400 ft AGL over 100 m ground
+    loop.start();
+    loop.setTimeCompression(4);
+    host.frame(1000);
+    host.frame(1100);
+    expect(loop.getTimeCompression()).toBe(4);
+    loop.stop();
+  });
+});
+
 describe("flight loop pause", () => {
   it("a paused loop does not advance sim time", () => {
     const { loop, host } = makeLoop();

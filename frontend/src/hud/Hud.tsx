@@ -144,6 +144,10 @@ export default function Hud({
   const warnings = warningsFor(snapshot);
   const aglAlert = groundProximityActive(snapshot);
   const simRate = formatSimRate(snapshot.simRate);
+  // #87: honest markers while time compression is active — the multiplier, and a reminder that
+  // live traffic/the ghost are still polling on REAL wall time (never fast-forwarded/extrapolated
+  // to match), so they visibly lag under compression.
+  const compressionActive = (snapshot.timeCompression ?? 1) > 1;
   const showBar = immersive || narrow;
   const rootClass =
     "hud-root" + (showBar ? " hud-immersive" : "") + (faded ? " hud-faded" : "");
@@ -196,6 +200,12 @@ export default function Hud({
           <span>{snapshot.callsign}</span>
           <span className="hud-model-note">{snapshot.modelNote}</span>
           {simRate ? <span className="hud-warning">{simRate}</span> : null}
+          {compressionActive ? (
+            <span className="hud-warning">{snapshot.timeCompression}×</span>
+          ) : null}
+          {compressionActive ? (
+            <span className="hud-model-note">LIVE TRAFFIC REAL-TIME</span>
+          ) : null}
         </span>
         <span className="hud-top-bar-sep" aria-hidden="true" />
         <Readout label="IAS" value={formatIasKt(snapshot.iasMs)} unit="KT" />

@@ -71,6 +71,12 @@ export type HudSnapshot = {
   terrainUnverified: boolean;
   /** Sim seconds per wall second; below ~0.95 the HUD says so out loud. */
   simRate: number;
+  /**
+   * Active time-compression factor (#87): 1 (default), 2, or 4. Optional so existing fixtures
+   * need no rework; absent reads as 1x (uncompressed). The flight loop auto-resets it to 1 near
+   * the ground (game/timeCompression.ts) — this field reflects that on the very next publish.
+   */
+  timeCompression?: 1 | 2 | 4;
   airtimeS: number;
   /** Aircraft class shown beside the callsign (parent spec §9), e.g. "C172S". */
   classLabel: string;

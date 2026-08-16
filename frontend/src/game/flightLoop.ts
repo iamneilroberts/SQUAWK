@@ -18,6 +18,12 @@ import type { HudSnapshot } from "../hud/snapshot";
 import type { FlightStats } from "./stats";
 import { stepAircraft } from "../sim/aircraft";
 import { createAccumulator, runFixedSteps, FIXED_DT } from "../sim/integrator";
+import {
+  AUTO_RESET_AGL_M,
+  scaleElapsed,
+  shouldAutoResetCompression,
+  type TimeCompressionFactor,
+} from "./timeCompression";
 import { ecefToGeodetic } from "../sim/geo";
 import { hprFromQuat, turnRateRadS } from "../sim/quat";
 import { radToDeg } from "../sim/units";
@@ -131,6 +137,11 @@ export function createFlightLoop(deps: FlightLoopDeps) {
   let levelingElapsedS = 0;
   let prevLevelKey = false;
 
+  // Time compression (#87): scales ELAPSED WALL TIME before it reaches the accumulator, never
+  // the physics dt (see game/timeCompression.ts). Auto-resets to 1x near the ground so a
+  // compressed approach is never still compressed at the flare.
+  let timeCompression: TimeCompressionFactor = 1;
+
   function publish() {
     const hpr = hprFromQuat(state.attitude, state.position);
     const geo = ecefToGeodetic(state.position);
@@ -169,6 +180,7 @@ export function createFlightLoop(deps: FlightLoopDeps) {
       terrainClearanceM,
       terrainUnverified: terrain.unverified,
       simRate: rateMeter.rate(),
+      timeCompression,
       airtimeS: state.timeS,
       classLabel: params.label,
       callsign,
@@ -257,6 +269,12 @@ export function createFlightLoop(deps: FlightLoopDeps) {
     const geo = ecefToGeodetic(state.position);
     const ground = terrain.sample(geo.latRad, geo.lonRad, state.timeS);
     terrainClearanceM = ground.heightM === null ? null : state.altitudeM - ground.heightM;
+    // Auto-reset (#87): near the ground is not the place to still be compressed — see
+    // timeCompression.ts for the floor and the reasoning. A silent drop back to 1x, same as the
+    // clamp silently dropping excess steps; the HUD/menu indicator reflects it on the next publish.
+    if (shouldAutoResetCompression(timeCompression, terrainClearanceM, AUTO_RESET_AGL_M)) {
+      timeCompression = 1;
+    }
     if (ground.collisionArmed && ground.heightM !== null && state.altitudeM <= ground.heightM) {
       endSession();
     }
@@ -285,10 +303,19 @@ export function createFlightLoop(deps: FlightLoopDeps) {
       return;
     }
 
-    const { steps } = runFixedSteps(accumulator, elapsedS, stepOnce);
-    rateMeter.record(steps * FIXED_DT, elapsedS);
-    host.setCamera(state, elapsedS);
+    // Time compression scales the ELAPSED time handed to the accumulator, not the fixed physics
+    // dt — the accumulator still advances in exact FIXED_DT steps, it just takes more of them per
+    // frame. rateMeter compares simulated time against this same scaled target, so "SIM RATE"
+    // keeps meaning "are we keeping up with what was asked for" at any compression factor, not
+    // just at 1x. The camera gets the scaled value too, so its damping time-constant matches the
+    // faster-moving aircraft instead of looking laggy relative to it.
+    const scaledElapsedS = scaleElapsed(elapsedS, timeCompression);
+    const { steps } = runFixedSteps(accumulator, scaledElapsedS, stepOnce);
+    rateMeter.record(steps * FIXED_DT, scaledElapsedS);
+    host.setCamera(state, scaledElapsedS);
 
+    // Snapshot publish cadence stays tied to REAL wall time — the HUD should update ~10x/sec of
+    // real time regardless of compression, not 10x/sec of compressed sim time.
     sinceSnapshotS += elapsedS;
     if (sinceSnapshotS >= SNAPSHOT_INTERVAL_S) {
       sinceSnapshotS = 0;
@@ -358,6 +385,13 @@ export function createFlightLoop(deps: FlightLoopDeps) {
     },
     getState(): SimState {
       return state;
+    },
+    /** Selects the time-compression factor (#87); 1x/2x/4x only, see game/timeCompression.ts. */
+    setTimeCompression(factor: TimeCompressionFactor) {
+      timeCompression = factor;
+    },
+    getTimeCompression(): TimeCompressionFactor {
+      return timeCompression;
     },
   };
 }

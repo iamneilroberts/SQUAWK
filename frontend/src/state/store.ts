@@ -151,6 +151,13 @@ type State = {
    * flight is never submitted for a ranked result.
    */
   repositioned: boolean;
+  /**
+   * True once time compression > 1x was used at any point in the running flight (#87). Sticky —
+   * set once, never cleared until the flight ends — mirroring `assist.highestUsed`'s "worst used,
+   * not current" ranked-eligibility semantics. Combines with `repositioned` (see
+   * mission/unrankedReason.ts) to build the honest debrief message for a locked mission.
+   */
+  timeCompressed: boolean;
   assist: AssistState | null;
   endStats: FlightStats | null;
   /**
@@ -168,6 +175,7 @@ type State = {
   setAssistMode(mode: AssistMode): void;
   setEndStats(s: FlightStats | null): void;
   setRepositioned(on: boolean): void;
+  setTimeCompressed(on: boolean): void;
   /** Clears the session payload without touching the mode. */
   clearSession(): void;
   resetSession(): void;
@@ -230,6 +238,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   freeFlight: false,
   instantFlight: false,
   repositioned: false,
+  timeCompressed: false,
   assist: null,
   endStats: null,
 
@@ -399,6 +408,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       freeFlight: false,
       instantFlight: false,
       repositioned: false,
+      timeCompressed: false,
       origin: { hex: mission.contact.hex, snapshot: mission.contact },
       assist: initialAssistState(assistModeFromPreference(mission.assist)),
       endStats: null,
@@ -420,6 +430,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       freeFlight: false,
       instantFlight: false,
       repositioned: false,
+      timeCompressed: false,
       origin: { hex: mission.contact.hex, snapshot: mission.contact },
       assist: initialAssistState("FULL"),
       endStats: null,
@@ -443,6 +454,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       freeFlight: true,
       instantFlight: false,
       repositioned: false,
+      timeCompressed: false,
       origin: { hex: mission.contact.hex, snapshot: mission.contact },
       assist: initialAssistState(assistModeFromPreference(mission.assist)),
       endStats: null,
@@ -470,6 +482,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       freeFlight: false,
       instantFlight: true,
       repositioned: false,
+      timeCompressed: false,
       origin: { hex: mission.contact.hex, snapshot: mission.contact },
       assist: initialAssistState(assistModeFromPreference(mission.assist)),
       endStats: null,
@@ -493,6 +506,10 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
     set({ repositioned: on });
   },
 
+  setTimeCompressed(on) {
+    set({ timeCompressed: on });
+  },
+
   clearSession() {
     set({
       origin: null,
@@ -501,6 +518,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       freeFlight: false,
       instantFlight: false,
       repositioned: false,
+      timeCompressed: false,
       assist: null,
       endStats: null,
       selectionLocked: false,
@@ -518,6 +536,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       freeFlight: false,
       instantFlight: false,
       repositioned: false,
+      timeCompressed: false,
       assist: null,
       endStats: null,
       selectionLocked: false,

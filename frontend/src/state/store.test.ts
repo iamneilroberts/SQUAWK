@@ -235,6 +235,16 @@ describe("session state", () => {
     useStore.getState().startLockedMission(lockedMission());
     expect(useStore.getState().repositioned).toBe(false);
   });
+  it("resetSession and other start actions clear the timeCompressed flag (#87)", () => {
+    useStore.getState().resetSession();
+    useStore.getState().setTimeCompressed(true);
+    expect(useStore.getState().timeCompressed).toBe(true);
+    useStore.getState().resetSession();
+    expect(useStore.getState().timeCompressed).toBe(false);
+    useStore.getState().setTimeCompressed(true);
+    useStore.getState().startLockedMission(lockedMission());
+    expect(useStore.getState().timeCompressed).toBe(false);
+  });
   it("tracks highest assist monotonically for the locked flight", () => {
     useStore.getState().resetSession();
     useStore.getState().startLockedMission(lockedMission("none"));
