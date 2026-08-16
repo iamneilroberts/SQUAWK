@@ -29,7 +29,6 @@ export const KEY_LABELS: Readonly<Record<string, string>> = {
   KeyB: "B",
   KeyR: "R",
   KeyL: "L",
-  KeyQ: "Q",
   KeyE: "E",
   KeyC: "C",
   KeyY: "Y",
@@ -68,9 +67,21 @@ export function groupKeymap(
  * chrome" split; it lives here rather than in KEYMAP because it's a *presentation* grouping,
  * not part of the code -> action contract the sampler and the rest of the app share.
  */
-const COCKPIT_CHROME_CODES = new Set<string>(["KeyQ", "Escape", "KeyE", "KeyC", "KeyY", "Slash"]);
+const COCKPIT_CHROME_CODES = new Set<string>(["Escape", "KeyE", "KeyC", "KeyY", "Slash"]);
 
 type ControlsHelpRow = { action: string; keys: string[] };
+
+/**
+ * Desktop mouse rows (#44, right-drag look/orbit follow-up): not in KEYMAP — nothing here is a
+ * keyboard `code` — so they are hand-written rather than generated. "LEFT-DRAG"/"RIGHT-DRAG"/
+ * "WHEEL" are pseudo key-faces for the same visual treatment as the keyboard rows, not real
+ * KeyboardEvent codes.
+ */
+const MOUSE_ROWS: ControlsHelpRow[] = [
+  { action: "flight stick — roll/pitch (FPV) / orbit camera (exterior)", keys: ["LEFT-DRAG"] },
+  { action: "look around (FPV) / orbit camera (exterior)", keys: ["RIGHT-DRAG"] },
+  { action: "throttle (FPV) / camera zoom (exterior)", keys: ["WHEEL"] },
+];
 
 function ControlsHelpGroup({ title, rows }: { title: string; rows: ControlsHelpRow[] }) {
   if (rows.length === 0) return null;
@@ -101,6 +112,7 @@ export default function ControlsHelp() {
     <div className="controls-help">
       <ControlsHelpGroup title="FLIGHT CONTROLS" rows={flightRows} />
       <ControlsHelpGroup title="COCKPIT" rows={chromeRows} />
+      <ControlsHelpGroup title="MOUSE (DESKTOP)" rows={MOUSE_ROWS} />
     </div>
   );
 }

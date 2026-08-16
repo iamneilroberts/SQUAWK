@@ -6,6 +6,7 @@ import {
   LOOK_EASE_RATE_PER_S,
   applyMouseDelta,
   easeToward,
+  clampToLookArc,
 } from "./lookAround";
 
 describe("applyMouseDelta", () => {
@@ -74,5 +75,31 @@ describe("easeToward", () => {
     const o = easeToward(ZERO_LOOK, 1 / 60, LOOK_EASE_RATE_PER_S);
     expect(o.yawRad).toBe(0);
     expect(o.pitchRad).toBe(0);
+  });
+});
+
+describe("clampToLookArc", () => {
+  const GA_ARC = { yawRad: (100 * Math.PI) / 180, pitchUpRad: (40 * Math.PI) / 180, pitchDownRad: (25 * Math.PI) / 180 };
+
+  it("leaves an offset well inside the arc untouched", () => {
+    const inside = { yawRad: 0.2, pitchRad: -0.1 };
+    expect(clampToLookArc(inside, GA_ARC)).toEqual(inside);
+  });
+  it("clamps yaw symmetrically at +/- yawRad", () => {
+    // BROKEN-ARM: a no-op clamp would let these values sail straight through.
+    expect(clampToLookArc({ yawRad: 10, pitchRad: 0 }, GA_ARC).yawRad).toBeCloseTo(GA_ARC.yawRad, 12);
+    expect(clampToLookArc({ yawRad: -10, pitchRad: 0 }, GA_ARC).yawRad).toBeCloseTo(-GA_ARC.yawRad, 12);
+  });
+  it("clamps pitch asymmetrically — up and down arcs differ", () => {
+    expect(clampToLookArc({ yawRad: 0, pitchRad: 10 }, GA_ARC).pitchRad).toBeCloseTo(GA_ARC.pitchUpRad, 12);
+    expect(clampToLookArc({ yawRad: 0, pitchRad: -10 }, GA_ARC).pitchRad).toBeCloseTo(-GA_ARC.pitchDownRad, 12);
+  });
+  it("a wider arc (fighter) clamps later than a narrower one (GA)", () => {
+    const FIGHTER_ARC = { yawRad: (160 * Math.PI) / 180, pitchUpRad: (85 * Math.PI) / 180, pitchDownRad: (35 * Math.PI) / 180 };
+    const raw = { yawRad: 2.0, pitchRad: 1.3 };
+    const gaClamped = clampToLookArc(raw, GA_ARC);
+    const fighterClamped = clampToLookArc(raw, FIGHTER_ARC);
+    expect(fighterClamped.yawRad).toBeGreaterThan(gaClamped.yawRad);
+    expect(fighterClamped.pitchRad).toBeGreaterThan(gaClamped.pitchRad);
   });
 });

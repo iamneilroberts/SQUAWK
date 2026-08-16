@@ -16,10 +16,6 @@ export const GAME_KEY_CODES: ReadonlySet<string> = new Set([
   // same way the sampler edge-detects the flap keys. KeyR is deliberately NOT here —
   // it fires a one-shot React action in FlightSession, so it stays a chrome key like KeyC/Slash.
   "KeyL",
-  // Free-look (issue #9): FlightSession watches KeyQ down/up to drive pointer lock and mouse
-  // capture; it lives here so the preventDefault + Ctrl/Cmd/Alt guard cover it like the others.
-  // The control sampler never reads it, so it does not touch the flight inputs.
-  "KeyQ",
 ]);
 
 export type KeyboardTarget = {

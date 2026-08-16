@@ -35,6 +35,8 @@ import Hud from "../hud/Hud";
 import { tapeRangesFor, type ImmersiveHudVariant } from "../hud/ImmersiveHudBar";
 import TouchControls from "../input/TouchControls";
 import type { AnalogAxes } from "../input/analog";
+import { stickToAxes } from "../input/analog";
+import { MOUSE_STICK_RADIUS_PX, MOUSE_STICK_DEADZONE, wheelToThrottle } from "../input/mouseFlightStick";
 import { useViewport } from "../layout/useViewport";
 import { isNarrowViewport } from "../layout/viewport";
 import { isImmersiveActive } from "../layout/immersive";
@@ -843,106 +845,68 @@ export default function FlightSession({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [mode, bundle, lockedMission]);
 
-  // ---- exterior view: wheel to zoom (issue #4) ----
+  // ---- wheel: exterior zooms the camera (issue #4), FPV drives the throttle lever (issue #44) ----
   // Drag-to-orbit now lives in the unified pointer handler below (mouse + touch, issue #65): Cesium's
   // ScreenSpaceEventHandler calls preventDefault() on the canvas pointerdown, which suppresses the
   // compatibility `mousedown` a drag-to-orbit handler used to rely on — so a real mouse never orbited.
-  // Wheel isn't a pointer event, so zoom stays here. Cesium's own camera inputs are disabled during
-  // flight, so the wheel is ours to consume for zoom.
+  // Wheel isn't a pointer event, so it stays here. Cesium's own camera inputs are disabled during
+  // flight, so the wheel is ours to consume in both views — never a page scroll.
+  // FPV throttle is an ABSOLUTE lever (like the touch slider), seeded from the live sim throttle the
+  // first time the wheel is used so it doesn't jump; owner tradeoff: once the wheel drives it, the
+  // analog override in controls.ts means keyboard W/S stop moving the throttle (same as the touch
+  // slider today) until the flight is torn down and the lever resets.
   useEffect(() => {
     if (mode !== "FLYING" || !bundle) return;
     const canvas = bundle.viewer.scene.canvas;
     const onWheel = (e: WheelEvent) => {
-      if (!hostRef.current?.isExteriorActive()) return;
-      e.preventDefault(); // don't scroll the page; this is a camera zoom
-      hostRef.current.applyOrbitZoom(e.deltaY);
+      e.preventDefault(); // camera zoom (exterior) or throttle lever (FPV) — never a page scroll
+      if (hostRef.current?.isExteriorActive()) {
+        hostRef.current.applyOrbitZoom(e.deltaY);
+        return;
+      }
+      const current = touchAxesRef.current.throttle ?? hudSnapshot.get()?.throttle ?? 0;
+      touchAxesRef.current.throttle = wheelToThrottle(current, e.deltaY);
     };
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => canvas.removeEventListener("wheel", onWheel);
   }, [mode, bundle]);
 
-  // ---- hold Q = mouse free-look (issue #9) ----
-  // FlightSession owns the canvas + DOM, so the pointer-lock / mousemove plumbing lives here; the
-  // accumulator and ease-back live in the host (cesiumFlightHost). This never touches ControlVector
-  // — the aircraft keeps flying its held inputs while the player swivels the view (spec §1).
+  // ---- right mouse button suppresses the browser context menu on the canvas while flying, so a
+  // right-drag (look/orbit, below) never pops it (issue #44 follow-up). ----
   useEffect(() => {
     if (mode !== "FLYING" || !bundle) return;
     const canvas = bundle.viewer.scene.canvas;
-    // Bound a single fallback-mode mousemove delta so a drag without pointer lock can't fling the
-    // view; under pointer lock movementX/Y are already the small per-frame deltas we want.
-    const FALLBACK_MAX_DELTA_PX = 40;
-    let looking = false;
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (!looking) return;
-      const locked = document.pointerLockElement === canvas;
-      const bound = (d: number) =>
-        locked ? d : Math.max(-FALLBACK_MAX_DELTA_PX, Math.min(FALLBACK_MAX_DELTA_PX, d));
-      hostRef.current?.applyLook(bound(e.movementX), bound(e.movementY));
-    };
-    const start = () => {
-      if (looking) return;
-      looking = true;
-      hostRef.current?.setLookActive(true);
-      // requestPointerLock needs a user gesture — the Q keydown IS one. If it's unavailable or the
-      // browser refuses, we simply fall back to bounded mousemove deltas (honest degradation).
-      try {
-        canvas.requestPointerLock?.();
-      } catch {
-        /* no pointer lock — the mousemove fallback still works */
-      }
-      window.addEventListener("mousemove", onMouseMove);
-    };
-    const stop = () => {
-      if (!looking) return;
-      looking = false;
-      hostRef.current?.setLookActive(false); // begins the ease-back to forward
-      window.removeEventListener("mousemove", onMouseMove);
-      if (document.pointerLockElement === canvas) document.exitPointerLock?.();
-    };
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code !== "KeyQ" || e.ctrlKey || e.metaKey || e.altKey) return;
-      start();
-    };
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.code === "KeyQ") stop();
-    };
-    // Escape (which the browser also uses to drop pointer lock), a lost lock for any reason, or the
-    // window losing focus all exit look mode cleanly rather than leaving the view stuck off-axis.
-    const onPointerLockChange = () => {
-      if (looking && document.pointerLockElement !== canvas) stop();
-    };
-    const onBlur = () => stop();
-
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", onBlur);
-    document.addEventListener("pointerlockchange", onPointerLockChange);
-    return () => {
-      stop();
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", onBlur);
-      document.removeEventListener("pointerlockchange", onPointerLockChange);
-    };
+    const onContextMenu = (e: MouseEvent) => e.preventDefault();
+    canvas.addEventListener("contextmenu", onContextMenu);
+    return () => canvas.removeEventListener("contextmenu", onContextMenu);
   }, [mode, bundle]);
 
-  // ---- pointer drag on the open canvas: look (cockpit) or orbit (exterior); pinch zooms the
-  // exterior (#9 look-around, #36 exterior touch-rotate, #65 desktop mouse). Handles touch, pen AND
-  // mouse from the SAME listener: Cesium's ScreenSpaceEventHandler preventDefault()s the canvas
-  // pointerdown, which suppresses the legacy `mousedown` a separate desktop handler would need — so
-  // reading pointer events directly is the only reliable path for a real mouse. The stick, throttle
-  // and touch-buttons are pointer-events:auto DOM elements ABOVE the canvas, so a drag that starts on
-  // a control never reaches this canvas listener and the flight inputs stay untouched.
+  // ---- pointer drag on the open canvas: flight stick or look (cockpit), orbit (exterior); pinch
+  // zooms the exterior (#9 look-around, #36 exterior touch-rotate, #65 desktop mouse, #44 desktop
+  // mouse stick + right-drag look/orbit). Handles touch, pen AND mouse from the SAME listener:
+  // Cesium's ScreenSpaceEventHandler preventDefault()s the canvas pointerdown, which suppresses
+  // the legacy `mousedown` a separate desktop handler would need — so reading pointer events
+  // directly is the only reliable path for a real mouse. The stick, throttle and touch-buttons are
+  // pointer-events:auto DOM elements ABOVE the canvas, so a drag that starts on a control never
+  // reaches this canvas listener and the flight inputs stay untouched.
+  //
+  // In FPV: a MOUSE LEFT-drag (button 0) drives the analog roll/pitch axes (Option B, same seam as
+  // the touch stick); a MOUSE RIGHT-drag (button 2) drives look — the SAME "look" gesture branch
+  // touch already uses below, feeding the same host accumulator + ease-back (no second look state,
+  // #44 follow-up; replaces the old hold-Q pointer-lock look entirely). In the exterior view,
+  // EITHER mouse button orbits (left already did; right now does too). Touch keeps drag-look here
+  // unchanged — it already has its own on-screen analog stick (TouchControls), so a touch drag on
+  // the open canvas is for looking around, not flying.
   useEffect(() => {
     if (mode !== "FLYING" || !bundle) return;
     const canvas = bundle.viewer.scene.canvas;
     const points = new Map<number, { x: number; y: number }>();
-    let gesture: "look" | "orbit" | null = null;
+    let gesture: "look" | "orbit" | "stick" | null = null;
     let pinchLast = 0;
     /** Pinch pixels → the wheel-delta scale applyOrbitZoom expects; spreading fingers zooms IN. */
     const PINCH_TO_WHEEL = 2;
+    /** Where a "stick" drag started — roll/pitch are the offset from THIS point, not a per-move delta. */
+    let stickOrigin: { x: number; y: number } | null = null;
 
     const pinchDistance = () => {
       const [a, b] = [...points.values()];
@@ -950,7 +914,8 @@ export default function FlightSession({
     };
 
     const onDown = (e: PointerEvent) => {
-      if (e.pointerType === "mouse" && e.button !== 0) return; // left-drag only for the mouse
+      // Left (0) or right (2) button only for the mouse — middle-click etc. is ignored.
+      if (e.pointerType === "mouse" && e.button !== 0 && e.button !== 2) return;
       // Take the drag: stop any browser default (text selection, native drag) and keep receiving
       // moves after the pointer leaves the canvas via pointer capture.
       e.preventDefault();
@@ -958,8 +923,14 @@ export default function FlightSession({
       canvas.setPointerCapture?.(e.pointerId);
       if (points.size === 1) {
         if (hostRef.current?.isExteriorActive()) {
-          gesture = "orbit";
+          gesture = "orbit"; // exterior: either mouse button orbits, same as a touch drag
           hostRef.current.setOrbiting(true);
+        } else if (e.pointerType === "mouse" && e.button === 2) {
+          gesture = "look"; // FPV right-drag: look (shares the touch "look" gesture below)
+          hostRef.current?.setLookActive(true);
+        } else if (e.pointerType === "mouse") {
+          gesture = "stick"; // FPV left-drag: flight stick
+          stickOrigin = { x: e.clientX, y: e.clientY };
         } else {
           gesture = "look";
           hostRef.current?.setLookActive(true);
@@ -984,6 +955,15 @@ export default function FlightSession({
       }
       if (gesture === "orbit") hostRef.current?.applyOrbitDrag(dx, dy);
       else if (gesture === "look") hostRef.current?.applyLook(dx, dy);
+      else if (gesture === "stick" && stickOrigin) {
+        const { roll, pitch } = stickToAxes(
+          e.clientX - stickOrigin.x,
+          e.clientY - stickOrigin.y,
+          MOUSE_STICK_RADIUS_PX,
+          MOUSE_STICK_DEADZONE,
+        );
+        onStick(roll, pitch);
+      }
     };
     const onUp = (e: PointerEvent) => {
       if (!points.delete(e.pointerId)) return;
@@ -992,6 +972,10 @@ export default function FlightSession({
       if (points.size === 0) {
         if (gesture === "orbit") hostRef.current?.setOrbiting(false);
         else if (gesture === "look") hostRef.current?.setLookActive(false);
+        else if (gesture === "stick") {
+          onStickRelease(); // let go -> the sampler's spring eases roll/pitch back to centre
+          stickOrigin = null;
+        }
         gesture = null;
       }
     };
@@ -1010,8 +994,9 @@ export default function FlightSession({
       canvas.removeEventListener("pointercancel", onUp);
       hostRef.current?.setOrbiting(false);
       hostRef.current?.setLookActive(false);
+      onStickRelease();
     };
-  }, [mode, bundle]);
+  }, [mode, bundle, onStick, onStickRelease]);
 
   // ---- the armed resume waits for a click on the globe itself (spec §6) ----
   useEffect(() => {

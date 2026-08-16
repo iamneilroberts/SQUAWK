@@ -32,6 +32,7 @@
   ],
   "gear": "retractable",
   "display": { "asiMinKt": 60, "asiMaxKt": 400, "attitudeStyle": "ball" },
+  "lookArc": { "yawDeg": 110, "pitchUpDeg": 35, "pitchDownDeg": 20 },
   "sources": {
     "massKg": "TUNING KNOB (cruise/climb) — 11.5 t mid-mission weight (Citation Latitude MTOW ~13.97 t / 30,800 lb). Pinned by the FL430 cruise trim + sea-level climb tests.",
     "wingAreaM2": "TUNING KNOB — 30.0 m^2, wing loading ~376 kg/m^2 at 11.5 t (mid-size-jet band). Citation Latitude published geometry pending source verification.",
@@ -67,6 +68,7 @@
     "serviceCeilingM": "13,716 m (45,000 ft) — a real Citation Latitude certified service ceiling, now honest in-model: at biz's plausible cd0 (0.023) + maxPowerW (6.5 MW) + turbofanCornerM (FL210), full-throttle best climb at 45,000 ft measures ~258 fpm — a real ceiling (inside the test's 0-500 fpm band), reached because the per-class FL210 corner lapses stratospheric thrust enough to run the climb out at the certified altitude rather than thousands of feet above it.",
     "flaps": "0/1/2/FULL — simplified bizjet schedule; dCL0/dStallAlpha/dCD0 are TUNING KNOBS giving monotonically falling stall speeds and rising drag across the schedule.",
     "display": "ASI 60-400 kt spans the jet band, matching b738; attitudeStyle ball (EFIS horizon disc).",
-    "gear": "retractable — Citation-class bizjets have retractable gear."
+    "gear": "retractable — Citation-class bizjets have retractable gear.",
+    "lookArc": "// tunable — mapped to the AIRLINER family, not GA/turboprop (issue #44 follow-up, owner's four families didn't name a bizjet): a Citation-class flight deck is a swept transport-style cockpit like the 737's, just smaller, not a bubble canopy or a strut-and-doorframe GA cabin. Same numbers as b738 until an owner live-feel pass says otherwise."
   }
 }

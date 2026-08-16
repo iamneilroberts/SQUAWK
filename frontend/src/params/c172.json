@@ -55,6 +55,7 @@
   ],
   "gear": "fixed",
   "display": { "asiMinKt": 40, "asiMaxKt": 180, "attitudeStyle": "ball" },
+  "lookArc": { "yawDeg": 100, "pitchUpDeg": 40, "pitchDownDeg": 25 },
   "sources": {
     "massKg": "typical 2-pax + fuel operating mass, research doc range 950-1050 kg. NOT max gross (1157 kg): the POH V-speeds are quoted at max gross, but hitting them at max gross would require a CLmax outside the sourced 1.47-1.58 range. Documented compromise, decisions.md B-006.",
     "wingAreaM2": "JSBSim c172x.xml, cross-checked Roskam (174 sq ft)",
@@ -89,6 +90,7 @@
     "afterburnerFactor": "1.0 — the IO-360 has no afterburner. Required in every params file so a jet class can ship a real dry→wet factor without a per-class branch; 1.0 leaves thrustNewtons unchanged.",
     "mmo": "0.45 — a value the C172 never reaches (Vh 126 kt TAS at SL is M0.19; at the 14000 ft ceiling still under M0.25). Present only so the Mach annunciator is data everywhere, per spec §2.3; not a real placard limit.",
     "vleIasMs": "83.85 m/s — set equal to vneIasMs, so IAS can never exceed it (structurally unreachable even before the retractable-only GEAR O'SPD gate excludes fixed gear entirely, GR-004).",
-    "display": "ASI face 40–180 kt is the existing C172 gauge range (Vs0 40.4 to Vne 163 with headroom); attitudeStyle \"line\" keeps the minimalist horizon. Jets override both."
+    "display": "ASI face 40–180 kt is the existing C172 gauge range (Vs0 40.4 to Vne 163 with headroom); attitudeStyle \"line\" keeps the minimalist horizon. Jets override both.",
+    "lookArc": "// tunable — GA-piston family (issue #44 follow-up): wing struts and a low door sill limit how far you can crane your neck. yawDeg 100 either side, pitchUpDeg 40 (headliner), pitchDownDeg 25 (panel/floor)."
   }
 }
