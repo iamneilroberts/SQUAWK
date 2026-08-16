@@ -3240,4 +3240,10 @@ baseline (no test edits were needed — class names (`imm-bar-tapes`, `imm-tape`
   headroom" rather than computed from real font metrics, since there is no owner-approved 2-row
   screenshot to measure against yet.
 - Verify: `npx vitest run src/hud src/dashboard src/layout` — 37 files / 480 tests pass;
-  `tsc --noEmit` clean; `npm run build` exit 0. Shipped: main `0a61a28` (merge of `eb3b589`).
+  `tsc --noEmit` clean; `npm run build` exit 0. Shipped: main `8d827bb` (merge `0a61a28` of
+  `eb3b589`), prod Worker Version `10ce5b73-b05b-4324-9e3a-eeb3ddcad201` (fly.voygent.app).
+  Note: the merged branch also carried `e3e0463` "fix(hud): PAUSED/END overlay no longer shows
+  scroll bars" — a small, unrelated `.pause-card`/`.end-card` CSS fix that appeared on the
+  `hud-chrome-rework` branch from a concurrent session sharing that worktree, not authored by
+  this task. It shipped bundled with this merge; flagged here for visibility since it wasn't
+  reviewed as part of this task's scope.
