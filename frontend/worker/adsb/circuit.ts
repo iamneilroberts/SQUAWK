@@ -108,6 +108,11 @@ export function shouldAttemptProvider(
  * Mutates `store` in place with the outcome of an attempt against `providerKey`: a success
  * closes the circuit and clears the failure streak; a failure extends the streak and opens
  * the circuit (with a backoff cooldown) once the consecutive-failure threshold is reached.
+ *
+ * Returns whether `store` actually changed. A success against a provider that is already
+ * closed with no failure streak (the steady-state healthy case) has nothing to reset and is
+ * reported unchanged -- callers use this to skip a storage write on the hot path rather than
+ * persisting an identical record (or a bare `lastOutcomeAtMs` bump) on every single fetch.
  */
 export function recordProviderOutcome(
   store: ProviderCircuitStore,
@@ -115,8 +120,13 @@ export function recordProviderOutcome(
   outcome: "success" | "failure",
   nowMs: number,
   random: () => number,
-): void {
+): boolean {
   const existing = store.providers.find((candidate) => candidate.providerKey === providerKey);
+  if (outcome === "success" && (existing === undefined || (
+    existing.state === "closed" && existing.consecutiveFailures === 0
+  ))) {
+    return false;
+  }
   const next: ProviderCircuitRecord = existing === undefined
     ? defaultRecord(providerKey)
     : { ...existing };
@@ -138,4 +148,5 @@ export function recordProviderOutcome(
   if (store.providers.length > PROVIDER_CIRCUIT_MAX_TRACKED) {
     store.providers.splice(0, store.providers.length - PROVIDER_CIRCUIT_MAX_TRACKED);
   }
+  return true;
 }

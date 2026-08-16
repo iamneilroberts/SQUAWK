@@ -1079,6 +1079,26 @@ describe("AdsbBroker", () => {
       expect(attempted).toEqual([PRIMARY_KEY]);
     });
 
+    it("performs zero circuit-state writes for a healthy primary across repeated fetches (review finding #1)", async () => {
+      const target = stub();
+      await setClock(target, new FakeClock(START));
+      const provider = emulatedFailoverProvider(() => "success");
+      await setTrafficProvider(target, provider, CIRCUIT_SETTINGS);
+
+      // Distinct regions so each call is a real cache miss that reaches the provider, not a
+      // cache hit -- five successful fetches against an already-healthy primary.
+      for (let index = 0; index < 5; index += 1) {
+        await expect(traffic(target, 10 + index, -80)).resolves.toMatchObject({
+          traffic: { source: PRIMARY_KEY },
+        });
+      }
+
+      await runInDurableObject<AdsbBroker, void>(target, async (_broker, state) => {
+        const stored = await state.storage.get("provider-circuit:v1");
+        expect(stored).toBeUndefined(); // never written: healthy success is a no-op write
+      });
+    });
+
     it("opens the primary's circuit after consecutive failures, then skips it for the fallback without retrying it", async () => {
       const target = stub();
       const clock = new FakeClock(START);

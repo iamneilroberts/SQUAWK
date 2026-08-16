@@ -142,6 +142,47 @@ describe("backoffMs", () => {
   });
 });
 
+describe("recordProviderOutcome no-op reporting (review finding #1)", () => {
+  it("reports no change for a healthy success with no prior record", () => {
+    const store = emptyCircuitStore();
+    const changed = recordProviderOutcome(store, KEY, "success", 1_000, noJitter);
+    expect(changed).toBe(false);
+    expect(store.providers).toHaveLength(0);
+  });
+
+  it("reports no change for a healthy success against an already-closed, zero-failure record", () => {
+    const store = emptyCircuitStore();
+    recordProviderOutcome(store, KEY, "success", 1_000, noJitter); // no-op, no record created
+    const changed = recordProviderOutcome(store, KEY, "success", 2_000, noJitter);
+    expect(changed).toBe(false);
+    expect(store.providers).toHaveLength(0);
+  });
+
+  it("reports a change when success resets a sub-threshold failure streak", () => {
+    const store = emptyCircuitStore();
+    recordProviderOutcome(store, KEY, "failure", 1_000, noJitter); // 1 of 3, still closed
+    const changed = recordProviderOutcome(store, KEY, "success", 2_000, noJitter);
+    expect(changed).toBe(true);
+    const record = store.providers.find((candidate) => candidate.providerKey === KEY)!;
+    expect(record.consecutiveFailures).toBe(0);
+  });
+
+  it("reports a change when a half-open probe succeeds", () => {
+    const store = emptyCircuitStore();
+    for (let i = 0; i < PROVIDER_CIRCUIT_FAILURE_THRESHOLD; i += 1) {
+      recordProviderOutcome(store, KEY, "failure", 1_000, noJitter);
+    }
+    const cooldownUntil = store.providers.find((c) => c.providerKey === KEY)!.cooldownUntilMs;
+    expect(recordProviderOutcome(store, KEY, "success", cooldownUntil, noJitter)).toBe(true);
+  });
+
+  it("always reports a change on failure", () => {
+    const store = emptyCircuitStore();
+    expect(recordProviderOutcome(store, KEY, "failure", 1_000, noJitter)).toBe(true);
+    expect(recordProviderOutcome(store, KEY, "failure", 2_000, noJitter)).toBe(true);
+  });
+});
+
 describe("backward compatibility", () => {
   it("treats a missing provider-circuit:v1 key as an empty store (handled by AdsbBroker's loader)", () => {
     // AdsbBroker.loadProviderCircuits() defaults to emptyCircuitStore() when

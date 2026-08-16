@@ -1312,8 +1312,14 @@ export class AdsbBroker extends DurableObject<Env> {
       // state untouched, matching prior behavior for those call sites.
       if (providerKeyArg !== undefined) {
         const circuits = await loadProviderCircuits(transaction);
-        recordProviderOutcome(circuits, providerKeyArg, "failure", nowMs, this[PROVIDER_RANDOM]);
-        await transaction.put(PROVIDER_CIRCUIT_KEY, circuits);
+        const changed = recordProviderOutcome(
+          circuits,
+          providerKeyArg,
+          "failure",
+          nowMs,
+          this[PROVIDER_RANDOM],
+        );
+        if (changed) await transaction.put(PROVIDER_CIRCUIT_KEY, circuits);
       }
       await scheduleNextExpiry(transaction, state);
     });
@@ -1323,11 +1329,24 @@ export class AdsbBroker extends DurableObject<Env> {
     const nowMs = this[CLOCK].nowMs();
     await this.ctx.storage.transaction(async (transaction) => {
       const circuits = await loadProviderCircuits(transaction);
-      recordProviderOutcome(circuits, providerKeyArg, "success", nowMs, this[PROVIDER_RANDOM]);
-      await transaction.put(PROVIDER_CIRCUIT_KEY, circuits);
+      const changed = recordProviderOutcome(
+        circuits,
+        providerKeyArg,
+        "success",
+        nowMs,
+        this[PROVIDER_RANDOM],
+      );
+      // Steady-state healthy success (already closed, no failure streak) is a no-op: skip the
+      // write so a healthy provider does not cost a Durable Object write on every fetch.
+      if (changed) await transaction.put(PROVIDER_CIRCUIT_KEY, circuits);
     });
   }
 
+  // Reads provider-circuit:v1 in its own small transaction rather than folding into
+  // #claimProviderAttempt()'s daily-budget/minimum-interval transaction (considered during
+  // review): the two are orthogonal concerns -- per-provider circuit vs. global request
+  // budget -- and #claimProviderAttempt() already has its own sleep/retry loop. Merging them
+  // would couple unrelated state for a marginal read-cost saving, so left separate.
   async #shouldAttemptProvider(providerKeyArg: string): Promise<boolean> {
     const nowMs = this[CLOCK].nowMs();
     return this.ctx.storage.transaction(async (transaction) => {
