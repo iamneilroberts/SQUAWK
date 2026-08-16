@@ -5,6 +5,7 @@ import timeoutFixture from "../../test/fixtures/adsb/provider-timeout.json";
 import {
   fetchProviderTraffic,
   formatProviderUrl,
+  providerKey,
   ProviderConfigurationError,
   ProviderUnavailableError,
   readProviderSettings,
@@ -192,6 +193,68 @@ describe("ADS-B provider fetch", () => {
       fetchProviderTraffic(region, settings({ templates: [primary] }), gate(), dependencies(oversized)),
     ).rejects.toMatchObject(
       { failures: ["response-too-large"] } satisfies Partial<ProviderUnavailableError>,
+    );
+  });
+
+  it("derives a stable per-provider key from the template's hostname", () => {
+    expect(providerKey(primary)).toBe("primary.example");
+    expect(providerKey(fallback)).toBe("fallback.example");
+  });
+
+  it("skips a template a circuit-aware gate rejects, without claiming an attempt", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () =>
+      Response.json({ now: 1_785_118_044, ac: [] }),
+    );
+    const attemptGate: ProviderAttemptGate = {
+      beforeAttempt: vi.fn(async () => undefined),
+      attemptFailed: vi.fn(async () => undefined),
+      shouldAttempt: vi.fn(async (key: string) => key !== "primary.example"),
+      attemptSucceeded: vi.fn(async () => undefined),
+    };
+    const result = await fetchProviderTraffic(
+      region,
+      settings(),
+      attemptGate,
+      dependencies(fetchMock),
+    );
+
+    expect(result).toMatchObject({ source: "fallback.example" });
+    // The primary was skipped entirely: no fetch, no budget claim, no failure recorded.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(attemptGate.beforeAttempt).toHaveBeenCalledTimes(1);
+    expect(attemptGate.attemptFailed).not.toHaveBeenCalled();
+    expect(attemptGate.attemptSucceeded).toHaveBeenCalledExactlyOnceWith("fallback.example");
+  });
+
+  it("reports circuit-open failures and throws when every template is skipped", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    const attemptGate: ProviderAttemptGate = {
+      beforeAttempt: vi.fn(async () => undefined),
+      attemptFailed: vi.fn(async () => undefined),
+      shouldAttempt: vi.fn(async () => false),
+    };
+    await expect(
+      fetchProviderTraffic(region, settings(), attemptGate, dependencies(fetchMock)),
+    ).rejects.toMatchObject(
+      { failures: ["circuit-open", "circuit-open"] } satisfies Partial<ProviderUnavailableError>,
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(attemptGate.beforeAttempt).not.toHaveBeenCalled();
+  });
+
+  it("passes the failing provider's key and failure code to attemptFailed", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async (input) => {
+      if (String(input).startsWith("https://primary.example")) {
+        return new Response(JSON.stringify(rateLimited), { status: rateLimited.status });
+      }
+      return Response.json({ ac: [] });
+    });
+    const attemptGate = gate();
+    await fetchProviderTraffic(region, settings(), attemptGate, dependencies(fetchMock));
+
+    expect(attemptGate.attemptFailed).toHaveBeenCalledExactlyOnceWith(
+      "primary.example",
+      "rate-limited",
     );
   });
 });

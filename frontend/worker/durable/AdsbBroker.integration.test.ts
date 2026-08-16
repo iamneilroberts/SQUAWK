@@ -14,13 +14,18 @@ import {
   seedAdmittedRequestsForTest,
   setBrokerAlertSenderForTest,
   setBrokerClockForTest,
+  setBrokerRandomForTest,
   setBrokerSleeperForTest,
   setBrokerTrafficProviderForTest,
   type BrokerTrafficProvider,
 } from "./AdsbBroker";
 import type { AlertNotification } from "../alerts/types";
-import type { ProviderSettings } from "../adsb/provider";
+import { providerKey, ProviderUnavailableError, type ProviderSettings } from "../adsb/provider";
 import type { TrafficAudience } from "../adsb/traffic";
+import {
+  PROVIDER_CIRCUIT_BASE_COOLDOWN_MS,
+  PROVIDER_CIRCUIT_FAILURE_THRESHOLD,
+} from "../../src/shared/limits";
 import { FakeClock } from "./clock";
 import {
   brokerStub,
@@ -51,6 +56,43 @@ const TRAFFIC_SETTINGS: ProviderSettings = {
   maximumResponseBytes: 1_048_576,
 };
 
+// Primary + fallback, for per-provider circuit-breaker tests below.
+const CIRCUIT_SETTINGS: ProviderSettings = {
+  templates: [
+    "https://primary.test/{lat}/{lon}/{radius}",
+    "https://fallback.test/{lat}/{lon}/{radius}",
+  ],
+  minimumIntervalMs: 0,
+  dailyLimit: 1_000,
+  maximumRadiusNm: 300,
+  timeoutMs: 12_000,
+  maximumResponseBytes: 1_048_576,
+};
+const PRIMARY_KEY = providerKey(CIRCUIT_SETTINGS.templates[0]!);
+const FALLBACK_KEY = providerKey(CIRCUIT_SETTINGS.templates[1]!);
+
+/**
+ * Emulates provider.ts's real sequential per-template loop against `CIRCUIT_SETTINGS`,
+ * driving the same gate hooks (shouldAttempt / beforeAttempt / attemptFailed /
+ * attemptSucceeded) fetchProviderTraffic would, so these broker-level tests exercise the
+ * broker's real per-provider circuit wiring rather than a canned response.
+ */
+function emulatedFailoverProvider(outcomeFor: (key: string) => "success" | "failure"): BrokerTrafficProvider {
+  return async (_region, settings, gate, nowMs) => {
+    for (const template of settings.templates) {
+      const key = providerKey(template);
+      if (gate.shouldAttempt !== undefined && !(await gate.shouldAttempt(key))) continue;
+      await gate.beforeAttempt();
+      if (outcomeFor(key) === "success") {
+        await gate.attemptSucceeded?.(key);
+        return { contacts: [], source: key, sourceTime: nowMs() / 1_000, fetchedAt: nowMs() / 1_000 };
+      }
+      await gate.attemptFailed(key, "http");
+    }
+    throw new ProviderUnavailableError([]);
+  };
+}
+
 type TestEnvironment = Cloudflare.Env & {
   ADSB_BROKER: DurableObjectNamespace<AdsbBroker>;
 };
@@ -66,6 +108,12 @@ function stub(): DurableObjectStub<AdsbBroker> {
 async function setClock(target: DurableObjectStub<AdsbBroker>, clock: FakeClock) {
   await runInDurableObject<AdsbBroker, void>(target, (broker) => {
     setBrokerClockForTest(broker, clock);
+  });
+}
+
+async function setRandom(target: DurableObjectStub<AdsbBroker>, random: () => number) {
+  await runInDurableObject<AdsbBroker, void>(target, (broker) => {
+    setBrokerRandomForTest(broker, random);
   });
 }
 
@@ -1011,5 +1059,132 @@ describe("AdsbBroker", () => {
     const body = await response.text();
     expect(body).toContain("Broker command failed");
     expect(body).not.toContain("raw-secret-invalid-state");
+  });
+
+  describe("per-provider circuit breaker (#19 phase 1)", () => {
+    it("keeps a healthy primary's circuit closed and never touches the fallback", async () => {
+      const target = stub();
+      await setClock(target, new FakeClock(START));
+      const attempted: string[] = [];
+      const provider = emulatedFailoverProvider((key) => {
+        attempted.push(key);
+        return "success";
+      });
+      await setTrafficProvider(target, provider, CIRCUIT_SETTINGS);
+
+      await expect(traffic(target)).resolves.toMatchObject({
+        type: "traffic",
+        traffic: { source: PRIMARY_KEY, freshness: "FRESH" },
+      });
+      expect(attempted).toEqual([PRIMARY_KEY]);
+    });
+
+    it("opens the primary's circuit after consecutive failures, then skips it for the fallback without retrying it", async () => {
+      const target = stub();
+      const clock = new FakeClock(START);
+      await setClock(target, clock);
+      const attempted: string[] = [];
+      const provider = emulatedFailoverProvider((key) => {
+        attempted.push(key);
+        return key === PRIMARY_KEY ? "failure" : "success";
+      });
+      await setTrafficProvider(target, provider, CIRCUIT_SETTINGS);
+
+      // Distinct regions avoid the fresh-cache hit and the in-flight coalescing guard so each
+      // call reaches the provider; the circuit itself is keyed by provider, not by region.
+      for (let index = 0; index < PROVIDER_CIRCUIT_FAILURE_THRESHOLD; index += 1) {
+        await expect(traffic(target, 10 + index, -80)).resolves.toMatchObject({
+          traffic: { source: FALLBACK_KEY },
+        });
+      }
+      expect(attempted.filter((key) => key === PRIMARY_KEY)).toHaveLength(
+        PROVIDER_CIRCUIT_FAILURE_THRESHOLD,
+      );
+
+      attempted.length = 0;
+      await expect(traffic(target, 50, -80)).resolves.toMatchObject({
+        type: "traffic",
+        traffic: { source: FALLBACK_KEY },
+      });
+      // The open primary was skipped entirely -- not attempted and not retried.
+      expect(attempted).toEqual([FALLBACK_KEY]);
+    });
+
+    it("closes the circuit again after a successful half-open probe once the cooldown elapses", async () => {
+      const target = stub();
+      const clock = new FakeClock(START);
+      await setClock(target, clock);
+      await setRandom(target, () => 0); // deterministic zero-jitter cooldown
+      let primaryShouldFail = true;
+      const provider = emulatedFailoverProvider((key) =>
+        key === PRIMARY_KEY && primaryShouldFail ? "failure" : "success",
+      );
+      await setTrafficProvider(target, provider, CIRCUIT_SETTINGS);
+
+      for (let index = 0; index < PROVIDER_CIRCUIT_FAILURE_THRESHOLD; index += 1) {
+        await traffic(target, 10 + index, -80);
+      }
+      await expect(traffic(target, 40, -80)).resolves.toMatchObject({
+        traffic: { source: FALLBACK_KEY }, // still open, skipped
+      });
+
+      // Cooldown is exactly PROVIDER_CIRCUIT_BASE_COOLDOWN_MS at the failure threshold with
+      // zero jitter (see circuit.test.ts). Advancing to it flips the primary to half-open.
+      clock.advance(PROVIDER_CIRCUIT_BASE_COOLDOWN_MS);
+      primaryShouldFail = false;
+      await expect(traffic(target, 60, -80)).resolves.toMatchObject({
+        traffic: { source: PRIMARY_KEY }, // half-open probe succeeds
+      });
+
+      await expect(traffic(target, 70, -80)).resolves.toMatchObject({
+        traffic: { source: PRIMARY_KEY }, // circuit closed again
+      });
+    });
+
+    it("persists per-provider circuit state across a durable object restart", async () => {
+      const target = stub();
+      const clock = new FakeClock(START);
+      await setClock(target, clock);
+      const provider = emulatedFailoverProvider((key) =>
+        key === PRIMARY_KEY ? "failure" : "success",
+      );
+      await setTrafficProvider(target, provider, CIRCUIT_SETTINGS);
+      for (let index = 0; index < PROVIDER_CIRCUIT_FAILURE_THRESHOLD; index += 1) {
+        await traffic(target, 10 + index, -80);
+      }
+
+      await evictDurableObject(target);
+      await setClock(target, clock);
+      const attempted: string[] = [];
+      await setTrafficProvider(
+        target,
+        emulatedFailoverProvider((key) => {
+          attempted.push(key);
+          return key === PRIMARY_KEY ? "failure" : "success";
+        }),
+        CIRCUIT_SETTINGS,
+      );
+
+      await expect(traffic(target, 90, -80)).resolves.toMatchObject({
+        traffic: { source: FALLBACK_KEY },
+      });
+      expect(attempted).toEqual([FALLBACK_KEY]); // primary still open after restart
+    });
+
+    it("treats a missing provider-circuit:v1 key as closed for every provider (backward-compat)", async () => {
+      const target = stub();
+      await setClock(target, new FakeClock(START));
+      await command(target, { type: "status", forceMode: "NORMAL" });
+      await runInDurableObject<AdsbBroker, void>(target, async (_broker, state) => {
+        const stored = await state.storage.get("provider-circuit:v1");
+        expect(stored).toBeUndefined(); // never written until the first provider outcome
+      });
+
+      const provider = emulatedFailoverProvider(() => "success");
+      await setTrafficProvider(target, provider, CIRCUIT_SETTINGS);
+      await expect(traffic(target)).resolves.toMatchObject({
+        traffic: { source: PRIMARY_KEY },
+      });
+    });
   });
 });
