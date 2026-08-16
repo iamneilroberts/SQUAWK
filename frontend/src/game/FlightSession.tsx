@@ -17,7 +17,9 @@ import { readSpawnMode, writeSpawnMode, type SpawnMode } from "../takeover/spawn
 import { buildLockedMissionSpawn, buildSpawnState, type SpawnResult } from "../takeover/spawn";
 import { initialBearingDeg } from "../mission/geo";
 import { finalApproachFix } from "../mission/guidanceGeometry";
-import { onFinalPlacement, baseLegPlacement } from "../mission/spawnPlacement";
+import { onFinalPlacement, baseLegPlacement, finalApproachSpawnOverrides } from "../mission/spawnPlacement";
+import { unrankedMessage } from "../mission/unrankedReason";
+import type { TimeCompressionFactor } from "./timeCompression";
 import { createTerrainService, type TerrainService } from "../world/terrain";
 import { createKeyboard } from "../input/keyboard";
 import { createCesiumFlightHost } from "../globe/cesiumFlightHost";
@@ -139,6 +141,9 @@ export default function FlightSession({
   const [resumeArmed, setResumeArmed] = useState(false);
   /** Honest RE-SYNC refusal message shown in the .resync-note band (#5b); null = nothing shown. */
   const [resyncNote, setResyncNote] = useState<string | null>(null);
+  /** Mirrors the flight loop's active factor (#87), for the PauseOverlay selector's highlight.
+   *  Not read at 60 Hz — only updated where it changes (menu click, new flight, auto-reset note). */
+  const [timeCompression, setTimeCompressionState] = useState<TimeCompressionFactor>(1);
   /** Hex of the windscreen tag the player clicked, or null when no detail card is open. */
   const [trafficHex, setTrafficHex] = useState<string | null>(null);
   const [debrief, setDebrief] = useState<DebriefSubmission>({
@@ -223,6 +228,7 @@ export default function FlightSession({
       resyncNoteTimerRef.current = null;
     }
     setResyncNote(null);
+    setTimeCompressionState(1);
     setTrafficHex(null);
     setActiveLesson(null);
     activeLessonRef.current = null;
@@ -550,19 +556,23 @@ export default function FlightSession({
                 ) onTutorialCompleteRef.current?.(lockedMission.classId);
                 return;
               }
-              // Reposition spawn (spawn chooser): the spawn skipped part of the route, so the
-              // flight is local and unranked — no result submitted. A normal locked mission
-              // otherwise, so this sits after the freeFlight/instantFlight/tutorial short-circuits.
-              // Read imperatively (not the reactive hook) so toggling the spawn mode mid-COUNTDOWN
-              // doesn't sit in this effect's dep array and restart the countdown/terrain preload —
-              // mirrors `highestAssist`'s `useStore.getState().assist?.highestUsed` read above.
-              if (useStore.getState().repositioned) {
+              // Reposition spawn (spawn chooser, or a mid-flight SKIP TO FINAL — same flag, #87) and/or
+              // time compression (#87): either means the flight is local and unranked — no result
+              // submitted. A normal locked mission otherwise, so this sits after the
+              // freeFlight/instantFlight/tutorial short-circuits. Read imperatively (not the reactive
+              // hook) so toggling mid-COUNTDOWN doesn't sit in this effect's dep array and restart the
+              // countdown/terrain preload — mirrors `highestAssist`'s imperative read above.
+              const unranked = unrankedMessage({
+                repositioned: useStore.getState().repositioned,
+                timeCompressed: useStore.getState().timeCompressed,
+              });
+              if (unranked !== null) {
                 pendingResultRef.current = null;
                 activeLessonRef.current = null;
                 setActiveLesson(null);
                 setDebrief({
                   status: "unavailable",
-                  message: "REPOSITIONED — LOCAL AND UNRANKED. NO RESULT SUBMITTED.",
+                  message: unranked,
                 });
                 useStore.getState().fire("IMPACT");
                 return;
@@ -601,6 +611,7 @@ export default function FlightSession({
             },
           });
           loopRef.current = loop;
+          setTimeCompressionState(1); // a fresh flight always starts uncompressed (#87)
           loop.start();
           useStore.getState().fire("COUNTDOWN_DONE");
         },
@@ -699,6 +710,41 @@ export default function FlightSession({
     setResumeArmed(false);
     useStore.getState().fire("RESUME");
   }, []);
+
+  // ---- TIME COMPRESSION selector (#87), driven from the pause menu ----
+  // "Using" compression is sticky for the ranked flag even if the player dials it back to 1x —
+  // mirrors assist.highestUsed's "worst used, not current" semantics (mission/assistState.ts).
+  const setTimeCompression = useCallback((factor: TimeCompressionFactor) => {
+    loopRef.current?.setTimeCompression(factor);
+    setTimeCompressionState(factor);
+    if (factor > 1) useStore.getState().setTimeCompressed(true);
+  }, []);
+
+  // ---- SKIP TO FINAL (#87) ----
+  // Only meaningful with a real destination/approach assigned — not free flight. Reuses the exact
+  // mechanism RE-SYNC uses below: compute the placement, build spawn overrides, hand the built
+  // spawn to loop.resync() (which itself resets stats/landing-evidence/terrain-grace cleanly).
+  // Marks the flight unranked via the same `repositioned` flag the spawn-chooser's pre-flight
+  // "final" mode uses — a mid-flight skip to final IS a reposition, same honest meaning.
+  const skipToFinalAvailable = lockedMission !== null && !freeFlight;
+  const skipToFinal = useCallback(() => {
+    const loop = loopRef.current;
+    if (loop === null || lockedMission === null || freeFlight || !bundle) return;
+    const place = onFinalPlacement(lockedMission.assignment, lockedMission.missionProfile);
+    const rawHeight = bundle.heightSampler(degToRad(place.latDeg), degToRad(place.lonDeg));
+    const terrainHeightM = typeof rawHeight === "number" && Number.isFinite(rawHeight) ? rawHeight : null;
+    const newSpawn = buildLockedMissionSpawn(
+      lockedMission.contact,
+      lockedMission.classId,
+      lockedMission.aircraftProfile,
+      {
+        terrainHeightM,
+        ...finalApproachSpawnOverrides(place, lockedMission.aircraftProfile.flaps.length - 1),
+      },
+    );
+    loop.resync(newSpawn);
+    useStore.getState().setRepositioned(true);
+  }, [lockedMission, freeFlight, bundle]);
 
   // ---- Esc pauses; visibilitychange auto-pauses (spec §5, §6) ----
   useEffect(() => {
@@ -1258,6 +1304,10 @@ export default function FlightSession({
               ? () => useStore.getState().setAssistMode(nextAssistMode(assist.current))
               : undefined
           }
+          timeCompression={timeCompression}
+          onSetTimeCompression={setTimeCompression}
+          skipToFinalAvailable={skipToFinalAvailable}
+          onSkipToFinal={skipToFinalAvailable ? skipToFinal : undefined}
         />
       )}
       {mode === "FLYING" && tutorial === null && activeLesson !== null && (

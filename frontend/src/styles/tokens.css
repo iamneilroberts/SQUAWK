@@ -480,6 +480,15 @@ body {
   border-radius: 0;
 }
 .control-button:hover { background: rgba(95, 215, 224, 0.12); }
+/* #87: the active factor in the TIME COMPRESSION selector — amber like the ASSIST control's
+   current-value <strong>, not a hover state, so it stays visible without pointer focus. */
+.control-button-active {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: rgba(255, 176, 0, 0.12);
+}
+.compression-row { display: flex; gap: 6px; }
+.compression-row .control-button { flex: 1; }
 .control-button:focus-visible,
 .status-chip-button:focus-visible,
 .auth-close:focus-visible,

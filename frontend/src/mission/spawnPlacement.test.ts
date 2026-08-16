@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { onFinalPlacement, baseLegPlacement } from "./spawnPlacement";
+import { onFinalPlacement, baseLegPlacement, finalApproachSpawnOverrides } from "./spawnPlacement";
 import { finalApproachFix } from "./guidanceGeometry";
 import { greatCircleDistanceNm, headingDeltaDeg, initialBearingDeg } from "./geo";
 import { missionProfileForClass } from "./profiles";
@@ -52,5 +52,20 @@ describe("baseLegPlacement", () => {
     expect(headingDeltaDeg(p.headingDeg, toFaf)).toBeLessThan(1);
     expect(p.speedKt).toBe(profile.approach.targetSpeedKt);
     expect(p.verticalRateFpm).toBe(0);
+  });
+});
+
+describe("finalApproachSpawnOverrides", () => {
+  it("maps the placement onto buildLockedMissionSpawn's override shape, gear down, landing flaps (#87)", () => {
+    const profile = missionProfileForClass("c172s");
+    const place = onFinalPlacement(assignment, profile);
+    const overrides = finalApproachSpawnOverrides(place, 2);
+    expect(overrides.spawnPositionOverride).toEqual({ latDeg: place.latDeg, lonDeg: place.lonDeg });
+    expect(overrides.spawnAltitudeFtOverride).toBe(place.altitudeFt);
+    expect(overrides.spawnSpeedKtOverride).toBe(place.speedKt);
+    expect(overrides.spawnVerticalRateFpmOverride).toBe(place.verticalRateFpm);
+    expect(overrides.spawnHeadingDeg).toBe(place.headingDeg);
+    expect(overrides.initialGearDown).toBe(true);
+    expect(overrides.initialFlapDetent).toBe(2);
   });
 });

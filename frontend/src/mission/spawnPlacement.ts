@@ -23,6 +23,36 @@ export function onFinalPlacement(assignment: RunwayAssignment, profile: MissionP
   };
 }
 
+/**
+ * Maps an `onFinalPlacement` result onto `buildLockedMissionSpawn`'s override opts (#87): the
+ * shape a "put the SIM aircraft on a stabilized final" reposition needs, whether that happens
+ * before the flight starts (spawn chooser's "final" mode) or mid-flight (SKIP TO FINAL). Gear
+ * down + landing flaps, same as any other stabilized-final spawn — an aircraft on short final
+ * flying clean would be an obviously wrong "stabilized" claim.
+ */
+export function finalApproachSpawnOverrides(
+  place: Placement,
+  landingFlapDetentIndex: number,
+): {
+  spawnPositionOverride: { latDeg: number; lonDeg: number };
+  spawnAltitudeFtOverride: number;
+  spawnSpeedKtOverride: number;
+  spawnVerticalRateFpmOverride: number;
+  spawnHeadingDeg: number;
+  initialGearDown: true;
+  initialFlapDetent: number;
+} {
+  return {
+    spawnPositionOverride: { latDeg: place.latDeg, lonDeg: place.lonDeg },
+    spawnAltitudeFtOverride: place.altitudeFt,
+    spawnSpeedKtOverride: place.speedKt,
+    spawnVerticalRateFpmOverride: place.verticalRateFpm,
+    spawnHeadingDeg: place.headingDeg,
+    initialGearDown: true,
+    initialFlapDetent: landingFlapDetentIndex,
+  };
+}
+
 export function baseLegPlacement(assignment: RunwayAssignment, profile: MissionProfile): Placement {
   const faf = finalApproachFix(assignment, profile.guidance);
   // A base-leg entry: offset from the FAF along the outbound reciprocal, swung out by the base angle,

@@ -106,4 +106,89 @@ describe("PauseOverlay", () => {
     }));
     expect(text).not.toContain("ASSIST");
   });
+
+  it("omits TIME COMPRESSION when no handler is given (unaffected existing callers, #87)", () => {
+    const text = collectText(PauseOverlay({ armed: false, onArmResume: () => {}, onQuit: () => {} }));
+    expect(text.join(" ")).not.toContain("TIME COMPRESSION");
+  });
+
+  it("offers 1x/2x/4x once a handler is given, defaulting to 1x with no unranked note", () => {
+    const text = collectText(PauseOverlay({
+      armed: false,
+      onArmResume: () => {},
+      onQuit: () => {},
+      onSetTimeCompression: () => {},
+    })).join(" ");
+    expect(text).toContain("TIME COMPRESSION");
+    // {factor}× renders as two text nodes ("1" and "×"), joined with a space by collectText.
+    expect(text).toContain("1 ×");
+    expect(text).toContain("2 ×");
+    expect(text).toContain("4 ×");
+    expect(text).not.toContain("UNRANKED");
+  });
+
+  it("selecting a factor calls the handler with that factor", () => {
+    const calls: number[] = [];
+    const tree = PauseOverlay({
+      armed: false,
+      onArmResume: () => {},
+      onQuit: () => {},
+      timeCompression: 1,
+      onSetTimeCompression: (factor) => calls.push(factor),
+    });
+    // Buttons render in factor order (1x, 2x, 4x); pick the 4x one.
+    collectHandlers(tree)[4]();
+    expect(calls).toEqual([4]);
+  });
+
+  it("shows the honest unranked note only once compression is active", () => {
+    const text = collectText(PauseOverlay({
+      armed: false,
+      onArmResume: () => {},
+      onQuit: () => {},
+      timeCompression: 2,
+      onSetTimeCompression: () => {},
+    })).join(" ");
+    expect(text).toContain("LIVE TRAFFIC REAL-TIME");
+    expect(text).toContain("UNRANKED");
+  });
+
+  it("hides SKIP TO FINAL unless a real destination is assigned (skipToFinalAvailable)", () => {
+    const text = collectText(PauseOverlay({
+      armed: false,
+      onArmResume: () => {},
+      onQuit: () => {},
+      onSkipToFinal: () => {},
+    })).join(" ");
+    expect(text).not.toContain("SKIP TO FINAL");
+  });
+
+  it("offers SKIP TO FINAL with a real destination assigned, and fires the handler", () => {
+    let calls = 0;
+    const tree = PauseOverlay({
+      armed: false,
+      onArmResume: () => {},
+      onQuit: () => {},
+      skipToFinalAvailable: true,
+      onSkipToFinal: () => { calls++; },
+    });
+    const text = collectText(tree).join(" ");
+    expect(text).toContain("SKIP TO FINAL");
+    // [0] RESUME, [1] QUIT, [2] SKIP TO FINAL (no assist/compression rendered in this case).
+    collectHandlers(tree)[2]();
+    expect(calls).toBe(1);
+  });
+
+  it("hides TIME COMPRESSION and SKIP TO FINAL once armed — armed is a transient confirmation", () => {
+    const text = collectText(PauseOverlay({
+      armed: true,
+      onArmResume: () => {},
+      onQuit: () => {},
+      onSetTimeCompression: () => {},
+      skipToFinalAvailable: true,
+      onSkipToFinal: () => {},
+    })).join(" ");
+    expect(text).not.toContain("TIME COMPRESSION");
+    expect(text).not.toContain("SKIP TO FINAL");
+  });
 });
