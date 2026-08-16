@@ -148,10 +148,14 @@ function MiniAttitude({ snapshot, attitudeStyle }: {
  * they belong on the spawn card and debrief, not this rail. Only the amber SIM badge stays
  * here, so the live HUD never loses the unmistakability the badge alone provides.
  */
-function SimIdentity(_: { snapshot: HudSnapshot }) {
+function SimIdentity({ snapshot }: { snapshot: HudSnapshot }) {
+  // #87: a tiny amber multiplier chip when time compression is active. Live traffic still runs on
+  // real wall time (it visibly lags) — the chip is the honest "you are compressed" marker on mobile.
+  const compression = snapshot.timeCompression ?? 1;
   return (
     <span className="imm-bar-sim">
       <span className="hud-sim-badge">SIM</span>
+      {compression > 1 ? <span className="imm-tc-chip">{compression}×</span> : null}
     </span>
   );
 }

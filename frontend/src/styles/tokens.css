@@ -1952,6 +1952,17 @@ body {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(3px);
 }
+/* #87: tiny time-compression multiplier chip beside the SIM badge on the mobile bar. */
+.imm-tc-chip {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--amber);
+  border: 1px solid var(--amber);
+  border-radius: 2px;
+  padding: 0 3px;
+  line-height: 1.35;
+}
 .imm-hud .imm-bar-sim {
   display: inline-flex;
   align-items: center;
