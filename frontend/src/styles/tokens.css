@@ -864,10 +864,15 @@ body {
   flex-direction: column;
   gap: 10px;
   padding: 16px 20px;
+  box-sizing: border-box;
   min-width: 280px;
+  max-width: min(92vw, 360px);
   /* In a short landscape viewport the debrief is taller than the screen; cap it to the visible
-     area and scroll inside so EXIT TO BROWSE is always reachable (it was clipped off-screen). */
+     area and scroll inside (vertically only) so EXIT TO BROWSE is always reachable. overflow-x is
+     hidden so a child a hair too wide can't trip a horizontal scrollbar — which was itself stealing
+     height and tripping the vertical one, giving the panel BOTH bars (owner 2026-08-16). */
   max-height: calc(100dvh - 24px);
+  overflow-x: hidden;
   overflow-y: auto;
 }
 .end-card {
