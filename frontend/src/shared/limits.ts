@@ -68,3 +68,13 @@ export const READ_ONLY_THRESHOLD_REQUESTS =
   (DAILY_ADMITTED_REQUEST_LIMIT * READ_ONLY_THRESHOLD_PERCENT) / 100;
 export const KILL_SWITCH_THRESHOLD_REQUESTS =
   (DAILY_ADMITTED_REQUEST_LIMIT * KILL_SWITCH_THRESHOLD_PERCENT) / 100;
+
+// Per-provider circuit breaker (adsb-game#19 phase 1): a provider's circuit opens after this
+// many consecutive attempt failures and is skipped (fallover continues to the next provider)
+// until its exponential-backoff-with-jitter cooldown elapses, at which point one half-open
+// probe attempt is allowed through.
+export const PROVIDER_CIRCUIT_FAILURE_THRESHOLD = 3;
+export const PROVIDER_CIRCUIT_BASE_COOLDOWN_MS = 5_000;
+export const PROVIDER_CIRCUIT_MAX_COOLDOWN_MS = 5 * 60_000;
+export const PROVIDER_CIRCUIT_JITTER_FRACTION = 0.2;
+export const PROVIDER_CIRCUIT_MAX_TRACKED = 8;

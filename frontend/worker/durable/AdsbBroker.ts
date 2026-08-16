@@ -28,6 +28,13 @@ import {
 } from "../adsb/provider";
 import { normalizeRegion, type NormalizedRegion } from "../adsb/region";
 import {
+  emptyCircuitStore,
+  isCircuitStore,
+  recordProviderOutcome,
+  shouldAttemptProvider,
+  type ProviderCircuitStore,
+} from "../adsb/circuit";
+import {
   cacheMetadataForSuccess,
   isTrafficCacheBody,
   isTrafficCacheMetadata,
@@ -78,11 +85,13 @@ import {
 const STATE_KEY = "broker-state:v1";
 const TRAFFIC_INDEX_KEY = "traffic-index:v1";
 const PROVIDER_GATE_KEY = "provider-gate:v1";
+const PROVIDER_CIRCUIT_KEY = "provider-circuit:v1";
 const TRAFFIC_BODY_PREFIX = "traffic-body:v1:";
 const CLOCK = Symbol("AdsbBroker.clock");
 const TRAFFIC_PROVIDER = Symbol("AdsbBroker.trafficProvider");
 const PROVIDER_SETTINGS = Symbol("AdsbBroker.providerSettings");
 const SLEEP = Symbol("AdsbBroker.sleep");
+const PROVIDER_RANDOM = Symbol("AdsbBroker.providerRandom");
 const PROVIDER_QUEUE_SNAPSHOT = Symbol("AdsbBroker.providerQueueSnapshot");
 const SIGNED_VIEWER_COUNT = Symbol("AdsbBroker.signedViewerCount");
 const ALERT_SENDER = Symbol("AdsbBroker.alertSender");
@@ -266,6 +275,13 @@ async function loadProviderGate(storage: StorageView): Promise<ProviderGateState
     Number(stored.nextAttemptAtMs) < 0
   ) throw new Error("Provider gate state is invalid");
   return stored as ProviderGateState;
+}
+
+async function loadProviderCircuits(storage: StorageView): Promise<ProviderCircuitStore> {
+  const stored = await storage.get<unknown>(PROVIDER_CIRCUIT_KEY);
+  if (stored === undefined) return emptyCircuitStore();
+  if (!isCircuitStore(stored)) throw new Error("Provider circuit state is invalid");
+  return stored;
 }
 
 function zeroHealth(): BrokerHealthCounters {
@@ -909,6 +925,7 @@ export class AdsbBroker extends DurableObject<Env> {
   [PROVIDER_SETTINGS]: ProviderSettings | null = null;
   [SLEEP]: Sleeper = systemSleep;
   [ALERT_SENDER]: BrokerAlertSender = defaultAlertSender;
+  [PROVIDER_RANDOM]: () => number = Math.random;
 
   readonly #trafficInFlight = new Map<string, Promise<TrafficCacheSnapshot>>();
   readonly #providerQueue: ProviderJob[] = [];
@@ -1282,7 +1299,7 @@ export class AdsbBroker extends DurableObject<Env> {
     }
   }
 
-  async #recordProviderFailure(): Promise<void> {
+  async #recordProviderFailure(providerKeyArg?: string): Promise<void> {
     const nowMs = this[CLOCK].nowMs();
     await this.ctx.storage.transaction(async (transaction) => {
       const state = await loadState(transaction, nowMs);
@@ -1290,7 +1307,51 @@ export class AdsbBroker extends DurableObject<Env> {
       cleanExpiredLeases(state, nowMs);
       state.health.providerFailures += 1;
       await transaction.put(STATE_KEY, state);
+      // providerKeyArg is only supplied by the real per-template fetch loop (provider.ts);
+      // callers that report a generic failure with no provider identity leave circuit
+      // state untouched, matching prior behavior for those call sites.
+      if (providerKeyArg !== undefined) {
+        const circuits = await loadProviderCircuits(transaction);
+        const changed = recordProviderOutcome(
+          circuits,
+          providerKeyArg,
+          "failure",
+          nowMs,
+          this[PROVIDER_RANDOM],
+        );
+        if (changed) await transaction.put(PROVIDER_CIRCUIT_KEY, circuits);
+      }
       await scheduleNextExpiry(transaction, state);
+    });
+  }
+
+  async #recordProviderCircuitSuccess(providerKeyArg: string): Promise<void> {
+    const nowMs = this[CLOCK].nowMs();
+    await this.ctx.storage.transaction(async (transaction) => {
+      const circuits = await loadProviderCircuits(transaction);
+      const changed = recordProviderOutcome(
+        circuits,
+        providerKeyArg,
+        "success",
+        nowMs,
+        this[PROVIDER_RANDOM],
+      );
+      // Steady-state healthy success (already closed, no failure streak) is a no-op: skip the
+      // write so a healthy provider does not cost a Durable Object write on every fetch.
+      if (changed) await transaction.put(PROVIDER_CIRCUIT_KEY, circuits);
+    });
+  }
+
+  // Reads provider-circuit:v1 in its own small transaction rather than folding into
+  // #claimProviderAttempt()'s daily-budget/minimum-interval transaction (considered during
+  // review): the two are orthogonal concerns -- per-provider circuit vs. global request
+  // budget -- and #claimProviderAttempt() already has its own sleep/retry loop. Merging them
+  // would couple unrelated state for a marginal read-cost saving, so left separate.
+  async #shouldAttemptProvider(providerKeyArg: string): Promise<boolean> {
+    const nowMs = this[CLOCK].nowMs();
+    return this.ctx.storage.transaction(async (transaction) => {
+      const circuits = await loadProviderCircuits(transaction);
+      return shouldAttemptProvider(circuits, providerKeyArg, nowMs);
     });
   }
 
@@ -1306,7 +1367,10 @@ export class AdsbBroker extends DurableObject<Env> {
           settings,
           {
             beforeAttempt: () => this.#claimProviderAttempt(settings, priority),
-            attemptFailed: () => this.#recordProviderFailure(),
+            shouldAttempt: (providerKeyArg) => this.#shouldAttemptProvider(providerKeyArg),
+            attemptFailed: (providerKeyArg) => this.#recordProviderFailure(providerKeyArg),
+            attemptSucceeded: (providerKeyArg) =>
+              this.#recordProviderCircuitSuccess(providerKeyArg),
           },
           () => this[CLOCK].nowMs(),
         );
@@ -1576,6 +1640,10 @@ export function setBrokerTrafficProviderForTest(
 
 export function setBrokerSleeperForTest(broker: AdsbBroker, sleeper: Sleeper): void {
   broker[SLEEP] = sleeper;
+}
+
+export function setBrokerRandomForTest(broker: AdsbBroker, random: () => number): void {
+  broker[PROVIDER_RANDOM] = random;
 }
 
 export function setBrokerAlertSenderForTest(

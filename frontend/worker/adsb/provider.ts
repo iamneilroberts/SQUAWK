@@ -40,7 +40,11 @@ export type ProviderTraffic = {
 
 export type ProviderAttemptGate = {
   beforeAttempt(): Promise<void>;
-  attemptFailed(): Promise<void>;
+  attemptFailed(providerKey?: string, code?: ProviderFailureCode): Promise<void>;
+  /** Per-provider circuit check. Omit to always attempt (no circuit breaking). */
+  shouldAttempt?(providerKey: string): Promise<boolean>;
+  /** Per-provider success hook, used to reset circuit state. Omit if not needed. */
+  attemptSucceeded?(providerKey: string): Promise<void>;
 };
 
 export type ProviderDependencies = {
@@ -56,7 +60,8 @@ export type ProviderFailureCode =
   | "rate-limited"
   | "http"
   | "response-too-large"
-  | "malformed";
+  | "malformed"
+  | "circuit-open";
 
 export class ProviderConfigurationError extends Error {
   constructor() {
@@ -195,6 +200,14 @@ export function formatProviderUrl(
   return url;
 }
 
+/**
+ * Stable per-provider identity for circuit-breaker state, independent of the
+ * lat/lon/radius substituted into a template on each request.
+ */
+export function providerKey(template: string): string {
+  return formatProviderUrl(template, 0, 0, 10).hostname;
+}
+
 async function readBoundedJson(response: Response, maximumBytes: number): Promise<unknown> {
   const declared = response.headers.get("content-length");
   if (declared !== null && Number(declared) > maximumBytes) {
@@ -255,6 +268,11 @@ export async function fetchProviderTraffic(
 
   const failures: ProviderFailureCode[] = [];
   for (const template of settings.templates) {
+    const key = providerKey(template);
+    if (gate.shouldAttempt !== undefined && !(await gate.shouldAttempt(key))) {
+      failures.push("circuit-open");
+      continue;
+    }
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | null = null;
     let claimed = false;
@@ -281,6 +299,7 @@ export async function fetchProviderTraffic(
       const payload = await readBoundedJson(response, settings.maximumResponseBytes);
       if (adsbRows(payload) === null) throw new ProviderAttemptError("malformed");
       const normalized = normalizeAdsbPayload(payload);
+      await gate.attemptSucceeded?.(key);
       return {
         contacts: usableTrafficContacts(normalized.contacts),
         source: url.hostname,
@@ -298,8 +317,9 @@ export async function fetchProviderTraffic(
           }),
         );
       }
-      failures.push(failureCode(error));
-      await gate.attemptFailed();
+      const code = failureCode(error);
+      failures.push(code);
+      await gate.attemptFailed(key, code);
     } finally {
       if (timer !== null) dependencies.clearTimeout(timer);
     }
