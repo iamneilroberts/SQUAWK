@@ -1,0 +1,6 @@
+{
+  "note": "ICAO type designators treated as T-6 Texan II-class turboprop trainer for the class resolver (issue #8). Data, not code: adding a type here is the only thing needed to fly it as the t6 model.",
+  "designators": [
+    "T6", "TEX2"
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "classId": "t6",
+  "profileVersion": "mission-t6-2026-08-15-v1",
+  "assignmentVersion": "assignment-2026-08-10-v1",
+  "scoringVersion": "scoring-2026-08-10-v1",
+  "reachability": {
+    "maxMinutes": 30,
+    "minDestinationNm": 12,
+    "defaultPlanningSpeedKt": 220,
+    "minPlanningSpeedKt": 100,
+    "maxPlanningSpeedKt": 280
+  },
+  "runway": {
+    "airportSizes": ["small", "medium", "large"],
+    "surfaces": ["HARD"],
+    "minLengthFt": 3000,
+    "minWidthFt": 60,
+    "requireLighted": false,
+    "requireBothEnds": true,
+    "maxAirportElevationFt": 9000,
+    "maxInitialHeadingDeltaDeg": 100
+  },
+  "ranking": {
+    "lengthMarginWeight": 36,
+    "widthMarginWeight": 18,
+    "lightedBonus": 8,
+    "hardSurfaceBonus": 10,
+    "minutePenalty": 0.2,
+    "headingConeDeg": 60,
+    "preferredBandMinNm": 12,
+    "preferredBandMaxNm": 50,
+    "outsideBandPenaltyWeight": 0.5
+  },
+  "guidance": {
+    "approachLengthNm": 7,
+    "corridorWidthFt": 900,
+    "gateSpacingNm": 1,
+    "glideSlopeDeg": 3,
+    "flareHeightFt": 25,
+    "finalApproachFixNm": 5,
+    "baseLegOffsetNm": 2.5,
+    "baseLegOffsetDeg": 45
+  },
+  "approach": {
+    "targetSpeedKt": 100,
+    "bandKt": 10
+  },
+  "landing": {
+    "requireGearDown": true,
+    "maxSinkRateFpm": 650,
+    "maxAbsBankDeg": 8,
+    "minPitchDeg": -3,
+    "maxPitchDeg": 12,
+    "minTouchdownSpeedKt": 75,
+    "maxTouchdownSpeedKt": 110,
+    "maxLoadFactor": 2.2,
+    "maxRolloutCrossTrackFt": 45
+  },
+  "scoreCurves": {
+    "verticalSpeedFpm": [{"value": 100, "score": 1}, {"value": 325, "score": 0.7}, {"value": 650, "score": 0}],
+    "centerlineErrorFt": [{"value": 0, "score": 1}, {"value": 15, "score": 0.7}, {"value": 45, "score": 0}],
+    "touchdownZoneFt": [{"value": 500, "score": 1}, {"value": 1300, "score": 0.6}, {"value": 2300, "score": 0}],
+    "headingErrorDeg": [{"value": 0, "score": 1}, {"value": 3, "score": 0.7}, {"value": 10, "score": 0}],
+    "speedErrorKt": [{"value": 0, "score": 1}, {"value": 5, "score": 0.6}, {"value": 14, "score": 0}],
+    "bankDeg": [{"value": 0, "score": 1}, {"value": 3, "score": 0.6}, {"value": 8, "score": 0}],
+    "rolloutCrossTrackFt": [{"value": 0, "score": 1}, {"value": 15, "score": 0.7}, {"value": 45, "score": 0}]
+  }
+}

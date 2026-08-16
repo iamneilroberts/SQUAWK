@@ -1,0 +1,74 @@
+{
+  "id": "t6",
+  "label": "T6",
+  "modelNote": "T-6 TEXAN II MODEL",
+  "massKg": 2857,
+  "wingAreaM2": 16.69,
+  "wingSpanM": 10.19,
+  "aspectRatio": 6.22,
+  "aero": {
+    "cl0": 0.20, "clAlphaPerRad": 5.2, "stallAlphaRad": 0.27, "postStallDecayRad": 0.18,
+    "cd0": 0.026, "gearDragCd0": 0.02, "speedbrakeCd0": 0.0, "oswaldE": 0.75, "cyBeta": -0.60
+  },
+  "control": {
+    "rollRateMaxRadS": 2.6, "pitchRateMaxRadS": 0.45, "yawRateMaxRadS": 0.25,
+    "rollDampingPerS": 3.5, "pitchDampingPerS": 3.0, "yawDampingPerS": 2.3,
+    "pitchStiffnessPerS2": 3.5, "yawStiffnessPerS2": 2.5, "refDynamicPressurePa": 5000,
+    "trimAlphaCenterRad": 0.025, "trimAlphaRangeRad": 0.28
+  },
+  "propulsion": {
+    "maxPowerW": 820000, "lapseModel": "turboprop", "propEfficiency": 0.85,
+    "propPeakSpeedMs": 90, "afterburnerFactor": 1.0,
+    "turbopropCornerM": 5500, "turbopropLapseExp": 2.2
+  },
+  "limits": {
+    "vneIasMs": 164.62, "vnoIasMs": 144.04, "vfeIasMs": 77.17, "gLimitPos": 7.0,
+    "gLimitNeg": -3.5, "serviceCeilingM": 9448.8, "mmo": 0.60, "vleIasMs": 77.17
+  },
+  "flaps": [
+    { "label": "0", "dCL0": 0.0, "dStallAlphaRad": 0.0, "dCD0": 0.0 },
+    { "label": "APPR", "dCL0": 0.4, "dStallAlphaRad": -0.03, "dCD0": 0.02 },
+    { "label": "FULL", "dCL0": 0.75, "dStallAlphaRad": -0.06, "dCD0": 0.06 }
+  ],
+  "gear": "retractable",
+  "display": { "asiMinKt": 40, "asiMaxKt": 350, "attitudeStyle": "ball" },
+  "sources": {
+    "massKg": "TUNING KNOB — 2,857 kg (6,300 lb), the T-6A Texan II published max gross weight (single PT6A-68 turboprop military/civil trainer). Source verification pending (issue #8 — owner starting-list item).",
+    "wingAreaM2": "16.69 m^2 (179.6 sq ft published T-6A reference wing area); wing loading ~171 kg/m^2 at 2,857 kg. Source verification pending.",
+    "wingSpanM": "10.19 m (33 ft 5 in published T-6A span). Source verification pending; consistent with aspectRatio: b^2/S = 10.19^2/16.69 = 6.22.",
+    "aspectRatio": "6.22 — a low-AR trainer wing (aerobatic-capable, not the King Air's efficient-cruise high-AR wing); b^2/S = 10.19^2/16.69 = 6.22.",
+    "cl0": "TUNING KNOB (stall band) — 0.20 zero-AoA lift for a moderately cambered trainer wing.",
+    "clAlphaPerRad": "TUNING KNOB (stall band) — 5.2/rad. Pinned by the offline force-balance check against the T-6A's published ~80 kt clean stall.",
+    "stallAlphaRad": "TUNING KNOB (stall band) — 15.5 deg (0.27 rad) clean critical AoA; CLmax_clean = 0.20 + 5.2*0.27 = 1.60. Gives a clean stall of ~80 kt at 2,857 kg (Vstall = sqrt(2*W/(rho*S*CLmax))), matching the published T-6A clean stall band (~78-88 kt depending on config). Pinned alongside clAlphaPerRad.",
+    "postStallDecayRad": "TUNING KNOB — 0.18 rad fade width past the break, matching the biz/tprop pattern.",
+    "cd0": "TUNING KNOB (cruise TAS + SL climb + ceiling) — 0.026, a trainer-class clean parasite-drag coefficient: draggier than the King Air's 0.028-per-larger-wing figure is not comparable directly, but on this smaller wing it holds a ~291 kt TAS cruise at FL200/90% power and a ~3,100 fpm sea-level climb (offline force-balance check, matching the T-6A's published ~3,100+ fpm initial climb) while still producing a real, barely-climbing ceiling (~170 fpm) at the certified 31,000 ft service ceiling. Source verification pending.",
+    "gearDragCd0": "TUNING KNOB — 0.02 retractable tricycle-gear increment, matching the tprop/biz convention.",
+    "speedbrakeCd0": "0.0 — the T-6A has no airbrake/spoiler, so this increment is honestly zero (num(), not positive(), so 0 is legal — mirrors tprop's King Air).",
+    "oswaldE": "TUNING KNOB — 0.75, a modest span efficiency for a low-AR trainer wing (below the King Air's 0.80 high-AR figure).",
+    "cyBeta": "TUNING KNOB — -0.60/rad single-engine trainer side-force slope.",
+    "rollRateMaxRadS": "TUNING KNOB — ~149 deg/s, the T-6A's aerobatic-capable roll rate (decisions B-007 pattern): well above the King Air's 40 deg/s, below the F-5E's fighter 200 deg/s — an unaugmented but nimble trainer.",
+    "pitchRateMaxRadS": "TUNING KNOB — ~26 deg/s.",
+    "yawRateMaxRadS": "TUNING KNOB — ~14 deg/s.",
+    "damping/stiffness": "TUNING KNOBS — pitch omega_n = sqrt(3.5) = 1.87 rad/s, zeta = 3.0/(2*1.87) = 0.80 (well damped, crisp trainer feel).",
+    "refDynamicPressurePa": "TUNING KNOB — 5000 Pa, above the King Air's 3500 Pa (a faster trainer reaches full control authority at a higher speed) and below the bizjet's 6500 Pa.",
+    "trimAlphaCenterRad": "TUNING KNOB — 1.4 deg, near cruise AoA.",
+    "trimAlphaRangeRad": "TUNING KNOB — +-16.0 deg trim authority. Wide enough that full aft stick/trim can pull past the 15.5 deg clean stall AoA — an honest aerobatic-trainer envelope, and pinned by the g-clamp envelope test (a fast-entry full pull must actually reach the published +7.0g limit before the wing runs out of CLmax; a narrower range left the pull ~9% short of 7g at a 250 kt entry).",
+    "propulsion": "TUNING KNOBS — single flat-rated turboprop via the shared power-limited-PROP formula T=eta*P/max(V,propPeakSpeedMs) (same formula as tprop/C172, not the flat-rated-turbofan constant-thrust form): propPeakSpeedMs 90 m/s sits below cruise TAS (~150 m/s) so cruise thrust falls with speed like a real prop. maxPowerW 820,000 W = 1,100 shp flat-rated PT6A-68 (SOURCED: 1,100 shp * 745.7 W/shp = 820,270 W, the T-6A's published engine rating). eta*P/peak = 0.85*820000/90 = 7.75 kN full-throttle static-band thrust; T/W ~0.28 at 2,857 kg. afterburnerFactor 1.0 (none).",
+    "propPeakSpeedMs": "TUNING KNOB (climb + cruise) — 90 m/s (175 kt): below cruise TAS so cruise thrust falls with speed, above best-climb TAS so the efficiency ramp caps SL climb to the plausible ~3,100 fpm the T-6A publishes.",
+    "propEfficiency": "0.85 — the eta in T = eta*P/max(V,peak), matching the other turboprop/piston classes.",
+    "lapseModel": "\"turboprop\" — same flat-rated-shaft-power lapse as tprop (decisions.md TP-001); a single PT6A is the same engine family as the King Air's PT6A-60A, just smaller.",
+    "afterburnerFactor": "1.0 — turboprop, no afterburner.",
+    "turbopropCornerM": "TUNING KNOB (ceiling) — 5,500 m (~FL180), below tprop's 6,858 m corner: the T-6A's lower 31,000 ft certified ceiling (vs the King Air's 35,000 ft) needs its shaft power to start lapsing sooner. Offline force-balance check: best climb at 31,000 ft measures ~170 fpm — a real, barely-climbing ceiling. Not a published PT6A-68 figure; source verification pending.",
+    "turbopropLapseExp": "TUNING KNOB (ceiling) — 2.2, close to tprop's 2.5 stratospheric falloff exponent. Not a published figure.",
+    "limits.vneIasMs": "TUNING KNOB — ~320 KIAS = 164.6 m/s, a plausible Vne for the T-6A's published ~316 KTAS max speed band. Source verification pending.",
+    "limits.vnoIasMs": "TUNING KNOB — ~280 KIAS = 144.0 m/s display caution reference below Vne.",
+    "limits.vfeIasMs": "TUNING KNOB — ~150 KIAS = 77.2 m/s flap placard; display only.",
+    "mmo": "TUNING KNOB — 0.60, well subsonic (the T-6A never approaches transonic speeds; spec §1/§7 has no wave-drag physics regardless).",
+    "vleIasMs": "TUNING KNOB — ~150 KIAS = 77.2 m/s Vle/Vlo placard; display only. Set equal to vfeIasMs (a plausible single combined gear/flap-speed placard for a light trainer); source verification pending.",
+    "gLimits": "+7.0 / -3.5 — the T-6A's published aerobatic/utility-category load-factor limits (a genuinely aerobatic-capable trainer, between the biz's +3.0 transport limit and the F-5E's +7.33 fighter limit).",
+    "serviceCeilingM": "9,448.8 m (31,000 ft) — the T-6A's published certified service ceiling. Made honest in-model by the turboprop lapse (turbopropCornerM 5500 + turbopropLapseExp 2.2): full-throttle best climb there measures ~170 fpm, a real barely-climbing ceiling.",
+    "flaps": "0/APPR/FULL — simplified trainer schedule mirroring tprop; dCL0/dStallAlpha/dCD0 are TUNING KNOBS giving monotonically falling stall speeds and rising drag.",
+    "display": "ASI 40-350 kt spans the trainer band (faster top end than the King Air, slower than the jets); attitudeStyle ball — the T-6A has a modern all-glass EFIS cockpit (Rockwell Collins Pro Line 21), unlike the King Air's steam-gauge six-pack, so it shares the jets' full attitude-disc rendering.",
+    "gear": "retractable — the T-6A has retractable tricycle gear."
+  }
+}

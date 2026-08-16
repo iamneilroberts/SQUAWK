@@ -11,7 +11,7 @@ import { checkEligibility, resolveClass } from "../takeover/eligibility";
 /** How often the list re-evaluates flyability against the wall clock (piece 3). */
 const AGE_TICK_MS = 5_000;
 
-export type ContactClassFilter = "all" | "c172s" | "b738" | "f5e" | "biz" | "tprop" | "r44" | "unsupported";
+export type ContactClassFilter = "all" | "c172s" | "b738" | "f5e" | "biz" | "tprop" | "r44" | "t6" | "c130" | "unsupported";
 export type ContactAltitudeFilter = "all" | "low" | "mid" | "high";
 export type ContactEligibilityFilter = "all" | "eligible" | "ineligible";
 
@@ -177,6 +177,8 @@ export default function ContactList({
             <option value="biz">BUSINESS JET</option>
             <option value="tprop">TURBOPROP</option>
             <option value="r44">HELICOPTER</option>
+            <option value="t6">TRAINER</option>
+            <option value="c130">HEAVY TURBOPROP</option>
             <option value="unsupported">UNSUPPORTED</option>
           </select>
           <select

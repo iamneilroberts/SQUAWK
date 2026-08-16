@@ -10,6 +10,8 @@ import f5eRaw from "../params/f5e.json";
 import bizRaw from "../params/biz.json";
 import tpropRaw from "../params/tprop.json";
 import r44Raw from "../params/r44.json";
+import t6Raw from "../params/t6.json";
+import c130Raw from "../params/c130.json";
 
 function asRecord(value: unknown, path: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -273,6 +275,22 @@ export function loadR44(): ClassParams {
   return cachedR44;
 }
 
+let cachedT6: ClassParams | null = null;
+
+/** The T-6 Texan II-class turboprop trainer (power-limited prop, turbine altitude lapse). */
+export function loadT6(): ClassParams {
+  if (cachedT6 === null) cachedT6 = validateClassParams(t6Raw);
+  return cachedT6;
+}
+
+let cachedC130: ClassParams | null = null;
+
+/** The C-130 Hercules-class heavy turboprop (power-limited prop, turbine altitude lapse). */
+export function loadC130(): ClassParams {
+  if (cachedC130 === null) cachedC130 = validateClassParams(c130Raw);
+  return cachedC130;
+}
+
 /** Resolve a class id (from resolveClass) to its validated params. Unknown id is a bug, not data. */
 export function loadClassById(id: string): ClassParams {
   switch (id) {
@@ -282,6 +300,8 @@ export function loadClassById(id: string): ClassParams {
     case "biz": return loadBiz();
     case "tprop": return loadTprop();
     case "r44": return loadR44();
+    case "t6": return loadT6();
+    case "c130": return loadC130();
     default: throw new Error(`unknown class id: ${id}`);
   }
 }

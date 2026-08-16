@@ -41,6 +41,8 @@ export const FREE_FLIGHT_CLASSES: Record<AircraftClassId, FreeFlightClassInfo> =
   biz: { hex: "ff0b12", flight: "FREEBIZ", t: "C680", defaultAltitudeFt: 24_000, minAltitudeFt: 2_000, maxAltitudeFt: 45_000 },
   tprop: { hex: "ff0b35", flight: "FREETRP", t: "B350", defaultAltitudeFt: 18_000, minAltitudeFt: 1_500, maxAltitudeFt: 34_000 },
   r44: { hex: "ff0044", flight: "FREEHEL", t: "R44", defaultAltitudeFt: 1_000, minAltitudeFt: 200, maxAltitudeFt: 10_000 },
+  t6: { hex: "ff0006", flight: "FREET6", t: "T6", defaultAltitudeFt: 12_000, minAltitudeFt: 1_500, maxAltitudeFt: 28_000 },
+  c130: { hex: "ff0130", flight: "FREEHRC", t: "C130", defaultAltitudeFt: 15_000, minAltitudeFt: 1_500, maxAltitudeFt: 30_000 },
 };
 
 /** Stable ids so a free flight is identifiable without a random source in pure tests. */
@@ -51,6 +53,8 @@ const MISSION_IDS: Record<AircraftClassId, string> = {
   biz: "00000000-0000-4000-8000-000000000204",
   tprop: "00000000-0000-4000-8000-000000000205",
   r44: "00000000-0000-4000-8000-000000000206",
+  t6: "00000000-0000-4000-8000-000000000207",
+  c130: "00000000-0000-4000-8000-000000000208",
 };
 
 export type FreeFlightOptions = {

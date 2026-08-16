@@ -1,0 +1,6 @@
+{
+  "note": "ICAO type designators treated as C-130 Hercules-class heavy turboprop for the class resolver (issue #8). Data, not code: adding a type here is the only thing needed to fly it as the c130 model. C-17 (a heavy jet transport, not a turboprop) stays in the airliner bucket instead — see airliner-types.json.",
+  "designators": [
+    "C130", "C30J", "L100", "LMH1"
+  ]
+}

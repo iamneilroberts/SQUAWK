@@ -52,9 +52,10 @@ const LESSONS: Record<AircraftClassId, readonly TutorialLesson[]> = {
     { id: "configure", title: "Gear and speed", body: "Confirm gear down and stabilize near 160 KT. Avoid abrupt bank close to the ground.", triggerAirtimeS: 20 },
     { id: "flare", title: "Fighter flare", body: "Ease into the flare near 30 FT, close power, and preserve centerline through rollout.", triggerAirtimeS: 58 },
   ],
-  // biz, tprop, and r44 have no TUTORIAL_DEFINITIONS entry below (owner 2026-08-13: no tutorial
-  // for biz/tprop; r44 follows the same pattern at #30 — no scripted rotorcraft landing tutorial
-  // in v1) — these keys exist only to satisfy Record<AircraftClassId, ...> and are unreachable.
+  // biz, tprop, r44, t6, and c130 have no TUTORIAL_DEFINITIONS entry below (owner 2026-08-13: no
+  // tutorial for biz/tprop; r44 follows the same pattern at #30; t6/c130 follow it again at #8 —
+  // no scripted landing tutorial for every fixed-wing class in v1) — these keys exist only to
+  // satisfy Record<AircraftClassId, ...> and are unreachable.
   biz: [
     { id: "hold", title: "Stabilize", body: "Fly a stabilized approach at target speed with small corrections.", triggerAirtimeS: 2 },
     { id: "configure", title: "Configure early", body: "Extend gear and flaps early; target the class approach speed.", triggerAirtimeS: 20 },
@@ -69,6 +70,16 @@ const LESSONS: Record<AircraftClassId, readonly TutorialLesson[]> = {
     { id: "hold", title: "Hold a hover", body: "Small, smooth cyclic inputs. Use collective to hold altitude.", triggerAirtimeS: 2 },
     { id: "configure", title: "Descend to land", body: "Ease collective down for a slow, controlled descent toward the pad.", triggerAirtimeS: 20 },
     { id: "flare", title: "Settle to the skids", body: "Arrest your descent and drift just above the ground, then ease down.", triggerAirtimeS: 60 },
+  ],
+  t6: [
+    { id: "hold", title: "Stabilize", body: "Fly a stabilized approach at target speed with small corrections.", triggerAirtimeS: 2 },
+    { id: "configure", title: "Configure early", body: "Extend gear and flaps early; target the class approach speed.", triggerAirtimeS: 20 },
+    { id: "flare", title: "Flare and idle", body: "Flare gently near the runway and smoothly close the thrust lever.", triggerAirtimeS: 60 },
+  ],
+  c130: [
+    { id: "hold", title: "Stabilize", body: "Fly a stabilized approach at target speed with small corrections.", triggerAirtimeS: 2 },
+    { id: "configure", title: "Configure early", body: "Extend gear and flaps early; target the class approach speed.", triggerAirtimeS: 20 },
+    { id: "flare", title: "Flare and idle", body: "Flare gently near the runway and smoothly close the thrust levers.", triggerAirtimeS: 60 },
   ],
 };
 
@@ -175,10 +186,13 @@ const MISSION_IDS: Record<AircraftClassId, string> = {
   c172s: "00000000-0000-4000-8000-000000000101",
   b738: "00000000-0000-4000-8000-000000000102",
   f5e: "00000000-0000-4000-8000-000000000103",
-  // Unreachable (see LESSONS.biz/LESSONS.tprop/LESSONS.r44 above): kept only to satisfy the Record type.
+  // Unreachable (see LESSONS.biz/LESSONS.tprop/LESSONS.r44/LESSONS.t6/LESSONS.c130 above): kept
+  // only to satisfy the Record type.
   biz: "00000000-0000-4000-8000-000000000104",
   tprop: "00000000-0000-4000-8000-000000000105",
   r44: "00000000-0000-4000-8000-000000000106",
+  t6: "00000000-0000-4000-8000-000000000107",
+  c130: "00000000-0000-4000-8000-000000000108",
 };
 
 export function tutorialDefinitionForClass(classId: AircraftClassId): TutorialDefinition {

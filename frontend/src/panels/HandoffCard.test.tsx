@@ -95,8 +95,8 @@ describe("HandoffCard", () => {
   });
   it("names an unsupported type without claiming a C172 substitution", () => {
     const p = loadClassById("c172s");
-    const text = render({ contact: ac({ t: "C130" }), spawn, params: p, matched: false, countdown: 3, note: "" });
-    expect(text).toContain("C130 → UNSUPPORTED");
+    const text = render({ contact: ac({ t: "V22" }), spawn, params: p, matched: false, countdown: 3, note: "" });
+    expect(text).toContain("V22 → UNSUPPORTED");
   });
   it("renders an em-dash for the model, not a guess, when the feed has no type", () => {
     const text = render({ contact: ga({ t: null }), spawn, params: P, matched: false, countdown: 3, note: "" });
