@@ -127,6 +127,34 @@ export const MODEL_DIMS: Readonly<Record<string, ModelDims>> = {
     finHeightM: 3.9, // tall T-tail
     fuselageRadiusM: 0.85,
   },
+  t6: {
+    lengthM: 10.2,
+    wingSpanM: 10.19,
+    wingSweepRad: 0, // straight trainer wing
+    wingChordM: 1.64,
+    wingXFrac: 0.42,
+    wingZFrac: 0.5, // low wing
+    wingTipChordFrac: 0.6,
+    // Single nose-mounted PT6 turboprop — no wing nacelles (like c172s/f5e, `engine` omitted).
+    tailSpanM: 3.6,
+    tailChordM: 1.0,
+    finHeightM: 1.4,
+    fuselageRadiusM: 0.55,
+  },
+  c130: {
+    lengthM: 29.8,
+    wingSpanM: 40.4,
+    wingSweepRad: 0, // straight high-AR transport wing
+    wingChordM: 4.0,
+    wingXFrac: 0.38,
+    wingZFrac: -0.9, // HIGH wing — the C-130's clearest silhouette cue
+    wingTipChordFrac: 0.65,
+    engine: { count: 4, spanFracs: [-0.65, -0.3, 0.3, 0.65], lengthM: 3.0, radiusM: 0.55 }, // four wing-mounted turboprops
+    tailSpanM: 12.7,
+    tailChordM: 3.0,
+    finHeightM: 5.0,
+    fuselageRadiusM: 1.75,
+  },
   // buildAirframe (aircraftGeometry.ts) always draws a fuselage + wing + tailplane + fin — it has
   // no rotor-disc/tail-boom shape, and adding one is a Phase E art-pass job, not this issue's
   // scope (#30). Wing/tail spans are kept deliberately tiny (near-zero) rather than real rotor-

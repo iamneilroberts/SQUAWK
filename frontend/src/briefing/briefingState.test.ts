@@ -41,7 +41,7 @@ function airport(ident: string, lonDeg: number): MissionAirport {
 describe("briefingPrelude", () => {
   it("distinguishes idle, unsupported, stale, and provider-down states", () => {
     expect(briefingPrelude(null, "live", true)).toEqual({ status: "idle" });
-    expect(briefingPrelude(contact({ t: "C130" }), "live", true)).toMatchObject({ status: "unavailable", kind: "unsupported" });
+    expect(briefingPrelude(contact({ t: "V22" }), "live", true)).toMatchObject({ status: "unavailable", kind: "unsupported" });
     expect(briefingPrelude(contact(), "stale", true)).toMatchObject({ status: "unavailable", kind: "stale" });
     expect(briefingPrelude(contact(), "offline", false)).toMatchObject({ status: "unavailable", kind: "provider-down" });
   });

@@ -15,7 +15,7 @@ describe("modelDimsForClass", () => {
   });
 
   it("is a pure lookup, not a branch — the map holds exactly the known classes", () => {
-    expect(Object.keys(MODEL_DIMS).sort()).toEqual(["b738", "biz", "c172s", "f5e", "r44", "tprop"]);
+    expect(Object.keys(MODEL_DIMS).sort()).toEqual(["b738", "biz", "c130", "c172s", "f5e", "r44", "t6", "tprop"]);
   });
 
   it("throws on an unknown id rather than silently substituting (a bug, not data)", () => {
@@ -92,5 +92,22 @@ describe("modelDimsForClass", () => {
     expect(d.wingSpanM).toBeGreaterThan(d.lengthM); // high-AR: span exceeds length
     expect(d.lengthM).toBeGreaterThan(12);
     expect(d.lengthM).toBeLessThan(18);
+  });
+
+  it("resolves t6 model dimensions (straight low-AR trainer wing, single nose-mounted engine)", () => {
+    const d = modelDimsForClass("t6");
+    expect(d.wingSweepRad).toBe(0); // straight wing
+    expect(d.engine).toBeUndefined(); // single nose-mounted PT6, no wing nacelles
+    expect(d.lengthM).toBeGreaterThan(8);
+    expect(d.lengthM).toBeLessThan(12);
+  });
+
+  it("resolves c130 model dimensions (straight high-AR HIGH wing, four wing-mounted turboprops)", () => {
+    const d = modelDimsForClass("c130");
+    expect(d.wingSweepRad).toBe(0);
+    expect(d.wingZFrac).toBeLessThan(0); // high wing
+    expect(d.engine?.count).toBe(4);
+    expect(d.wingSpanM).toBeGreaterThan(d.lengthM); // high-AR: span exceeds length
+    expect(d.lengthM).toBeGreaterThan(d.wingSpanM * 0.5); // still a large heavy airframe
   });
 });

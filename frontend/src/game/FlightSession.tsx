@@ -546,13 +546,15 @@ export default function FlightSession({
                   },
                 });
                 useStore.getState().fire("IMPACT");
-                // biz, tprop, and r44 have no tutorial (definitions.ts has no entry for any of
-                // them), so this callback's narrower signature never needs to name them — guard
-                // rather than widen the type.
+                // biz, tprop, r44, t6, and c130 have no tutorial (definitions.ts has no entry for
+                // any of them), so this callback's narrower signature never needs to name them —
+                // guard rather than widen the type.
                 if (
                   lockedMission.classId !== "biz" &&
                   lockedMission.classId !== "tprop" &&
-                  lockedMission.classId !== "r44"
+                  lockedMission.classId !== "r44" &&
+                  lockedMission.classId !== "t6" &&
+                  lockedMission.classId !== "c130"
                 ) onTutorialCompleteRef.current?.(lockedMission.classId);
                 return;
               }

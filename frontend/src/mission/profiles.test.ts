@@ -3,7 +3,7 @@ import { allMissionProfiles, missionProfileForClass, validateMissionProfile } fr
 
 describe("versioned mission profiles", () => {
   it("defines one data-only profile for every launch class", () => {
-    expect(allMissionProfiles().map((profile) => profile.classId)).toEqual(["c172s", "b738", "f5e", "biz", "tprop", "r44"]);
+    expect(allMissionProfiles().map((profile) => profile.classId)).toEqual(["c172s", "b738", "f5e", "biz", "tprop", "r44", "t6", "c130"]);
     for (const profile of allMissionProfiles()) {
       expect(profile.reachability.maxMinutes).toBe(30);
       expect(profile.profileVersion).toMatch(/^mission-/);

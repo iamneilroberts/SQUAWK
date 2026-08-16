@@ -75,6 +75,8 @@ const CLASS_TO_SHAPE: Record<AircraftClassId, ContactShape> = {
   tprop: "turboprop",
   f5e: "fighter",
   r44: "helicopter",
+  t6: "turboprop",
+  c130: "turboprop",
 };
 
 /**

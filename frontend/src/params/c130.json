@@ -1,0 +1,74 @@
+{
+  "id": "c130",
+  "label": "C130",
+  "modelNote": "C-130 HERCULES MODEL",
+  "massKg": 70000,
+  "wingAreaM2": 162,
+  "wingSpanM": 40.4,
+  "aspectRatio": 10.08,
+  "aero": {
+    "cl0": 0.25, "clAlphaPerRad": 4.5, "stallAlphaRad": 0.24, "postStallDecayRad": 0.16,
+    "cd0": 0.036, "gearDragCd0": 0.025, "speedbrakeCd0": 0.0, "oswaldE": 0.78, "cyBeta": -0.60
+  },
+  "control": {
+    "rollRateMaxRadS": 0.35, "pitchRateMaxRadS": 0.15, "yawRateMaxRadS": 0.10,
+    "rollDampingPerS": 3.0, "pitchDampingPerS": 2.8, "yawDampingPerS": 2.2,
+    "pitchStiffnessPerS2": 2.5, "yawStiffnessPerS2": 2.0, "refDynamicPressurePa": 3000,
+    "trimAlphaCenterRad": 0.03, "trimAlphaRangeRad": 0.17
+  },
+  "propulsion": {
+    "maxPowerW": 12600000, "lapseModel": "turboprop", "propEfficiency": 0.85,
+    "propPeakSpeedMs": 120, "afterburnerFactor": 1.0,
+    "turbopropCornerM": 8200, "turbopropLapseExp": 1.5
+  },
+  "limits": {
+    "vneIasMs": 133.76, "vnoIasMs": 126.04, "vfeIasMs": 77.17, "gLimitPos": 2.5,
+    "gLimitNeg": -1.0, "serviceCeilingM": 10058.4, "mmo": 0.55, "vleIasMs": 77.17
+  },
+  "flaps": [
+    { "label": "0", "dCL0": 0.0, "dStallAlphaRad": 0.0, "dCD0": 0.0 },
+    { "label": "APPR", "dCL0": 0.45, "dStallAlphaRad": -0.03, "dCD0": 0.025 },
+    { "label": "FULL", "dCL0": 0.85, "dStallAlphaRad": -0.06, "dCD0": 0.07 }
+  ],
+  "gear": "retractable",
+  "display": { "asiMinKt": 40, "asiMaxKt": 320, "attitudeStyle": "line" },
+  "sources": {
+    "massKg": "TUNING KNOB (owner-specified) — 70,000 kg operating weight (issue #8 brief: '~70 t operating'), close to the C-130H published max takeoff weight (~70,300 kg / 155,000 lb). Treated as the mid/heavy-mission weight, mirroring tprop's 'mid-mission weight' convention. Source verification pending.",
+    "wingAreaM2": "162 m^2 (1,745 sq ft published C-130H wing area — matches almost exactly). Source verification pending.",
+    "wingSpanM": "40.4 m (132 ft 7 in published C-130H span). Source verification pending; consistent with aspectRatio: b^2/S = 40.4^2/162 = 10.08.",
+    "aspectRatio": "10.08 — a high-AR straight transport wing (efficient long-range cruise); b^2/S = 40.4^2/162 = 10.08, close to the published ~10.1 figure.",
+    "cl0": "TUNING KNOB (stall band) — 0.25 zero-AoA lift for a high-lift-device-equipped transport wing (clean/flaps-up configuration only — this class has no separate ground-ops/high-lift scope per CLAUDE.md's airborne-spawn-only non-goal).",
+    "clAlphaPerRad": "TUNING KNOB (stall band) — 4.5/rad. Pinned by the offline force-balance check against the C-130H's published ~140-145 kt clean stall at max weight.",
+    "stallAlphaRad": "TUNING KNOB (stall band) — 13.75 deg (0.24 rad) clean critical AoA; CLmax_clean = 0.25 + 4.5*0.24 = 1.33. Gives a clean stall of ~140 kt at 70,000 kg (Vstall = sqrt(2*W/(rho*S*CLmax))), matching the published C-130H clean-stall band at heavy weight. Pinned alongside clAlphaPerRad.",
+    "postStallDecayRad": "TUNING KNOB — 0.16 rad fade width past the break, matching the tprop pattern.",
+    "cd0": "TUNING KNOB (cruise TAS + SL climb + ceiling) — 0.036, a draggier heavy-transport parasite-drag coefficient than the King Air's 0.028 (four nacelles, a boxier fuselage, and a rear cargo-ramp step all add drag a clean bizjet/turboprop-trainer shape does not carry). Pinned with maxPowerW + the lapse corner by an offline force-balance check: FL220/85%-power cruise settles near ~301 kt TAS (published C-130H cruise ~292 kt TAS), sea-level full-throttle climb is ~980 fpm at this heavy 70 t weight (below the ~1,830 fpm published lighter-weight/optimum-speed figure, which is expected at near-max gross weight), and full-throttle best climb at the certified 33,000 ft service ceiling is ~225 fpm — a real, barely-climbing ceiling. Source verification pending.",
+    "gearDragCd0": "TUNING KNOB — 0.025, a heavy-transport retractable-gear increment above the King Air's 0.02 (larger gear bays/doors).",
+    "speedbrakeCd0": "0.0 — the C-130 has no conventional airbrake/spoiler (descent is managed with power and gear/flaps, and in practice propeller pitch), so this increment is honestly zero (num(), not positive(), so 0 is legal — mirrors tprop's King Air).",
+    "oswaldE": "TUNING KNOB — 0.78, typical for a high-AR straight transport wing (just under the King Air's 0.80).",
+    "cyBeta": "TUNING KNOB — -0.60/rad four-engine heavy-transport side-force slope.",
+    "rollRateMaxRadS": "TUNING KNOB — ~20 deg/s, a lumbering heavy-transport roll rate — well below the King Air's 40 deg/s (much greater span and roll inertia at four times the King Air's weight).",
+    "pitchRateMaxRadS": "TUNING KNOB — ~8.6 deg/s.",
+    "yawRateMaxRadS": "TUNING KNOB — ~5.7 deg/s.",
+    "damping/stiffness": "TUNING KNOBS — pitch omega_n = sqrt(2.5) = 1.58 rad/s, zeta = 2.8/(2*1.58) = 0.89 (heavily damped, a stable lumbering transport feel).",
+    "refDynamicPressurePa": "TUNING KNOB — 3000 Pa, below the King Air's 3500 Pa: a slower heavy transport reaches full control authority at an even lower speed band.",
+    "trimAlphaCenterRad": "TUNING KNOB — 1.7 deg, near cruise AoA, mirroring tprop.",
+    "trimAlphaRangeRad": "TUNING KNOB — +-9.7 deg trim authority (a touch above tprop's +-8.0 deg). Pinned by the g-clamp envelope test — tprop's narrower range left a 240 kt full pull ~1% short of the class's own (lower, 2.5g) limit at heavy weight.",
+    "propulsion": "TUNING KNOBS — 4x flat-rated turboprop via the shared power-limited-PROP formula T=eta*P/max(V,propPeakSpeedMs) (same formula as tprop/C172, not the flat-rated-turbofan constant-thrust form): propPeakSpeedMs 120 m/s sits below cruise TAS (~155 m/s) so cruise thrust falls with speed like a real prop. maxPowerW 12,600,000 W is close to 4x 4,600 shp (SOURCED starting point: 4*4,600 shp * 745.7 W/shp = 13,720,880 W, the issue-#8 brief's '4x~4600 shp'; reduced ~8% from that raw figure as a documented TUNING KNOB to land cruise TAS near the published ~292 kt at FL220/85% power — the raw book shp overshoots to ~309 kt TAS at the same throttle in the offline force-balance check). eta*P/peak = 0.85*12.6e6/120 = 89.25 kN full-throttle static-band thrust; T/W ~0.13 at 70 t. afterburnerFactor 1.0 (none).",
+    "propPeakSpeedMs": "TUNING KNOB (climb + cruise) — 120 m/s (233 kt): below cruise TAS so cruise thrust falls with speed, above best-climb TAS so the efficiency ramp shapes the SL climb.",
+    "propEfficiency": "0.85 — the eta in T = eta*P/max(V,peak), matching the other turboprop classes.",
+    "lapseModel": "\"turboprop\" — same flat-rated-shaft-power lapse as tprop/t6 (decisions.md TP-001); the T56/Allison family (or, on the J model, the AE 2100) is the same class of flat-rated free-turbine engine as the King Air's PT6A.",
+    "afterburnerFactor": "1.0 — turboprop, no afterburner.",
+    "turbopropCornerM": "TUNING KNOB (ceiling) — 8,200 m (~FL270), above tprop's 6,858 m corner: at 70 t operating weight the class needs shaft power held longer before it starts lapsing to reach a real, barely-climbing ceiling at the certified 33,000 ft rather than running out of climb thousands of feet below it. Offline force-balance check: best climb at 33,000 ft measures ~225 fpm. Not a published T56/AE2100 figure; source verification pending.",
+    "turbopropLapseExp": "TUNING KNOB (ceiling) — 1.5, gentler than tprop's 2.5 (a four-engine heavy loses stratospheric power less steeply per engine than the smaller King Air twin, in this model). Not a published figure.",
+    "limits.vneIasMs": "TUNING KNOB — ~260 KIAS = 133.8 m/s, below the King Air's 263 KIAS (a heavier, draggier airframe with a lower structural/Mmo-limited operating speed). Source verification pending.",
+    "limits.vnoIasMs": "TUNING KNOB — ~245 KIAS = 126.0 m/s display caution reference below Vne, mirroring tprop.",
+    "limits.vfeIasMs": "TUNING KNOB — ~150 KIAS = 77.2 m/s flap placard; display only.",
+    "mmo": "TUNING KNOB — 0.55, below the King Air's 0.58 — the C-130's boxy high-wing airframe is not built for high-Mach cruise. At FL220 cruise (~M0.47) it does not bind.",
+    "vleIasMs": "TUNING KNOB — ~150 KIAS = 77.2 m/s Vle/Vlo placard; display only. Set equal to vfeIasMs, mirroring t6.",
+    "gLimits": "+2.5 / -1.0 — a conservative transport-category clean flight-envelope limit, below the King Air's commuter-category +3.1/-1.2 (a much heavier airframe with a correspondingly lower structural g-limit). Pinned by the g-clamp envelope test.",
+    "serviceCeilingM": "10,058.4 m (33,000 ft) — the C-130H's published certified service ceiling. Made honest in-model by the turboprop lapse (turbopropCornerM 8200 + turbopropLapseExp 1.5): full-throttle best climb there measures ~225 fpm, a real barely-climbing ceiling.",
+    "flaps": "0/APPR/FULL — simplified heavy-transport schedule mirroring tprop; dCL0/dStallAlpha/dCD0 are TUNING KNOBS giving monotonically falling stall speeds and rising drag.",
+    "display": "ASI 40-320 kt spans the heavy-turboprop band; attitudeStyle line (steam-gauge horizon) — the classic C-130H flight deck is analog, unlike the T-6A's modern EFIS, so it shares the King Air's six-pack rendering.",
+    "gear": "retractable — the C-130 has retractable tricycle gear (into fuselage blisters)."
+  }
+}

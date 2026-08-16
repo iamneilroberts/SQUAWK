@@ -16,6 +16,8 @@ import fighterTypes from "../params/fighter-types.json";
 import bizTypes from "../params/biz-types.json";
 import tpropTypes from "../params/tprop-types.json";
 import helicopterTypes from "../params/helicopter-types.json";
+import t6Types from "../params/t6-types.json";
+import c130Types from "../params/c130-types.json";
 
 export const GA_TYPE_DESIGNATORS: ReadonlySet<string> = new Set(gaTypes.designators);
 export const AIRLINER_TYPE_DESIGNATORS: ReadonlySet<string> = new Set(airlinerTypes.designators);
@@ -23,6 +25,8 @@ export const FIGHTER_TYPE_DESIGNATORS: ReadonlySet<string> = new Set(fighterType
 export const BIZ_TYPE_DESIGNATORS: ReadonlySet<string> = new Set(bizTypes.designators);
 export const TPROP_TYPE_DESIGNATORS: ReadonlySet<string> = new Set(tpropTypes.designators);
 export const HELICOPTER_TYPE_DESIGNATORS: ReadonlySet<string> = new Set(helicopterTypes.designators);
+export const T6_TYPE_DESIGNATORS: ReadonlySet<string> = new Set(t6Types.designators);
+export const C130_TYPE_DESIGNATORS: ReadonlySet<string> = new Set(c130Types.designators);
 
 /** readsb `seen_pos` can run to ~50 s; spawning on a 50-second-old position is a lie. */
 export const MAX_SEEN_POS_S = 15;
@@ -45,6 +49,8 @@ export function resolveClass(contact: Contact): ClassResolution {
     if (BIZ_TYPE_DESIGNATORS.has(t)) return { supported: true, classId: "biz", matched: true };
     if (TPROP_TYPE_DESIGNATORS.has(t)) return { supported: true, classId: "tprop", matched: true };
     if (HELICOPTER_TYPE_DESIGNATORS.has(t)) return { supported: true, classId: "r44", matched: true };
+    if (T6_TYPE_DESIGNATORS.has(t)) return { supported: true, classId: "t6", matched: true };
+    if (C130_TYPE_DESIGNATORS.has(t)) return { supported: true, classId: "c130", matched: true };
     if (GA_TYPE_DESIGNATORS.has(t)) return { supported: true, classId: "c172s", matched: true };
     return { supported: false, classId: null, matched: false, reason: "UNSUPPORTED AIRCRAFT TYPE" };
   }

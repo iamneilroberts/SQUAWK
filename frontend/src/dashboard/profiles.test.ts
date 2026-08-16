@@ -20,6 +20,8 @@ describe("class -> dashboard-profile registry (data, not branches)", () => {
       biz: "efis",
       tprop: "sixpack",
       r44: "sixpack",
+      t6: "efis",
+      c130: "sixpack",
     };
     for (const id of DASHBOARD_PROFILE_IDS) {
       expect(profileForClass(id).primary).toBe(expected[id]);

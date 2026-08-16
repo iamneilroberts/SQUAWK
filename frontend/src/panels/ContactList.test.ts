@@ -120,7 +120,7 @@ describe("filterContacts", () => {
     const contacts = [
       contact({ hex: "a0b1c2", t: "B738", alt_geom: 25_000 }),
       contact({ hex: "d0e1f2", t: "C172", alt_geom: 3_000 }),
-      contact({ hex: "001122", t: "C130", alt_geom: 10_000 }),
+      contact({ hex: "001122", t: "V22", alt_geom: 10_000 }),
       contact({ hex: "334455", t: "C172", alt_geom: 3_000, seen_pos: 40 }),
     ];
     expect(filterContacts(contacts, { ...all, classId: "b738", altitude: "high", eligibility: "eligible" })
