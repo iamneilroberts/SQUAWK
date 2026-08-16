@@ -3138,3 +3138,31 @@ baseline (no test edits were needed — class names (`imm-bar-tapes`, `imm-tape`
   genuinely different, thrust-free force model) — not added, per CLAUDE.md's non-goals list and
   the issue-#8 brief. Rotorcraft variants (JetRanger/Huey/Blackhawk/Chinook) remain their own
   future rotor-model-family phase, unaffected by this fixed-wing-only issue.
+
+## 2026-08-15 — #44 desktop mouse flight controls
+
+- **Right-drag REPLACES hold-Q as the FPV look mechanism** (owner decision). Left mouse
+  button + drag = flight stick (FPV) via the existing `analog.ts` `stickToAxes` → `touchAxesRef`
+  → `controls.ts` override seam; right button + drag = look. The hold-KeyQ pointer-lock path was
+  removed entirely (`GAME_KEY_CODES`, `KEYMAP`, FlightSession effect, ControlsHelp). Right-drag
+  look reuses the SAME host head-look accumulator/ease-back the old Q fallback drove, so no second
+  look state. Right-drag is not pointer-locked, so it uses the raw per-move delta path (no 40px
+  cap) at the existing `LOOK_SENSITIVITY_RAD_PER_PX` = 0.0025.
+- **Exterior/chase view: EITHER mouse button orbits** (owner decision). Left-drag orbit + wheel
+  zoom unchanged; right-drag now also routes to the same orbit handler. Wheel stays zoom in chase,
+  becomes throttle in FPV only.
+- **Wheel = throttle in FPV, as an absolute lever** seeded from the current throttle on first use.
+  Accepted tradeoff (same as the touch throttle slider): once the wheel is used, the analog
+  override owns the throttle axis and keyboard W/S stops affecting it for that flight; resets next
+  flight. Owner-tunable `WHEEL_THROTTLE_SENS_PER_UNIT` (~4%/click) + stick `RADIUS_PX` 180 /
+  `DEADZONE` 0.08, anchored at the click point.
+- **Per-class look ARC is data, not branches** — new `lookArc {yawDeg,pitchUpDeg,pitchDownDeg}` on
+  `ClassParams`, required+validated in `sim/params.ts`, set in all 8 class JSONs, clamped by a pure
+  `globe/lookAround.ts` `clampToLookArc` (yaw symmetric, pitch asymmetric), deg→rad converted once
+  in `cesiumFlightHost`. Starting numbers (owner-tunable, need a live-feel pass): GA/turboprop
+  (c172/t6/c130/tprop) 100/40/25; airliner (b738) + **biz — a guess, mapped to airliner** 110/35/20;
+  fighter (f5e) 160/85/35 (pitchUp 85 coincides with the existing hard ceiling `LOOK_MAX_PITCH_RAD`);
+  heli (r44) 140/50/80 (deep look-down for the chin bubble). c130 sharing the GA arc may feel
+  cramped for its large flight deck — flagged for tuning.
+- Shipped: main `cca7bdb`, prod Worker Version `264ed389` (fly.voygent.app). #44 left OPEN pending
+  owner live feel-pass + arc tuning.
