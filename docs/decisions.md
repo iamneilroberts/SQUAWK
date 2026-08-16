@@ -3192,3 +3192,52 @@ baseline (no test edits were needed — class names (`imm-bar-tapes`, `imm-tape`
 - No envelope regressions: straight/symmetric flight has ~zero sideslip so the term stays inert
   (full sim suite 213 pass). Shipped: main `b87277f`, prod Worker Version `e08d6398`
   (fly.voygent.app). #92 left OPEN pending owner live feel-pass + gain tuning.
+
+## 2026-08-16 — hud chrome rework (desktop split-HUD: compass, throttle gauge, chrome relayout)
+
+- **New standalone CompassIndicator, not a reuse of SixPack's inline DG** — SixPack's directional
+  gyro is baked into its own six-pack face; the split-HUD needed a free-floating top-right card
+  independent of which per-class primary face is mounted, so it's a new component. It still shares
+  geometry/tokens with AttitudeIndicator (same C/R constants, `gauge-bezel`/`gauge-lubber`
+  classes) and a new pure `gaugeMath.compassTicks()` (10°/30° ticks, N/E/S/W at the cardinals) so
+  the tick math is tested independently of the SVG.
+- **Right-edge column (COMPASS · ALT · THROTTLE) is right-flush at 16px**, NOT the ALT tape's old
+  74px offset — chosen to hug the edge like the owner-approved mock rather than preserve the old
+  offset, whose only reason (dodging the old mid-height EdgeTurnCue) no longer applies once the
+  cue is pulled inboard. SPD (left tape) was deliberately left at its existing 74px — out of this
+  task's scope — so the two edges are now asymmetric; flagged for the owner, trivially retunable.
+- **Compass card pinned at top:140px, not flush to the top-right corner** — the true corner is
+  already owned by the FULL toggle (top:~96–132px, kept in "its current logical spot" per owner
+  instruction) and the top HUD bar (which can wrap to 2 rows). 140px is the first safe row below
+  both at common desktop widths (≥1024px); ALT (top:284) and the throttle gauge (top:446) stack
+  below it with ~10–25px gaps, sized from the compass/ALT cards' own approximate rendered heights
+  (not JS-measured — pure CSS, so these are estimates pending an owner screenshot pass).
+- **Tiny THR cell hidden, not deleted, in the bottom control-state strip** (`ControlStateCells`
+  gained a `hideThrottle` prop, default false; `ControlState.tsx` passes it) — the new prominent
+  ThrottleIndicator gauge is now the one throttle readout on the split-HUD; showing the same %
+  twice invites drift. The prop defaults to shown so the (currently unused, dead-code-flagged)
+  `HudControlRow` export is unaffected if something starts calling it.
+- **DCLTR chip removed entirely** (owner instruction) — `decluttered` store state and its
+  downstream reads (App.tsx funnel gating, DashboardStrip, Hud) are untouched, so the flag is now
+  permanently stuck `false` with no UI path to set it true. Flagged as a follow-up, not fixed here
+  — out of this task's stated scope ("chrome buttons").
+- **SIGN IN's relocation is scoped to the plain desktop split-HUD only** (`mode==='FLYING' &&
+  !narrow && !immersiveActive`) — fullscreen-desktop immersive and mobile already have their own
+  funnel-chip treatments (`.top-controls-immersive`) that this does not touch. New
+  `.top-controls-desktop-flying` repositions the whole `.top-controls` container to bottom-right,
+  stacked above the also-relocated MENU chip; since only `.auth-control` renders there while
+  FLYING (the BROWSE-only funnel chips are absent), repositioning the container is repositioning
+  the one chip. Known gap: `ProfilePanel`'s dropdown still opens downward from the button, which
+  can now run off the bottom of the viewport — not fixed here (pre-existing assumption elsewhere
+  in the app, not introduced by this move).
+- **`.menu-toggle`'s desktop position is a plain `bottom:20px; right:20px`**, added as a
+  `@media (min-width:1024px)` override placed after the mobile orientation blocks so it wins the
+  cascade — the pre-existing rule computed `bottom` from the on-screen touch-throttle lever's
+  height (`38vh` / `100dvh - 272px`), which doesn't exist on desktop and was landing MENU at an
+  arbitrary height, not a corner.
+- **Top-bar/cue-stack overlap fix is a flat +26px push**, not a measured fix — `.hud-destination`
+  52→78, `.hud-approach-readout` inline `top` 78→104 — sized as "one extra wrapped-row's worth of
+  headroom" rather than computed from real font metrics, since there is no owner-approved 2-row
+  screenshot to measure against yet.
+- Verify: `npx vitest run src/hud src/dashboard src/layout` — 37 files / 480 tests pass;
+  `tsc --noEmit` clean; `npm run build` exit 0. Shipped: main `0a61a28` (merge of `eb3b589`).
