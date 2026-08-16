@@ -598,6 +598,7 @@ body {
      off). overflow-y:auto is the safety fallback if even the fixed parts exceed the card. */
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 12px 14px;
   pointer-events: auto;
