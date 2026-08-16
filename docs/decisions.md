@@ -3109,3 +3109,32 @@ baseline (no test edits were needed — class names (`imm-bar-tapes`, `imm-tape`
   new sticky `timeCompressed` flag for compression). Instant/anonymous already unranked → no-op.
 - **Honesty:** live contacts + genuine-aircraft ghost are NOT extrapolated under compression — they lag on
   real wall time; a "LIVE TRAFFIC REAL-TIME" note shows when active. Day/night stays on the real clock.
+
+## 2026-08-15 — #8 roster expansion (C-17 remap + t6/c130 classes)
+
+- **Cheap remaps:** added `C17` (heavy jet transport, correctly the airliner/b738 bucket, not a
+  turboprop) and `B744`/`B748` (747 heavies, still common ADS-B traffic, previously unlisted) to
+  `airliner-types.json`. CRJ/E-jet/A330/A350/76x/78x were already mapped; verified before touching.
+- **Two new fixed-wing turboprop classes**, both on the existing `ClassParams` data shape (no new
+  branches): `t6` (T-6 Texan II trainer, single PT6A-68, ~2.86 t) and `c130` (C-130 Hercules heavy
+  transport, 4x turboprop, 70 t operating weight per the issue brief). Both reuse the `turboprop`
+  lapse model tprop introduced (TP-001) — same engine family (PT6/T56), just re-tuned corner
+  altitude/exponent per class's own certified service ceiling.
+- **trimAlphaRangeRad must be wide enough to reach the class's own g-limit, not just tprop's.**
+  Copying tprop's ±8 deg trim range onto a class with a HIGHER g-limit (t6: +7.0g vs tprop's
+  +3.1g) silently caps achievable AoA below what's needed to generate that much lift — the
+  aircraft never reaches its own published g-limit no matter how hard the stick is pulled, and the
+  g-clamp envelope test catches this as "sawLimit never true" rather than a wrong number. Widened
+  t6 to ±16 deg (deliberately just past its own clean stall AoA — an honest aerobatic-trainer
+  envelope) and c130 to ±9.7 deg (its 2.5g limit is much lower than tprop's but the class is 12x
+  heavier, so tprop's range was still ~1% short at a reasonable entry speed). General rule for any
+  future high-or-low-g-limit class reusing this data shape: pin trimAlphaRangeRad by the g-clamp
+  test, don't just copy the nearest sibling's number.
+- **C-130 maxPowerW is a documented ~8% derate below the raw "4x4600 shp" brief figure** — the raw
+  book shp overshoots the published ~292 kt C-130H cruise TAS to ~309-328 kt in the offline
+  force-balance check at a plausible cruise cd0/throttle; derated and documented in `c130.json`
+  sources rather than silently changing cd0 to compensate for an unrelated reason.
+- **Gliders are an explicit v1 non-goal** (no engine data shape fits a glider — it would need a
+  genuinely different, thrust-free force model) — not added, per CLAUDE.md's non-goals list and
+  the issue-#8 brief. Rotorcraft variants (JetRanger/Huey/Blackhawk/Chinook) remain their own
+  future rotor-model-family phase, unaffected by this fixed-wing-only issue.
