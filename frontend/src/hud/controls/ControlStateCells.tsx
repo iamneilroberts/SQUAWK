@@ -12,14 +12,22 @@ import ControlIconCell from "./ControlIconCell";
 /** Throttle value goes amber above this fraction (near-max power cue). */
 export const THROTTLE_AMBER_ABOVE = 0.92;
 
-export default function ControlStateCells({ snapshot }: { snapshot: HudSnapshot | null }) {
+export default function ControlStateCells({ snapshot, hideThrottle = false }: {
+  snapshot: HudSnapshot | null;
+  /** #hud-chrome-rework: the desktop glass strip has its own prominent throttle gauge
+   *  (ThrottleIndicator) now — the strip passes this so THR isn't shown twice. Defaults to
+   *  shown, so the (currently unused) HudControlRow caller is unaffected. */
+  hideThrottle?: boolean;
+}) {
   const throttle = snapshot?.throttle ?? null;
   const trimText = formatTrim(snapshot?.trim ?? null);
   return (
     <>
-      <ControlIconCell kind="throttle" snapshot={snapshot} label="THR"
-        value={formatThrottlePct(throttle)}
-        valueTone={throttle != null && throttle > THROTTLE_AMBER_ABOVE ? "amber" : "cyan"} />
+      {!hideThrottle && (
+        <ControlIconCell kind="throttle" snapshot={snapshot} label="THR"
+          value={formatThrottlePct(throttle)}
+          valueTone={throttle != null && throttle > THROTTLE_AMBER_ABOVE ? "amber" : "cyan"} />
+      )}
       <ControlIconCell kind="flaps" snapshot={snapshot} label="FLP"
         value={snapshot?.flapLabel ?? EM_DASH} />
       <ControlIconCell kind="trim" snapshot={snapshot} label="TRM"

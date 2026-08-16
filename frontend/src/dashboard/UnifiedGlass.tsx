@@ -33,6 +33,8 @@ import SixPack from "./SixPack";
 import EfisDisplay from "./EfisDisplay";
 import HudDisplay from "./HudDisplay";
 import ControlState from "./ControlState";
+import CompassIndicator from "./CompassIndicator";
+import ThrottleIndicator from "./ThrottleIndicator";
 import NavMap from "./NavMap";
 import ControlsHelp from "./ControlsHelp";
 import { WeatherPanelBody, type WeatherState } from "./WeatherPanel";
@@ -101,7 +103,8 @@ export function UnifiedGlassBody({
         value={snapshot ? msToKt(snapshot.iasMs) : 0}
         range={snapshot ? tapeRange.ias : null}
       />
-      {/* ALT — hard-right edge. */}
+      {/* ALT — hard-right edge, moved up to sit under the compass (#hud-chrome-rework, see the
+          .dash-strip .imm-tape[data-side="right"] top override in tokens.css). */}
       <Tape
         side="right"
         label="ALT"
@@ -109,6 +112,20 @@ export function UnifiedGlassBody({
         value={snapshot ? mToFt(snapshot.altitudeM) : 0}
         range={snapshot ? tapeRange.alt : null}
       />
+
+      {/* Compass — top-right corner, above ALT (#hud-chrome-rework, owner-approved mock
+          "Compass S · signin moved"). FULL (ImmersiveControl.tsx) keeps its own spot higher up;
+          the compass sits below it, see .dash-compass in tokens.css for the exact offsets. */}
+      <div className="dash-compass panel">
+        <CompassIndicator headingRad={snapshot?.headingRad ?? null} />
+      </div>
+
+      {/* Throttle — prominent vertical gauge under ALT, right edge (#hud-chrome-rework). The tiny
+          THR cell in the bottom control-state strip is hidden now (ControlState.tsx) so this is
+          the one throttle readout on the split-HUD. */}
+      <div className="dash-throttle-card panel">
+        <ThrottleIndicator snapshot={snapshot} hasAfterburner={params.propulsion.afterburnerFactor > 1} />
+      </div>
 
       {/* Per-class primary face — small, top-center, under the top HUD's approach readout stack
           (Hud.tsx's SIM bar / destination cue / approach readout). `background` is the deferred

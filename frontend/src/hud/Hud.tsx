@@ -54,8 +54,10 @@ function HudDestinationCue({ navCue }: { navCue: ImmersiveHudNavCue | null }) {
 
 /*
  * Desktop twin of the mobile ApproachReadoutBlock: same component, just mounted here instead of
- * in the immersive bar tree, stacked under .hud-destination (top: 52px) so both cues can be up at
- * once (destination pointer + approach readout) rather than overlapping.
+ * in the immersive bar tree, stacked under .hud-destination (top: 78px, #hud-chrome-rework) so
+ * both cues can be up at once (destination pointer + approach readout) rather than overlapping.
+ * 104 keeps the same ~26px gap the two cues have always had — 78 + 26 — just shifted down with
+ * .hud-destination so neither lands under the top bar's wrapped second row.
  */
 function HudApproachReadout({ readout, snapshot }: {
   readout: ApproachReadout | null;
@@ -63,7 +65,7 @@ function HudApproachReadout({ readout, snapshot }: {
 }) {
   if (readout === null) return null;
   return (
-    <div className="hud-approach-readout" style={{ top: 78 }} aria-label="Approach guidance">
+    <div className="hud-approach-readout" style={{ top: 104 }} aria-label="Approach guidance">
       <ApproachReadoutBlock readout={readout} snapshot={snapshot} />
     </div>
   );

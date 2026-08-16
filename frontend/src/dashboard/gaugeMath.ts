@@ -186,6 +186,20 @@ export function headingCardDeg(headingRad: number | null): number | null {
   return wrap360(-radToDeg(headingRad));
 }
 
+/**
+ * Compass card tick layout for the small top-right heading instrument (hud chrome rework):
+ * a mark every 10°, a longer mark every 30°, and N/E/S/W read at the four cardinal majors
+ * instead of a number. Pure/tested so CompassIndicator.tsx has no tick math of its own.
+ */
+const COMPASS_CARDINALS: Record<number, string> = { 0: "N", 90: "E", 180: "S", 270: "W" };
+export function compassTicks(): { deg: number; major: boolean; cardinal: string | null }[] {
+  const out: { deg: number; major: boolean; cardinal: string | null }[] = [];
+  for (let deg = 0; deg < 360; deg += 10) {
+    out.push({ deg, major: deg % 30 === 0, cardinal: COMPASS_CARDINALS[deg] ?? null });
+  }
+  return out;
+}
+
 // ---- turn coordinator --------------------------------------------------------------------
 export const STANDARD_RATE_DEG_S = 3;
 export const TC_SYMBOL_BANK_AT_STD_DEG = 15;

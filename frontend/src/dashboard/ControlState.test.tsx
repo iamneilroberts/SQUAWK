@@ -29,12 +29,18 @@ const snap = (o: Partial<HudSnapshot> = {}): HudSnapshot => ({
 });
 
 describe("ControlState (#48 graphic)", () => {
-  it("renders throttle/flaps/trim/gear icon cells with their values", () => {
+  it("renders flaps/trim/gear icon cells with their values", () => {
     const r = collect(ControlState({ snapshot: snap({ throttle: 0.6, trim: 0.25, flapLabel: "10", flapDetentIndex: 1, flapDetentCount: 5 }) }));
-    expect(r.labels).toEqual(expect.arrayContaining(["throttle", "flaps", "trim", "gear"]));
-    expect(r.text.join(" ")).toContain("60%");
+    expect(r.labels).toEqual(expect.arrayContaining(["flaps", "trim", "gear"]));
     expect(r.text.join(" ")).toContain("10");
     expect(r.text.join(" ")).toContain("NOSE UP 25%");
+  });
+  // #hud-chrome-rework: throttle moved to the prominent right-edge gauge (ThrottleIndicator) —
+  // this strip no longer duplicates it.
+  it("no longer duplicates throttle (it lives in the right-edge ThrottleIndicator gauge now)", () => {
+    const r = collect(ControlState({ snapshot: snap({ throttle: 0.6 }) }));
+    expect(r.labels).not.toContain("throttle");
+    expect(r.text.join(" ")).not.toContain("60%");
   });
   it("adds a speedbrake cell only when the class has an airbrake", () => {
     expect(collect(ControlState({ snapshot: snap({ hasSpeedbrake: true }) })).labels).toContain("speedbrake");
