@@ -72,6 +72,16 @@ const COCKPIT_CHROME_CODES = new Set<string>(["KeyQ", "Escape", "KeyE", "KeyC", 
 
 type ControlsHelpRow = { action: string; keys: string[] };
 
+/**
+ * Desktop mouse rows (#44): not in KEYMAP — nothing here is a keyboard `code` — so they are
+ * hand-written rather than generated. "DRAG"/"WHEEL" are pseudo key-faces for the same visual
+ * treatment as the keyboard rows, not real KeyboardEvent codes.
+ */
+const MOUSE_ROWS: ControlsHelpRow[] = [
+  { action: "flight stick — roll/pitch (FPV; replaces cockpit look-drag — hold Q to look)", keys: ["DRAG"] },
+  { action: "throttle (FPV) / camera zoom (exterior view — unchanged)", keys: ["WHEEL"] },
+];
+
 function ControlsHelpGroup({ title, rows }: { title: string; rows: ControlsHelpRow[] }) {
   if (rows.length === 0) return null;
   return (
@@ -101,6 +111,7 @@ export default function ControlsHelp() {
     <div className="controls-help">
       <ControlsHelpGroup title="FLIGHT CONTROLS" rows={flightRows} />
       <ControlsHelpGroup title="COCKPIT" rows={chromeRows} />
+      <ControlsHelpGroup title="MOUSE (DESKTOP)" rows={MOUSE_ROWS} />
     </div>
   );
 }
