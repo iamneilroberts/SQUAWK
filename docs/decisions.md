@@ -3093,3 +3093,19 @@ side-dock alternative, as its own scoped pass.
 **Verification:** `npm run build` clean; full suite 143 files / 1510 tests, unchanged from
 baseline (no test edits were needed — class names (`imm-bar-tapes`, `imm-tape`, `data-side`,
 `tape-strip`, `tape-tick`) and all text-content assertions were preserved by construction).
+
+## 2026-08-15 — #87 time compression + skip-to-approach
+
+- **Compression scales elapsed wall-time, not `dt`.** `scaleElapsed(elapsedS, factor)` multiplies the
+  frame's elapsed seconds before the fixed-step accumulator, so physics stays exactly 1/60 s per step
+  (only the step *count* per frame rises). Enlarging `dt` was rejected — it destabilises the attitude
+  integrator + ground-collision sampling. Factors limited to **1×/2×/4×**; 8×+ withheld because it brushes
+  `MAX_STEPS_PER_FRAME` (15).
+- **Auto-reset to 1× under 1000 ft AGL** (`AUTO_RESET_AGL_M`) so compression can never make a landing
+  un-flyable; never fires on unmeasured (null) clearance.
+- **Skip-to-final reuses the RE-SYNC path**: `onFinalPlacement()` → spawn overrides (gear/flaps down) →
+  `loop.resync()`; only when a real destination is assigned. Leaves the flight PAUSED (player resumes).
+- **Ranked integrity:** compression >1× OR skip flags the flight UNRANKED (reused `repositioned` for skip,
+  new sticky `timeCompressed` flag for compression). Instant/anonymous already unranked → no-op.
+- **Honesty:** live contacts + genuine-aircraft ghost are NOT extrapolated under compression — they lag on
+  real wall time; a "LIVE TRAFFIC REAL-TIME" note shows when active. Day/night stays on the real clock.
