@@ -93,6 +93,24 @@ export type BrokerAdminSnapshot = {
     inFlightRegions: number;
     runningPriority: number | null;
   };
+  /** Read-only per-provider circuit health (adsb-game#19 phase 2a). No mutation path here. */
+  trafficSources: {
+    providers: Array<{
+      providerKey: string;
+      state: "closed" | "open" | "half-open";
+      consecutiveFailures: number;
+      cooldownRemainingMs: number;
+      lastOutcome: "success" | "failure" | null;
+      /** Null when no outcome has ever been recorded for this provider (honest "no data"). */
+      lastOutcomeAtMs: number | null;
+    }>;
+    budget: {
+      band: BudgetBand;
+      admittedRequests: { used: number; limit: number };
+      /** Provider daily-limit is null when provider settings could not be read. */
+      providerRequests: { used: number; limit: number | null };
+    };
+  };
 };
 
 export type BrokerCommand =
@@ -414,15 +432,43 @@ function isAdminSnapshot(value: unknown): value is BrokerAdminSnapshot {
     )
   ) return false;
   const work = value.providerWork;
-  return (
-    isRecord(work) &&
-    Array.isArray(work.queuedByPriority) &&
-    work.queuedByPriority.length === 4 &&
-    work.queuedByPriority.every(isCount) &&
-    isCount(work.inFlightRegions) &&
-    (work.runningPriority === null ||
-      (Number.isInteger(work.runningPriority) && Number(work.runningPriority) >= 0 &&
+  if (
+    !isRecord(work) ||
+    !Array.isArray(work.queuedByPriority) ||
+    work.queuedByPriority.length !== 4 ||
+    !work.queuedByPriority.every(isCount) ||
+    !isCount(work.inFlightRegions) ||
+    (work.runningPriority !== null &&
+      !(Number.isInteger(work.runningPriority) && Number(work.runningPriority) >= 0 &&
         Number(work.runningPriority) <= 3))
+  ) return false;
+  const sources = value.trafficSources;
+  if (
+    !isRecord(sources) ||
+    !Array.isArray(sources.providers) ||
+    sources.providers.length > 8 ||
+    !sources.providers.every((provider) =>
+      isRecord(provider) &&
+      typeof provider.providerKey === "string" &&
+      provider.providerKey.length > 0 &&
+      provider.providerKey.length <= 256 &&
+      ["closed", "open", "half-open"].includes(String(provider.state)) &&
+      isCount(provider.consecutiveFailures) &&
+      isCount(provider.cooldownRemainingMs) &&
+      [null, "success", "failure"].includes(provider.lastOutcome as string | null) &&
+      (provider.lastOutcomeAtMs === null || isCount(provider.lastOutcomeAtMs))
+    )
+  ) return false;
+  const budget = sources.budget;
+  return (
+    isRecord(budget) &&
+    BUDGET_BANDS.has(budget.band as BudgetBand) &&
+    isRecord(budget.admittedRequests) &&
+    isCount(budget.admittedRequests.used) &&
+    isCount(budget.admittedRequests.limit) &&
+    isRecord(budget.providerRequests) &&
+    isCount(budget.providerRequests.used) &&
+    (budget.providerRequests.limit === null || isCount(budget.providerRequests.limit))
   );
 }
 

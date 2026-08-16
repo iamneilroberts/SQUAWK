@@ -4,15 +4,17 @@ import Controls from "./Controls";
 import LogsErrors from "./LogsErrors";
 import Overview from "./Overview";
 import TrafficCapacity from "./TrafficCapacity";
+import TrafficSources from "./TrafficSources";
 import Users from "./Users";
 import { loadAdminBootstrap, type AdminBootstrap } from "./api";
 import { ErrorState, LoadingState, StatusPill } from "./components";
 
-type Tab = "overview" | "capacity" | "sessions" | "events" | "users" | "controls";
+type Tab = "overview" | "capacity" | "sources" | "sessions" | "events" | "users" | "controls";
 
 const TABS: Array<{ id: Tab; label: string; component?: ComponentType }> = [
   { id: "overview", label: "Overview", component: Overview },
   { id: "capacity", label: "Traffic & Capacity", component: TrafficCapacity },
+  { id: "sources", label: "Traffic Sources", component: TrafficSources },
   { id: "sessions", label: "Active Sessions" },
   { id: "events", label: "Logs & Errors", component: LogsErrors },
   { id: "users", label: "Users" },

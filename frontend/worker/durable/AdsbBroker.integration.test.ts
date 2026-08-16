@@ -1206,5 +1206,55 @@ describe("AdsbBroker", () => {
         traffic: { source: PRIMARY_KEY },
       });
     });
+
+    it("surfaces per-provider circuit health on admin-snapshot without mutating circuit state (#19 phase 2a)", async () => {
+      const target = stub();
+      const clock = new FakeClock(START);
+      await setClock(target, clock);
+      await setRandom(target, () => 0); // deterministic zero-jitter cooldown
+      const provider = emulatedFailoverProvider((key) =>
+        key === PRIMARY_KEY ? "failure" : "success",
+      );
+      await setTrafficProvider(target, provider, CIRCUIT_SETTINGS);
+      for (let index = 0; index < PROVIDER_CIRCUIT_FAILURE_THRESHOLD; index += 1) {
+        await traffic(target, 10 + index, -80);
+      }
+
+      const beforeStored = await runInDurableObject<AdsbBroker, unknown>(target, (_broker, state) =>
+        state.storage.get("provider-circuit:v1"),
+      );
+
+      const result = await command(target, { type: "admin-snapshot", forceMode: "NORMAL" });
+      expect(result.type).toBe("admin-snapshot");
+      const providers = result.type === "admin-snapshot"
+        ? result.snapshot.trafficSources.providers
+        : [];
+      expect(providers).toContainEqual({
+        providerKey: PRIMARY_KEY,
+        state: "open",
+        consecutiveFailures: PROVIDER_CIRCUIT_FAILURE_THRESHOLD,
+        cooldownRemainingMs: PROVIDER_CIRCUIT_BASE_COOLDOWN_MS,
+        lastOutcome: "failure",
+        lastOutcomeAtMs: expect.any(Number),
+      });
+      expect(providers).toContainEqual({
+        providerKey: FALLBACK_KEY,
+        state: "closed",
+        consecutiveFailures: 0,
+        cooldownRemainingMs: 0,
+        lastOutcome: null,
+        lastOutcomeAtMs: null, // healthy success is a no-op write -- no record exists yet
+      });
+      expect(result.type === "admin-snapshot" && result.snapshot.trafficSources.budget).toMatchObject({
+        band: "normal",
+        providerRequests: { limit: CIRCUIT_SETTINGS.dailyLimit },
+      });
+
+      // Read-only: the snapshot read must not have touched provider-circuit:v1 at all.
+      const afterStored = await runInDurableObject<AdsbBroker, unknown>(target, (_broker, state) =>
+        state.storage.get("provider-circuit:v1"),
+      );
+      expect(afterStored).toEqual(beforeStored);
+    });
   });
 });

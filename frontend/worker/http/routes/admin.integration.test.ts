@@ -94,6 +94,21 @@ function brokerHarness() {
           audience: "active-ghost",
         }],
         providerWork: { queuedByPriority: [0, 0, 0, 0], inFlightRegions: 0, runningPriority: null },
+        trafficSources: {
+          providers: [{
+            providerKey: "primary.test",
+            state: "closed",
+            consecutiveFailures: 0,
+            cooldownRemainingMs: 0,
+            lastOutcome: null,
+            lastOutcomeAtMs: null,
+          }],
+          budget: {
+            band: status.budgetBand,
+            admittedRequests: { used: status.admittedRequests, limit: 100_000 },
+            providerRequests: { used: status.providerRequests, limit: 500 },
+          },
+        },
       },
     };
     if (command.type === "mode-set") {
@@ -247,6 +262,47 @@ describe("admin control routes", () => {
     expect(body).not.toContain(await hashSessionToken(SESSION_TOKEN));
     expect(body).not.toContain("email_key");
     expect(body).not.toContain("session_digest");
+  });
+
+  it("serves a read-only traffic sources snapshot and keeps it behind the admin boundary (#19 phase 2a)", async () => {
+    const { broker } = brokerHarness();
+    const adminRouter = createRouter(createAdminRoutes({ broker, now: () => NOW }), dependencies());
+    const response = await adminRouter.fetch(
+      new Request("https://fly.voygent.app/api/admin/traffic-sources"),
+      runtime(),
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        capturedAtMs: NOW,
+        trafficSources: {
+          providers: [{
+            providerKey: "primary.test",
+            state: "closed",
+            consecutiveFailures: 0,
+            cooldownRemainingMs: 0,
+            lastOutcome: null,
+            lastOutcomeAtMs: null,
+          }],
+          budget: {
+            band: "normal",
+            admittedRequests: { used: 10, limit: 100_000 },
+            providerRequests: { used: 2, limit: 500 },
+          },
+        },
+      },
+    });
+
+    const { broker: otherBroker } = brokerHarness();
+    const nonAdminRouter = createRouter(createAdminRoutes({ broker: otherBroker, now: () => NOW }), dependencies("authenticated"));
+    const denied = await nonAdminRouter.fetch(
+      new Request("https://fly.voygent.app/api/admin/traffic-sources", {
+        headers: { cookie: `__Host-adsb_session=${SESSION_TOKEN}` },
+      }),
+      runtime(),
+    );
+    expect(denied.status).toBe(403);
+    expect(otherBroker).not.toHaveBeenCalled();
   });
 
   it("keeps empty log reads and bounded exports explicit", async () => {
