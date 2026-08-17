@@ -92,7 +92,7 @@ export async function exportAdminEvents(
   if (format === "json") {
     return {
       format,
-      filename: "voygent-system-events.json",
+      filename: "squawk-system-events.json",
       contentType: "application/json",
       content: JSON.stringify({ schemaVersion: 1, events }),
       count: events.length,
@@ -112,7 +112,7 @@ export async function exportAdminEvents(
   ].map(csvCell).join(","));
   return {
     format,
-    filename: "voygent-system-events.csv",
+    filename: "squawk-system-events.csv",
     contentType: "text/csv",
     content: `${header.join(",")}\n${lines.join("\n")}`,
     count: events.length,

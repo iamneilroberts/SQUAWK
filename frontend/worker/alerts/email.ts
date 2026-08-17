@@ -12,12 +12,13 @@ export function alertEmailMessage(
   alert: AlertNotification,
   environment: string,
   adminUrl: string,
+  env: { ALERT_FROM_EMAIL: string },
 ): { to: string; from: string; subject: string; text: string } {
   const normalizedEnvironment = environment.toUpperCase().replace(/[^A-Z0-9_-]/g, "-").slice(0, 24);
-  const sender = "alerts@fly.voygent.app";
-  const subject = `[VOYGENT ADSB][${normalizedEnvironment}][${alert.severity.toUpperCase()}] ${bounded(alert.title)}`;
+  const sender = env.ALERT_FROM_EMAIL;
+  const subject = `[SQUAWK][${normalizedEnvironment}][${alert.severity.toUpperCase()}] ${bounded(alert.title)}`;
   const text = [
-    alert.phase === "test" ? "TEST ALERT — no production incident is implied." : "Voygent ADS-B operational alert.",
+    alert.phase === "test" ? "TEST ALERT — no production incident is implied." : "SQUAWK operational alert.",
     "",
     `Time (UTC): ${new Date(alert.occurredAtMs).toISOString()}`,
     `Environment: ${normalizedEnvironment}`,
@@ -35,10 +36,10 @@ export function alertEmailMessage(
 }
 
 export async function sendAlertEmail(
-  env: Pick<Env, "ALERT_EMAIL" | "APP_ENV" | "PUBLIC_ORIGIN">,
+  env: Pick<Env, "ALERT_EMAIL" | "APP_ENV" | "PUBLIC_ORIGIN" | "ALERT_FROM_EMAIL">,
   alert: AlertNotification,
 ): Promise<void> {
-  const origin = env.PUBLIC_ORIGIN ?? "https://fly.voygent.app";
-  const message = alertEmailMessage(alert, env.APP_ENV ?? "local", `${origin.replace(/\/$/, "")}/admin`);
+  const origin = env.PUBLIC_ORIGIN ?? "https://your-domain.example";
+  const message = alertEmailMessage(alert, env.APP_ENV ?? "local", `${origin.replace(/\/$/, "")}/admin`, env);
   await env.ALERT_EMAIL.send(message);
 }

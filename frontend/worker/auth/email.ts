@@ -30,7 +30,7 @@ export async function sendMagicLinkEmail(
     to: message.to,
     subject: `Your sign-in code: ${grouped}`,
     text: [
-      "Your one-time sign-in code for Voygent ADS-B Game:",
+      "Your one-time sign-in code for SQUAWK:",
       "",
       `    ${grouped}`,
       "",

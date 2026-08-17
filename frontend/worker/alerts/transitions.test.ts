@@ -182,9 +182,12 @@ describe("alert transitions", () => {
       state.outbox[0]!.alert,
       "staging",
       "https://example.test/admin",
+      { ALERT_FROM_EMAIL: "alerts@example.test" },
     );
 
     expect(message.to).toBe(ALERT_RECIPIENT);
+    expect(message.from).toBe("alerts@example.test");
+    expect(message.subject).toContain("[SQUAWK]");
     expect(message.subject).toContain("[TEST]");
     expect(message.text).toContain("TEST ALERT");
     expect(message.text).toContain("Time (UTC): 2026-08-10T23:59:00.000Z");

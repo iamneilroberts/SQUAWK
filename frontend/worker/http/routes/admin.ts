@@ -470,7 +470,7 @@ export function createAdminRoutes(
       const { filters } = validated as { filters: AdminEventFilters };
       const runtime = env as Env;
       const accountId = runtime.CLOUDFLARE_ACCOUNT_ID;
-      const service = runtime.APP_ENV === "production" ? "voygent-adsb-game" : "voygent-adsb-game-staging";
+      const service = runtime.APP_ENV === "production" ? "squawk" : "squawk-staging";
       const workersLogsUrl = accountId !== undefined && /^[0-9a-f]{32}$/i.test(accountId)
         ? `https://dash.cloudflare.com/${accountId}/workers/services/view/${service}/production/observability/logs`
         : "https://dash.cloudflare.com/";
