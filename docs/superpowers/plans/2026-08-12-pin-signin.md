@@ -17,7 +17,7 @@
 - Max 5 verify attempts per row, enforced by an atomic UPDATE-increment guard, not read-then-write.
 - No new dependencies. No Turnstile on verify-code. Existing link path (`/api/auth/consume`, `AuthReturn`) stays fully working.
 - Existing tests may be EXTENDED, never weakened; the existing consume-batch semantics (user upsert, preference upsert, prior-session revocation, single-winner) must be reused, not reimplemented.
-- Run commands from `/home/neil/dev/adsb-game-worktrees/mongols-rich-hud/frontend`.
+- Run commands from `frontend/`.
 - Commit per task; suite green at every commit.
 
 ---

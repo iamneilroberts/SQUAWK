@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-17
 **Status:** Design — awaiting owner review before implementation plan
-**Branch/worktree:** `squawk-rebrand` @ `/home/neil/dev/adsb-game-squawk-rebrand`
+**Branch/worktree:** `squawk-rebrand`
 
 ## Goal
 

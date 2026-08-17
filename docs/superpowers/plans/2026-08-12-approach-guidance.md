@@ -18,7 +18,7 @@
 - **Pure modules must not import Cesium.** Tests must not import Cesium.
 - Existing pure API `approachGuidance()` keeps its shape (gates + flare still consumed); only the layer stops drawing `corridorEdges`.
 - Commit after every task; suite must be green at every commit.
-- All commands run from `/home/neil/dev/adsb-game-worktrees/mongols-rich-hud/frontend`.
+- All commands run from `frontend/`.
 
 ---
 

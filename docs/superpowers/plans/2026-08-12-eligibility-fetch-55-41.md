@@ -6,7 +6,7 @@
 
 **Architecture:** #55 is pure + cheap — `checkEligibility(contact)` needs only the contact (no fetch, no own position). Tint the map chevron (`icons.ts::contactColor`) and mark the list row (`ContactList.tsx`) from it. #41 adds a `refreshNow()` to the existing traffic poller that reuses its in-flight guard (`schedule(0)` when idle), coalescing with the poll and the server-side 30s cache + global 1/s gate — never a second parallel call.
 
-**Tech Stack:** React 18 + TS · zustand · Cesium · vitest. Commands from `/home/neil/dev/adsb-game-worktrees/mongols-rich-hud/frontend`.
+**Tech Stack:** React 18 + TS · zustand · Cesium · vitest. Commands from `frontend/`.
 
 ## Global Constraints
 
