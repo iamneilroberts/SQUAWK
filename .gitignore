@@ -14,6 +14,8 @@ frontend/.wrangler/
 # Cloudflare production overlay — real account/domain/D1 values (see wrangler.prod.example.jsonc)
 frontend/wrangler.prod.jsonc
 !frontend/wrangler.prod.example.jsonc
+# transient neutral-config backup created by scripts/deploy-with-overlay.sh
+frontend/.wrangler.neutral.*
 __pycache__/
 *.pyc
 .venv/
