@@ -1,0 +1,5 @@
+{
+  "MessageType": "PositionReport",
+  "MetaData": {"MMSI": 366999999, "ShipName": "EVER GIVEN", "latitude": 30.71, "longitude": -88.04, "time_utc": "2026-08-05 15:52:28 +0000 UTC"},
+  "Message": {"PositionReport": {"Latitude": 30.71, "Longitude": -88.04, "Cog": 271.4, "Sog": 12.3, "TrueHeading": 270, "NavigationalStatus": 0}}
+}

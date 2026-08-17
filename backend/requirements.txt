@@ -3,3 +3,4 @@ httpx
 uvicorn
 pytest
 pytest-asyncio
+websockets
