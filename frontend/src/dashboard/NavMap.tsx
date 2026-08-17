@@ -34,6 +34,7 @@ const C = SIZE / 2;
 export default function NavMap({
   snapshot, airports, contacts, feedStatus, ghostHex, navRangeNm, feedRadiusNm, onRangeChange,
   showRadar = false, navWeather = { kind: "no-position" }, showBasemap = false, showLabels = false,
+  showContacts = true,
 }: {
   snapshot: HudSnapshot | null;
   airports: Airport[];
@@ -50,6 +51,8 @@ export default function NavMap({
   showBasemap?: boolean;
   /** Overlay place-name labels on the basemap — follows the menu LABELS chip (store `labelsOn`). */
   showLabels?: boolean;
+  /** Draw the traffic blips. Off = decluttered map (the CONTACTS chip); own-ship + airports stay. */
+  showContacts?: boolean;
 }) {
   const status = navStatus(feedStatus);
   const coverage = coverageNote(navRangeNm, feedRadiusNm);
@@ -125,24 +128,27 @@ export default function NavMap({
           </g>
         ))}
 
-        {/* Traffic freezes with the feed; the group carries the dim, so airports keep full opacity. */}
-        <g className={status.dim ? "navmap-traffic navmap-dim" : "navmap-traffic"}>
-          {blips.map((b) => (
-            <rect
-              key={b.hex}
-              data-hex={b.hex}
-              x={C + b.x - 2}
-              y={C + b.y - 2}
-              width={4}
-              height={4}
-              className={[
-                "navmap-blip",
-                b.military ? "navmap-blip-mil" : "",
-                b.ghost ? "navmap-blip-ghost" : "",
-              ].filter(Boolean).join(" ")}
-            />
-          ))}
-        </g>
+        {/* Traffic freezes with the feed; the group carries the dim, so airports keep full opacity.
+            Hidden by the CONTACTS chip (showContacts) to declutter the line map. */}
+        {showContacts && (
+          <g className={status.dim ? "navmap-traffic navmap-dim" : "navmap-traffic"}>
+            {blips.map((b) => (
+              <rect
+                key={b.hex}
+                data-hex={b.hex}
+                x={C + b.x - 2}
+                y={C + b.y - 2}
+                width={4}
+                height={4}
+                className={[
+                  "navmap-blip",
+                  b.military ? "navmap-blip-mil" : "",
+                  b.ghost ? "navmap-blip-ghost" : "",
+                ].filter(Boolean).join(" ")}
+              />
+            ))}
+          </g>
+        )}
 
         {coverage !== null && (
           <text x={C} y={C + NAV_RADIUS_PX + 6} textAnchor="middle" className="navmap-coverage-note">

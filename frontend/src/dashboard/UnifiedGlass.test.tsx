@@ -57,6 +57,7 @@ const body = (params: ClassParams, o: {
   showHelp?: boolean;
   tacticalMode?: NavMode;
   labelsOn?: boolean;
+  showContacts?: boolean;
 } = {}) =>
   UnifiedGlassBody({
     params,
@@ -73,7 +74,8 @@ const body = (params: ClassParams, o: {
     showHelp: o.showHelp ?? false,
     tacticalMode: o.tacticalMode ?? "normal",
     labelsOn: o.labelsOn ?? false,
-    onCycleTactical: () => {},
+    showContacts: o.showContacts ?? true,
+    onCycleTactical: () => {}, onToggleContacts: () => {},
     onNavRangeChange: () => {}, onToggleWeather: () => {}, onToggleHelp: () => {}, onToggleStrip: () => {},
   });
 
@@ -184,5 +186,24 @@ describe("tactical map has three display modes driven by StripState (#67 rework)
     const t = text(loadC172(), { tacticalMode: "hidden" });
     expect(t).toContain("TACTICAL ▸"); // the restore affordance
     expect(t).not.toContain("MAP © ESRI"); // map is unmounted while hidden
+  });
+});
+
+describe("tactical CONTACTS chip declutters the line map", () => {
+  const activeCount = (o: Parameters<typeof body>[1]) =>
+    (classNames(loadB738(), o).match(/status-chip-button-active/g) ?? []).length;
+
+  it("draws traffic blips by default; the CONTACTS chip reads active only when on", () => {
+    expect(collectProp(body(loadB738()), "data-hex")).toContain("a1b2c3");
+    // Exactly one more active chip when contacts are on — the CONTACTS chip itself (the active
+    // range preset is the same in both, so the delta isolates the CONTACTS chip's state).
+    expect(activeCount({ showContacts: true })).toBe(activeCount({ showContacts: false }) + 1);
+  });
+
+  it("hides only the traffic when contacts are off — own-ship and airports stay", () => {
+    const el = body(loadB738(), { showContacts: false });
+    expect(collectProp(el, "data-hex")).not.toContain("a1b2c3"); // traffic gone
+    expect(collectProp(el, "className")).toContain("navmap-own"); // own-ship remains
+    expect(collectProp(el, "data-ident")).toContain("KMOB"); // airports remain (bundled, not feed)
   });
 });

@@ -600,6 +600,7 @@ body {
   flex-direction: column;
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-width: none; /* scrollable but no visible bar (owner 2026-08-17) */
   padding: 12px 14px;
   pointer-events: auto;
 }
@@ -875,11 +876,18 @@ body {
   max-height: calc(100dvh - 24px);
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-width: none; /* Firefox: keep it scrollable, drop the visible bar (owner 2026-08-17) */
 }
 .end-card {
   width: min(760px, calc(100vw - 24px)); max-height: min(88vh, 820px);
   overflow-y: auto;
+  scrollbar-width: none;
 }
+/* Hide the scrollbar chrome on the overlay cards + mission briefing — they still scroll on short
+   viewports (wheel/touch), but the bar itself is the "menu bar" the owner wants gone. */
+.pause-card::-webkit-scrollbar,
+.end-card::-webkit-scrollbar,
+.mission-tray::-webkit-scrollbar { display: none; }
 /* Pinned footer (#32): EXIT TO BROWSE stays reachable without scrolling the long debrief card.
    Negative margins flush it to the card's own padding (16px 20px base, 12px narrow below) so it
    spans edge-to-edge; sticky works because it stays inside .end-card's own overflow-y:auto. */
@@ -1309,13 +1317,14 @@ body {
    leaves out-of-circle pixels transparent, so no extra clip mask is needed. */
 .navmap-wx { pointer-events: none; }
 .navmap-wx-canvas { display: block; }
-/* Satellite basemap (#67): the bottom layer of the nav face. */
+/* Line basemap (#67): bright transparent Esri reference lines/labels on the near-black face — no
+   opaque fill, so the geography reads through the traffic clutter. Canvases stack in one box. */
 .navmap-basemap { pointer-events: none; }
-/* Base + label canvases stack in one box: the transparent label PNG (World_Dark_Gray_Reference)
-   overlays the opaque base (World_Dark_Gray_Base) beneath it. */
 .navmap-basemap-stack { position: relative; }
-.navmap-basemap-canvas { display: block; position: absolute; top: 0; left: 0; }
-.navmap-basemap-labels { pointer-events: none; }
+.navmap-basemap-canvas { display: block; position: absolute; top: 0; left: 0; pointer-events: none; }
+/* Brighten the transparent tiles hard so the lines punch through the contact squares. Tunable. */
+.navmap-basemap-lines { filter: brightness(2) contrast(1.15); }
+.navmap-basemap-labels { filter: brightness(1.7) contrast(1.1); }
 .navmap-ranges { display: flex; align-items: center; gap: 3px; }
 .navmap-range-unit { color: var(--text); opacity: 0.6; font-size: 9px; }
 .status-chip-button-active {
@@ -2443,6 +2452,7 @@ body {
   justify-content: space-between;
   gap: 8px;
 }
+.dash-tactical-chips { display: flex; gap: 4px; }
 .dash-tactical-mode {
   font-size: 8px;
   padding: 1px 5px;

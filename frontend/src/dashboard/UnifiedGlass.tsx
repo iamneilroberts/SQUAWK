@@ -72,7 +72,7 @@ export function CockpitPrimary({
 export function UnifiedGlassBody({
   snapshot, params, contacts, feedStatus, ghostHex, feedRadiusNm, airports,
   navRangeNm, weather, navWeather, showWeather, showHelp,
-  tacticalMode, labelsOn, onCycleTactical,
+  tacticalMode, labelsOn, showContacts, onCycleTactical, onToggleContacts,
   onNavRangeChange, onToggleWeather, onToggleHelp, onToggleStrip,
 }: {
   snapshot: HudSnapshot | null;
@@ -91,7 +91,10 @@ export function UnifiedGlassBody({
   tacticalMode: NavMode;
   /** Overlay place labels on the tactical basemap — the menu LABELS chip (store `labelsOn`). */
   labelsOn: boolean;
+  /** Draw the traffic blips on the tactical map — the CONTACTS chip declutters the line map. */
+  showContacts: boolean;
   onCycleTactical(): void;
+  onToggleContacts(): void;
   onNavRangeChange(nm: number): void;
   onToggleWeather(): void;
   onToggleHelp(): void;
@@ -206,13 +209,27 @@ export function UnifiedGlassBody({
         >
           <div className="dash-tactical-head">
             <span className="glass-region-label label">TACTICAL</span>
-            <button
-              type="button"
-              className="status-chip-button dash-tactical-mode"
-              onClick={onCycleTactical}
-            >
-              {navModeChipLabel(tacticalMode)}
-            </button>
+            <div className="dash-tactical-chips">
+              <button
+                type="button"
+                className={
+                  showContacts
+                    ? "status-chip-button status-chip-button-active dash-tactical-mode"
+                    : "status-chip-button dash-tactical-mode"
+                }
+                onClick={onToggleContacts}
+                aria-pressed={showContacts}
+              >
+                CONTACTS
+              </button>
+              <button
+                type="button"
+                className="status-chip-button dash-tactical-mode"
+                onClick={onCycleTactical}
+              >
+                {navModeChipLabel(tacticalMode)}
+              </button>
+            </div>
           </div>
           <NavMap
             snapshot={snapshot}
@@ -227,6 +244,7 @@ export function UnifiedGlassBody({
             navWeather={navWeather}
             showBasemap
             showLabels={labelsOn}
+            showContacts={showContacts}
           />
         </div>
       )}

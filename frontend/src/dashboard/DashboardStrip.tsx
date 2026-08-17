@@ -37,6 +37,7 @@ export type StripState = {
   showWeather: boolean;
   showHelp: boolean;
   tacticalMode: NavMode;
+  showContacts: boolean;
 };
 
 /**
@@ -62,6 +63,7 @@ export function defaultStripState(narrow = false): StripState {
     showWeather: false,
     showHelp: false,
     tacticalMode: "normal",
+    showContacts: true,
   };
 }
 
@@ -84,6 +86,11 @@ export function toggleStrip(s: StripState): StripState {
 /** Tactical-map mode chip: cycle normal -> large -> hidden -> normal (#67 rework). */
 export function cycleTactical(s: StripState): StripState {
   return { ...s, tacticalMode: nextNavMode(s.tacticalMode) };
+}
+
+/** Tactical-map CONTACTS chip: hide/show the traffic blips to declutter the line map. */
+export function toggleContacts(s: StripState): StripState {
+  return { ...s, showContacts: !s.showContacts };
 }
 
 /**
@@ -164,7 +171,9 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
       showHelp={state.showHelp}
       tacticalMode={state.tacticalMode}
       labelsOn={labelsOn}
+      showContacts={state.showContacts}
       onCycleTactical={() => setState(cycleTactical)}
+      onToggleContacts={() => setState(toggleContacts)}
       onNavRangeChange={(nm) => setState((s) => setNavRange(s, nm))}
       onToggleWeather={() => setState(toggleWeather)}
       onToggleHelp={() => setState(toggleHelp)}

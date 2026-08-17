@@ -3280,3 +3280,25 @@ Owner reworked the tactical face (follow-up to the CSP host fix same day). Two c
    panel to a compact "TACTICAL ▸" restore tab. Chip label states the action (ENLARGE/HIDE/SHOW).
 Verified: full suite 1605 pass (added navModes + 3 mode tests), tsc clean, build exit 0. Visual
 confirmation is post-deploy only (flight HUD needs a live feed).
+
+## 2026-08-17 — TACTICAL map legibility: bright lines, CONTACTS declutter chip, overlay scrollbars
+Owner review of the line-map ship (same day): the dark-gray disc was illegible under the traffic
+squares. Three fixes:
+1. **Bright lines on near-black.** Dropped the opaque `World_Dark_Gray_Base` fill entirely. The map
+   is now two TRANSPARENT Esri reference layers over the face's own near-black background:
+   `Reference/World_Transportation` (roads/rail — always on, the line map) and
+   `Reference/World_Boundaries_and_Places` (boundaries + place names — only when the LABELS chip is
+   on, so lines stay always-on and text follows the one control). Both PNG w/ alpha, keyless on the
+   CSP-clean `services.arcgisonline.com`. Brightness is a CSS filter (`.navmap-basemap-lines`
+   brightness(2)/contrast(1.15), labels a touch less) so the lines punch through the contact squares
+   and it's cheap to re-tune. Trade-off (owner-accepted): no water/coastline shading, just lines +
+   labels. Attribution stays "MAP © ESRI".
+2. **CONTACTS chip** (StripState `showContacts`, default on) in the tactical header, beside the
+   mode chip — hides the traffic blips to declutter the map; own-ship + airports stay. Mirrors the
+   weather fold pattern.
+3. **Overlay scrollbars hidden.** `.pause-card` / `.end-card` / `.mission-tray` keep `overflow-y:auto`
+   (short-viewport safety) but the visible bar — the "menu bar" the owner flagged on PAUSED + the
+   mission briefing — is suppressed via `scrollbar-width:none` + `::-webkit-scrollbar{display:none}`.
+   Still scrolls by wheel/touch; just no chrome.
+Verified: full suite 1607 pass (added CONTACTS toggle tests), tsc clean, build exit 0. Brightness
+values + whether roads-only reads well are prod-eyeball tunables (no local feed).
