@@ -11,7 +11,7 @@ COPY . .
 # `npm run build` runs `prebuild` (scripts/copy-cesium-assets.sh) first, which copies
 # Cesium's static assets from node_modules into public/cesium/ — that dir is gitignored
 # (G-004), so it must be generated here, not expected in the build context.
-RUN npm run build
+RUN npm run build:spa
 
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
