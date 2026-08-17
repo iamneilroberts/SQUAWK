@@ -50,7 +50,7 @@ async function fetchVerified(path, kind) {
     const html = await response.clone().text();
     if (
       !contentType.includes("text/html") ||
-      !html.includes("<title>ADSB-GAME</title>") ||
+      !html.includes("<title>SQUAWK</title>") ||
       !html.includes('<div id="root"></div>')
     ) {
       throw new Error("Refusing to cache an unrecognized application shell");

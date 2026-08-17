@@ -55,7 +55,7 @@ describe("Cloudflare application routing", () => {
     expect(routeResponse.status).toBe(200);
     expect(routeResponse.headers.get("content-type")).toContain("text/html");
     expectSecurityHeaders(routeResponse, { hsts: true });
-    expect(await routeResponse.text()).toContain("<title>ADSB-GAME</title>");
+    expect(await routeResponse.text()).toContain("<title>SQUAWK</title>");
 
     const indexHtml = await readFile("./dist/client/index.html", "utf8");
     const assetPath = indexHtml.match(/src="(\/assets\/[^"]+\.js)"/)?.[1];
