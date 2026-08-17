@@ -3353,3 +3353,10 @@ drawn as crisp SVG polylines instead:
 Verified: full suite 1613 pass (navBorders projection + real Gulf-coast data + render assert), tsc
 clean, build exit 0. Colour/weight are prod-eyeball tunables; bundle grew ~200 KB gzip (accepted,
 matches the airports precedent).
+
+## 2026-08-17 — TACTICAL map: distinguish PLACES from TRAFFIC (hollow circle + bright label)
+Owner: airports and traffic both drew as cyan squares — same shape, confusing. Fix: airports now
+render as a HOLLOW near-white circle (a "place/waypoint" glyph) instead of a filled square, and
+their labels go from dim gray (var(--text) @0.7) to bright near-white (#f2f6f8 @0.95) so they stand
+out over the Esri gray place names. Traffic contacts keep the filled cyan/amber squares. Shape now
+carries the place-vs-traffic distinction, not just colour. NavMap.tsx rect→circle; CSS only.

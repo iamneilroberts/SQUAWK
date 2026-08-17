@@ -162,7 +162,8 @@ export default function NavMap({
         {/* Airports: bundled, not a feed — drawn at full opacity even when the traffic is frozen. */}
         {ports.map((p) => (
           <g key={p.ident} data-ident={p.ident} className={`navmap-airport navmap-airport-${p.size}`}>
-            <rect x={C + p.x - 2} y={C + p.y - 2} width={4} height={4} className="navmap-airport-mark" />
+            {/* Hollow circle = a PLACE, unmistakable next to the filled squares that mark TRAFFIC. */}
+            <circle cx={C + p.x} cy={C + p.y} r={2.2} className="navmap-airport-mark" />
             <text x={C + p.x + 5} y={C + p.y + 3} className="navmap-airport-label">{p.label}</text>
           </g>
         ))}
