@@ -715,6 +715,23 @@ export default function FlightSession({
     useStore.getState().fire("RESUME");
   }, []);
 
+  // ---- Big tactical map = a "check my location" tool that FREEZES the sim while it's up ----
+  // Unlike pauseFlight this does NOT fire PAUSE: the machine stays FLYING (no pause menu), the loop
+  // just stops so the map is a still snapshot. Leaving the map resumes — but only if still FLYING,
+  // so a real Esc-pause taken meanwhile isn't clobbered. Esc is made inert while it's up (below) so
+  // the map and the pause menu never coexist. Owner 2026-08-17.
+  const [mapExpanded, setMapExpanded] = useState(false);
+  const onMapExpanded = useCallback((expanded: boolean) => {
+    setMapExpanded(expanded);
+    const loop = loopRef.current;
+    if (loop === null) return;
+    if (expanded) {
+      if (!loop.isPaused()) loop.pause();
+    } else if (loop.isPaused() && useStore.getState().mode === "FLYING") {
+      loop.resume();
+    }
+  }, []);
+
   // ---- TIME COMPRESSION selector (#87), driven from the pause menu ----
   // "Using" compression is sticky for the ranked flag even if the player dials it back to 1x —
   // mirrors assist.highestUsed's "worst used, not current" semantics (mission/assistState.ts).
@@ -758,10 +775,12 @@ export default function FlightSession({
   useEffect(() => {
     if (mode !== "FLYING" && mode !== "PAUSED") return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "Escape") pauseFlight();
+      // While the big location map is up the sim is already frozen and Esc is inert — close the map
+      // (its backdrop/chip) to resume, so the map and the pause menu never stack.
+      if (e.code === "Escape" && !mapExpanded) pauseFlight();
     };
     const onVisibility = () => {
-      if (document.hidden) pauseFlight();
+      if (document.hidden && !mapExpanded) pauseFlight();
     };
     window.addEventListener("keydown", onKeyDown);
     document.addEventListener("visibilitychange", onVisibility);
@@ -769,7 +788,7 @@ export default function FlightSession({
       window.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [mode, pauseFlight]);
+  }, [mode, pauseFlight, mapExpanded]);
 
   // ---- KeyE toggles the exterior chase/orbit camera (issue #4) ----
   // View-only, off by default: the toggle LOGIC lives in the host (cesiumFlightHost), so a future
@@ -1232,7 +1251,7 @@ export default function FlightSession({
               controls + auto-hide), no multi-panel dashboard clutter (owner directive). On
               desktop it ALWAYS renders, immersive or not (owner 2026-08-12: desktop immersive
               adds the improved HUD bar but KEEPS the glass cockpit — "keep both"). */}
-          {!narrow && <DashboardStrip snapshot={snapshot} />}
+          {!narrow && <DashboardStrip snapshot={snapshot} onMapExpanded={onMapExpanded} />}
         </>
       )}
       {/* ENDED is deliberately excluded: the end card owns the screen and the mouse is handed

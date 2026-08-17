@@ -108,7 +108,15 @@ export function stripKeyAction(
   return null;
 }
 
-export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | null }) {
+export default function DashboardStrip({
+  snapshot,
+  onMapExpanded,
+}: {
+  snapshot: HudSnapshot | null;
+  /** Called when the tactical map enters/leaves LARGE — FlightSession freezes the physics loop
+   *  while the big location map is up (owner: a pull-up tool, sim pauses behind it). */
+  onMapExpanded?: (expanded: boolean) => void;
+}) {
   // Narrow at mount → the glass starts folded (back-compat only; desktop-gated upstream). Read
   // once for the initial state; we don't re-fold on later resize, which would fight the user.
   const narrow = isNarrowViewport(useViewport().width);
@@ -125,6 +133,15 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
   const weather = useWeather(snapshot);
   // The WX toggle drives both the METAR fold and the precip-radar overlay; fetch only when on.
   const navWeather = useNavWeather(snapshot, state.showWeather);
+
+  // Freeze the sim while the big location map is up; resume (or on unmount) when it closes.
+  const mapExpanded = state.tacticalMode === "large";
+  useEffect(() => {
+    onMapExpanded?.(mapExpanded);
+    return () => {
+      if (mapExpanded) onMapExpanded?.(false);
+    };
+  }, [mapExpanded, onMapExpanded]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {

@@ -3302,3 +3302,25 @@ squares. Three fixes:
    Still scrolls by wheel/touch; just no chrome.
 Verified: full suite 1607 pass (added CONTACTS toggle tests), tsc clean, build exit 0. Brightness
 values + whether roads-only reads well are prod-eyeball tunables (no local feed).
+
+## 2026-08-17 — TACTICAL map becomes a big paused location TOOL + handoff-card scrollbars
+Owner review 3: road/place text illegible (map too small); TAKE CONTROLS card still showed scroll
+bars. Reframed large mode per owner ("a tool you pull up to check location, sim can pause while
+it's up, not used much in flight"):
+1. **LARGE = big centered, sim-paused, high-res location map.** Was a 300px in-corner grow; now a
+   centered modal (`.dash-tactical-expanded`, min(78vmin,640px)) over a dim click-to-close backdrop.
+   Legibility root cause was pixels, not brightness: the Esri tile TEXT was shrunk into a tiny
+   circle (and CSS-upscaled = blurry). Fix: NavBasemapLayer now renders the canvas BUFFER at
+   `renderScale`× the display footprint (large passes 3), so the road/place text is drawn at native
+   resolution and stays crisp/readable when shown big. SVG marks were already vector (scale free).
+2. **Freeze without the pause menu.** Opening the big map freezes the physics via `loop.pause()`
+   WITHOUT firing PAUSE — the machine stays FLYING so no PauseOverlay stacks on the map; closing it
+   `loop.resume()`s (guarded to FLYING so a real Esc-pause taken meanwhile isn't clobbered). Wiring:
+   DashboardStrip fires `onMapExpanded(tacticalMode==='large')` up to FlightSession, which owns the
+   loop. Esc + tab-hide auto-pause are made inert while the map is up (the backdrop/chip closes it),
+   so the map and the pause menu never coexist.
+3. **`.handoff-card` (TAKE CONTROLS) scrollbars** hidden — a DIFFERENT element than the earlier
+   `.mission-tray`/`.pause-card` fix, which is why it still showed bars (both axes: overflow-y:auto
+   forces overflow-x to auto). Added overflow-x:hidden + scrollbar-width:none + ::-webkit-scrollbar.
+Verified: full suite 1607 pass (modal/backdrop/render-scale asserts added), tsc clean, build exit 0.
+Freeze/resume + text crispness are prod-eyeball (no local feed); renderScale 3 + face size tunable.

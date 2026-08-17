@@ -35,32 +35,35 @@ const BOUNDARY_LABELS = `${ESRI_REF}/World_Boundaries_and_Places/MapServer/tile`
 // Esri reference tiles go far deeper than the radar tiles; cap high enough for a crisp face up close.
 const BASEMAP_MAX_Z = 12;
 
-/** One warped tile layer as its own canvas — the shared piece of both the line and label layers. */
+/** One warped tile layer as its own canvas — the shared piece of both the line and label layers.
+ *  `displayPx` is the CSS footprint (SVG units); the canvas BUFFER is rendered at `renderPx` so a
+ *  large, paused location map is crisp (native pixels), not a CSS upscale of a small buffer. */
 function WarpCanvas({
   own,
   navRangeNm,
-  radiusPx,
+  displayPx,
+  renderPx,
   tileUrl,
   className,
 }: {
   own: LonLat;
   navRangeNm: number;
-  radiusPx: number;
+  displayPx: number;
+  renderPx: number;
   tileUrl: string;
   className: string;
 }) {
-  const side = radiusPx * 2;
   const qLat = Math.round(own.latDeg * 100) / 100;
   const qLon = Math.round(own.lonDeg * 100) / 100;
-  // The tile source is part of the key: line and label canvases must not share a warped result.
-  const key = `${tileUrl}|${qLat},${qLon},${navRangeNm},${radiusPx}`;
+  // renderPx is part of the key: re-warp when the native resolution changes (e.g. small -> large).
+  const key = `${tileUrl}|${qLat},${qLon},${navRangeNm},${renderPx}`;
 
   return (
     <canvas
-      width={side}
-      height={side}
+      width={renderPx}
+      height={renderPx}
       className={className}
-      style={{ width: side, height: side }}
+      style={{ width: displayPx, height: displayPx }}
       ref={(canvas) => {
         if (canvas === null) return;
         if (canvas.dataset.navKey === key) return; // already warped for these params
@@ -68,7 +71,7 @@ function WarpCanvas({
         void warpTilesToNavCircle(canvas, {
           own: { latDeg: qLat, lonDeg: qLon },
           navRangeNm,
-          radiusPx,
+          radiusPx: renderPx / 2, // native half-size drives the output buffer AND the tile zoom
           maxZ: BASEMAP_MAX_Z,
           tileUrl: (z, x, y) => `${tileUrl}/${z}/${y}/${x}`,
         });
@@ -82,20 +85,26 @@ export function NavBasemapLayer({
   navRangeNm,
   radiusPx = NAV_RADIUS_PX,
   showLabels = false,
+  renderScale = 1,
 }: {
   own: LonLat;
   navRangeNm: number;
   radiusPx?: number;
   /** Follows the menu LABELS chip (store `labelsOn`): overlay boundaries + place names when on. */
   showLabels?: boolean;
+  /** Native-buffer supersampling: 1 for the small glance, higher for the big paused map so the
+   *  road/place text is rendered at real resolution and stays readable when shown large. */
+  renderScale?: number;
 }) {
-  const side = radiusPx * 2;
+  const displayPx = radiusPx * 2;
+  const renderPx = Math.round(displayPx * renderScale);
   return (
-    <div className="navmap-basemap-stack" style={{ width: side, height: side }}>
+    <div className="navmap-basemap-stack" style={{ width: displayPx, height: displayPx }}>
       <WarpCanvas
         own={own}
         navRangeNm={navRangeNm}
-        radiusPx={radiusPx}
+        displayPx={displayPx}
+        renderPx={renderPx}
         tileUrl={TRANSPORT_LINES}
         className="navmap-basemap-canvas navmap-basemap-lines"
       />
@@ -103,7 +112,8 @@ export function NavBasemapLayer({
         <WarpCanvas
           own={own}
           navRangeNm={navRangeNm}
-          radiusPx={radiusPx}
+          displayPx={displayPx}
+          renderPx={renderPx}
           tileUrl={BOUNDARY_LABELS}
           className="navmap-basemap-canvas navmap-basemap-labels"
         />

@@ -167,22 +167,35 @@ describe("tactical map has three display modes driven by StripState (#67 rework)
   it("normal mode shows the full panel with the ENLARGE chip and the ESRI map credit", () => {
     const cn = classNames(loadC172(), { tacticalMode: "normal" });
     expect(cn).toContain("dash-tactical");
-    expect(cn).not.toContain("dash-tactical-large");
+    expect(cn).not.toContain("dash-tactical-expanded");
+    expect(cn).not.toContain("dash-tactical-backdrop"); // no modal backdrop when small
     const t = text(loadC172(), { tacticalMode: "normal" });
     expect(t).toContain("ENLARGE"); // chip = the mode it switches TO next
     expect(t).toContain("MAP © ESRI"); // line basemap credit, not satellite
   });
 
-  it("large mode adds the enlarged panel class and the chip now offers HIDE", () => {
+  // The basemap canvas BUFFER width = displayPx * renderScale; large supersamples so text is legible.
+  const maxCanvasWidth = (mode: NavMode) =>
+    Math.max(
+      0,
+      ...collectProp(body(loadC172(), { tacticalMode: mode }), "width").filter(
+        (w): w is number => typeof w === "number",
+      ),
+    );
+
+  it("large mode is a centered modal with a backdrop, a HIDE chip, and a high-res basemap", () => {
     const cn = classNames(loadC172(), { tacticalMode: "large" });
-    expect(cn).toContain("dash-tactical-large");
+    expect(cn).toContain("dash-tactical-expanded"); // centered modal, not the corner glance
+    expect(cn).toContain("dash-tactical-backdrop"); // dim + click-to-close
     expect(text(loadC172(), { tacticalMode: "large" })).toContain("HIDE");
+    // The big paused map renders the basemap buffer larger (renderScale 3) than the small glance.
+    expect(maxCanvasWidth("large")).toBeGreaterThan(maxCanvasWidth("normal"));
   });
 
   it("hidden mode collapses to a restore tab and does not render the map/credit", () => {
     const cn = classNames(loadC172(), { tacticalMode: "hidden" });
     expect(cn).toContain("dash-tactical-tab");
-    expect(cn).not.toContain("dash-tactical-large");
+    expect(cn).not.toContain("dash-tactical-expanded");
     const t = text(loadC172(), { tacticalMode: "hidden" });
     expect(t).toContain("TACTICAL ▸"); // the restore affordance
     expect(t).not.toContain("MAP © ESRI"); // map is unmounted while hidden

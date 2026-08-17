@@ -767,10 +767,16 @@ body {
   z-index: 20;
   max-height: calc(100dvh - 96px);
   overflow-y: auto;
+  /* overflow-y:auto computes overflow-x to auto too, so a child a hair too wide trips a horizontal
+     bar (and the pair steals height into a vertical one) — clip x, hide the bar chrome. Same "menu
+     bar" the owner flagged on PAUSED/mission-tray (owner 2026-08-17). */
+  overflow-x: hidden;
+  scrollbar-width: none;
   padding: 12px 14px;
   font-size: 12px;
   pointer-events: auto;
 }
+.handoff-card::-webkit-scrollbar { display: none; }
 .handoff-title { color: var(--amber); padding: 6px 0; }
 .handoff-row { display: flex; justify-content: space-between; padding: 2px 0; }
 .handoff-value { color: var(--cyan); }
@@ -2458,8 +2464,31 @@ body {
   padding: 1px 5px;
   letter-spacing: 0.08em;
 }
-/* Large mode: same circle, bigger, growing up/right from the bottom-left anchor. */
-.dash-tactical-large .navmap-face { width: 300px; height: 300px; }
+/* Expanded (large) mode: a big CENTERED, sim-paused location map — pulled up to check position,
+   rendered at native resolution (NavBasemapLayer renderScale) so the road/place labels are legible.
+   Overrides the corner anchor to a centered modal above the flight view. */
+.dash-tactical-expanded {
+  left: 50%;
+  bottom: auto;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 41;
+  padding: 10px 12px;
+  gap: 6px;
+}
+.dash-tactical-expanded .navmap-face {
+  width: min(78vmin, 640px);
+  height: min(78vmin, 640px);
+}
+/* Dim backdrop behind the big map; clicking it closes the map (and resumes the sim). */
+.dash-tactical-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  border: none;
+  background: rgba(5, 7, 10, 0.72);
+  cursor: pointer;
+}
 /* Hidden mode: the panel collapses to this compact restore tab in the same corner. */
 .dash-tactical-tab {
   position: absolute;

@@ -187,9 +187,10 @@ export function UnifiedGlassBody({
       </section>
 
       {/* Tactical map (NavMap = geographic own-ship + rings + traffic + airports; it already
-          absorbed the old heading-up RadarScope) — bottom-left corner. Three display modes via the
-          header chip (#67 rework): normal, large (bigger circle in place), hidden (collapsed to a
-          restore tab). Line basemap with place labels that follow the menu LABELS chip. */}
+          absorbed the old heading-up RadarScope). Three display modes via the header chip (#67):
+          normal (small corner glance), large (big CENTERED, high-res, sim-paused location tool —
+          DashboardStrip freezes the loop while it's up), hidden (collapsed to a restore tab). Line
+          basemap with place labels that follow the menu LABELS chip. */}
       {tacticalMode === "hidden" ? (
         <button
           type="button"
@@ -200,53 +201,65 @@ export function UnifiedGlassBody({
           TACTICAL ▸
         </button>
       ) : (
-        <div
-          className={
-            tacticalMode === "large"
-              ? "glass panel dash-tactical dash-tactical-large"
-              : "glass panel dash-tactical"
-          }
-        >
-          <div className="dash-tactical-head">
-            <span className="glass-region-label label">TACTICAL</span>
-            <div className="dash-tactical-chips">
-              <button
-                type="button"
-                className={
-                  showContacts
-                    ? "status-chip-button status-chip-button-active dash-tactical-mode"
-                    : "status-chip-button dash-tactical-mode"
-                }
-                onClick={onToggleContacts}
-                aria-pressed={showContacts}
-              >
-                CONTACTS
-              </button>
-              <button
-                type="button"
-                className="status-chip-button dash-tactical-mode"
-                onClick={onCycleTactical}
-              >
-                {navModeChipLabel(tacticalMode)}
-              </button>
+        <>
+          {/* Backdrop behind the big map: dims the frozen flight view and closes on click. */}
+          {tacticalMode === "large" && (
+            <button
+              type="button"
+              className="dash-tactical-backdrop"
+              onClick={onCycleTactical}
+              aria-label="Close tactical map"
+            />
+          )}
+          <div
+            className={
+              tacticalMode === "large"
+                ? "glass panel dash-tactical dash-tactical-expanded"
+                : "glass panel dash-tactical"
+            }
+          >
+            <div className="dash-tactical-head">
+              <span className="glass-region-label label">TACTICAL</span>
+              <div className="dash-tactical-chips">
+                <button
+                  type="button"
+                  className={
+                    showContacts
+                      ? "status-chip-button status-chip-button-active dash-tactical-mode"
+                      : "status-chip-button dash-tactical-mode"
+                  }
+                  onClick={onToggleContacts}
+                  aria-pressed={showContacts}
+                >
+                  CONTACTS
+                </button>
+                <button
+                  type="button"
+                  className="status-chip-button dash-tactical-mode"
+                  onClick={onCycleTactical}
+                >
+                  {navModeChipLabel(tacticalMode)}
+                </button>
+              </div>
             </div>
+            <NavMap
+              snapshot={snapshot}
+              airports={airports}
+              contacts={contacts}
+              feedStatus={feedStatus}
+              ghostHex={ghostHex}
+              navRangeNm={navRangeNm}
+              feedRadiusNm={feedRadiusNm}
+              onRangeChange={onNavRangeChange}
+              showRadar={showWeather}
+              navWeather={navWeather}
+              showBasemap
+              showLabels={labelsOn}
+              showContacts={showContacts}
+              basemapRenderScale={tacticalMode === "large" ? 3 : 1}
+            />
           </div>
-          <NavMap
-            snapshot={snapshot}
-            airports={airports}
-            contacts={contacts}
-            feedStatus={feedStatus}
-            ghostHex={ghostHex}
-            navRangeNm={navRangeNm}
-            feedRadiusNm={feedRadiusNm}
-            onRangeChange={onNavRangeChange}
-            showRadar={showWeather}
-            navWeather={navWeather}
-            showBasemap
-            showLabels={labelsOn}
-            showContacts={showContacts}
-          />
-        </div>
+        </>
       )}
 
       {/* Control-state strip: reused ControlState (THR/FLAPS/TRIM/GEAR) + VSI/AGL — bottom-center,

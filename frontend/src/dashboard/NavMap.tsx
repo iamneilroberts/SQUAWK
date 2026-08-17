@@ -34,7 +34,7 @@ const C = SIZE / 2;
 export default function NavMap({
   snapshot, airports, contacts, feedStatus, ghostHex, navRangeNm, feedRadiusNm, onRangeChange,
   showRadar = false, navWeather = { kind: "no-position" }, showBasemap = false, showLabels = false,
-  showContacts = true,
+  showContacts = true, basemapRenderScale = 1,
 }: {
   snapshot: HudSnapshot | null;
   airports: Airport[];
@@ -53,6 +53,9 @@ export default function NavMap({
   showLabels?: boolean;
   /** Draw the traffic blips. Off = decluttered map (the CONTACTS chip); own-ship + airports stay. */
   showContacts?: boolean;
+  /** Basemap native-buffer supersampling (see NavBasemapLayer): >1 for the big paused map so the
+   *  Esri road/place text is legible. Only affects the raster basemap; the SVG marks scale anyway. */
+  basemapRenderScale?: number;
 }) {
   const status = navStatus(feedStatus);
   const coverage = coverageNote(navRangeNm, feedRadiusNm);
@@ -84,7 +87,12 @@ export default function NavMap({
             height={NAV_RADIUS_PX * 2}
             className="navmap-basemap"
           >
-            <NavBasemapLayer own={own} navRangeNm={navRangeNm} showLabels={showLabels} />
+            <NavBasemapLayer
+              own={own}
+              navRangeNm={navRangeNm}
+              showLabels={showLabels}
+              renderScale={basemapRenderScale}
+            />
           </foreignObject>
         )}
         {ringsFor(navRangeNm).map((ring) => (
