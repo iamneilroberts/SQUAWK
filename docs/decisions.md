@@ -3384,3 +3384,81 @@ onSelectReconfirmed props; removed App's onConfirmMission/onSelectReconfirmed ha
 auto-commits it) and AlternativeAirports.tsx (still used by MissionTray's main eligible-airport list).
 Also gitignored local tool caches (.fastembed_cache/, .nodeterm/). No behavior change. Full suite 1613
 pass, tsc clean, build exit 0.
+
+## 2026-08-05 — AIS test fixtures are hand-authored, not live-captured
+
+`backend/tests/fixtures/ais/*.json` are hand-authored from aisstream.io's documented v0
+wire schema rather than captured live: there's no LORAN-equivalent prior-art source for
+AIS, and gating the pure `normalize()`/`ShipReport` tests on a live API key would make them
+non-offline and CI-unfriendly. This is consistent with the "no synthesized runtime data"
+ground rule — these are test fixtures, not feed data served to a user. An optional
+`scripts/capture_ais_fixtures.py` (key-gated, not run in CI) captures real messages so the
+fixtures can be checked against reality when an `AIS_API_KEY` is available.
+
+## 2026-08-05 — AIS WS runs as a FastAPI-lifespan background task; `connect` is injected for tests
+
+The aisstream WebSocket is opened once at app startup (`create_app()`'s `lifespan`), runs an
+asyncio task that reconnects with bounded exponential backoff (1s → 30s, cancellable via a
+shared `asyncio.Event`), and feeds the shared in-memory `AisStore`. `GET /api/ais` just reads
+a snapshot from that store — aisstream pushes, the frontend polls; the endpoint never opens
+its own socket. `run_ws_client(connect=...)` takes the WS factory as a parameter (defaults to
+real `websockets.connect`) so `test_ais_endpoint.py` drives it with a fake async-iterable
+socket — no live network in CI, and boots honestly OFFLINE when `AIS_ENABLED` is false or no
+`AIS_API_KEY` is set, matching ground rule 1 (never fabricate contacts).
+
+## 2026-08-05 — Ship glyph color: muted green `#6fcf7f`
+
+Ships render in their own `BillboardCollection` (`shipBillboards.ts`), separate from the
+aircraft chevron layer, so the two contact types are visually distinct at a glance: aircraft
+stay cyan `#5fd7e0`/amber `#ffb000` (civil/military, unchanged), ships get a single nominal
+color, muted green `#6fcf7f` — legible against both ocean and land on Esri imagery, and far
+enough from the two aircraft hues to avoid ambiguity when both layers are dense. Rotation
+(`shipRotationRad`) uses `heading` when present, falls back to `cog` (course-over-ground),
+and renders upright (same `0` sentinel as `contactRotationRad`'s null case) only when both
+are missing — a vessel is rarely without either once it has a position fix, but static-only
+sightings (no PositionReport yet) can lack both.
+
+## 2026-08-05 — AIS `nodata` status: connected but silent reads degraded, not live
+
+aisstream's WS keepalive (the `websockets` library's ping/pong) keeps the socket open
+through an upstream data outage, so a naive truth table would report `status="live"`
+with zero vessels flowing — confidently wrong. A distinct `nodata` state: socket
+connected, but no message received within `ais_no_data_after_s` (config, env
+`AIS_NO_DATA_AFTER_S`, default **180s** — generous enough that normal quiet stretches in
+a sparse bbox don't flap the chip, short enough to surface a real outage promptly).
+Full truth table for `AisStore.status(now, connected)` (`silence = now - _last_message`):
+
+| `_last_message` | `connected` | condition | result |
+|---|---|---|---|
+| `None` | `False` | — | `offline` (never connected, nothing ever) |
+| `None` | `True` | — | `nodata` (socket up, never received a message) |
+| set | `True` | `silence <= no_data_after_s` | `live` |
+| set | `True` | `silence > no_data_after_s` | `nodata` (socket up, data gone silent — the outage case) |
+| set | `False` | `silence <= offline_after_s` | `stale` |
+| set | `False` | `silence > offline_after_s` | `offline` |
+
+This is honest for two distinct situations with the same observable signature — a real
+upstream outage, and a genuinely quiet bounding box with no traffic — and deliberately
+doesn't try to distinguish them (there's no way to, from this side of the socket).
+Frontend: `ShipFeedStatus = FeedStatus | "nodata"` (`data/types.ts`) rather than
+widening the shared `FeedStatus`, since aircraft never produce this state and ground
+rule 1/2 keep sim/feed honesty scoped per-feed. `aisChipLabel` renders `AIS NO DATA
+<source>`, styled via the existing `status-chip-warn` (amber) class. Attribution line
+continues to show for `nodata` (`shipFeedStatus !== "offline"`): the socket genuinely is
+connected.
+
+## 2026-08-17 — AIS feature re-ported onto SQUAWK main (not merged)
+
+The AIS layer was written on a branch forked before Phase B, which deleted
+`frontend/src/globe/BrowseGlobe.tsx` (where ships had rendered) in favour of
+`ViewerHost.tsx` + `ContactLayer.tsx` + a reworked `state/store.ts`. A straight merge was
+therefore impossible; the feature was re-ported file by file. Re-architecture notes:
+ships get their own dedicated `BillboardCollection` + `byMmsi` map on the shared viewer
+bundle (`viewerContext.ts`), created in `ViewerHost`; `ShipLayer.tsx` mirrors
+`ContactLayer` as a sync-only side-effect layer; picking stays in ViewerHost's single
+mode-aware `LEFT_CLICK` handler, which now routes an MMSI hit to `selectShip` (aircraft
+and ship selection are mutually exclusive). `startAisPolling` runs in ViewerHost alongside
+`startTrafficPolling` (main runs both pollers there, not in App — the earlier plan doc
+predates that) and never writes the shared `home`, so the browse camera's `[home]` fly-to
+still has exactly one writer. The AIS fetch (`fetchAis`) is a plain fetch of the
+Python-served `/api/ais`, not behind the Worker traffic envelope.

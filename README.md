@@ -145,10 +145,28 @@ the thing that would go stale and start lying. Open the app and press `?`.
 
 Fold state is per-flight: it survives a pause, and a new takeover starts with a fresh cockpit.
 
+## Ships (AIS) — optional
+
+Live ship positions and vessel detail are an optional layer on top of the browse screen,
+fed by [aisstream.io](https://aisstream.io). No key, no ships — honestly:
+
+1. Get a free key at [aisstream.io/authenticate](https://aisstream.io/authenticate) (a
+   few seconds, no payment).
+2. Put it in `backend/.env` as `AIS_API_KEY=...` (never commit this — `.env` is
+   gitignored).
+3. Restart the backend. Ships show up near whatever `HOME_LAT`/`HOME_LON` you've set —
+   pick a busy port to actually see traffic (the default home, Mobile, AL, sits on Mobile
+   Bay).
+
+Without a key — or if aisstream drops — the AIS chip honestly reads `AIS OFFLINE` and the
+ship list shows zero rows. Same ground rule as the aircraft feed: feed down means an
+honest empty state, never an invented contact.
+
 ## Attribution
 
 Imagery © Esri World Imagery · Terrain: Re:Earth Terrain · Mapterhorn (CC BY 4.0) ·
 Buildings (when active): Overture Maps / © OpenStreetMap contributors · Live traffic:
-airplanes.live, adsb.lol, adsb.fi · Aircraft data: adsbdb · Basemap (CHART): Esri Dark Gray
+airplanes.live, adsb.lol, adsb.fi · Aircraft data: adsbdb · AIS data · aisstream.io ·
+Basemap (CHART): Esri Dark Gray
 Canvas · Places: Esri World Boundaries and Places · Airport labels: OurAirports (public domain) ·
 Coastline/borders: Natural Earth (public domain, ne_50m).
