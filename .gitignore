@@ -25,3 +25,9 @@ __pycache__/
 # local tool caches / scratch (not code)
 .fastembed_cache/
 .nodeterm/
+
+# internal dev-process docs — kept locally, not published to the public repo
+SESSION_LOG.md
+docs/summaries/
+docs/superpowers/plans/
+.superpowers/
