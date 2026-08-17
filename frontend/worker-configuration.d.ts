@@ -14,6 +14,8 @@ interface __BaseEnv_WorkerEnv {
 	FORCE_MODE: "NORMAL";
 	AUTH_FROM_EMAIL: "sign-in@your-domain.example";
 	ALERT_FROM_EMAIL: "alerts@your-domain.example";
+	ADMIN_EMAIL: "admin@your-domain.example";
+	ALERT_RECIPIENT: "<PUT_YOUR_ALERT_INBOX>";
 	PUBLIC_ORIGIN?: "https://squawk-staging.example.workers.dev" | "https://your-domain.example";
 	TURNSTILE_SITE_KEY?: "<PUT_YOUR_TURNSTILE_SITE_KEY>";
 	CLOUDFLARE_ACCOUNT_ID: "<PUT_YOUR_CLOUDFLARE_ACCOUNT_ID>";
@@ -45,6 +47,8 @@ declare namespace Cloudflare {
 		FORCE_MODE: "NORMAL";
 		AUTH_FROM_EMAIL: "sign-in@your-domain.example";
 		ALERT_FROM_EMAIL: "alerts@your-domain.example";
+		ADMIN_EMAIL: "admin@your-domain.example";
+		ALERT_RECIPIENT: "<PUT_YOUR_ALERT_INBOX>";
 		PUBLIC_ORIGIN: "https://squawk-staging.example.workers.dev";
 		TURNSTILE_SITE_KEY: "<PUT_YOUR_TURNSTILE_SITE_KEY>";
 		CLOUDFLARE_ACCOUNT_ID: "<PUT_YOUR_CLOUDFLARE_ACCOUNT_ID>";
@@ -65,6 +69,8 @@ declare namespace Cloudflare {
 		FORCE_MODE: "NORMAL";
 		AUTH_FROM_EMAIL: "sign-in@your-domain.example";
 		ALERT_FROM_EMAIL: "alerts@your-domain.example";
+		ADMIN_EMAIL: "admin@your-domain.example";
+		ALERT_RECIPIENT: "<PUT_YOUR_ALERT_INBOX>";
 		PUBLIC_ORIGIN: "https://your-domain.example";
 		ACCESS_TEAM_DOMAIN: "https://your-team.cloudflareaccess.com";
 		ACCESS_AUD: "<PUT_YOUR_ACCESS_AUD>";
