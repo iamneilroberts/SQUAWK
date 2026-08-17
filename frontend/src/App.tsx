@@ -418,17 +418,11 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
       .then((outcome) => {
         if (missionOperation.current !== operation) return;
         const idempotencyKey = crypto.randomUUID();
-        if (outcome.kind === "reconfirm") {
-          setMissionCommit({
-            status: "reconfirm",
-            provisional: briefing.state.status === "ready"
-              ? briefing.state.selected
-              : outcome.preparation.selected,
-            preparation: outcome.preparation,
-            idempotencyKey,
-          });
-          return;
-        }
+        // A "reconfirm" outcome means the server's authoritative briefing differs from the preview
+        // the player saw. The old flow popped a "confirm again" window with the full eligible-airport
+        // list to re-approve; the owner (2026-08-17) found that friction unnecessary — the
+        // authoritative result is what gets flown/ranked anyway. So commit the FRESH preparation
+        // straight through (recalc position from it + launch), same as a clean "prepared" outcome.
         return commitPreparation(outcome.preparation, idempotencyKey, operation);
       })
       .catch((error) => {

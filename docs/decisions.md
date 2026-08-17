@@ -3360,3 +3360,16 @@ render as a HOLLOW near-white circle (a "place/waypoint" glyph) instead of a fil
 their labels go from dim gray (var(--text) @0.7) to bright near-white (#f2f6f8 @0.95) so they stand
 out over the Esri gray place names. Traffic contacts keep the filled cyan/amber squares. Shape now
 carries the place-vs-traffic distinction, not just colour. NavMap.tsx rect→circle; CSS only.
+
+## 2026-08-17 — Takeover: auto-commit the fresh authoritative briefing (drop the "confirm again")
+When /api/missions/prepare returns MISSION_RECONFIRM_REQUIRED (the server's authoritative briefing
+differs from the preview the player saw), the old flow set commitState="reconfirm" and popped a
+"Fresh authoritative briefing — confirm again" window with the full eligible-airports list to
+re-approve. Owner found that friction unnecessary — the authoritative result is what gets flown and
+ranked regardless. App.tsx now commits the fresh `outcome.preparation` straight through (same
+commitPreparation the "Confirm fresh mission" button called → recalc spawn + launch), identical to
+a clean "prepared" outcome. The reconfirm MissionCommitState variant + its UI (MissionReconfirmation
+.tsx, MissionTray's reconfirm branch, App's onConfirmMission/onSelectReconfirmed) are now
+production-unreachable but left in place (still type-checked + covered by MissionTray.test) — flagged
+for a separate dead-code cleanup, not deleted on the way past. mission/api.ts (the reconfirm outcome
+itself) is unchanged. Verified: full suite 1613 pass, tsc clean, build exit 0.
