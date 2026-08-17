@@ -1131,7 +1131,7 @@ dashboard is likewise a desktop-only feature.
 ## 2026-08-08 — deep-link auto-takeover (`?takeover=<hex>`)
 
 LORAN needs to deep-link a user straight into flying a selected aircraft. Fixed protocol
-string (the LORAN side is being built to match): `https://adsb.voygent.app/?takeover=<hex>`
+string (the LORAN side is being built to match): `https://your-domain.example/?takeover=<hex>`
 where `<hex>` is the lowercase ICAO 24-bit hex of an aircraft currently on the live feed. On
 load the app auto-selects that contact and takes control of it — no manual select+click.
 
@@ -1842,7 +1842,7 @@ Task 14's prior-art gate selected **ADOPT** for `jose` rather than hand-building
 verification. Every `/admin` shell request and `/api/admin/*` request independently validates the
 Cloudflare Access assertion against a cached rotating JWKS: exact RS256 header and bounded `kid`,
 configured issuer and audience, current `nbf`/`exp`, the application-token role, and the exact
-`dneilroberts@gmail.com` email. A game session cookie has no admin authority. Missing Access
+`admin@example.com` email. A game session cookie has no admin authority. Missing Access
 issuer/audience configuration fails closed, as does any verifier error. The Worker serves the SPA
 shell only after this check and overwrites any asset cache policy with `private, no-store` plus an
 Access-assertion `Vary` header. The detailed lazy-loaded console remains Task 15.
@@ -1913,8 +1913,8 @@ Task 16's prior-art gate selected **USE-API**: Cloudflare's structured Email Ser
 binding and native Cron Triggers cover delivery and scheduling, while the alert policy is
 bespoke application state that belongs beside admission truth in the singleton broker.
 No MIME package, alert framework, queue product, or additional storage service is added.
-The `ALERT_EMAIL` binding is restricted to `alerts@fly.voygent.app` and
-`dneilroberts@gmail.com`; the message builder accepts only bounded operational fields and
+The `ALERT_EMAIL` binding is restricted to `alerts@your-domain.example` and
+`admin@example.com`; the message builder accepts only bounded operational fields and
 never receives admin reasons, actor identities, request bodies, secrets, or ADS-B data.
 
 The broker stores signal state, capacity bands, transition sequence, cooldowns, delivered
@@ -1987,7 +1987,7 @@ when it makes gameplay more immersive. This is a deliberate departure from the s
 rule for the flight HUD; it does NOT relax the honesty rules (real-or-absent data, SIM state
 unmistakable, honest offline). The mission-terminal language still governs non-gameplay chrome
 (browse globe, status bars, admin/dashboard panels) unless a later decision says otherwise.
-Reference mocks: staging.voygent.ai/mocks/adsb-hud-rich-scenery.html (rich, default) vs
+Reference mocks: staging.example/mocks/adsb-hud-rich-scenery.html (rich, default) vs
 adsb-hud-ac-cockpit.html (flat/spec). Consequence: HUD/flight components may use radius, gloss,
 and shadow; reviewers should not flag those as spec violations on gameplay surfaces.
 
@@ -3164,7 +3164,7 @@ baseline (no test edits were needed — class names (`imm-bar-tapes`, `imm-tape`
   fighter (f5e) 160/85/35 (pitchUp 85 coincides with the existing hard ceiling `LOOK_MAX_PITCH_RAD`);
   heli (r44) 140/50/80 (deep look-down for the chin bubble). c130 sharing the GA arc may feel
   cramped for its large flight deck — flagged for tuning.
-- Shipped: main `cca7bdb`, prod Worker Version `264ed389` (fly.voygent.app). #44 left OPEN pending
+- Shipped: main `cca7bdb`, prod Worker Version `264ed389` (your-domain.example). #44 left OPEN pending
   owner live feel-pass + arc tuning.
 
 ## 2026-08-16 — #92 auto-coordinated turns (auto-rudder)
@@ -3191,7 +3191,7 @@ baseline (no test edits were needed — class names (`imm-bar-tapes`, `imm-tape`
   class ever needs its own strength. No 8-file cascade.
 - No envelope regressions: straight/symmetric flight has ~zero sideslip so the term stays inert
   (full sim suite 213 pass). Shipped: main `b87277f`, prod Worker Version `e08d6398`
-  (fly.voygent.app). #92 left OPEN pending owner live feel-pass + gain tuning.
+  (your-domain.example). #92 left OPEN pending owner live feel-pass + gain tuning.
 
 ## 2026-08-16 — hud chrome rework (desktop split-HUD: compass, throttle gauge, chrome relayout)
 
@@ -3241,7 +3241,7 @@ baseline (no test edits were needed — class names (`imm-bar-tapes`, `imm-tape`
   screenshot to measure against yet.
 - Verify: `npx vitest run src/hud src/dashboard src/layout` — 37 files / 480 tests pass;
   `tsc --noEmit` clean; `npm run build` exit 0. Shipped: main `8d827bb` (merge `0a61a28` of
-  `eb3b589`), prod Worker Version `10ce5b73-b05b-4324-9e3a-eeb3ddcad201` (fly.voygent.app).
+  `eb3b589`), prod Worker Version `10ce5b73-b05b-4324-9e3a-eeb3ddcad201` (your-domain.example).
   Note: the merged branch also carried `e3e0463` "fix(hud): PAUSED/END overlay no longer shows
   scroll bars" — a small, unrelated `.pause-card`/`.end-card` CSS fix that appeared on the
   `hud-chrome-rework` branch from a concurrent session sharing that worktree, not authored by
@@ -3256,7 +3256,7 @@ fetched tiles from `https://server.arcgisonline.com`, but the CSP `img-src`/`con
 (worker/http/security.ts + public/_headers) whitelists only `https://services.arcgisonline.com`
 (the host the Cesium globe basemap uses, globe/mapSources.ts). Every tile was blocked at the
 browser (`blocked:csp`) → `img.onerror` → skipped → transparent → black face. Diagnosed on live
-prod via DevTools Network (filter `arcgis` showed `(blocked:csp)`, Origin `https://fly.voygent.app`).
+prod via DevTools Network (filter `arcgis` showed `(blocked:csp)`, Origin `https://your-domain.example`).
 Fix: point NavBasemapLayer at `services.arcgisonline.com` — the already-whitelisted, already-proven
 host — rather than widening the CSP. Both hosts serve the same keyless World_Imagery tiles
 (200 image/jpeg, `Access-Control-Allow-Origin: *`). Keep this host in sync with the CSP going forward.
