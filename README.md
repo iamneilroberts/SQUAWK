@@ -1,4 +1,4 @@
-# adsb-game
+# SQUAWK
 
 Pick a real aircraft off live ADS-B, take the controls, and fly it first-person over real
 satellite imagery and real terrain — until you crash, land, or quit. The real aircraft

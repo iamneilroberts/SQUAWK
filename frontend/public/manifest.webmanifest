@@ -1,6 +1,6 @@
 {
-  "name": "ADSB-GAME",
-  "short_name": "ADSB-GAME",
+  "name": "SQUAWK",
+  "short_name": "SQUAWK",
   "description": "Take the controls of a real flight seeded from live ADS-B.",
   "id": "/",
   "scope": "/",

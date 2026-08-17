@@ -30,7 +30,7 @@ async function bootstrapAdmin(): Promise<void> {
     import("react-dom/client"),
     import("./admin/AdminApp"),
   ]);
-  document.title = "ADSB-GAME CONTROL ROOM";
+  document.title = "SQUAWK CONTROL ROOM";
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode><AdminApp /></React.StrictMode>,
   );
