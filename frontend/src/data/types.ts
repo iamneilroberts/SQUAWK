@@ -15,6 +15,29 @@ export type Contact = {
 
 export type FeedStatus = "live" | "stale" | "offline";
 
+// Ship feed only: aisstream's WS keepalive can leave the socket connected through an
+// upstream data outage, so the ship feed needs a status between "live" and "offline"
+// for "connected, but no messages recently." Aircraft never produce this state.
+export type ShipFeedStatus = FeedStatus | "nodata";
+
+export interface ShipContact {
+  mmsi: string;
+  name: string | null;
+  ship_type: string | null;
+  lat: number | null;
+  lon: number | null;
+  cog: number | null;
+  sog: number | null;
+  heading: number | null;
+  nav_status: string | null;
+  length_m: number | null;
+  beam_m: number | null;
+  draught_m: number | null;
+  destination: string | null;
+  callsign: string | null;
+  seen: number | null;
+}
+
 export type TrafficFreshness = "FRESH" | "STALE" | "EXPIRED";
 export type TrafficCacheStatus = "MISS" | "HIT" | "COALESCED" | "STALE" | "EXPIRED";
 

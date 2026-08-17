@@ -1,5 +1,5 @@
 import { isSystemMode, type SystemMode } from "../shared/mode";
-import type { MetarResponse, TrafficData, TypeInfo } from "./types";
+import type { MetarResponse, ShipContact, ShipFeedStatus, TrafficData, TypeInfo } from "./types";
 
 export class FeedDownError extends Error {
   readonly status: number;
@@ -130,4 +130,32 @@ export async function fetchTypeInfo(hex: string): Promise<TypeInfo> {
 export async function fetchMetar(icao: string): Promise<MetarResponse> {
   const res = await fetch(`/api/metar/${icao}`);
   return (await readApiData<MetarResponse>(res)).data;
+}
+
+export type AisFetchResult = {
+  contacts: ShipContact[];
+  source: string;
+  fetched_at: number;
+  status: ShipFeedStatus;
+};
+
+/**
+ * Live ships from the backend's /api/ais (aisstream WS proxy). Served directly by Python —
+ * not behind the Worker traffic envelope — so this is a plain fetch. `!res.ok` means our
+ * backend didn't answer (FeedDownError); a 200 always carries an honest `status`
+ * (offline/stale/nodata/live) and never fabricates contacts.
+ */
+export async function fetchAis(
+  lat: number,
+  lon: number,
+  radiusNm: number
+): Promise<AisFetchResult> {
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lon: String(lon),
+    radius_nm: String(radiusNm),
+  });
+  const res = await fetch(`/api/ais?${params}`);
+  if (!res.ok) throw new FeedDownError(res.status);
+  return res.json();
 }

@@ -1,9 +1,10 @@
 import { create } from "zustand";
 import type { StoreApi, UseBoundStore } from "zustand";
-import type { Contact, FeedStatus } from "../data/types";
+import type { Contact, FeedStatus, ShipContact, ShipFeedStatus } from "../data/types";
 import {
   FeedDownError,
   fetchActiveMissionTraffic,
+  fetchAis,
   fetchConfig,
   fetchTraffic,
   type TrafficFetchResult,
@@ -115,6 +116,19 @@ type State = {
   select(hex: string | null): void;
   setIdentifiedHex(hex: string | null): void;
   setSelectionLocked(locked: boolean): void;
+
+  /**
+   * Live ships (AIS) — a wholly separate feed from aircraft `contacts`, keyed by MMSI. Its own
+   * store slice, poller (startAisPolling), and status (ShipFeedStatus adds "nodata"). Nothing here
+   * shares state with the aircraft traffic envelope; ships are never synthesized.
+   */
+  ships: Map<string, ShipContact>;
+  shipFeedStatus: ShipFeedStatus;
+  shipSource: string | null;
+  selectedMmsi: string | null;
+  applyShipFetch(r: { contacts: ShipContact[]; source: string; fetched_at: number; status: ShipFeedStatus }): void;
+  markShipFetchFailed(): void;
+  selectShip(mmsi: string | null): void;
   /**
    * Session mode. The ONLY session state zustand holds, along with origin and endStats:
    * sim state lives in a mutable ref because a 60 Hz set() would re-render React.
@@ -186,6 +200,10 @@ type State = {
 let consecutiveFailures = 0;
 let lastTrafficAppliedAtMs: number | null = null;
 
+// Separate failure counter for the independent AIS poll tick — mirrors consecutiveFailures
+// above but must not share state with the aircraft feed.
+let aisConsecutiveFailures = 0;
+
 // The running traffic poller registers its immediate-refresh here (issue #41), so store actions
 // that change what the client should be looking at — select() and setRadiusNm() — can ADVANCE the
 // next poll instead of waiting out the 30 s browse cadence. It only reuses the poller's schedule(0)
@@ -241,6 +259,10 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   timeCompressed: false,
   assist: null,
   endStats: null,
+  ships: new Map(),
+  shipFeedStatus: "offline",
+  shipSource: null,
+  selectedMmsi: null,
 
   setHome(h) {
     set({ home: h });
@@ -378,6 +400,27 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
 
   setSelectionLocked(locked) {
     set({ selectionLocked: locked });
+  },
+
+  applyShipFetch(r) {
+    aisConsecutiveFailures = 0;
+    const ships = new Map(r.contacts.map((c) => [c.mmsi, c]));
+    const selectedMmsi = get().selectedMmsi;
+    set({
+      ships,
+      shipFeedStatus: (r.status as ShipFeedStatus) ?? "offline",
+      shipSource: r.source,
+      selectedMmsi: selectedMmsi !== null && ships.has(selectedMmsi) ? selectedMmsi : null,
+    });
+  },
+
+  markShipFetchFailed() {
+    aisConsecutiveFailures += 1;
+    set({ shipFeedStatus: aisConsecutiveFailures >= 3 ? "offline" : "stale" });
+  },
+
+  selectShip(mmsi) {
+    set({ selectedMmsi: mmsi });
   },
 
   fire(event) {
@@ -724,5 +767,51 @@ export function startTrafficPolling(options: TrafficPollingOptions = {}): () => 
     clearTimer();
     unsubscribeVisibility();
     if (activeRefreshNow === refreshNow) activeRefreshNow = null;
+  };
+}
+
+// Independent AIS poll tick — same overlap-guard / stop-quiescence / config-retry discipline
+// as startTrafficPolling above, but a much simpler loop with its own local `home` and failure
+// counter so the ship feed never shares state with the aircraft feed. Deliberately does NOT
+// call the shared `setHome` (unlike the aircraft tick): each fetchConfig() call parses a fresh
+// response object, so if both pollers wrote `home`, the camera fly-to effect keyed on `[home]`
+// would fire twice at startup — a redundant re-fly to the same coordinates. The aircraft tick
+// (startTrafficPolling) remains the sole writer of shared `home`.
+export function startAisPolling(intervalMs = 2000): () => void {
+  let stopped = false;
+  let inFlight = false;
+  let home: { lat: number; lon: number } | null = null;
+
+  function tick() {
+    if (inFlight) return; // previous tick's fetch hasn't resolved yet — skip, don't queue
+    inFlight = true;
+
+    const attempt =
+      home === null
+        ? fetchConfig().then((config) => {
+            if (stopped) return; // stop() fired while this fetch was in flight — don't touch the store
+            home = config.home;
+          })
+        : fetchAis(home.lat, home.lon, useStore.getState().radiusNm).then((r) => {
+            if (stopped) return;
+            useStore.getState().applyShipFetch(r);
+          });
+
+    attempt
+      .catch(() => {
+        if (stopped) return;
+        useStore.getState().markShipFetchFailed();
+      })
+      .finally(() => {
+        inFlight = false;
+      });
+  }
+
+  tick(); // fire the first attempt immediately rather than waiting a full interval
+  const timer = setInterval(tick, intervalMs);
+
+  return () => {
+    stopped = true;
+    clearInterval(timer);
   };
 }
