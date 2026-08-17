@@ -24,28 +24,18 @@ and [`docs/superpowers/specs/2026-08-05-phase-b-first-flyable-design.md`](docs/s
 - **End** — terrain contact anywhere on Earth, or a building inside a ~25 km bubble,
   ends the session with a stats card. Gentle, level, slow touchdowns read LANDED.
 
-## Running it
+## Install
+
+SQUAWK runs three ways. Local and Docker are the turnkey single-user game (keyless, no
+accounts). The Cloudflare Worker is the full product (accounts, missions, leaderboards)
+and needs a Cloudflare account + guided setup.
+
+### 1. Local (bare-metal dev)
 
 Copy `.env.example` to `.env` first (no secrets required, every upstream feed is keyless).
-
-> **Cloudflare migration note:** Docker Compose is a legacy deployment path and is not
-> supported on this branch after the Cloudflare build shell lands. The production build
-> now emits a Worker plus `dist/client`, not the nginx-root layout. Docker/nginx retirement
-> is Task 18; do not use Compose as a validation or deployment path during the migration.
-
-**Cloudflare shell** — runs the unified Vite/Worker development runtime. During Task 1 only
-`/api/status` is implemented; the existing browse UI remains honestly offline until its API
-routes are ported in later tasks:
-
-```bash
-cd frontend
-npm ci
-npm run dev:worker
-```
-
-**Bare metal** — one script runs the backend (uvicorn, from `backend/.venv`) and the
-Vite dev server together, on **http://localhost:5173** (backend on `:8020`). Requires
-`python3` and `node`/`npm` on `PATH`. First run creates `backend/.venv` and installs
+One script runs the backend (uvicorn, from `backend/.venv`) and the Vite dev server
+together, on **http://localhost:5173** (backend on `:8020`). Requires `python3` and
+`node`/`npm` on `PATH`. First run creates `backend/.venv` and installs
 `backend/requirements.txt`, and runs `npm ci` in `frontend/` — that's normal and only
 happens once; later runs skip straight to starting the servers:
 
@@ -53,16 +43,38 @@ happens once; later runs skip straight to starting the servers:
 bash scripts/dev.sh
 ```
 
-Ports default to backend `8020` / compose frontend `8021` (see
-[`docs/decisions.md` G-006](docs/decisions.md) — `:8010`/`:8080` are taken by other
-services on this box).
+Single-user: browse + fly; no accounts. Port overrides: `scripts/dev.sh` passes
+`ADSB_GAME_PORT` to uvicorn and `vite.config.ts` proxies to it. Running
+`cd frontend && npm run dev` directly (bypassing `dev.sh`) leaves `ADSB_GAME_PORT` unset
+and the Vite proxy falls back to `:8020`.
 
-> **Port overrides:** only the legacy bare-metal path honors `ADSB_GAME_PORT` — `scripts/dev.sh`
-> passes it to uvicorn and `vite.config.ts` proxies to it. The Docker path is fixed: the
-> backend image, `nginx.conf`, and `docker-compose.yml` hardcode backend `8020` / published
-> `8021`, but that Compose path is transitionally unsupported on this branch. Running
-> `cd frontend && npm run dev` directly (bypassing `dev.sh`) also leaves `ADSB_GAME_PORT`
-> unset and the Vite proxy falls back to `:8020`.
+### 2. Docker
+
+Copy `.env.example` to `.env` first (no secrets required, every upstream feed is keyless).
+
+```bash
+docker compose up --build
+```
+
+Frontend at **http://localhost:8021** (nginx, serving the built SPA and proxying `/api` to
+the backend container on `:8020`) — ports are fixed in `docker-compose.yml` and
+`nginx.conf`, not overridable via `ADSB_GAME_PORT` (see
+[`docs/decisions.md` G-006](docs/decisions.md) — `:8010`/`:8080` are taken by other
+services on the reference box). Single-user: browse + fly; no accounts.
+
+### 3. Cloudflare Worker (full product)
+
+1. `wrangler d1 create squawk-production` → put the id in your `wrangler.prod.jsonc`.
+2. Apply migrations: `wrangler d1 migrations apply` against your new DB.
+3. Create a Cloudflare Access application → note the team domain + AUD
+   (`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`).
+4. Create a Turnstile widget → site key (config) + secret key (`.dev.vars`).
+5. Configure email sending (a verified sender) → `AUTH_FROM_EMAIL` / `ALERT_FROM_EMAIL`.
+6. Create an Analytics Engine dataset → `REQUEST_ANALYTICS_DATASET`.
+7. `cp frontend/wrangler.prod.example.jsonc frontend/wrangler.prod.jsonc`, then fill every
+   `<PUT_YOUR_...>` and `your-domain.example` value.
+8. Set each secret from `frontend/.dev.vars.example` via `wrangler secret put <NAME>`.
+9. `cd frontend && npm run deploy:production`.
 
 ## Controls
 
@@ -138,4 +150,5 @@ Fold state is per-flight: it survives a pause, and a new takeover starts with a 
 Imagery © Esri World Imagery · Terrain: Re:Earth Terrain · Mapterhorn (CC BY 4.0) ·
 Buildings (when active): Overture Maps / © OpenStreetMap contributors · Live traffic:
 airplanes.live, adsb.lol, adsb.fi · Aircraft data: adsbdb · Basemap (CHART): Esri Dark Gray
-Canvas · Places: Esri World Boundaries and Places · Airport labels: OurAirports (public domain).
+Canvas · Places: Esri World Boundaries and Places · Airport labels: OurAirports (public domain) ·
+Coastline/borders: Natural Earth (public domain, ne_50m).
