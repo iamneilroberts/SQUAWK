@@ -4,7 +4,7 @@ import { createTestHarness } from "wrangler";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const server = createTestHarness({
-  workers: [{ configPath: "./dist/voygent_adsb_game/wrangler.json" }],
+  workers: [{ configPath: "./dist/squawk/wrangler.json" }],
 });
 
 beforeAll(async () => {

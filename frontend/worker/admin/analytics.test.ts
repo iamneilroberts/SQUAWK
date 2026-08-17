@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearAnalyticsCacheForTest, queryRequestAnalytics } from "./analytics";
 
 const ENV = {
-  CLOUDFLARE_ACCOUNT_ID: "5c2997e723bf93da998a627e799cd443",
+  CLOUDFLARE_ACCOUNT_ID: "0123456789abcdef0123456789abcdef",
   ANALYTICS_READ_TOKEN: "read-only-test-token",
   REQUEST_ANALYTICS_DATASET: "squawk_requests_staging",
 };
