@@ -10,6 +10,10 @@ frontend/.wrangler/
 .dev.vars
 .dev.vars.*
 !.dev.vars.example
+
+# Cloudflare production overlay — real account/domain/D1 values (see wrangler.prod.example.jsonc)
+frontend/wrangler.prod.jsonc
+!frontend/wrangler.prod.example.jsonc
 __pycache__/
 *.pyc
 .venv/
