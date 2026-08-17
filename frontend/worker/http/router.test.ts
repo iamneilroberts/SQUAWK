@@ -68,11 +68,11 @@ describe("explicit dynamic router", () => {
     const router = createRouter([statusRoute], testDependencies());
 
     const missing = await router.fetch(
-      new Request("https://fly.voygent.app/api/missing"),
+      new Request("https://squawk.example/api/missing"),
       env,
     );
     const wrongMethod = await router.fetch(
-      new Request("https://fly.voygent.app/api/status", { method: "POST" }),
+      new Request("https://squawk.example/api/status", { method: "POST" }),
       env,
     );
 
@@ -103,11 +103,11 @@ describe("explicit dynamic router", () => {
     const router = createRouter([route], testDependencies());
 
     const matched = await router.fetch(
-      new Request("https://fly.voygent.app/api/missions/mission_123-ABC"),
+      new Request("https://squawk.example/api/missions/mission_123-ABC"),
       env,
     );
     const rejected = await router.fetch(
-      new Request("https://fly.voygent.app/api/missions/a%2Fb"),
+      new Request("https://squawk.example/api/missions/a%2Fb"),
       env,
     );
 
@@ -227,7 +227,7 @@ describe("explicit dynamic router", () => {
     );
 
     const response = await router.fetch(
-      new Request("https://fly.voygent.app/api/items/config"),
+      new Request("https://squawk.example/api/items/config"),
       env,
     );
 
@@ -280,10 +280,10 @@ describe("explicit dynamic router", () => {
     );
 
     const response = await router.fetch(
-      new Request("https://fly.voygent.app/api/missions/mission-1/result", {
+      new Request("https://squawk.example/api/missions/mission-1/result", {
         method: "POST",
         headers: {
-          origin: "https://fly.voygent.app",
+          origin: "https://squawk.example",
           "content-type": "application/json",
           "idempotency-key": "mission-result-1",
         },
@@ -330,7 +330,7 @@ describe("explicit dynamic router", () => {
     });
     const router = createRouter([route], testDependencies({ verifyCsrf }));
     const response = await router.fetch(
-      new Request("https://fly.voygent.app/api/test", { method: "POST" }),
+      new Request("https://squawk.example/api/test", { method: "POST" }),
       env,
     );
 
@@ -361,7 +361,7 @@ describe("explicit dynamic router", () => {
     );
 
     const response = await router.fetch(
-      new Request("https://fly.voygent.app/api/admin/status"),
+      new Request("https://squawk.example/api/admin/status"),
       env,
     );
 
@@ -392,7 +392,7 @@ describe("explicit dynamic router", () => {
     const requestInit = {
       method: "POST",
       headers: {
-        origin: "https://fly.voygent.app",
+        origin: "https://squawk.example",
         "content-type": "application/json",
         "idempotency-key": "test-request-1",
       },
@@ -401,7 +401,7 @@ describe("explicit dynamic router", () => {
 
     const unauthorized = fakeEnv();
     const unauthorizedRequest = new Request(
-      "https://fly.voygent.app/api/test",
+      "https://squawk.example/api/test",
       requestInit,
     );
     const unauthorizedResponse = await createRouter(
@@ -415,7 +415,7 @@ describe("explicit dynamic router", () => {
 
     const rateLimited = fakeEnv();
     const rateLimitedRequest = new Request(
-      "https://fly.voygent.app/api/test",
+      "https://squawk.example/api/test",
       requestInit,
     );
     const rateLimitedResponse = await createRouter(
@@ -440,7 +440,7 @@ describe("explicit dynamic router", () => {
       }),
     );
     const response = await router.fetch(
-      new Request("https://fly.voygent.app/api/status"),
+      new Request("https://squawk.example/api/status"),
       env,
     );
 
@@ -480,7 +480,7 @@ describe("explicit dynamic router", () => {
     );
 
     const denied = await router.fetch(
-      new Request("https://fly.voygent.app/api/status"),
+      new Request("https://squawk.example/api/status"),
       env,
     );
     expect(denied.status).toBe(503);
@@ -488,7 +488,7 @@ describe("explicit dynamic router", () => {
     expect(publicHandler).not.toHaveBeenCalled();
 
     const recovery = await router.fetch(
-      new Request("https://fly.voygent.app/api/admin/recovery/status"),
+      new Request("https://squawk.example/api/admin/recovery/status"),
       env,
     );
     expect(recovery.status).toBe(200);
@@ -521,7 +521,7 @@ describe("explicit dynamic router", () => {
     const { env, writeDataPoint } = fakeEnv();
     const router = createRouter([statusRoute], testDependencies());
     const response = await router.fetch(
-      new Request("https://fly.voygent.app/api/status", {
+      new Request("https://squawk.example/api/status", {
         headers: { "cf-connecting-ip": "203.0.113.42" },
       }),
       env,
@@ -548,7 +548,7 @@ describe("explicit dynamic router", () => {
       }),
     });
     const response = await createRouter([route], testDependencies()).fetch(
-      new Request("https://fly.voygent.app/api/status"),
+      new Request("https://squawk.example/api/status"),
       env,
     );
 
@@ -569,7 +569,7 @@ describe("explicit dynamic router", () => {
     });
     const router = createRouter([statusRoute], testDependencies());
     const response = await router.fetch(
-      new Request("https://fly.voygent.app/api/status"),
+      new Request("https://squawk.example/api/status"),
       env,
     );
 
@@ -585,7 +585,7 @@ describe("explicit dynamic router", () => {
     const success = await createRouter(
       [statusRoute],
       testDependencies({ recordOutcome }),
-    ).fetch(new Request("https://fly.voygent.app/api/status"), env);
+    ).fetch(new Request("https://squawk.example/api/status"), env);
     expect(success.status).toBe(200);
     expect(recordOutcome).toHaveBeenCalledWith(expect.objectContaining({
       outcome: "success",
@@ -601,7 +601,7 @@ describe("explicit dynamic router", () => {
     const failure = await createRouter(
       [failedRoute],
       testDependencies({ recordOutcome }),
-    ).fetch(new Request("https://fly.voygent.app/api/status"), env);
+    ).fetch(new Request("https://squawk.example/api/status"), env);
     expect(failure.status).toBe(500);
     expect(recordOutcome).toHaveBeenCalledWith(expect.objectContaining({
       outcome: "failure",
@@ -622,7 +622,7 @@ describe("explicit dynamic router", () => {
     });
     const router = createRouter([route], testDependencies({ observe }));
     const response = await router.fetch(
-      new Request("https://fly.voygent.app/api/status"),
+      new Request("https://squawk.example/api/status"),
       env,
     );
     const body = await response.json();
@@ -657,7 +657,7 @@ describe("explicit dynamic router", () => {
     );
 
     const response = await router.fetch(
-      new Request("https://fly.voygent.app/api/status"),
+      new Request("https://squawk.example/api/status"),
       env,
     );
 
@@ -686,7 +686,7 @@ describe("explicit dynamic router", () => {
     const response = await createRouter(
       [route],
       testDependencies({ observe }),
-    ).fetch(new Request("https://fly.voygent.app/api/status"), env);
+    ).fetch(new Request("https://squawk.example/api/status"), env);
 
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toMatchObject({

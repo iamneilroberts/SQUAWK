@@ -7,10 +7,10 @@ const TOKEN = encodeOpaqueToken(new Uint8Array(32).fill(4));
 
 describe("magic-link email", () => {
   it("places the raw token only in the URL fragment", () => {
-    const link = buildMagicLinkUrl("https://fly.voygent.app/current?old=1", TOKEN);
+    const link = buildMagicLinkUrl("https://squawk.example/current?old=1", TOKEN);
     const url = new URL(link);
 
-    expect(url.origin).toBe("https://fly.voygent.app");
+    expect(url.origin).toBe("https://squawk.example");
     expect(url.pathname).toBe("/");
     expect(url.search).toBe("");
     expect(url.hash).toBe(`#auth_token=${TOKEN}`);
@@ -28,16 +28,16 @@ describe("magic-link email", () => {
     await sendMagicLinkEmail(
       { send } as unknown as SendEmail,
       {
-        from: "sign-in@fly.voygent.app",
+        from: "sign-in@squawk.example",
         to: "pilot@example.com",
-        link: buildMagicLinkUrl("https://fly.voygent.app", TOKEN),
+        link: buildMagicLinkUrl("https://squawk.example", TOKEN),
         code: "123456",
       },
     );
 
     expect(send).toHaveBeenCalledOnce();
     expect(messages[0]).toMatchObject({
-      from: "sign-in@fly.voygent.app",
+      from: "sign-in@squawk.example",
       to: "pilot@example.com",
       subject: "Your sign-in code: 123 456",
     });
@@ -56,9 +56,9 @@ describe("magic-link email", () => {
     const send = vi.fn(async () => ({ messageId: "test-message" }));
     await expect(
       sendMagicLinkEmail({ send } as unknown as SendEmail, {
-        from: "sign-in@fly.voygent.app",
+        from: "sign-in@squawk.example",
         to: "pilot@example.com",
-        link: buildMagicLinkUrl("https://fly.voygent.app", TOKEN),
+        link: buildMagicLinkUrl("https://squawk.example", TOKEN),
         code: "12345",
       }),
     ).rejects.toThrow(TypeError);

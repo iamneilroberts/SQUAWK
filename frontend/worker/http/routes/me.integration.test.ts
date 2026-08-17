@@ -84,7 +84,7 @@ function runtimeEnv(): AuthRouteEnvironment {
     CSRF_SECRET,
     EMAIL_KEY_SECRET: "unused-test-secret-with-at-least-32-bytes",
     TURNSTILE_SECRET: "unused",
-    AUTH_FROM_EMAIL: "sign-in@fly.voygent.app",
+    AUTH_FROM_EMAIL: "sign-in@squawk.example",
     AUTH_EMAIL: { send: vi.fn() } as unknown as SendEmail,
   };
 }
@@ -184,11 +184,11 @@ describe("profile routes", () => {
     const cookie = `__Host-adsb_session=${SESSION_TOKEN}`;
 
     const firstTab = await router.fetch(
-      new Request("https://fly.voygent.app/api/me", { headers: { cookie } }),
+      new Request("https://squawk.example/api/me", { headers: { cookie } }),
       runtime,
     );
     const secondTab = await router.fetch(
-      new Request("https://fly.voygent.app/api/me", { headers: { cookie } }),
+      new Request("https://squawk.example/api/me", { headers: { cookie } }),
       runtime,
     );
     expect(firstTab.status).toBe(200);
@@ -262,11 +262,11 @@ describe("profile routes", () => {
     });
 
     const wrongCsrf = await router.fetch(
-      new Request("https://fly.voygent.app/api/me", {
+      new Request("https://squawk.example/api/me", {
         method: "PATCH",
         headers: {
           cookie,
-          origin: "https://fly.voygent.app",
+          origin: "https://squawk.example",
           "content-type": "application/json",
           "idempotency-key": "profile-update-1",
           "x-csrf-token": WRONG_CSRF,
@@ -278,11 +278,11 @@ describe("profile routes", () => {
     expect(wrongCsrf.status).toBe(403);
 
     const updated = await router.fetch(
-      new Request("https://fly.voygent.app/api/me", {
+      new Request("https://squawk.example/api/me", {
         method: "PATCH",
         headers: {
           cookie,
-          origin: "https://fly.voygent.app",
+          origin: "https://squawk.example",
           "content-type": "application/json",
           "idempotency-key": "profile-update-2",
           "x-csrf-token": sessionCsrf,
@@ -312,11 +312,11 @@ describe("profile routes", () => {
     expect(payload.data.regionKey).toMatch(/^r1:90:0:/);
 
     const secondTabUpdate = await router.fetch(
-      new Request("https://fly.voygent.app/api/me", {
+      new Request("https://squawk.example/api/me", {
         method: "PATCH",
         headers: {
           cookie,
-          origin: "https://fly.voygent.app",
+          origin: "https://squawk.example",
           "content-type": "application/json",
           "idempotency-key": "profile-update-3",
           "x-csrf-token": sessionCsrf,

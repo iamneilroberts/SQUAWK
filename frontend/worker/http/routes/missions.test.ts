@@ -32,10 +32,10 @@ function dependencies(
 }
 
 function request(path: string): Request {
-  return new Request(`https://fly.voygent.app${path}`, {
+  return new Request(`https://squawk.example${path}`, {
     method: "POST",
     headers: {
-      origin: "https://fly.voygent.app",
+      origin: "https://squawk.example",
       "content-type": "application/json",
       "x-csrf-token": "fixture",
       "idempotency-key": "mission-route-test-key",

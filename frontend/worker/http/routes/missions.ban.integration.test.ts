@@ -91,11 +91,11 @@ describe("mission route bans", () => {
     const releaseUser = vi.fn(async () => undefined);
     const router = createRouter(createMissionRoutes({ broker }), dependencies(releaseUser));
     const response = await router.fetch(
-      new Request("https://fly.voygent.app/api/missions/prepare", {
+      new Request("https://squawk.example/api/missions/prepare", {
         method: "POST",
         headers: {
           cookie: `__Host-adsb_session=${SESSION_TOKEN}`,
-          origin: "https://fly.voygent.app",
+          origin: "https://squawk.example",
           "content-type": "application/json",
           "x-csrf-token": "fixture",
           "idempotency-key": "mission-ban-integration-test",

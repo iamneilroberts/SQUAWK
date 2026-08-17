@@ -20,7 +20,7 @@ describe("admin shell", () => {
   it("denies the shell before assets when Access authorization fails", async () => {
     const { env, fetch } = runtime();
     const response = await serveAdminShell(
-      new Request("https://fly.voygent.app/admin"),
+      new Request("https://squawk.example/admin"),
       env,
       vi.fn(async () => { throw new Error("private verifier detail"); }),
     );
@@ -34,7 +34,7 @@ describe("admin shell", () => {
 
   it("serves assets only after Access authorization and strips public caching", async () => {
     const { env, fetch } = runtime();
-    const request = new Request("https://fly.voygent.app/admin/users", {
+    const request = new Request("https://squawk.example/admin/users", {
       headers: { "cf-access-jwt-assertion": "signed-access-token" },
     });
     const authorize = vi.fn(async () => ({

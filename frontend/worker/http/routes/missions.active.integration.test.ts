@@ -120,7 +120,7 @@ describe("active mission routes", () => {
     } as never));
     const router = createRouter(createMissionRoutes({ broker }), dependencies(admit));
     const response = await router.fetch(new Request(
-      `https://fly.voygent.app/api/missions/${MISSION_ID}/traffic?lat=31&lon=-87&radius_nm=80`,
+      `https://squawk.example/api/missions/${MISSION_ID}/traffic?lat=31&lon=-87&radius_nm=80`,
       { headers: { cookie: cookie() } },
     ), runtime());
 
@@ -161,12 +161,12 @@ describe("active mission routes", () => {
     } as never));
     const router = createRouter(createMissionRoutes({ broker }), dependencies(admit));
     const response = await router.fetch(new Request(
-      `https://fly.voygent.app/api/missions/${MISSION_ID}/release`,
+      `https://squawk.example/api/missions/${MISSION_ID}/release`,
       {
         method: "POST",
         headers: {
           cookie: cookie(),
-          origin: "https://fly.voygent.app",
+          origin: "https://squawk.example",
           "content-type": "application/json",
           "x-csrf-token": "fixture",
           "idempotency-key": "active-release-fixture",

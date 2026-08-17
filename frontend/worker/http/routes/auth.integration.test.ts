@@ -51,7 +51,7 @@ function runtimeEnv(): AuthRouteEnvironment {
     CSRF_SECRET,
     EMAIL_KEY_SECRET: HMAC_SECRET,
     TURNSTILE_SECRET: "turnstile-secret",
-    AUTH_FROM_EMAIL: "sign-in@fly.voygent.app",
+    AUTH_FROM_EMAIL: "sign-in@squawk.example",
     AUTH_EMAIL: { send: vi.fn() } as unknown as SendEmail,
     HOME_LAT: "30.6944",
     HOME_LON: "-88.0399",
@@ -59,11 +59,11 @@ function runtimeEnv(): AuthRouteEnvironment {
 }
 
 function request(path: string, body: unknown, cookie?: string): Request {
-  return new Request(`https://fly.voygent.app${path}`, {
+  return new Request(`https://squawk.example${path}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      origin: "https://fly.voygent.app",
+      origin: "https://squawk.example",
       "idempotency-key": "request-test-123",
       ...(cookie === undefined ? {} : { cookie }),
     },
@@ -187,7 +187,7 @@ describe("auth HTTP routes", () => {
     expect(requested.status).toBe(202);
     expect(sent).toHaveBeenCalledWith(
       EMAIL,
-      `https://fly.voygent.app/#auth_token=${MAGIC_TOKEN}`,
+      `https://squawk.example/#auth_token=${MAGIC_TOKEN}`,
       SIGN_IN_CODE,
       runtime,
     );
@@ -203,7 +203,7 @@ describe("auth HTTP routes", () => {
     expect(stored).toContain(await codeDigest(storedEmailKey, SIGN_IN_CODE));
 
     const preview = await router.fetch(
-      new Request("https://fly.voygent.app/api/auth/consume"),
+      new Request("https://squawk.example/api/auth/consume"),
       runtime,
     );
     expect(preview.status).toBe(405);
@@ -343,7 +343,7 @@ describe("verify-code HTTP route", () => {
 
     // The freshly-minted session cookie is accepted by an authenticated route.
     const me = await router.fetch(
-      new Request("https://fly.voygent.app/api/me", {
+      new Request("https://squawk.example/api/me", {
         headers: { cookie: sessionCookie(SESSION_TOKEN, 60) },
       }),
       runtime,
@@ -469,7 +469,7 @@ describe("verify-code HTTP route", () => {
 
   it("rejects verify-code on GET with 405", async () => {
     const res = await authRouter().fetch(
-      new Request("https://fly.voygent.app/api/auth/verify-code"),
+      new Request("https://squawk.example/api/auth/verify-code"),
       runtimeEnv(),
     );
     expect(res.status).toBe(405);

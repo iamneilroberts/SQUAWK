@@ -138,12 +138,12 @@ async function postResult(options: {
     dependencies(),
   );
   const response = await router.fetch(new Request(
-    `https://fly.voygent.app/api/missions/${MISSION_ID}/result`,
+    `https://squawk.example/api/missions/${MISSION_ID}/result`,
     {
       method: "POST",
       headers: {
         cookie: `__Host-adsb_session=${options.token ?? SESSION_TOKEN}`,
-        origin: "https://fly.voygent.app",
+        origin: "https://squawk.example",
         "content-type": "application/json",
         "x-csrf-token": "fixture",
         "idempotency-key": options.key ?? "stable-result-key",

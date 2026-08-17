@@ -164,10 +164,10 @@ function dependencies(kind: "admin" | "authenticated" = "admin"): RouterDependen
 }
 
 function adminRequest(path: string, body: unknown, idempotencyKey: string, csrf = true): Request {
-  return new Request(`https://fly.voygent.app${path}`, {
+  return new Request(`https://squawk.example${path}`, {
     method: "POST",
     headers: {
-      origin: "https://fly.voygent.app",
+      origin: "https://squawk.example",
       "content-type": "application/json",
       "idempotency-key": idempotencyKey,
       ...(csrf ? { "x-csrf-token": "admin-csrf" } : {}),
@@ -204,7 +204,7 @@ describe("admin control routes", () => {
     const { broker } = brokerHarness();
     const router = createRouter(createAdminRoutes({ broker, now: () => NOW }), dependencies("authenticated"));
     const response = await router.fetch(
-      new Request("https://fly.voygent.app/api/admin/status", {
+      new Request("https://squawk.example/api/admin/status", {
         headers: { cookie: `__Host-adsb_session=${SESSION_TOKEN}` },
       }),
       runtime(),
@@ -217,7 +217,7 @@ describe("admin control routes", () => {
     const { broker } = brokerHarness();
     const router = createRouter(createAdminRoutes({ broker, now: () => NOW }), dependencies());
     const response = await router.fetch(
-      new Request("https://fly.voygent.app/api/admin/status"),
+      new Request("https://squawk.example/api/admin/status"),
       runtime(),
     );
     expect(response.status).toBe(200);
@@ -247,11 +247,11 @@ describe("admin control routes", () => {
     const app = runtime();
 
     const responses = await Promise.all([
-      router.fetch(new Request("https://fly.voygent.app/api/admin/overview"), app),
-      router.fetch(new Request("https://fly.voygent.app/api/admin/sessions?limit=10"), app),
-      router.fetch(new Request("https://fly.voygent.app/api/admin/events?level=warning&limit=10"), app),
-      router.fetch(new Request("https://fly.voygent.app/api/admin/users?kind=handle&query=AdminTarget"), app),
-      router.fetch(new Request(`https://fly.voygent.app/api/admin/users/${USER_ID}`), app),
+      router.fetch(new Request("https://squawk.example/api/admin/overview"), app),
+      router.fetch(new Request("https://squawk.example/api/admin/sessions?limit=10"), app),
+      router.fetch(new Request("https://squawk.example/api/admin/events?level=warning&limit=10"), app),
+      router.fetch(new Request("https://squawk.example/api/admin/users?kind=handle&query=AdminTarget"), app),
+      router.fetch(new Request(`https://squawk.example/api/admin/users/${USER_ID}`), app),
     ]);
     expect(responses.every((response) => response.status === 200)).toBe(true);
     const body = (await Promise.all(responses.map((response) => response.text()))).join("\n");
@@ -268,7 +268,7 @@ describe("admin control routes", () => {
     const { broker } = brokerHarness();
     const adminRouter = createRouter(createAdminRoutes({ broker, now: () => NOW }), dependencies());
     const response = await adminRouter.fetch(
-      new Request("https://fly.voygent.app/api/admin/traffic-sources"),
+      new Request("https://squawk.example/api/admin/traffic-sources"),
       runtime(),
     );
     expect(response.status).toBe(200);
@@ -296,7 +296,7 @@ describe("admin control routes", () => {
     const { broker: otherBroker } = brokerHarness();
     const nonAdminRouter = createRouter(createAdminRoutes({ broker: otherBroker, now: () => NOW }), dependencies("authenticated"));
     const denied = await nonAdminRouter.fetch(
-      new Request("https://fly.voygent.app/api/admin/traffic-sources", {
+      new Request("https://squawk.example/api/admin/traffic-sources", {
         headers: { cookie: `__Host-adsb_session=${SESSION_TOKEN}` },
       }),
       runtime(),
@@ -310,15 +310,15 @@ describe("admin control routes", () => {
     const router = createRouter(createAdminRoutes({ broker, now: () => NOW }), dependencies());
     const app = runtime();
     const empty = await router.fetch(
-      new Request("https://fly.voygent.app/api/admin/events?limit=10"),
+      new Request("https://squawk.example/api/admin/events?limit=10"),
       app,
     );
     const exported = await router.fetch(
-      new Request("https://fly.voygent.app/api/admin/events/export?format=csv&limit=10"),
+      new Request("https://squawk.example/api/admin/events/export?format=csv&limit=10"),
       app,
     );
     const invalid = await router.fetch(
-      new Request("https://fly.voygent.app/api/admin/events?limit=10&limit=20"),
+      new Request("https://squawk.example/api/admin/events?limit=10&limit=20"),
       app,
     );
 
@@ -561,7 +561,7 @@ describe("admin control routes", () => {
     // Regression for #62: the admin UI re-fetches active sessions immediately after terminate
     // resolves, and that read must reflect the just-committed abandonment, not a stale mission row.
     const sessions = await router.fetch(
-      new Request("https://fly.voygent.app/api/admin/sessions?limit=10"),
+      new Request("https://squawk.example/api/admin/sessions?limit=10"),
       runtime(),
     );
     expect(sessions.status).toBe(200);

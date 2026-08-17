@@ -15,7 +15,7 @@ describe("redactSensitive", () => {
         evidence: { touchdown: 1 },
         adsb: [{ hex: "abc123" }],
         body: { raw: true },
-        url: "https://fly.voygent.app/callback?token=raw-token&safe=ok",
+        url: "https://squawk.example/callback?token=raw-token&safe=ok",
       },
       message: "user pilot@example.com from 2001:db8::1 sent Bearer top-secret",
       safe: "route-status",

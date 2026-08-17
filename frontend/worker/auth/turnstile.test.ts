@@ -18,7 +18,7 @@ describe("Turnstile verification", () => {
       return Response.json({
         success: true,
         action: "magic-link",
-        hostname: "fly.voygent.app",
+        hostname: "squawk.example",
       });
     });
 
@@ -29,15 +29,15 @@ describe("Turnstile verification", () => {
         remoteIp: "203.0.113.4",
         idempotencyKey: "00000000-0000-4000-8000-000000000001",
         expectedAction: "magic-link",
-        expectedHostname: "fly.voygent.app",
+        expectedHostname: "squawk.example",
         fetcher,
       }),
     ).resolves.toBe(true);
   });
 
   it.each([
-    { success: false, action: "magic-link", hostname: "fly.voygent.app" },
-    { success: true, action: "wrong-action", hostname: "fly.voygent.app" },
+    { success: false, action: "magic-link", hostname: "squawk.example" },
+    { success: true, action: "wrong-action", hostname: "squawk.example" },
     { success: true, action: "magic-link", hostname: "evil.example" },
   ])("fails closed for an invalid verification result", async (payload) => {
     await expect(
@@ -47,7 +47,7 @@ describe("Turnstile verification", () => {
         remoteIp: null,
         idempotencyKey: "00000000-0000-4000-8000-000000000001",
         expectedAction: "magic-link",
-        expectedHostname: "fly.voygent.app",
+        expectedHostname: "squawk.example",
         fetcher: async () => Response.json(payload),
       }),
     ).resolves.toBe(false);
@@ -62,7 +62,7 @@ describe("Turnstile verification", () => {
         remoteIp: null,
         idempotencyKey: "00000000-0000-4000-8000-000000000001",
         expectedAction: "magic-link",
-        expectedHostname: "fly.voygent.app",
+        expectedHostname: "squawk.example",
         fetcher: async () => {
           throw new Error(`must not escape: ${RESPONSE}`);
         },

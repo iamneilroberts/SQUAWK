@@ -121,7 +121,7 @@ async function getLeaderboard(
     dependencies(),
   );
   const response = await router.fetch(
-    new Request(`https://fly.voygent.app/api/leaderboards?${query}`),
+    new Request(`https://squawk.example/api/leaderboards?${query}`),
     runtime(),
   );
   return { response, cache };

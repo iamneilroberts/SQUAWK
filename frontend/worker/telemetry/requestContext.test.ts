@@ -9,7 +9,7 @@ describe("RequestContext", () => {
     const digest = vi.fn(async () => "coarse-digest");
 
     const context = await createRequestContext(
-      new Request("https://fly.voygent.app/api/status", {
+      new Request("https://squawk.example/api/status", {
         headers: { "cf-connecting-ip": "203.0.113.97" },
       }),
       { routeFamily: "status", mode: "READ_ONLY" },
@@ -32,7 +32,7 @@ describe("RequestContext", () => {
   it("derives a coarse IPv6 /64 sampling digest", async () => {
     const digest = vi.fn(async () => "v6-digest");
     await createRequestContext(
-      new Request("https://fly.voygent.app/api/status", {
+      new Request("https://squawk.example/api/status", {
         headers: { "cf-connecting-ip": "2001:db8:abcd:1234:5678:90ab:cdef:1234" },
       }),
       { routeFamily: "status", mode: "NORMAL" },

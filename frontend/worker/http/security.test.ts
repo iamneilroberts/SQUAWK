@@ -5,11 +5,11 @@ import { enforceSameOrigin, securityHeaders } from "./security";
 describe("request and response security", () => {
   it("fails closed when a protected mutation omits or mismatches Origin", () => {
     expect(() =>
-      enforceSameOrigin(new Request("https://fly.voygent.app/api/test", { method: "POST" })),
+      enforceSameOrigin(new Request("https://squawk.example/api/test", { method: "POST" })),
     ).toThrowError(expect.objectContaining({ code: "ORIGIN_REQUIRED" }));
     expect(() =>
       enforceSameOrigin(
-        new Request("https://fly.voygent.app/api/test", {
+        new Request("https://squawk.example/api/test", {
           method: "POST",
           headers: { origin: "https://evil.example" },
         }),
@@ -18,9 +18,9 @@ describe("request and response security", () => {
 
     expect(() =>
       enforceSameOrigin(
-        new Request("https://fly.voygent.app/api/test", {
+        new Request("https://squawk.example/api/test", {
           method: "POST",
-          headers: { origin: "https://fly.voygent.app" },
+          headers: { origin: "https://squawk.example" },
         }),
       ),
     ).not.toThrow();
@@ -48,7 +48,7 @@ describe("request and response security", () => {
 
   it("runs an injected CSRF hook rather than trusting a header in the router", async () => {
     const csrf = vi.fn(async (_request: Request) => true);
-    await expect(csrf(new Request("https://fly.voygent.app"))).resolves.toBe(true);
+    await expect(csrf(new Request("https://squawk.example"))).resolves.toBe(true);
     expect(csrf).toHaveBeenCalledOnce();
   });
 });

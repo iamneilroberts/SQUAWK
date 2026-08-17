@@ -10,7 +10,7 @@ import {
 
 describe("bounded request validation", () => {
   it("streams a JSON body up to its declared byte limit", async () => {
-    const request = new Request("https://fly.voygent.app/api/test", {
+    const request = new Request("https://squawk.example/api/test", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ value: "ok" }),
@@ -20,7 +20,7 @@ describe("bounded request validation", () => {
   });
 
   it("rejects a body that exceeds the route limit without trusting content-length", async () => {
-    const request = new Request("https://fly.voygent.app/api/test", {
+    const request = new Request("https://squawk.example/api/test", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ value: "too large" }),
@@ -33,12 +33,12 @@ describe("bounded request validation", () => {
   });
 
   it("rejects non-JSON, malformed JSON, and non-finite numeric inputs", async () => {
-    const textRequest = new Request("https://fly.voygent.app/api/test", {
+    const textRequest = new Request("https://squawk.example/api/test", {
       method: "POST",
       headers: { "content-type": "text/plain" },
       body: "{}",
     });
-    const malformedRequest = new Request("https://fly.voygent.app/api/test", {
+    const malformedRequest = new Request("https://squawk.example/api/test", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: "{",

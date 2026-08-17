@@ -5,7 +5,7 @@ import { clearAnalyticsCacheForTest, queryRequestAnalytics } from "./analytics";
 const ENV = {
   CLOUDFLARE_ACCOUNT_ID: "5c2997e723bf93da998a627e799cd443",
   ANALYTICS_READ_TOKEN: "read-only-test-token",
-  REQUEST_ANALYTICS_DATASET: "voygent_adsb_game_requests_staging",
+  REQUEST_ANALYTICS_DATASET: "squawk_requests_staging",
 };
 
 beforeEach(() => clearAnalyticsCacheForTest());
@@ -21,7 +21,7 @@ describe("admin request analytics", () => {
   it("uses a fixed sample-weighted SQL template and briefly caches bounded rows", async () => {
     const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       expect(String(init?.body)).toContain("sum(_sample_interval)");
-      expect(String(init?.body)).toContain("voygent_adsb_game_requests_staging");
+      expect(String(init?.body)).toContain("squawk_requests_staging");
       expect(String(init?.body)).toContain("INTERVAL '1 HOUR'");
       return new Response(JSON.stringify({ data: [{ route: "traffic", status_class: "2xx", requests: 12, avg_latency_ms: 4.5 }] }), {
         headers: { "content-type": "application/json" },

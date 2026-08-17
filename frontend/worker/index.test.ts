@@ -70,7 +70,7 @@ describe("Worker entry", () => {
 
   it("serves a typed status envelope without an assets or Python hop", async () => {
     const response = await exports.default.fetch(
-      new Request("https://fly.voygent.app/api/status"),
+      new Request("https://squawk.example/api/status"),
     );
 
     expect(response.status).toBe(200);
@@ -92,7 +92,7 @@ describe("Worker entry", () => {
   it("does not consult assets for the status route", async () => {
     const { env, fetch, writeDataPoint } = fakeEnv();
     const response = await worker.fetch(
-      new Request("https://fly.voygent.app/api/status"),
+      new Request("https://squawk.example/api/status"),
       env,
     );
 
@@ -141,7 +141,7 @@ describe("Worker entry", () => {
     const { env, fetch } = fakeEnv();
 
     const config = await worker.fetch(
-      new Request("https://fly.voygent.app/api/config"),
+      new Request("https://squawk.example/api/config"),
       env,
     );
     await expect(config.json()).resolves.toMatchObject({
@@ -150,7 +150,7 @@ describe("Worker entry", () => {
     });
 
     const response = await worker.fetch(
-      new Request("https://fly.voygent.app/api/traffic?lat=30&lon=-88&radius_nm=80"),
+      new Request("https://squawk.example/api/traffic?lat=30&lon=-88&radius_nm=80"),
       env,
     );
     expect(response.status).toBe(200);
@@ -173,7 +173,7 @@ describe("Worker entry", () => {
   it("strictly validates and clamps the traffic query before broker work", async () => {
     const { env } = fakeEnv();
     const invalid = await worker.fetch(
-      new Request("https://fly.voygent.app/api/traffic?lat=30&lon=-88&radius_nm=80&url=https://attacker.test"),
+      new Request("https://squawk.example/api/traffic?lat=30&lon=-88&radius_nm=80&url=https://attacker.test"),
       env,
     );
     expect(invalid.status).toBe(400);
@@ -182,11 +182,11 @@ describe("Worker entry", () => {
 
   it("adds dynamic HSTS only in production", async () => {
     const production = await worker.fetch(
-      new Request("https://fly.voygent.app/api/status"),
+      new Request("https://squawk.example/api/status"),
       fakeEnv(undefined, "production").env,
     );
     const staging = await worker.fetch(
-      new Request("https://fly.voygent.app/api/status"),
+      new Request("https://squawk.example/api/status"),
       fakeEnv(undefined, "staging").env,
     );
 
@@ -196,7 +196,7 @@ describe("Worker entry", () => {
 
   it("uses the assets binding outside /api", async () => {
     const { env, fetch } = fakeEnv();
-    const request = new Request("https://fly.voygent.app/flights/demo");
+    const request = new Request("https://squawk.example/flights/demo");
     const response = await worker.fetch(request, env);
 
     expect(response.status).toBe(200);
@@ -207,11 +207,11 @@ describe("Worker entry", () => {
   it("rejects Access-unverified admin shell and API requests before assets or broker work", async () => {
     const { env, fetch } = fakeEnv();
     const shell = await worker.fetch(
-      new Request("https://fly.voygent.app/admin"),
+      new Request("https://squawk.example/admin"),
       env,
     );
     const api = await worker.fetch(
-      new Request("https://fly.voygent.app/api/admin/status", {
+      new Request("https://squawk.example/api/admin/status", {
         headers: { cookie: "__Host-adsb_session=ordinary-game-session" },
       }),
       env,
@@ -227,7 +227,7 @@ describe("Worker entry", () => {
   it("never turns an unknown API route into the SPA", async () => {
     const { env, fetch } = fakeEnv();
     const response = await worker.fetch(
-      new Request("https://fly.voygent.app/api/unknown"),
+      new Request("https://squawk.example/api/unknown"),
       env,
     );
 
@@ -241,7 +241,7 @@ describe("Worker entry", () => {
   it("rejects unsupported status methods explicitly", async () => {
     const { env } = fakeEnv();
     const response = await worker.fetch(
-      new Request("https://fly.voygent.app/api/status", { method: "POST" }),
+      new Request("https://squawk.example/api/status", { method: "POST" }),
       env,
     );
 
@@ -253,7 +253,7 @@ describe("Worker entry", () => {
     const missingBroker = fakeEnv().env as unknown as Record<string, unknown>;
     delete missingBroker.ADSB_BROKER;
     const unavailable = await worker.fetch(
-      new Request("https://fly.voygent.app/api/status"),
+      new Request("https://squawk.example/api/status"),
       missingBroker as unknown as Env,
     );
     expect(unavailable.status).toBe(503);
@@ -267,7 +267,7 @@ describe("Worker entry", () => {
       FORCE_MODE: "KILL_SWITCH",
     } as unknown as Env;
     const forced = await worker.fetch(
-      new Request("https://fly.voygent.app/api/status"),
+      new Request("https://squawk.example/api/status"),
       forcedEnv,
     );
     expect(forced.status).toBe(503);

@@ -14,7 +14,7 @@ import {
 } from "./accessJwt";
 
 const NOW = new Date("2026-08-10T18:00:00.000Z");
-const ISSUER = "https://voygent.cloudflareaccess.com";
+const ISSUER = "https://example.cloudflareaccess.com";
 const AUDIENCE = "a".repeat(64);
 const SUBJECT = "11111111-1111-4111-8111-111111111111";
 const KID = "access-key-1";

@@ -10,7 +10,7 @@ const IDENTITY: AccessIdentity = {
 };
 
 const environment = {
-  ACCESS_TEAM_DOMAIN: "https://voygent.cloudflareaccess.com",
+  ACCESS_TEAM_DOMAIN: "https://example.cloudflareaccess.com",
   ACCESS_AUD: "a".repeat(64),
 };
 
@@ -19,7 +19,7 @@ describe("admin request authorization", () => {
     const verify = vi.fn();
     await expect(
       authorizeAdminRequest(
-        new Request("https://fly.voygent.app/api/admin/status", {
+        new Request("https://squawk.example/api/admin/status", {
           headers: { cookie: "__Host-adsb_session=ordinary-game-session" },
         }),
         environment,
@@ -32,7 +32,7 @@ describe("admin request authorization", () => {
   it("maps only a verified Access identity to an admin actor", async () => {
     const verify = vi.fn(async () => IDENTITY);
     const actor = await authorizeAdminRequest(
-      new Request("https://fly.voygent.app/api/admin/status", {
+      new Request("https://squawk.example/api/admin/status", {
         headers: { "cf-access-jwt-assertion": "signed-access-token" },
       }),
       environment,
@@ -57,7 +57,7 @@ describe("admin request authorization", () => {
     });
     await expect(
       authorizeAdminRequest(
-        new Request("https://fly.voygent.app/api/admin/status", {
+        new Request("https://squawk.example/api/admin/status", {
           headers: { "cf-access-jwt-assertion": "forged" },
         }),
         environment,
