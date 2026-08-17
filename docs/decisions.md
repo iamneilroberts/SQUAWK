@@ -3324,3 +3324,12 @@ it's up, not used much in flight"):
    forces overflow-x to auto). Added overflow-x:hidden + scrollbar-width:none + ::-webkit-scrollbar.
 Verified: full suite 1607 pass (modal/backdrop/render-scale asserts added), tsc clean, build exit 0.
 Freeze/resume + text crispness are prod-eyeball (no local feed); renderScale 3 + face size tunable.
+
+## 2026-08-17 — TACTICAL big map sharpness: drop the brightness filter (tiles already light)
+Follow-up tuning to the paused location map. Owner: still soft/washed; try thin sharp lines/text
+instead of brightening. Measured the actual tiles (PIL, z7 over AL/MS): World_Transportation avg
+luminance 198 (roads sample (255,208,155)), World_Boundaries_and_Places avg 200 — BOTH already
+light. The `brightness(2)/contrast` filter was pushing already-light anti-aliased edges past white,
+blooming and smearing them. Fix: `.navmap-basemap-lines/-labels { filter: none }` (render natively
+= thin sharp), and bump the big-map basemap renderScale 3→4 so the ~640px display DOWNSCALES the
+800px buffer (crisper) rather than upscaling. No behavior change; CSS + one constant.

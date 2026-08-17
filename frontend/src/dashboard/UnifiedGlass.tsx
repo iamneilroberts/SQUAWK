@@ -256,7 +256,7 @@ export function UnifiedGlassBody({
               showBasemap
               showLabels={labelsOn}
               showContacts={showContacts}
-              basemapRenderScale={tacticalMode === "large" ? 3 : 1}
+              basemapRenderScale={tacticalMode === "large" ? 4 : 1}
             />
           </div>
         </>

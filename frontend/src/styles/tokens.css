@@ -1328,9 +1328,11 @@ body {
 .navmap-basemap { pointer-events: none; }
 .navmap-basemap-stack { position: relative; }
 .navmap-basemap-canvas { display: block; position: absolute; top: 0; left: 0; pointer-events: none; }
-/* Brighten the transparent tiles hard so the lines punch through the contact squares. Tunable. */
-.navmap-basemap-lines { filter: brightness(2) contrast(1.15); }
-.navmap-basemap-labels { filter: brightness(1.7) contrast(1.1); }
+/* No brightness filter: the Esri reference tiles are ALREADY light (roads avg lum ~198, labels ~200
+   — measured 2026-08-17), so brightening only blew the anti-aliased edges past white and smeared
+   them. Rendered natively they're thin, sharp lines + text on the near-black face. */
+.navmap-basemap-lines,
+.navmap-basemap-labels { filter: none; }
 .navmap-ranges { display: flex; align-items: center; gap: 3px; }
 .navmap-range-unit { color: var(--text); opacity: 0.6; font-size: 9px; }
 .status-chip-button-active {
