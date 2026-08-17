@@ -14,7 +14,9 @@ const required = [
 ];
 const result = spawnSync(
   "npm",
-  ["exec", "--", "wrangler", "secret", "list", "--env", environment],
+  // Use the same overlay config the deploy uses (wrangler.prod.jsonc), so the
+  // secret check targets the real Worker name rather than the neutral template's.
+  ["exec", "--", "wrangler", "secret", "list", "--config", "wrangler.prod.jsonc", "--env", environment],
   { encoding: "utf8" },
 );
 if (result.status !== 0) {
