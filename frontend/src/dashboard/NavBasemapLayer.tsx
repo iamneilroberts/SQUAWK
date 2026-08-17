@@ -18,8 +18,11 @@ import { NAV_RADIUS_PX } from "./navMath";
 import { warpTilesToNavCircle } from "./navTileWarp";
 import type { LonLat } from "./navWeatherMath";
 
-// Esri World Imagery XYZ tiles (ArcGIS path order is z/y/x). Same imagery as the Cesium basemap.
-const ESRI_IMAGERY = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile";
+// Esri World Imagery XYZ tiles (ArcGIS path order is z/y/x). Same imagery AND same host as the
+// Cesium basemap (globe/mapSources.ts) — `services.` not `server.`: the CSP img-src (worker/http/
+// security.ts + public/_headers) whitelists `services.arcgisonline.com`, so the `server.` alias was
+// silently blocked (blocked:csp) and the face stayed black. Keep this host in sync with the CSP.
+const ESRI_IMAGERY = "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile";
 // Esri imagery goes far deeper than the radar tiles; cap high enough for a crisp face at close range.
 const BASEMAP_MAX_Z = 12;
 // Dim the imagery so the cyan rings, airport marks and own-ship chevron stay legible over it.

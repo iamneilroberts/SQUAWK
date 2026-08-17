@@ -3247,3 +3247,16 @@ baseline (no test edits were needed — class names (`imm-bar-tapes`, `imm-tape`
   `hud-chrome-rework` branch from a concurrent session sharing that worktree, not authored by
   this task. It shipped bundled with this merge; flagged here for visibility since it wasn't
   reviewed as part of this task's scope.
+
+## 2026-08-17 — NavMap satellite basemap: CSP host mismatch (`server.` → `services.` arcgisonline)
+The TACTICAL nav face (NavMap `showBasemap`) rendered black — rings + contacts only, no Esri
+imagery — while still crediting "IMAGERY © ESRI" (a data-honesty-rule violation: crediting a
+source not shown). Root cause was NOT canvas taint, the warp math, or the wiring: `NavBasemapLayer`
+fetched tiles from `https://server.arcgisonline.com`, but the CSP `img-src`/`connect-src`
+(worker/http/security.ts + public/_headers) whitelists only `https://services.arcgisonline.com`
+(the host the Cesium globe basemap uses, globe/mapSources.ts). Every tile was blocked at the
+browser (`blocked:csp`) → `img.onerror` → skipped → transparent → black face. Diagnosed on live
+prod via DevTools Network (filter `arcgis` showed `(blocked:csp)`, Origin `https://fly.voygent.app`).
+Fix: point NavBasemapLayer at `services.arcgisonline.com` — the already-whitelisted, already-proven
+host — rather than widening the CSP. Both hosts serve the same keyless World_Imagery tiles
+(200 image/jpeg, `Access-Control-Allow-Origin: *`). Keep this host in sync with the CSP going forward.
