@@ -25,7 +25,7 @@ import {
   ScreenSpaceEventType,
   Viewer,
 } from "cesium";
-import { startTrafficPolling, useStore } from "../state/store";
+import { startAisPolling, startTrafficPolling, useStore } from "../state/store";
 import { resolvePickAction } from "./pickRouting";
 import { hudSnapshot } from "../hud/snapshot";
 import { applyRealTimeLighting } from "./dayNightLighting";
@@ -88,18 +88,31 @@ export default function ViewerHost({ children, onTerrainNoteChange }: ViewerHost
     const billboards = viewer.scene.primitives.add(new BillboardCollection());
     const labels = viewer.scene.primitives.add(new LabelCollection());
     const byHex = new Map<string, Billboard>();
+    // Ships get their own collection so aircraft and vessels never share billboard identity.
+    const shipBillboards = viewer.scene.primitives.add(new BillboardCollection());
+    const byMmsi = new Map<string, Billboard>();
 
     const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
     handler.setInputAction((click: ScreenSpaceEventHandler.PositionedEvent) => {
       // Cesium fires LEFT_CLICK on a click-not-drag only, so a flight look-drag never reaches
       // here — a genuine TAP does. BROWSE picks drive `select`; FLYING/PAUSED taps drive the
       // separate `identify` callout (#86); other modes ignore the pick. See globe/pickRouting.ts.
+      // Aircraft (byHex) and ships (byMmsi) are picked from the same tap: the picked billboard id
+      // is either an ICAO hex or an MMSI, never both, so the two selections stay mutually
+      // exclusive (picking one clears the other).
       const state = useStore.getState();
       const picked = viewer.scene.pick(click.position);
-      const hex = typeof picked?.id === "string" ? picked.id : null;
-      const action = resolvePickAction(state.mode, hex, hex !== null && byHex.has(hex));
-      if (action.kind === "select") state.select(action.hex);
-      else if (action.kind === "identify") state.setIdentifiedHex(action.hex);
+      const id = typeof picked?.id === "string" ? picked.id : null;
+      const isShip = id !== null && byMmsi.has(id);
+      const action = resolvePickAction(state.mode, id, id !== null && byHex.has(id));
+      if (action.kind === "select") {
+        state.select(action.hex);
+        // Ships are only pickable in BROWSE (the select branch); a ship is never an identify
+        // target in flight, so selectShip is untouched in the identify branch.
+        state.selectShip(isShip ? id : null);
+      } else if (action.kind === "identify") {
+        state.setIdentifiedHex(action.hex);
+      }
     }, ScreenSpaceEventType.LEFT_CLICK);
 
     const stopPolling = startTrafficPolling({
@@ -108,12 +121,17 @@ export default function ViewerHost({ children, onTerrainNoteChange }: ViewerHost
         return snapshot === null ? null : { lat: snapshot.latDeg, lon: snapshot.lonDeg };
       },
     });
+    // Ships poll independently of aircraft — own tick, own status — but share this viewer's
+    // lifetime, started and stopped exactly alongside the traffic poller.
+    const stopAisPolling = startAisPolling();
 
     setBundle({
       viewer,
       billboards,
       labels,
       byHex,
+      shipBillboards,
+      byMmsi,
       heightSampler: createSceneHeightSampler(viewer.scene),
       terrainNote: "TERRAIN LOADING…",
     });
@@ -130,6 +148,7 @@ export default function ViewerHost({ children, onTerrainNoteChange }: ViewerHost
     return () => {
       cancelled = true;
       stopPolling();
+      stopAisPolling();
       handler.destroy();
       viewer.destroy();
       setBundle(null);

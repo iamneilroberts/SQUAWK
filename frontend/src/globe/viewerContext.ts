@@ -13,6 +13,9 @@ export type ViewerBundle = {
   labels: LabelCollection;
   /** Billboard per ICAO hex, mutated in place — the LORAN primitive-churn lesson. */
   byHex: Map<string, Billboard>;
+  /** Dedicated AIS ship layer: its own BillboardCollection + one billboard per MMSI. */
+  shipBillboards: BillboardCollection;
+  byMmsi: Map<string, Billboard>;
   heightSampler: HeightSampler;
   /** Which terrain source actually attached, for the status bar. */
   terrainNote: string;

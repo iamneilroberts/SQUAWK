@@ -21,6 +21,9 @@ export function contactColor(c: Contact): string {
   return c.military ? "#ffb000" : "#5fd7e0";
 }
 
+/** Ship nominal color: muted green, distinct from aircraft cyan/amber (docs/decisions.md). */
+export const SHIP_COLOR = "#6fcf7f";
+
 /**
  * Cesium billboard `rotation` is counter-clockwise-positive; ADS-B `track` is degrees
  * clockwise from north. Negating converts one to the other. `null` (no heading data)
@@ -30,6 +33,19 @@ export function contactColor(c: Contact): string {
 export function contactRotationRad(track: number | null): number {
   if (track === null) return 0;
   return -track * (Math.PI / 180);
+}
+
+/**
+ * Same convention as `contactRotationRad`: uses `heading` when present, falls back to
+ * `cog` (AIS course-over-ground) when there's no heading, and renders upright (the same
+ * `0` sentinel as the aircraft null case) only when BOTH are missing. `heading`/`cog: 0`
+ * is a real value (due north) and must not be treated as missing just because it's falsy —
+ * `??` (not `||`) is what makes that distinction.
+ */
+export function shipRotationRad(heading: number | null, cog: number | null): number {
+  const value = heading ?? cog;
+  if (value === null) return 0;
+  return -value * (Math.PI / 180);
 }
 
 /**
@@ -116,5 +132,35 @@ export function makeIconCanvas(shape: ContactShape, colorHex: string): HTMLCanva
   }
 
   cache.set(key, canvas);
+  return canvas;
+}
+
+const shipCache = new Map<string, HTMLCanvasElement>();
+
+/** 32x32 stroked hull silhouette (pointed bow, flat stern), bow pointing up. Cached per colour. */
+export function makeShipCanvas(colorHex: string): HTMLCanvasElement {
+  const cached = shipCache.get(colorHex);
+  if (cached) return cached;
+
+  const canvas = document.createElement("canvas");
+  canvas.id = colorHex; // stable identity shipBillboards.ts passes to Billboard.setImage
+  canvas.width = 32;
+  canvas.height = 32;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    ctx.strokeStyle = colorHex;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(16, 4); // bow
+    ctx.lineTo(26, 22); // starboard shoulder
+    ctx.lineTo(22, 28); // starboard stern corner
+    ctx.lineTo(10, 28); // port stern corner
+    ctx.lineTo(6, 22); // port shoulder
+    ctx.closePath();
+    ctx.stroke();
+  }
+
+  shipCache.set(colorHex, canvas);
   return canvas;
 }

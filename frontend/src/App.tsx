@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ViewerHost from "./globe/ViewerHost";
 import ContactLayer from "./globe/ContactLayer";
+import ShipLayer from "./globe/ShipLayer";
 import OverlayLayers from "./globe/OverlayLayers";
 
 // FlightSession pulls in the sim engine, HUD, dashboards, tutorial, and mission machinery —
@@ -529,6 +530,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
         <div className="relative flex-1">
           <ViewerHost onTerrainNoteChange={setTerrainNote}>
             <ContactLayer />
+            <ShipLayer />
             <OverlayLayers route={mode === "BROWSE" ? route : null} />
             <Suspense fallback={<FlightSessionLoading />}>
               <FlightSession
