@@ -3373,3 +3373,14 @@ a clean "prepared" outcome. The reconfirm MissionCommitState variant + its UI (M
 production-unreachable but left in place (still type-checked + covered by MissionTray.test) — flagged
 for a separate dead-code cleanup, not deleted on the way past. mission/api.ts (the reconfirm outcome
 itself) is unchanged. Verified: full suite 1613 pass, tsc clean, build exit 0.
+
+## 2026-08-17 — Dead-code cleanup: remove the now-unreachable reconfirm UI
+Follow-up to the auto-launch-on-fresh-briefing change (App auto-commits reconfirm outcomes). Removed
+the orphaned UI/state: deleted MissionReconfirmation.tsx; dropped the `reconfirm` variant from
+MissionCommitState (briefingState.ts); removed MissionTray's reconfirm rendering + its onConfirmMission/
+onSelectReconfirmed props; removed App's onConfirmMission/onSelectReconfirmed handlers and the
+`status === "reconfirm"` clauses in selectionLocked + authoritativePreparation. KEPT: mission/api.ts's
+`reconfirm` OUTCOME (the API honestly reports the server's MISSION_RECONFIRM_REQUIRED; App just
+auto-commits it) and AlternativeAirports.tsx (still used by MissionTray's main eligible-airport list).
+Also gitignored local tool caches (.fastembed_cache/, .nodeterm/). No behavior change. Full suite 1613
+pass, tsc clean, build exit 0.

@@ -1,7 +1,6 @@
 import type { SessionProfile } from "../auth/session";
 import type { AircraftClassId } from "../mission/types";
 import AlternativeAirports from "./AlternativeAirports";
-import MissionReconfirmation from "./MissionReconfirmation";
 import type {
   MissionCommitState,
   ProvisionalBriefingState,
@@ -30,8 +29,6 @@ export default function MissionTray({
   onSelectAssignment,
   onTakeControls,
   commitState,
-  onConfirmMission,
-  onSelectReconfirmed,
 }: {
   state: ProvisionalBriefingState;
   profile: SessionProfile | null;
@@ -39,12 +36,10 @@ export default function MissionTray({
   onSelectAssignment: (key: string) => void;
   onTakeControls: () => void;
   commitState: MissionCommitState;
-  onConfirmMission: () => void;
-  onSelectReconfirmed: (key: string) => void;
 }) {
   if (state.status === "idle") return null;
 
-  const preparation = commitState.status === "reconfirm" || commitState.status === "locking"
+  const preparation = commitState.status === "locking"
     ? commitState.preparation
     : commitState.status === "error"
       ? commitState.retry?.preparation ?? null
@@ -128,7 +123,7 @@ export default function MissionTray({
             className="control-button mission-take-controls"
             data-testid="mission-take-controls"
             onClick={onTakeControls}
-            disabled={commitState.status === "preparing" || commitState.status === "locking" || commitState.status === "locked" || commitState.status === "reconfirm"}
+            disabled={commitState.status === "preparing" || commitState.status === "locking" || commitState.status === "locked"}
           >
             {commitState.status === "preparing"
               ? "Checking fresh traffic…"
@@ -147,15 +142,6 @@ export default function MissionTray({
               choices={[state.assignment.best, ...state.assignment.alternatives]}
               selected={state.selected}
               onSelect={onSelectAssignment}
-            />
-          )}
-
-          {commitState.status === "reconfirm" && (
-            <MissionReconfirmation
-              provisional={commitState.provisional}
-              preparation={commitState.preparation}
-              onConfirm={onConfirmMission}
-              onSelect={onSelectReconfirmed}
             />
           )}
 

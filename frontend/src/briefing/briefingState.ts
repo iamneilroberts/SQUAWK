@@ -54,12 +54,6 @@ export type MissionCommitState =
   | { status: "idle" }
   | { status: "preparing" }
   | {
-      status: "reconfirm";
-      provisional: RunwayAssignment;
-      preparation: MissionPreparationView;
-      idempotencyKey: string;
-    }
-  | {
       status: "locking";
       preparation: MissionPreparationView;
       idempotencyKey: string;

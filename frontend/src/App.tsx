@@ -298,7 +298,6 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
   }, [selectedHex]);
 
   const selectionLocked = missionCommit.status === "locking" ||
-    missionCommit.status === "reconfirm" ||
     (missionCommit.status === "error" && missionCommit.retry !== undefined);
 
   useEffect(() => {
@@ -511,8 +510,7 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
     void updateCurrentProfile({ coachingEnabled: false }).then(applyProfile).catch(() => undefined);
   }, [applyProfile, profile]);
 
-  const authoritativePreparation = missionCommit.status === "reconfirm" ||
-    missionCommit.status === "locking"
+  const authoritativePreparation = missionCommit.status === "locking"
     ? missionCommit.preparation
     : missionCommit.status === "error"
       ? missionCommit.retry?.preparation ?? null
@@ -594,29 +592,6 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
               }}
               onTakeControls={takeControls}
               commitState={missionCommit}
-              onConfirmMission={() => {
-                if (missionCommit.status === "reconfirm") {
-                  void commitPreparation(
-                    missionCommit.preparation,
-                    missionCommit.idempotencyKey,
-                    missionOperation.current,
-                  );
-                }
-              }}
-              onSelectReconfirmed={(key) => {
-                setMissionCommit((current) => {
-                  if (current.status !== "reconfirm") return current;
-                  const selected = current.preparation.eligibleChoices.find(
-                    (choice) => missionChoiceKey(choice) === key,
-                  );
-                  return selected === undefined
-                    ? current
-                    : {
-                        ...current,
-                        preparation: { ...current.preparation, selected },
-                      };
-                });
-              }}
             />
           )}
           {browseDrawer && contactsOpen && (

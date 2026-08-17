@@ -41,8 +41,6 @@ function render(state: ProvisionalBriefingState): string {
     onSelectAssignment: vi.fn(),
     onTakeControls: vi.fn(),
     commitState: { status: "idle" },
-    onConfirmMission: vi.fn(),
-    onSelectReconfirmed: vi.fn(),
   })).join(" ");
 }
 

@@ -17,3 +17,7 @@ __pycache__/
 
 # session scratch reports (not code)
 .report-*.md
+
+# local tool caches / scratch (not code)
+.fastembed_cache/
+.nodeterm/
