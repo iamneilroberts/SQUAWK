@@ -1,6 +1,6 @@
 /*
  * Legacy deep-link protocol from LORAN:
- *   https://fly.voygent.app/?takeover=<hex>
+ *   https://your-domain.example/?takeover=<hex>
  *
  * Task 8 deliberately reinterprets "takeover" as "open this aircraft's provisional mission
  * briefing". A URL can never bypass the overview, authentication, or authoritative mission

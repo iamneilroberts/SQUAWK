@@ -36,7 +36,7 @@ export default function AdminApp() {
   return (
     <main className="admin-shell">
       <header className="admin-header">
-        <div><p>VOYGENT OPERATIONS</p><h1>ADSB-GAME CONTROL ROOM</h1></div>
+        <div><p>SQUAWK OPERATIONS</p><h1>SQUAWK CONTROL ROOM</h1></div>
         <div className="admin-header__status"><StatusPill value={bootstrap.status.effectiveMode} /><span>{bootstrap.status.activeFlights} active flights</span></div>
       </header>
       <nav className="admin-tabs" aria-label="Admin sections">
