@@ -21,6 +21,7 @@
  * element tree without jsdom and proves per-class selection directly.
  */
 import type { ReactNode } from "react";
+import { navModeChipLabel, type NavMode } from "./navModes";
 import type { Airport } from "../data/airports";
 import type { Contact, FeedStatus } from "../data/types";
 import type { HudSnapshot } from "../hud/snapshot";
@@ -71,6 +72,7 @@ export function CockpitPrimary({
 export function UnifiedGlassBody({
   snapshot, params, contacts, feedStatus, ghostHex, feedRadiusNm, airports,
   navRangeNm, weather, navWeather, showWeather, showHelp,
+  tacticalMode, labelsOn, onCycleTactical,
   onNavRangeChange, onToggleWeather, onToggleHelp, onToggleStrip,
 }: {
   snapshot: HudSnapshot | null;
@@ -85,6 +87,11 @@ export function UnifiedGlassBody({
   navWeather: NavWeatherState;
   showWeather: boolean;
   showHelp: boolean;
+  /** Tactical-map display mode (#67 rework), owned by DashboardStrip's StripState. */
+  tacticalMode: NavMode;
+  /** Overlay place labels on the tactical basemap — the menu LABELS chip (store `labelsOn`). */
+  labelsOn: boolean;
+  onCycleTactical(): void;
   onNavRangeChange(nm: number): void;
   onToggleWeather(): void;
   onToggleHelp(): void;
@@ -177,23 +184,52 @@ export function UnifiedGlassBody({
       </section>
 
       {/* Tactical map (NavMap = geographic own-ship + rings + traffic + airports; it already
-          absorbed the old heading-up RadarScope) — bottom-left corner. */}
-      <div className="glass panel dash-tactical">
-        <span className="glass-region-label label">TACTICAL</span>
-        <NavMap
-          snapshot={snapshot}
-          airports={airports}
-          contacts={contacts}
-          feedStatus={feedStatus}
-          ghostHex={ghostHex}
-          navRangeNm={navRangeNm}
-          feedRadiusNm={feedRadiusNm}
-          onRangeChange={onNavRangeChange}
-          showRadar={showWeather}
-          navWeather={navWeather}
-          showBasemap
-        />
-      </div>
+          absorbed the old heading-up RadarScope) — bottom-left corner. Three display modes via the
+          header chip (#67 rework): normal, large (bigger circle in place), hidden (collapsed to a
+          restore tab). Line basemap with place labels that follow the menu LABELS chip. */}
+      {tacticalMode === "hidden" ? (
+        <button
+          type="button"
+          className="glass panel dash-tactical-tab"
+          onClick={onCycleTactical}
+          aria-label="Show tactical map"
+        >
+          TACTICAL ▸
+        </button>
+      ) : (
+        <div
+          className={
+            tacticalMode === "large"
+              ? "glass panel dash-tactical dash-tactical-large"
+              : "glass panel dash-tactical"
+          }
+        >
+          <div className="dash-tactical-head">
+            <span className="glass-region-label label">TACTICAL</span>
+            <button
+              type="button"
+              className="status-chip-button dash-tactical-mode"
+              onClick={onCycleTactical}
+            >
+              {navModeChipLabel(tacticalMode)}
+            </button>
+          </div>
+          <NavMap
+            snapshot={snapshot}
+            airports={airports}
+            contacts={contacts}
+            feedStatus={feedStatus}
+            ghostHex={ghostHex}
+            navRangeNm={navRangeNm}
+            feedRadiusNm={feedRadiusNm}
+            onRangeChange={onNavRangeChange}
+            showRadar={showWeather}
+            navWeather={navWeather}
+            showBasemap
+            showLabels={labelsOn}
+          />
+        </div>
+      )}
 
       {/* Control-state strip: reused ControlState (THR/FLAPS/TRIM/GEAR) + VSI/AGL — bottom-center,
           one line. */}

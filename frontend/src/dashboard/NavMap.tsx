@@ -26,14 +26,14 @@ import {
   radarChipText, resolveZoom, RAINVIEWER_CREDIT, type NavWeatherState,
 } from "./navWeatherMath";
 
-const ESRI_IMAGERY_CREDIT = "IMAGERY © ESRI";
+const ESRI_MAP_CREDIT = "MAP © ESRI";
 
 const SIZE = NAV_RADIUS_PX * 2 + 16; // a little bezel outside the outer ring
 const C = SIZE / 2;
 
 export default function NavMap({
   snapshot, airports, contacts, feedStatus, ghostHex, navRangeNm, feedRadiusNm, onRangeChange,
-  showRadar = false, navWeather = { kind: "no-position" }, showBasemap = false,
+  showRadar = false, navWeather = { kind: "no-position" }, showBasemap = false, showLabels = false,
 }: {
   snapshot: HudSnapshot | null;
   airports: Airport[];
@@ -45,9 +45,11 @@ export default function NavMap({
   onRangeChange(nm: number): void;
   showRadar?: boolean;
   navWeather?: NavWeatherState;
-  /** Satellite basemap under the nav marks (#67). Off by default so NavMap stays a pure tree for
+  /** Line basemap under the nav marks (#67). Off by default so NavMap stays a pure tree for
    *  its non-jsdom test (the basemap layer is hook-ful, like NavWeatherLayer). */
   showBasemap?: boolean;
+  /** Overlay place-name labels on the basemap — follows the menu LABELS chip (store `labelsOn`). */
+  showLabels?: boolean;
 }) {
   const status = navStatus(feedStatus);
   const coverage = coverageNote(navRangeNm, feedRadiusNm);
@@ -79,7 +81,7 @@ export default function NavMap({
             height={NAV_RADIUS_PX * 2}
             className="navmap-basemap"
           >
-            <NavBasemapLayer own={own} navRangeNm={navRangeNm} />
+            <NavBasemapLayer own={own} navRangeNm={navRangeNm} showLabels={showLabels} />
           </foreignObject>
         )}
         {ringsFor(navRangeNm).map((ring) => (
@@ -162,7 +164,7 @@ export default function NavMap({
         {radarChip !== null && (
           <span className={radarNominal ? "navmap-status navmap-status-wx" : "navmap-status"}>{radarChip}</span>
         )}
-        {showBasemapLayer && <span className="navmap-attribution">{ESRI_IMAGERY_CREDIT}</span>}
+        {showBasemapLayer && <span className="navmap-attribution">{ESRI_MAP_CREDIT}</span>}
         {showRadarLayer && <span className="navmap-attribution">{RAINVIEWER_CREDIT}</span>}
       </div>
 

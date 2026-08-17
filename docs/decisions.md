@@ -3260,3 +3260,23 @@ prod via DevTools Network (filter `arcgis` showed `(blocked:csp)`, Origin `https
 Fix: point NavBasemapLayer at `services.arcgisonline.com` — the already-whitelisted, already-proven
 host — rather than widening the CSP. Both hosts serve the same keyless World_Imagery tiles
 (200 image/jpeg, `Access-Control-Allow-Origin: *`). Keep this host in sync with the CSP going forward.
+
+## 2026-08-17 — TACTICAL nav map: line basemap + 3 display modes (normal/large/hidden)
+Owner reworked the tactical face (follow-up to the CSP host fix same day). Two changes:
+1. **Satellite → line basemap.** `NavBasemapLayer` now draws Esri `Canvas/World_Dark_Gray_Base`
+   (dark line geography) instead of `World_Imagery` — owner found the photo imagery unhelpful; a
+   clean line map reads better as a "where am I" reference. Place-name labels come from the matching
+   transparent overlay `Canvas/World_Dark_Gray_Reference` on a SECOND stacked canvas, mounted only
+   when the menu LABELS chip is on (store `labelsOn`) — the map follows that one existing control
+   rather than adding a toggle. Both keyless on `services.arcgisonline.com` (CSP-whitelisted; base
+   is opaque JPEG, reference is transparent PNG — verified). Attribution "IMAGERY © ESRI" → "MAP ©
+   ESRI". Applies to desktop tactical AND mobile NavWx (satellite gone everywhere).
+2. **Three display modes via a header chip.** `tacticalMode: normal | large | hidden` lives in
+   DashboardStrip's `StripState` (NOT local component state — UnifiedGlassBody must stay a hook-free
+   pure function so its direct-invocation tests keep working; this matches how showWeather/showHelp
+   are already lifted). A `cycleTactical` reducer + the `nextNavMode` pure helper (navModes.ts) cycle
+   normal→large→hidden→normal. Large bumps `.navmap-face` 140→300px in place (SVG viewBox scales the
+   marks; the 200px tile canvas upscales 1.5×, acceptable for a dark line map). Hidden collapses the
+   panel to a compact "TACTICAL ▸" restore tab. Chip label states the action (ENLARGE/HIDE/SHOW).
+Verified: full suite 1605 pass (added navModes + 3 mode tests), tsc clean, build exit 0. Visual
+confirmation is post-deploy only (flight HUD needs a live feed).

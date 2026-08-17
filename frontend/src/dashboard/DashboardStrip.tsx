@@ -29,12 +29,14 @@ import { DEFAULT_NAV_RANGE_NM } from "./navMath";
 import { useWeather } from "./WeatherPanel";
 import { useNavWeather } from "./NavWeatherLayer";
 import { UnifiedGlassBody } from "./UnifiedGlass";
+import { nextNavMode, type NavMode } from "./navModes";
 
 export type StripState = {
   open: boolean;
   navRangeNm: number;
   showWeather: boolean;
   showHelp: boolean;
+  tacticalMode: NavMode;
 };
 
 /**
@@ -59,6 +61,7 @@ export function defaultStripState(narrow = false): StripState {
     navRangeNm: DEFAULT_NAV_RANGE_NM,
     showWeather: false,
     showHelp: false,
+    tacticalMode: "normal",
   };
 }
 
@@ -76,6 +79,11 @@ export function toggleHelp(s: StripState): StripState {
 
 export function toggleStrip(s: StripState): StripState {
   return { ...s, open: !s.open };
+}
+
+/** Tactical-map mode chip: cycle normal -> large -> hidden -> normal (#67 rework). */
+export function cycleTactical(s: StripState): StripState {
+  return { ...s, tacticalMode: nextNavMode(s.tacticalMode) };
 }
 
 /**
@@ -103,6 +111,7 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
   const origin = useStore((s) => s.origin);
   const lockedMission = useStore((s) => s.lockedMission);
   const radiusNm = useStore((s) => s.radiusNm);
+  const labelsOn = useStore((s) => s.labelsOn);
   // The primary instruments read the flown class's params (per-class face). Falls back to the
   // C172 before an origin is set — the strip can mount a frame before a takeover exists.
   const params = lockedMission?.aircraftProfile ?? loadC172();
@@ -153,6 +162,9 @@ export default function DashboardStrip({ snapshot }: { snapshot: HudSnapshot | n
       navWeather={navWeather}
       showWeather={state.showWeather}
       showHelp={state.showHelp}
+      tacticalMode={state.tacticalMode}
+      labelsOn={labelsOn}
+      onCycleTactical={() => setState(cycleTactical)}
       onNavRangeChange={(nm) => setState((s) => setNavRange(s, nm))}
       onToggleWeather={() => setState(toggleWeather)}
       onToggleHelp={() => setState(toggleHelp)}

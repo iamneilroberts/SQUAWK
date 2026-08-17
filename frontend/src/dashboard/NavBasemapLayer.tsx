@@ -1,53 +1,71 @@
 /*
- * Satellite basemap for the nav face (issue #67). The same tile-warp the precip overlay uses
- * (navTileWarp), but fed Esri World Imagery tiles instead of RainViewer radar — so the north-up
- * nav circle sits on a real satellite image instead of black, giving quick "where am I" context.
+ * Line basemap for the nav face (issue #67, reworked). A dark Esri "Dark Gray Canvas" line map
+ * (coastlines, water, roads) under the north-up nav circle instead of satellite photography — the
+ * owner found the imagery unhelpful; a clean line map with landmarks reads far better as a
+ * "where am I" reference. Same tile-warp the precip overlay uses (navTileWarp), fed Esri Canvas
+ * tiles.
  *
- * Keyless, browser-direct (no proxy), like the RainViewer overlay. A tile that fails to load —
- * offline, throttled, or CORS-blocked — is skipped and left transparent, and if the whole tile set
- * taints the canvas the warp bails to transparent: the face falls back to its black background,
- * an honest "no imagery here", never a substituted picture. Attribution (IMAGERY © ESRI) is shown
- * on the face by NavMap whenever this layer is mounted.
+ * Two STACKED canvases, base + labels:
+ *   - base   — `World_Dark_Gray_Base` (opaque JPEG): the dark line geography, always drawn.
+ *   - labels — `World_Dark_Gray_Reference` (transparent PNG): place names / boundaries, the Esri
+ *              companion overlay designed to sit ON the base. Mounted ONLY when the menu's LABELS
+ *              chip is on (`showLabels`, from store `labelsOn`), so the map follows that one control.
+ * Layering two purpose-built canvases keeps navTileWarp untouched (each canvas warps its own tile
+ * source); the transparent label PNG composites naturally over the base beneath it.
+ *
+ * Keyless, browser-direct (no proxy). Host is `services.arcgisonline.com` — the ONLY arcgisonline
+ * host the CSP img-src whitelists (worker/http/security.ts + public/_headers); the `server.` alias
+ * is blocked:csp (that was the old "credits ESRI, black face" bug — see decisions.md 2026-08-17).
+ * A tile that fails to load is skipped/transparent, never substituted; a tainted canvas bails to
+ * transparent — the face falls back to black, an honest "no map here". Attribution (MAP © ESRI) is
+ * shown on the face by NavMap whenever this layer is mounted.
  *
  * HOOK-FREE on purpose (like NavMap itself): a callback ref runs the warp only when React commits
- * the canvas to the real DOM, so NavMap's non-jsdom test can walk and invoke this component without
- * a hooks context. The ref throttles re-warps via a dataset key (own quantised to ~0.6 NM), so
- * 10 Hz snapshot churn does not re-fetch tiles every tick.
+ * the canvas to the real DOM. The ref throttles re-warps via a dataset key (own quantised to
+ * ~0.6 NM), so 10 Hz snapshot churn does not re-fetch tiles every tick.
  */
 import { NAV_RADIUS_PX } from "./navMath";
 import { warpTilesToNavCircle } from "./navTileWarp";
 import type { LonLat } from "./navWeatherMath";
 
-// Esri World Imagery XYZ tiles (ArcGIS path order is z/y/x). Same imagery AND same host as the
-// Cesium basemap (globe/mapSources.ts) — `services.` not `server.`: the CSP img-src (worker/http/
-// security.ts + public/_headers) whitelists `services.arcgisonline.com`, so the `server.` alias was
-// silently blocked (blocked:csp) and the face stayed black. Keep this host in sync with the CSP.
-const ESRI_IMAGERY = "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile";
-// Esri imagery goes far deeper than the radar tiles; cap high enough for a crisp face at close range.
+const ESRI_CANVAS = "https://services.arcgisonline.com/ArcGIS/rest/services";
+// Dark line geography (opaque) and the matching transparent place-name overlay.
+const DARK_GRAY_BASE = `${ESRI_CANVAS}/Canvas/World_Dark_Gray_Base/MapServer/tile`;
+const DARK_GRAY_LABELS = `${ESRI_CANVAS}/Canvas/World_Dark_Gray_Reference/MapServer/tile`;
+// Esri Canvas tiles go far deeper than the radar tiles; cap high enough for a crisp face up close.
 const BASEMAP_MAX_Z = 12;
-// Dim the imagery so the cyan rings, airport marks and own-ship chevron stay legible over it.
-const BASEMAP_ALPHA = 0.62;
+// The base is already dark; a light dim keeps the cyan rings / chevron legible without washing the
+// map out. Labels ride at full strength so place names stay readable.
+const BASE_ALPHA = 0.72;
 
-export function NavBasemapLayer({
+/** One warped tile layer as its own canvas — the shared piece of both the base and label layers. */
+function WarpCanvas({
   own,
   navRangeNm,
-  radiusPx = NAV_RADIUS_PX,
+  radiusPx,
+  tileUrl,
+  alpha,
+  className,
 }: {
   own: LonLat;
   navRangeNm: number;
-  radiusPx?: number;
+  radiusPx: number;
+  tileUrl: string;
+  alpha: number;
+  className: string;
 }) {
   const side = radiusPx * 2;
   const qLat = Math.round(own.latDeg * 100) / 100;
   const qLon = Math.round(own.lonDeg * 100) / 100;
-  const key = `${qLat},${qLon},${navRangeNm},${radiusPx}`;
+  // The tile source is part of the key: base and label canvases must not share a warped result.
+  const key = `${tileUrl}|${qLat},${qLon},${navRangeNm},${radiusPx}`;
 
   return (
     <canvas
       width={side}
       height={side}
-      className="navmap-basemap-canvas"
-      style={{ opacity: BASEMAP_ALPHA, width: side, height: side }}
+      className={className}
+      style={{ opacity: alpha, width: side, height: side }}
       ref={(canvas) => {
         if (canvas === null) return;
         if (canvas.dataset.navKey === key) return; // already warped for these params
@@ -57,9 +75,46 @@ export function NavBasemapLayer({
           navRangeNm,
           radiusPx,
           maxZ: BASEMAP_MAX_Z,
-          tileUrl: (z, x, y) => `${ESRI_IMAGERY}/${z}/${y}/${x}`,
+          tileUrl: (z, x, y) => `${tileUrl}/${z}/${y}/${x}`,
         });
       }}
     />
+  );
+}
+
+export function NavBasemapLayer({
+  own,
+  navRangeNm,
+  radiusPx = NAV_RADIUS_PX,
+  showLabels = false,
+}: {
+  own: LonLat;
+  navRangeNm: number;
+  radiusPx?: number;
+  /** Follows the menu LABELS chip (store `labelsOn`): overlay place names when on. */
+  showLabels?: boolean;
+}) {
+  const side = radiusPx * 2;
+  return (
+    <div className="navmap-basemap-stack" style={{ width: side, height: side }}>
+      <WarpCanvas
+        own={own}
+        navRangeNm={navRangeNm}
+        radiusPx={radiusPx}
+        tileUrl={DARK_GRAY_BASE}
+        alpha={BASE_ALPHA}
+        className="navmap-basemap-canvas"
+      />
+      {showLabels && (
+        <WarpCanvas
+          own={own}
+          navRangeNm={navRangeNm}
+          radiusPx={radiusPx}
+          tileUrl={DARK_GRAY_LABELS}
+          alpha={1}
+          className="navmap-basemap-canvas navmap-basemap-labels"
+        />
+      )}
+    </div>
   );
 }

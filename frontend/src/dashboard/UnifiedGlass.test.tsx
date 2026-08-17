@@ -7,6 +7,7 @@ import type { Contact } from "../data/types";
 import type { HudSnapshot } from "../hud/snapshot";
 import type { WeatherState } from "./WeatherPanel";
 import type { NavWeatherState } from "./navWeatherMath";
+import type { NavMode } from "./navModes";
 import { ktToMs, ftToM, degToRad } from "../sim/units";
 
 const snap = (o: Partial<HudSnapshot> = {}): HudSnapshot => ({
@@ -54,6 +55,8 @@ const body = (params: ClassParams, o: {
   snapshot?: HudSnapshot | null;
   showWeather?: boolean;
   showHelp?: boolean;
+  tacticalMode?: NavMode;
+  labelsOn?: boolean;
 } = {}) =>
   UnifiedGlassBody({
     params,
@@ -68,8 +71,14 @@ const body = (params: ClassParams, o: {
     navWeather: { kind: "no-position" } as NavWeatherState,
     showWeather: o.showWeather ?? false,
     showHelp: o.showHelp ?? false,
+    tacticalMode: o.tacticalMode ?? "normal",
+    labelsOn: o.labelsOn ?? false,
+    onCycleTactical: () => {},
     onNavRangeChange: () => {}, onToggleWeather: () => {}, onToggleHelp: () => {}, onToggleStrip: () => {},
   });
+
+const classNames = (params: ClassParams, o: Parameters<typeof body>[1] = {}) =>
+  collectProp(body(params, o), "className").filter((v): v is string => typeof v === "string").join(" ");
 
 const text = (params: ClassParams, o = {}) => collectText(body(params, o)).join(" ");
 const primaryKind = (params: ClassParams) => collectProp(body(params), "data-primary");
@@ -149,5 +158,31 @@ describe("weather and controls stay reachable behind folds", () => {
     expect(text(loadC172())).not.toContain("WEATHER");
     expect(text(loadC172(), { showWeather: true })).toContain("WEATHER");
     expect(text(loadC172(), { showHelp: true })).toContain("CONTROLS");
+  });
+});
+
+describe("tactical map has three display modes driven by StripState (#67 rework)", () => {
+  it("normal mode shows the full panel with the ENLARGE chip and the ESRI map credit", () => {
+    const cn = classNames(loadC172(), { tacticalMode: "normal" });
+    expect(cn).toContain("dash-tactical");
+    expect(cn).not.toContain("dash-tactical-large");
+    const t = text(loadC172(), { tacticalMode: "normal" });
+    expect(t).toContain("ENLARGE"); // chip = the mode it switches TO next
+    expect(t).toContain("MAP © ESRI"); // line basemap credit, not satellite
+  });
+
+  it("large mode adds the enlarged panel class and the chip now offers HIDE", () => {
+    const cn = classNames(loadC172(), { tacticalMode: "large" });
+    expect(cn).toContain("dash-tactical-large");
+    expect(text(loadC172(), { tacticalMode: "large" })).toContain("HIDE");
+  });
+
+  it("hidden mode collapses to a restore tab and does not render the map/credit", () => {
+    const cn = classNames(loadC172(), { tacticalMode: "hidden" });
+    expect(cn).toContain("dash-tactical-tab");
+    expect(cn).not.toContain("dash-tactical-large");
+    const t = text(loadC172(), { tacticalMode: "hidden" });
+    expect(t).toContain("TACTICAL ▸"); // the restore affordance
+    expect(t).not.toContain("MAP © ESRI"); // map is unmounted while hidden
   });
 });

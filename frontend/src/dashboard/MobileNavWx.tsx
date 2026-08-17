@@ -51,6 +51,7 @@ export default function MobileNavWx(
   const feedStatus = useStore((s) => s.feedStatus);
   const origin = useStore((s) => s.origin);
   const radiusNm = useStore((s) => s.radiusNm);
+  const labelsOn = useStore((s) => s.labelsOn);
   const weather = useWeather(snapshot);
   // Frugal: only fetch the precip-radar overlay while the panel is actually open.
   const navWeather = useNavWeather(snapshot, expanded);
@@ -95,6 +96,7 @@ export default function MobileNavWx(
           showRadar
           navWeather={navWeather}
           showBasemap
+          showLabels={labelsOn}
         />
       </div>
       <div className="mobile-navwx-wx">
