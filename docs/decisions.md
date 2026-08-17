@@ -3333,3 +3333,23 @@ light. The `brightness(2)/contrast` filter was pushing already-light anti-aliase
 blooming and smearing them. Fix: `.navmap-basemap-lines/-labels { filter: none }` (render natively
 = thin sharp), and bump the big-map basemap renderScale 3→4 so the ~640px display DOWNSCALES the
 800px buffer (crisper) rather than upscaling. No behavior change; CSS + one constant.
+
+## 2026-08-17 — TACTICAL map: vector coastline + state borders (contrasting colour)
+Owner wanted state + coastal borders in a contrasting colour for orientation. No transparent Esri
+tile carries a clean coastline (measured: World_Boundaries_and_Places water area 0.5% opaque;
+coastlines live only in the opaque Dark_Gray_Base fill), and raster warps fuzzy — so borders are
+drawn as crisp SVG polylines instead:
+- **Data:** bundled `data/borders-world.json` — Natural Earth ne_50m coastline + admin-1 state/
+  province lines, Douglas-Peucker simplified (0.04°/0.03°) + 3-decimal rounded, committed like
+  airports-world.json (514 KB raw / ~198 KB gzip; lands in the FlightSession chunk which loads once
+  at takeover, alongside the existing 638 KB airports extract).
+- **Projection:** `navBorders.ts` projects with the SAME navXY (range/bearing, north-up) the
+  airports/contacts use, so borders register exactly. Pure + memoised: a per-polyline lon/lat bbox
+  cull skips off-view lines, a per-vertex 1.6×-range gate splits each to the near part, and a small
+  key cache (own quantised ~1 km) makes 10 Hz re-renders free.
+- **Render:** SVG `<polyline>`s in NavMap, coast solid cyan / state lines dashed dim cyan (a
+  contrasting colour to the amber Esri roads), over the raster basemap and under the rings/marks,
+  clipped to the face circle by an SVG clipPath. Vector = perfectly sharp at any map size.
+Verified: full suite 1613 pass (navBorders projection + real Gulf-coast data + render assert), tsc
+clean, build exit 0. Colour/weight are prod-eyeball tunables; bundle grew ~200 KB gzip (accepted,
+matches the airports precedent).

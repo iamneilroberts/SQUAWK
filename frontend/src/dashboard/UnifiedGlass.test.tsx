@@ -172,6 +172,8 @@ describe("tactical map has three display modes driven by StripState (#67 rework)
     const t = text(loadC172(), { tacticalMode: "normal" });
     expect(t).toContain("ENLARGE"); // chip = the mode it switches TO next
     expect(t).toContain("MAP © ESRI"); // line basemap credit, not satellite
+    // Vector coast borders render over the basemap (snapshot sits on the Gulf coast).
+    expect(cn).toContain("navmap-coast");
   });
 
   // The basemap canvas BUFFER width = displayPx * renderScale; large supersamples so text is legible.

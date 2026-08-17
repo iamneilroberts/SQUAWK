@@ -22,6 +22,7 @@ import {
 } from "./navMath";
 import { NavWeatherLayer } from "./NavWeatherLayer";
 import { NavBasemapLayer } from "./NavBasemapLayer";
+import { coastPolylines, borderPolylines } from "./navBorders";
 import {
   radarChipText, resolveZoom, RAINVIEWER_CREDIT, type NavWeatherState,
 } from "./navWeatherMath";
@@ -70,6 +71,10 @@ export default function NavMap({
   const radarChip = showRadar ? radarChipText(navWeather, Date.now(), radarCoarse) : null;
   const showRadarLayer = showRadar && own !== null && navWeather.kind === "ok";
   const showBasemapLayer = showBasemap && own !== null;
+  // Vector coast + state borders (contrasting colour, crisp SVG) ride with the basemap. Projected
+  // with the same navXY as the airports, memoised in navBorders (own quantised) so 10 Hz is free.
+  const coastLines = showBasemapLayer && own !== null ? coastPolylines(own, navRangeNm, NAV_RADIUS_PX) : [];
+  const stateLines = showBasemapLayer && own !== null ? borderPolylines(own, navRangeNm, NAV_RADIUS_PX) : [];
   // Nominal precip age reads cyan (live data); any warning (offline/stale/coarse) reads amber.
   const radarNominal =
     radarChip !== null && navWeather.kind === "ok" && !radarChip.includes("STALE") && !radarChip.includes("COARSE");
@@ -95,6 +100,32 @@ export default function NavMap({
             />
           </foreignObject>
         )}
+
+        {/* Vector coast + state borders: crisp SVG in a contrasting colour, over the raster basemap
+            and under the rings/marks, clipped to the face circle. Relative to own via a centre
+            transform (navBorders projects to own-centred x,y, same as navXY). */}
+        {(coastLines.length > 0 || stateLines.length > 0) && (
+          <>
+            <defs>
+              <clipPath id="navmap-face-clip">
+                <circle cx={C} cy={C} r={NAV_RADIUS_PX} />
+              </clipPath>
+            </defs>
+            <g
+              className="navmap-borders"
+              transform={`translate(${C} ${C})`}
+              clipPath="url(#navmap-face-clip)"
+            >
+              {stateLines.map((pts, i) => (
+                <polyline key={`s${i}`} points={pts} className="navmap-stateline" />
+              ))}
+              {coastLines.map((pts, i) => (
+                <polyline key={`c${i}`} points={pts} className="navmap-coast" />
+              ))}
+            </g>
+          </>
+        )}
+
         {ringsFor(navRangeNm).map((ring) => (
           <g key={ring.labelNm}>
             <circle cx={C} cy={C} r={ring.radiusPx} className="navmap-ring" />

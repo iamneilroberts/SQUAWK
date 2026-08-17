@@ -1333,6 +1333,23 @@ body {
    them. Rendered natively they're thin, sharp lines + text on the near-black face. */
 .navmap-basemap-lines,
 .navmap-basemap-labels { filter: none; }
+/* Vector coast + state borders (owner 2026-08-17): crisp SVG in cyan — a contrasting colour to the
+   amber Esri roads — for at-a-glance orientation. Coast solid, state lines dashed + dimmer. */
+.navmap-coast {
+  fill: none;
+  stroke: var(--cyan);
+  stroke-width: 0.8;
+  opacity: 0.85;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.navmap-stateline {
+  fill: none;
+  stroke: var(--cyan);
+  stroke-width: 0.6;
+  opacity: 0.42;
+  stroke-dasharray: 2.5 2;
+}
 .navmap-ranges { display: flex; align-items: center; gap: 3px; }
 .navmap-range-unit { color: var(--text); opacity: 0.6; font-size: 9px; }
 .status-chip-button-active {
