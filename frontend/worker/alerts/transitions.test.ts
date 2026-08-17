@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { BrokerTransition } from "../durable/protocol";
-import { ALERT_COOLDOWN_MS, ALERT_RECIPIENT } from "./types";
+import { ALERT_COOLDOWN_MS } from "./types";
 import {
   dueAlerts,
   emptyAlertState,
@@ -12,6 +12,7 @@ import {
 import { alertEmailMessage } from "./email";
 
 const START = Date.parse("2026-08-10T23:59:00.000Z");
+const ALERT_RECIPIENT = "<PUT_YOUR_ALERT_INBOX>";
 
 function brokerTransition(
   sequence: number,
@@ -182,7 +183,7 @@ describe("alert transitions", () => {
       state.outbox[0]!.alert,
       "staging",
       "https://example.test/admin",
-      { ALERT_FROM_EMAIL: "alerts@example.test" },
+      { ALERT_FROM_EMAIL: "alerts@example.test", ALERT_RECIPIENT },
     );
 
     expect(message.to).toBe(ALERT_RECIPIENT);

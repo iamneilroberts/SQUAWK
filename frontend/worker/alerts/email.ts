@@ -1,5 +1,5 @@
 import type { Env } from "../env";
-import { ALERT_RECIPIENT, type AlertNotification } from "./types";
+import type { AlertNotification } from "./types";
 
 export type AlertEmailBinding = Pick<SendEmail, "send">;
 
@@ -12,7 +12,7 @@ export function alertEmailMessage(
   alert: AlertNotification,
   environment: string,
   adminUrl: string,
-  env: { ALERT_FROM_EMAIL: string },
+  env: { ALERT_FROM_EMAIL: string; ALERT_RECIPIENT: string },
 ): { to: string; from: string; subject: string; text: string } {
   const normalizedEnvironment = environment.toUpperCase().replace(/[^A-Z0-9_-]/g, "-").slice(0, 24);
   const sender = env.ALERT_FROM_EMAIL;
@@ -32,11 +32,11 @@ export function alertEmailMessage(
     `Audit ID: ${bounded(alert.auditId)}`,
     `Admin: ${adminUrl}`,
   ].join("\n");
-  return { to: ALERT_RECIPIENT, from: sender, subject, text };
+  return { to: env.ALERT_RECIPIENT, from: sender, subject, text };
 }
 
 export async function sendAlertEmail(
-  env: Pick<Env, "ALERT_EMAIL" | "APP_ENV" | "PUBLIC_ORIGIN" | "ALERT_FROM_EMAIL">,
+  env: Pick<Env, "ALERT_EMAIL" | "APP_ENV" | "PUBLIC_ORIGIN" | "ALERT_FROM_EMAIL" | "ALERT_RECIPIENT">,
   alert: AlertNotification,
 ): Promise<void> {
   const origin = env.PUBLIC_ORIGIN ?? "https://your-domain.example";
