@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  formatUtcClock, feedChipLabel, terrainChipClass, nextRadius, radiusChipLabel,
+  formatUtcClock, feedChipLabel, aisChipLabel, terrainChipClass, nextRadius, radiusChipLabel,
   basemapChipLabel, labelsChipLabel, aircraftChipLabel, nextBasemap, contactsChipLabel,
   statusBarRegions,
 } from "./StatusBar";
@@ -49,6 +49,27 @@ describe("feedChipLabel", () => {
   it("is bare STALE / OFFLINE otherwise", () => {
     expect(feedChipLabel("stale", "x")).toBe("STALE");
     expect(feedChipLabel("offline", "x")).toBe("OFFLINE");
+  });
+});
+
+describe("aisChipLabel", () => {
+  it("shows AIS LIVE plus the active source", () => {
+    expect(aisChipLabel("live", "aisstream.io")).toBe("AIS LIVE aisstream.io");
+  });
+  it("shows an em-dash source rather than inventing one", () => {
+    expect(aisChipLabel("live", null)).toBe("AIS LIVE —");
+  });
+  it("is AIS STALE / AIS OFFLINE otherwise", () => {
+    expect(aisChipLabel("stale", "x")).toBe("AIS STALE");
+    expect(aisChipLabel("offline", null)).toBe("AIS OFFLINE");
+  });
+  it("shows AIS NO DATA plus the source when connected but silent", () => {
+    // Distinct from both LIVE (confidently flowing) and OFFLINE (socket down) —
+    // aisstream's keepalive holds the socket open through an upstream outage.
+    expect(aisChipLabel("nodata", "aisstream.io")).toBe("AIS NO DATA aisstream.io");
+  });
+  it("shows an em-dash source for nodata rather than inventing one", () => {
+    expect(aisChipLabel("nodata", null)).toBe("AIS NO DATA —");
   });
 });
 

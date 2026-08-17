@@ -123,6 +123,19 @@ body {
   text-align: right;
 }
 
+/* ---- vessel detail field grid: label left, cyan data right ---- */
+.field-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.field-value {
+  color: var(--cyan);
+  text-align: right;
+}
+
 .contact-list-header {
   display: flex;
   flex-direction: column;

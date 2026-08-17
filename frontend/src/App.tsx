@@ -9,6 +9,8 @@ import OverlayLayers from "./globe/OverlayLayers";
 // keeps the initial bundle small (issue #91).
 const FlightSession = lazy(() => import("./game/FlightSession"));
 import ContactList from "./panels/ContactList";
+import ShipList from "./panels/ShipList";
+import VesselDetail from "./panels/VesselDetail";
 import StatusBar from "./panels/StatusBar";
 import { useViewport } from "./layout/useViewport";
 import { isNarrowViewport } from "./layout/viewport";
@@ -604,6 +606,14 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
               />
             </div>
           )}
+          {/* Selected-vessel detail: a self-hiding floating card (renders null with no ship
+              selected). Ship and aircraft selection are mutually exclusive, so this never
+              overlaps the aircraft MissionTray. */}
+          {mode === "BROWSE" && (
+            <div className="absolute bottom-4 left-4 z-10 w-72 max-w-[80vw]">
+              <VesselDetail />
+            </div>
+          )}
           {takeoverMessage !== null && mode === "BROWSE" && (
             <div className="takeover-banner">{takeoverMessage}</div>
           )}
@@ -683,8 +693,13 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
           )}
         </div>
         {mode === "BROWSE" && !narrow && (
-          <div className="w-80 flex-none">
-            <ContactList focusRequest={contactFocusRequest} />
+          <div className="w-80 flex-none flex flex-col">
+            <div className="min-h-0 flex-1">
+              <ContactList focusRequest={contactFocusRequest} />
+            </div>
+            <div className="min-h-0 flex-1">
+              <ShipList />
+            </div>
           </div>
         )}
       </div>

@@ -5,7 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import { useStore } from "../state/store";
-import type { FeedStatus } from "../data/types";
+import type { FeedStatus, ShipFeedStatus } from "../data/types";
 import { attributionFor, type BasemapKind } from "../globe/mapSources";
 
 export function formatUtcClock(now: Date): string {
@@ -15,6 +15,16 @@ export function formatUtcClock(now: Date): string {
 export function feedChipLabel(status: FeedStatus, source: string | null): string {
   if (status === "live") return `LIVE ${source ?? "—"}`;
   return status.toUpperCase();
+}
+
+// Independent of feedChipLabel/the ADS-B chip: the AIS feed can be down while aircraft
+// stay LIVE, and vice versa — each chip reads only its own feed's status.
+export function aisChipLabel(status: ShipFeedStatus, source: string | null): string {
+  if (status === "live") return `AIS LIVE ${source ?? "—"}`;
+  // "nodata": socket connected, but no messages recently (aisstream's keepalive
+  // masks an upstream outage) — degraded, not confidently live, not offline.
+  if (status === "nodata") return `AIS NO DATA ${source ?? "—"}`;
+  return `AIS ${status.toUpperCase()}`;
 }
 
 /**
@@ -120,6 +130,8 @@ export default function StatusBar(
 ) {
   const feedStatus = useStore((s) => s.feedStatus);
   const feedSource = useStore((s) => s.feedSource);
+  const shipFeedStatus = useStore((s) => s.shipFeedStatus);
+  const shipSource = useStore((s) => s.shipSource);
   const tutorial = useStore((s) => s.tutorial);
   const contactCount = useStore((s) => s.contacts.size);
   const cacheAgeSeconds = useStore((s) => s.cacheAgeSeconds);
@@ -140,6 +152,7 @@ export default function StatusBar(
   }, []);
 
   const chipClass = feedStatus === "live" ? "status-chip-live" : "status-chip-warn";
+  const aisChipClass = shipFeedStatus === "live" ? "status-chip-live" : "status-chip-warn";
   const regions = statusBarRegions(immersive, decluttered);
   const className =
     "status-bar" +
@@ -153,6 +166,12 @@ export default function StatusBar(
       </span>
       {tutorial === null && feedStatus === "offline" && (
         <span className="status-chip-warn">FEEDS UNREACHABLE</span>
+      )}
+      {/* Ships (AIS) get their own honest status chip, independent of the aircraft feed above:
+          either can be LIVE while the other is OFFLINE/NO DATA. Hidden in tutorial/free-flight
+          alongside the aircraft chip, which those modes replace with the NO-LIVE-TRAFFIC notice. */}
+      {tutorial === null && (
+        <span className={aisChipClass}>{aisChipLabel(shipFeedStatus, shipSource)}</span>
       )}
       {/* Tiny API debug chip (owner 2026-08-12): cache age + non-NORMAL capacity mode, so
           "is it me or the feed?" is answerable at a glance. Honest: no age = em-dash. Hidden
@@ -211,6 +230,11 @@ export default function StatusBar(
       )}
       {regions.clock && <span>{formatUtcClock(now)}</span>}
       <span className="flex-1" />
+      {/* AIS attribution shown only while the ship feed is active (CLAUDE.md: attribution when
+          active) — a required disclosure, so never gated by immersive/declutter. */}
+      {tutorial === null && shipFeedStatus !== "offline" && (
+        <span className="status-attribution">AIS · aisstream.io</span>
+      )}
       {/* #81: in mobile flight the attribution goes compact so it fits over the touch controls. */}
       <span className="status-attribution">{attributionFor({ basemap, labelsOn, terrainNote, compact: immersive })}</span>
     </div>
