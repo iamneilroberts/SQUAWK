@@ -9,6 +9,7 @@ import {
 export type AdminAccessEnvironment = {
   ACCESS_TEAM_DOMAIN?: string;
   ACCESS_AUD?: string;
+  ADMIN_EMAIL?: string;
 };
 
 export type AccessVerifier = (
@@ -61,7 +62,8 @@ export async function authorizeAdminRequest(
   if (
     token === null ||
     typeof environment.ACCESS_TEAM_DOMAIN !== "string" ||
-    typeof environment.ACCESS_AUD !== "string"
+    typeof environment.ACCESS_AUD !== "string" ||
+    typeof environment.ADMIN_EMAIL !== "string"
   ) {
     throw denied();
   }
@@ -71,6 +73,7 @@ export async function authorizeAdminRequest(
     identity = await verifier(token, {
       teamDomain: environment.ACCESS_TEAM_DOMAIN,
       audience: environment.ACCESS_AUD,
+      adminEmail: environment.ADMIN_EMAIL,
     });
   } catch (error) {
     console.error("adsb_admin_access_denied", accessDenialDiagnostic(error));

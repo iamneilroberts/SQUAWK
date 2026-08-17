@@ -12,6 +12,7 @@ const IDENTITY: AccessIdentity = {
 const environment = {
   ACCESS_TEAM_DOMAIN: "https://example.cloudflareaccess.com",
   ACCESS_AUD: "a".repeat(64),
+  ADMIN_EMAIL: "admin@your-domain.example",
 };
 
 describe("admin request authorization", () => {
@@ -48,6 +49,7 @@ describe("admin request authorization", () => {
     expect(verify).toHaveBeenCalledWith("signed-access-token", {
       teamDomain: environment.ACCESS_TEAM_DOMAIN,
       audience: environment.ACCESS_AUD,
+      adminEmail: environment.ADMIN_EMAIL,
     });
   });
 

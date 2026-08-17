@@ -5,14 +5,13 @@ import {
   type JWTVerifyGetKey,
 } from "jose";
 
-export const ADMIN_EMAIL = "dneilroberts@gmail.com";
-
 const ACCESS_AUDIENCE = /^[0-9a-f]{64}$/;
 const ACCESS_KID = /^[A-Za-z0-9_-]{1,128}$/;
 
 export type AccessJwtConfiguration = {
   teamDomain: string;
   audience: string;
+  adminEmail: string;
 };
 
 export type AccessIdentity = {
@@ -56,6 +55,8 @@ function validatedConfiguration(configuration: AccessJwtConfiguration): {
   if (
     typeof configuration.teamDomain !== "string" ||
     typeof configuration.audience !== "string" ||
+    typeof configuration.adminEmail !== "string" ||
+    configuration.adminEmail.length < 1 ||
     !ACCESS_AUDIENCE.test(configuration.audience)
   ) {
     throw new AccessJwtError("Access JWT configuration is invalid", undefined, "configuration");
@@ -142,7 +143,7 @@ export async function verifyAccessJwt(
       },
     );
     if (
-      payload.email !== ADMIN_EMAIL ||
+      payload.email !== configuration.adminEmail ||
       payload.type !== "app" ||
       typeof payload.sub !== "string" ||
       payload.sub.length < 1 ||
