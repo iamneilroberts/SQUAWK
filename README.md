@@ -27,19 +27,93 @@ type decides how it flies — a Cessna handles nothing like a 737 or an F-5. Des
 - **End** — terrain contact anywhere on Earth, or a building inside a ~25 km bubble, ends the
   session with a stats card. Gentle, level, slow touchdowns read LANDED.
 
+## Features
+
+**Flight model & physics**
+- Fixed-step 6-DOF simulation — SI units internally, aviation units only at the display edge,
+  attitude as a quaternion — in a pure `sim/` core with no rendering dependencies and per-class
+  envelope unit tests.
+- Eight aircraft classes as *data, not code branches*: GA piston, airliner, business jet,
+  turboprop, warbird (T-6), C-130, fighter (with afterburner), and helicopter (rotor forces).
+- Modeled gear, flaps, and trim; per-class stall, Vno/Vfe, roll inertia, and thrust.
+
+**Controls**
+- Keyboard, a desktop click-drag **mouse flight-stick** (scroll-wheel throttle), and on-screen
+  **touch controls** on mobile — one shared analog input model.
+- **Auto-coordinated turns** (auto-rudder when the rudder is idle; manual rudder overrides), so a
+  turn stays in balance without pedal work.
+
+**World & scenery**
+- A **3D globe** browse interface (CesiumJS) — pick a contact to select it, adjustable feed
+  radius (range), and a satellite or chart basemap.
+- Real **Esri** satellite imagery plus a lighter vector "chart" basemap — keyless.
+- Real **Re:Earth** quantized-mesh terrain (ellipsoidal), with an honest flat fallback.
+- **Time-aware day/night lighting** from the real sun position.
+- Vector coastlines + state borders (**Natural Earth**) and airport/place labels (**OurAirports**).
+- Buildings around the aircraft (Overture/OSM) for structure collision inside a ~25 km bubble.
+
+**Guidance & landing**
+- Approach guidance: **PAPI**, a flight **director**, final-approach-fix routing, and turn-to-final cues.
+- Descent/approach speed & altitude bands with live readouts.
+- **Landing scoring** with safety checks and evidence — gentle, level, on-speed touchdowns read LANDED.
+
+**Instruments & HUD**
+- First-person HUD with IAS/ALT tapes, heading, VSI, throttle, and a persistent **SIM** banner.
+- A collapsible cockpit dashboard: analog **six-pack**, a **PPI radar scope** of the live feed, and a
+  **nav map** with an optional **RainViewer** precip overlay.
+- **Chase / exterior camera** in addition to the cockpit view.
+
+**Live data & resilience**
+- **No API keys required** to run — ADS-B, imagery, terrain, weather, borders, and place data are
+  all keyless. Optional keys only unlock extras (Cesium-ion terrain fallback, AIS, and the hosted
+  build's accounts/email).
+- Live **ADS-B** aircraft with automatic **feed failover** (airplanes.live → adsb.lol → adsb.fi), a
+  per-provider **circuit breaker**, courtesy rate-limiting, and honest offline states.
+- **Bring your own receiver** — point the primary feed at your own ADS-B / SDR box.
+- A **weather map** — RainViewer precip radar overlay on the nav map — plus nearest-station **METAR**.
+- adsbdb type enrichment; optional **AIS** ship tracking (aisstream) as a parallel layer — see below.
+
+**Session**
+- The real aircraft you took over keeps flying on the feed as a **ghost** while yours diverges.
+- Browse-time **mission briefing** with alternative airports and a route preview.
+- **Free-flight** mode; an end-of-flight **stats / debrief** card; a saved **player profile** with a
+  results history.
+- A built-in **tutorial** with lessons and progress tracking; declutter and full-screen modes.
+
+**Platform**
+- Self-hosted, single-user, MIT. Installable **PWA** (full-screen standalone) with an offline result
+  queue. An optional hosted "full product" build adds accounts, missions, and leaderboards.
+
 ## Desktop & mobile
 
 SQUAWK runs in any WebGL browser. On **desktop** you fly with the keyboard or a click-drag
 mouse stick (scroll-wheel throttle) and get the full analog instrument panel. On a **phone or
 tablet** the layout switches to a touch-first rich HUD with on-screen controls that appear
-only while flying.
+only while flying — best in landscape.
 
-| Desktop (browser) | Mobile |
+**On mobile:**
+
+| Browse | Cockpit |
 |---|---|
-| ![Desktop — browse](docs/screenshots/desktop-browse.png) | ![Mobile — browse](docs/screenshots/mobile-browse.png) |
-| ![Desktop — cockpit](docs/screenshots/desktop-cockpit.png) | ![Mobile — cockpit](docs/screenshots/mobile-cockpit.png) |
+| ![Mobile — browse the globe](docs/screenshots/mobile-browse.png) | ![Mobile — turning final](docs/screenshots/mobile-cockpit.png) |
+| ![Mobile — contact list](docs/screenshots/mobile-list.png) | ![Mobile — on centerline](docs/screenshots/mobile-approach.png) |
 
-_Screenshots live under `docs/screenshots/` — drop PNGs at the four paths above._
+![Mobile — landscape](docs/screenshots/mobile-landscape.png)
+
+_Desktop screenshots to come — drop PNGs at `docs/screenshots/desktop-browse.png` and `desktop-cockpit.png`._
+
+### Full screen on mobile
+
+The touch UI is best with the browser chrome out of the way. SQUAWK ships a web-app manifest,
+so you can install it to your home screen and launch it full-screen (standalone):
+
+- **iOS (Safari):** open the site → tap **Share** → **Add to Home Screen** → launch SQUAWK from
+  the new home-screen icon. It opens full-screen with no Safari bars. Rotate to **landscape** for
+  the full cockpit.
+- **Android (Chrome):** open the site → tap the **⋮** menu → **Install app** (or **Add to Home
+  screen**) → launch it from the icon for a full-screen standalone window.
+
+The in-app hint bar flags this too ("FULL-SCREEN APP MODE · BEST IN LANDSCAPE").
 
 ## Install
 
