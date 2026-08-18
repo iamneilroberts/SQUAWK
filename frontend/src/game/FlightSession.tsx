@@ -26,6 +26,8 @@ import type { TimeCompressionFactor } from "./timeCompression";
 import { createTerrainService, type TerrainService } from "../world/terrain";
 import { createKeyboard } from "../input/keyboard";
 import { createCesiumFlightHost } from "../globe/cesiumFlightHost";
+import { Cartesian2 } from "cesium";
+import { resolvePickAction } from "../globe/pickRouting";
 import { createFlightLoop } from "./flightLoop";
 import { preloadTerrain } from "../globe/terrainPreload";
 import { createCountdownTimer } from "./countdownTimer";
@@ -86,6 +88,10 @@ const COUNTDOWN_FROM = 3;
 const PRELOAD_TIMEOUT_MS = 3000;
 /** How long a refused RE-SYNC note lingers before it auto-clears (issue #5b). */
 const RESYNC_NOTE_MS = 4000;
+/** A left-button press that moves less than this from where it went down is a CLICK (pick a
+ *  contact), not a flight-stick drag. Desktop's left button is the stick, so Cesium's own
+ *  LEFT_CLICK pick never fires in FPV — we detect the click here and pick ourselves (#6/#8). */
+const CLICK_SLOP_PX = 5;
 
 export default function FlightSession({
   coachingEnabled = false,
@@ -1042,6 +1048,24 @@ export default function FlightSession({
         else if (gesture === "look") hostRef.current?.setLookActive(false);
         else if (gesture === "stick") {
           onStickRelease(); // let go -> the sampler's spring eases roll/pitch back to centre
+          // A left click that barely moved is a PICK, not a stick input. Desktop's left button is
+          // the flight stick, so Cesium's LEFT_CLICK pick never reaches ViewerHost in FPV — do the
+          // same identify pick here (#6/#8 desktop click-to-select). Mirrors ViewerHost's handler:
+          // resolve against byHex, route through resolvePickAction (identify in FLYING/PAUSED).
+          if (stickOrigin !== null && bundle !== null) {
+            const moved = Math.hypot(e.clientX - stickOrigin.x, e.clientY - stickOrigin.y);
+            if (moved <= CLICK_SLOP_PX) {
+              const rect = canvas.getBoundingClientRect();
+              const picked = bundle.viewer.scene.pick(
+                new Cartesian2(e.clientX - rect.left, e.clientY - rect.top),
+              );
+              const id = typeof picked?.id === "string" ? picked.id : null;
+              const action = resolvePickAction(
+                useStore.getState().mode, id, id !== null && bundle.byHex.has(id),
+              );
+              if (action.kind === "identify") useStore.getState().setIdentifiedHex(action.hex);
+            }
+          }
           stickOrigin = null;
         }
         gesture = null;
