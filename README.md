@@ -91,6 +91,13 @@ mouse stick (scroll-wheel throttle) and get the full analog instrument panel. On
 tablet** the layout switches to a touch-first rich HUD with on-screen controls that appear
 only while flying — best in landscape.
 
+**On desktop:**
+
+| Browse | Cockpit |
+|---|---|
+| ![Desktop — 72 contacts at 150 NM](docs/screenshots/desktop-browse.png) | ![Desktop — flying a T-6 on approach](docs/screenshots/desktop-cockpit.png) |
+| ![Desktop — Mobile Bay terrain](docs/screenshots/desktop-terrain.png) | ![Desktop — contacts and globe](docs/screenshots/desktop-contacts.png) |
+
 **On mobile:**
 
 | Browse | Cockpit |
@@ -100,7 +107,6 @@ only while flying — best in landscape.
 
 ![Mobile — landscape](docs/screenshots/mobile-landscape.png)
 
-_Desktop screenshots to come — drop PNGs at `docs/screenshots/desktop-browse.png` and `desktop-cockpit.png`._
 
 ### Full screen on mobile
 
