@@ -7,22 +7,39 @@ keeps flying on the feed as a ghost while yours diverges.
 Browser-based (CesiumJS), self-hosted, single-user, MIT. Sibling of
 [LORAN](https://github.com/iamneilroberts/LORAN).
 
-**Status: Phase B (First Flyable) complete.** Pick a real GA-piston contact off the live
-browse globe, TAKE CONTROLS, and fly a C172S first-person over real Esri imagery and real
-Re:Earth terrain until you land, crash, or quit. The approved specs live at
-[`docs/superpowers/specs/2026-07-27-adsb-game-design.md`](docs/superpowers/specs/2026-07-27-adsb-game-design.md)
-and [`docs/superpowers/specs/2026-08-05-phase-b-first-flyable-design.md`](docs/superpowers/specs/2026-08-05-phase-b-first-flyable-design.md).
+Pick a real contact off the live browse globe, TAKE CONTROLS, and fly it first-person over
+real Esri imagery and real Re:Earth terrain until you land, crash, or quit. Its real ICAO
+type decides how it flies — a Cessna handles nothing like a 737 or an F-5. Design spec:
+[`docs/superpowers/specs/2026-07-27-adsb-game-design.md`](docs/superpowers/specs/2026-07-27-adsb-game-design.md).
 
-## What it will be
+## What it is
 
-- **Browse** — minimal live ADS-B display around a home location (backend-proxied,
-  rate-limited, honest empty states).
-- **Take controls** — snapshot a real contact's position/altitude/heading/speed; its type
-  maps to one of three flight-model classes (GA piston / airliner / fighter).
-- **Fly** — simplified 6-DOF physics where class character emerges from parameters
-  (a 737 rolls like 79 tonnes; a 172 stalls soft and mushy; the fighter has afterburner).
-- **End** — terrain contact anywhere on Earth, or a building inside a ~25 km bubble,
-  ends the session with a stats card. Gentle, level, slow touchdowns read LANDED.
+- **Browse** — a minimal live ADS-B display around a home location (backend-proxied,
+  rate-limited, honest empty states — feeds down shows offline, unknown fields render `—`).
+- **Take controls** — snapshot a real contact's position/altitude/heading/speed. Its real
+  ICAO type maps to one of **eight flight-model classes**: GA piston (C172), airliner (737-800),
+  business jet, turboprop, warbird (T-6), C-130, fighter (F-5), and helicopter (R44). A contact
+  with a missing or unrecognized type stays browsable but can't be flown.
+- **Fly** — simplified 6-DOF physics where class character emerges from parameters (a 737
+  rolls like 79 tonnes; a 172 stalls soft and mushy; the fighter has afterburner; the R44 is a
+  rotorcraft). Approach guidance (PAPI, a flight director, final-approach fixes) and a landing
+  score help you put it down.
+- **End** — terrain contact anywhere on Earth, or a building inside a ~25 km bubble, ends the
+  session with a stats card. Gentle, level, slow touchdowns read LANDED.
+
+## Desktop & mobile
+
+SQUAWK runs in any WebGL browser. On **desktop** you fly with the keyboard or a click-drag
+mouse stick (scroll-wheel throttle) and get the full analog instrument panel. On a **phone or
+tablet** the layout switches to a touch-first rich HUD with on-screen controls that appear
+only while flying.
+
+| Desktop (browser) | Mobile |
+|---|---|
+| ![Desktop — browse](docs/screenshots/desktop-browse.png) | ![Mobile — browse](docs/screenshots/mobile-browse.png) |
+| ![Desktop — cockpit](docs/screenshots/desktop-cockpit.png) | ![Mobile — cockpit](docs/screenshots/mobile-cockpit.png) |
+
+_Screenshots live under `docs/screenshots/` — drop PNGs at the four paths above._
 
 ## Install
 
@@ -78,7 +95,9 @@ services on the reference box). Single-user: browse + fly; no accounts.
 
 ## Controls
 
-Desktop keyboard only in this build.
+Keyboard is the primary desktop control; the FPV view also takes a click-drag mouse
+flight-stick with scroll-wheel throttle, and on a phone/tablet on-screen touch controls
+appear while flying. The table below is the desktop keyboard set.
 
 | Key | Action |
 |---|---|
@@ -88,13 +107,17 @@ Desktop keyboard only in this build.
 | `W` / `S` (or `+` / `-`) | throttle up / down |
 | `F` / `V` | flaps down / up (0 · 10 · 20 · 30) |
 | `,` / `.` | trim nose down / nose up |
-| `G` | gear — the C172's gear is fixed, so this reads GEAR FIXED |
+| `G` | gear up / down — fixed-gear types (e.g. the C172) read GEAR FIXED |
 | `Esc` | pause (RESUME / QUIT TO BROWSE) |
 
-Takeover is restricted to civil GA-piston contacts this build (see
-`frontend/src/params/ga-types.json`); the disabled button says which gate a contact failed.
-All of them fly the C172S parameter set, which the handoff card discloses. Every clamp the
-sim applies to a snapshot is listed on that card before you fly.
+Any contact whose real ICAO type is recognized can be taken over; the type maps to one of the
+eight flight-model classes (see `frontend/src/takeover/eligibility.ts`) — fighter → F-5,
+airliner → 737-800, plus business jet, turboprop, warbird (T-6), C-130, helicopter (R44), and
+GA piston (C172). **Military is not itself a refusal** — a military fast-jet flies the fighter
+model. A contact with a missing or unrecognized type, or a position fix older than 15 s, stays
+browsable but can't start a mission, and the disabled TAKE CONTROLS button names the gate it
+failed. The handoff card discloses the real-type → model mapping and every clamp the sim
+applies to the snapshot before you fly.
 
 ### Map layers
 
