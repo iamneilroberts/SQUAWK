@@ -2776,6 +2776,13 @@ body {
   z-index: 5;
 }
 .dash-throttle { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
+
+/* Desktop declutter (owner 2026-08-18): the top-left glass PFD already shows heading, speed and
+   altitude graphically, and the top status bar repeats them as text — so the standalone SPD/ALT
+   edge tapes and the corner compass are redundant clutter. Hidden (not unrendered) to keep the
+   Tape/Compass component tests intact. Mobile is unaffected (its tapes live under .imm-hud). */
+.dash-strip .imm-tape { display: none; }
+.dash-compass { display: none; }
 .dash-throttle-label { color: var(--text); opacity: 0.7; }
 .dash-throttle-bar {
   position: relative;
