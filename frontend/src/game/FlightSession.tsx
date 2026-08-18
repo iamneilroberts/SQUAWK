@@ -15,6 +15,9 @@ import { attributionFor } from "../globe/mapSources";
 import { checkPhysicalEligibility, resolveClass } from "../takeover/eligibility";
 import { readSpawnMode, writeSpawnMode, type SpawnMode } from "../takeover/spawnModePreference";
 import { buildLockedMissionSpawn, buildSpawnState, type SpawnResult } from "../takeover/spawn";
+import { buildInstantMission } from "../takeover/instantMission";
+import { loadAirports } from "../data/airports";
+import type { Contact } from "../data/types";
 import { initialBearingDeg } from "../mission/geo";
 import { finalApproachFix } from "../mission/guidanceGeometry";
 import { onFinalPlacement, baseLegPlacement, finalApproachSpawnOverrides } from "../mission/spawnPlacement";
@@ -43,7 +46,6 @@ import { isImmersiveActive } from "../layout/immersive";
 import ImmersiveControl from "../layout/ImmersiveControl";
 import DashboardStrip, { stripMountedForMode } from "../dashboard/DashboardStrip";
 import TrafficOverlay from "../globe/TrafficOverlay";
-import TrafficDetailCard from "../dashboard/TrafficDetailCard";
 import IdentifiedContactCallout from "./IdentifiedContactCallout";
 import MobileNavWx from "../dashboard/MobileNavWx";
 import HandoffCard from "../panels/HandoffCard";
@@ -146,8 +148,6 @@ export default function FlightSession({
   /** Mirrors the flight loop's active factor (#87), for the PauseOverlay selector's highlight.
    *  Not read at 60 Hz — only updated where it changes (menu click, new flight, auto-reset note). */
   const [timeCompression, setTimeCompressionState] = useState<TimeCompressionFactor>(1);
-  /** Hex of the windscreen tag the player clicked, or null when no detail card is open. */
-  const [trafficHex, setTrafficHex] = useState<string | null>(null);
   const [debrief, setDebrief] = useState<DebriefSubmission>({
     status: "unavailable",
     message: "AUTHORITATIVE RESULT HAS NOT BEEN SUBMITTED",
@@ -231,7 +231,6 @@ export default function FlightSession({
     }
     setResyncNote(null);
     setTimeCompressionState(1);
-    setTrafficHex(null);
     setActiveLesson(null);
     activeLessonRef.current = null;
     seenLessonsRef.current = new Set();
@@ -771,6 +770,56 @@ export default function FlightSession({
     resumeFlight();
   }, [lockedMission, freeFlight, bundle, resumeFlight]);
 
+  // ---- #6: in-flight TAKE CONTROLS of another contact ----
+  // Confirming TAKE CONTROLS on the identify callout re-briefs the WHOLE flight onto the clicked
+  // contact. Unlike RE-SYNC (same aircraft, new position) the new contact may be a DIFFERENT class,
+  // so this cannot hot-swap the running loop — it tears the flight down and re-enters COUNTDOWN with
+  // a fresh, locally-built instant mission (the exact setup path a first takeover uses). Always
+  // unranked, like an instant flight; refuses honestly into the same .resync-note band RE-SYNC uses.
+  function showTakeoverNote(reason: string) {
+    if (resyncNoteTimerRef.current !== null) clearTimeout(resyncNoteTimerRef.current);
+    setResyncNote(reason);
+    resyncNoteTimerRef.current = setTimeout(() => setResyncNote(null), RESYNC_NOTE_MS);
+  }
+  function rebriefOnto(target: Contact) {
+    const store = useStore.getState();
+    if (store.mode !== "FLYING" && store.mode !== "PAUSED") return;
+    if (!bundle) {
+      showTakeoverNote("TAKE CONTROLS UNAVAILABLE");
+      return;
+    }
+    // Fly the CURRENT live row for the clicked hex, never the click-time snapshot — a contact that
+    // has since gone stale/offline is refused, not flown (the same rule RE-SYNC applies).
+    const live = store.contacts.get(target.hex);
+    if (live === undefined) {
+      showTakeoverNote("TAKE CONTROLS — CONTACT NOT ON FEED");
+      return;
+    }
+    const eligibility = checkPhysicalEligibility(live);
+    if (!eligibility.eligible) {
+      showTakeoverNote(`TAKE CONTROLS — ${eligibility.reason}`);
+      return;
+    }
+    // buildInstantMission resolves the new contact's class + destination locally (no backend); it
+    // throws on an unsupported type or when no airport is available.
+    let mission;
+    try {
+      mission = buildInstantMission(live, loadAirports(), { spawnMode });
+    } catch {
+      showTakeoverNote("TAKE CONTROLS — UNSUPPORTED AIRCRAFT");
+      return;
+    }
+    // Release the OUTGOING flight's server lease if it was ranked (non-local), exactly as
+    // leaveToBrowse does — the incoming instant mission is local and holds no lease.
+    if (lockedMission !== null && tutorial === null && !local) {
+      const key = releaseKeyRef.current ?? crypto.randomUUID();
+      releaseKeyRef.current = key;
+      void releaseMissionLease(lockedMission.missionId, key).catch(() => undefined);
+    }
+    teardown(); // stop the current loop/host/keyboard BEFORE the COUNTDOWN setup effect rebuilds
+    store.rebriefOnto(mission); // RE_BRIEF -> COUNTDOWN; setup effect rebuilds for the new class
+  }
+
   // ---- Esc pauses; visibilitychange auto-pauses (spec §5, §6) ----
   useEffect(() => {
     if (mode !== "FLYING" && mode !== "PAUSED") return;
@@ -1259,12 +1308,12 @@ export default function FlightSession({
           fight that. */}
       {tutorial === null && (mode === "FLYING" || mode === "PAUSED") && (
         <>
-          <TrafficOverlay onSelect={setTrafficHex} />
-          {trafficHex !== null && (
-            <TrafficDetailCard hex={trafficHex} onClose={() => setTrafficHex(null)} />
-          )}
-          {/* Tap an aircraft in the 3D scene (not a windscreen tag) -> compact identify callout (#86). */}
-          <IdentifiedContactCallout />
+          {/* Both contact-click paths converge on ONE compact callout (#8): a windscreen tag click
+              and a 3D-scene pick (pickRouting -> identifiedHex) alike open IdentifiedContactCallout,
+              anchored to the target. The old browse-style TrafficDetailCard was removed here because
+              it overflowed the flight view (top-right, horizontal scrollbar). */}
+          <TrafficOverlay onSelect={(hex) => useStore.getState().setIdentifiedHex(hex)} />
+          <IdentifiedContactCallout onTakeControls={rebriefOnto} />
         </>
       )}
       {mode === "FLYING" && narrow && (

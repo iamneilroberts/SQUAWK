@@ -513,6 +513,20 @@ body {
 }
 .compression-row { display: flex; gap: 6px; }
 .compression-row .control-button { flex: 1; }
+/* #6 in-flight TAKE CONTROLS on the identify callout: amber SIM-accent primary action, a CONFIRM/
+   CANCEL row when armed, and a dimmed disabled state (its refusal reason is on the button title). */
+.control-button-takeover {
+  border-color: var(--amber);
+  color: var(--amber);
+  width: 100%;
+  justify-content: center;
+  margin-top: 8px;
+}
+.control-button-takeover:hover { background: rgba(255, 176, 0, 0.12); }
+.control-button:disabled { opacity: 0.4; cursor: not-allowed; }
+.identify-callout > .control-button { width: 100%; justify-content: center; margin-top: 8px; }
+.identify-takeover { display: flex; gap: 6px; margin-top: 8px; }
+.identify-takeover .control-button { flex: 1; width: auto; margin-top: 0; }
 .control-button:focus-visible,
 .status-chip-button:focus-visible,
 .auth-close:focus-visible,

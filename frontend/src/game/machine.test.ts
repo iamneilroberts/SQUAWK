@@ -13,6 +13,8 @@ describe("mode transitions", () => {
     ["PAUSED", "QUIT", "BROWSE"],
     ["FLYING", "IMPACT", "ENDED"],
     ["FLYING", "QUIT", "BROWSE"],
+    ["FLYING", "RE_BRIEF", "COUNTDOWN"],
+    ["PAUSED", "RE_BRIEF", "COUNTDOWN"],
     ["ENDED", "EXIT_END", "BROWSE"],
   ];
   for (const [from, event, to] of legal) {
@@ -33,6 +35,9 @@ describe("illegal transitions are refused, not thrown", () => {
     ["ENDED", "IMPACT"],
     ["PAUSED", "IMPACT"],
     ["COUNTDOWN", "PAUSE"],
+    ["BROWSE", "RE_BRIEF"],
+    ["COUNTDOWN", "RE_BRIEF"],
+    ["ENDED", "RE_BRIEF"],
   ];
   for (const [from, event] of illegal) {
     it(`${from} ignores ${event}`, () => {

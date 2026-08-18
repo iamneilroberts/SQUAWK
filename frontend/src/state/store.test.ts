@@ -213,6 +213,38 @@ describe("session state", () => {
     // A second start is refused: no longer in BROWSE.
     expect(useStore.getState().startInstantFlight(mission)).toBe(false);
   });
+  it("rebriefOnto re-briefs from FLYING to COUNTDOWN onto a new contact, unranked, keeping contacts (#6)", () => {
+    useStore.getState().resetSession();
+    useStore.getState().applyFetch(trafficResult([contact("abc123"), contact("def456")]));
+    // Re-brief is only legal from a running flight: refused in BROWSE.
+    const newMission = { ...lockedMission("none"), contact: contact("def456") } as LockedMissionView;
+    expect(useStore.getState().rebriefOnto(newMission)).toBe(false);
+    // Get into FLYING via the normal path, then take controls of the other contact.
+    expect(useStore.getState().startLockedMission(lockedMission())).toBe(true);
+    useStore.getState().fire("COUNTDOWN_DONE");
+    expect(useStore.getState().mode).toBe("FLYING");
+    useStore.getState().setIdentifiedHex("def456");
+    expect(useStore.getState().rebriefOnto(newMission)).toBe(true);
+    const s = useStore.getState();
+    expect(s.mode).toBe("COUNTDOWN");
+    expect(s.lockedMission).toBe(newMission);
+    expect(s.origin?.hex).toBe("def456");
+    expect(s.instantFlight).toBe(true); // a reconstructed, repositioned aircraft is unranked
+    expect(s.freeFlight).toBe(false);
+    expect(s.identifiedHex).toBeNull(); // the take-controls callout dismisses
+    expect(s.contacts.has("def456")).toBe(true); // live traffic is NOT wiped
+  });
+  it("rebriefOnto also works from PAUSED and refuses a non-locked mission (#6)", () => {
+    useStore.getState().resetSession();
+    useStore.getState().applyFetch(trafficResult([contact("abc123")]));
+    useStore.getState().startLockedMission(lockedMission());
+    useStore.getState().fire("COUNTDOWN_DONE");
+    useStore.getState().fire("PAUSE");
+    expect(useStore.getState().mode).toBe("PAUSED");
+    const notLocked = { ...lockedMission("none"), status: "expired" } as LockedMissionView;
+    expect(useStore.getState().rebriefOnto(notLocked)).toBe(false);
+    expect(useStore.getState().mode).toBe("PAUSED"); // refusal leaves the flight untouched
+  });
   it("resetSession and other start actions clear the instantFlight flag (B3)", () => {
     useStore.getState().resetSession();
     useStore.getState().startInstantFlight(lockedMission("none"));

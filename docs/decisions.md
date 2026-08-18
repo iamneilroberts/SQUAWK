@@ -3462,3 +3462,26 @@ and ship selection are mutually exclusive). `startAisPolling` runs in ViewerHost
 predates that) and never writes the shared `home`, so the browse camera's `[home]` fly-to
 still has exactly one writer. The AIS fetch (`fetchAis`) is a plain fetch of the
 Python-served `/api/ais`, not behind the Worker traffic envelope.
+
+## 2026-08-17 — In-flight TAKE CONTROLS re-briefs via COUNTDOWN, not loop.resync (#6)
+
+Clicking another contact while flying now offers TAKE CONTROLS (a two-step confirm on the
+compact identify callout). Confirming re-briefs the whole flight onto that contact. The
+obvious-looking path — `buildSpawnState` + `loop.resync` (the RE-SYNC/#5b path) — is WRONG
+here: `resync` reuses the `params`, SIM 3D model host, synthetic callsign and landing target
+baked in when the loop was built at countdown-end, so it can only move the SAME aircraft to a
+new position. The clicked contact may be a DIFFERENT class. So a new machine event
+`RE_BRIEF` (FLYING/PAUSED → COUNTDOWN) tears the flight down (`teardown()`) and re-enters the
+existing COUNTDOWN setup effect, which rebuilds host/loop/callsign/landing/terrain for the new
+class — the same path a first takeover uses. The new mission is always the locally-built
+`buildInstantMission` (zero backend), so an in-flight takeover is inherently unranked
+(`instantFlight: true`), exactly like an anonymous instant flight; any outgoing ranked lease
+is released first. Eligibility uses the shared `checkEligibility` (physical + class support)
+so the button is never enabled for a contact the action would refuse; refusals surface in the
+same `.resync-note` band RE-SYNC uses.
+
+Also this session: #8 removed the browse-style `TrafficDetailCard` from the flight view (it
+overflowed top-right) — both windscreen-tag clicks and 3D-scene picks now converge on the one
+compact `IdentifiedContactCallout`. #3 added desktop-only TAC/CTRL buttons to the control
+strip (TAC = new `KeyT`, tactical show/hide hidden↔normal only, never the sim-freezing LARGE;
+CTRL = existing `Slash` help fold).

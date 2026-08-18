@@ -186,6 +186,9 @@ type State = {
   startTutorial(mission: LockedMissionView, tutorial: TutorialRun): boolean;
   startFreeFlight(mission: LockedMissionView): boolean;
   startInstantFlight(mission: LockedMissionView): boolean;
+  /** In-flight "take controls" of another contact (#6): re-brief from FLYING/PAUSED back to
+   *  COUNTDOWN with a fresh locally-built mission for the new (possibly different-class) aircraft. */
+  rebriefOnto(mission: LockedMissionView): boolean;
   setAssistMode(mode: AssistMode): void;
   setEndStats(s: FlightStats | null): void;
   setRepositioned(on: boolean): void;
@@ -529,6 +532,35 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
       origin: { hex: mission.contact.hex, snapshot: mission.contact },
       assist: initialAssistState(assistModeFromPreference(mission.assist)),
       endStats: null,
+      selectedHex: null,
+      selectionLocked: false,
+    });
+    return true;
+  },
+
+  rebriefOnto(mission) {
+    const currentMode = get().mode;
+    // Only ever from a running flight, and only if the machine allows RE_BRIEF -> COUNTDOWN.
+    if (currentMode !== "FLYING" && currentMode !== "PAUSED") return false;
+    const next = nextMode(currentMode, "RE_BRIEF");
+    if (next !== "COUNTDOWN" || mission.status !== "locked") return false;
+    // Re-briefing onto a live contact is inherently unranked (a reconstructed, repositioned
+    // aircraft), so it is treated exactly like an instant flight: local, no server lease. The new
+    // mission is always the locally-built instant mission. contacts are NOT cleared — the new
+    // contact must stay in the live map for the ghost + traffic to keep rendering. identifiedHex is
+    // cleared so the take-controls callout dismisses as the flight rebuilds.
+    set({
+      mode: next,
+      lockedMission: mission,
+      tutorial: null,
+      freeFlight: false,
+      instantFlight: true,
+      repositioned: false,
+      timeCompressed: false,
+      origin: { hex: mission.contact.hex, snapshot: mission.contact },
+      assist: initialAssistState(assistModeFromPreference(mission.assist)),
+      endStats: null,
+      identifiedHex: null,
       selectedHex: null,
       selectionLocked: false,
     });

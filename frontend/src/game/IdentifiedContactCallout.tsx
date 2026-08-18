@@ -13,9 +13,10 @@
  * Split like TrafficDetailCard: `IdentifiedContactBody` is hook-free (and holds every test);
  * the default export reads the store + HUD snapshot and gates on mode.
  */
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Cartesian3, SceneTransforms } from "cesium";
 import type { Contact } from "../data/types";
+import { checkEligibility } from "../takeover/eligibility";
 import { useStore } from "../state/store";
 import { useViewer } from "../globe/viewerContext";
 import { hudSnapshot } from "../hud/snapshot";
@@ -51,12 +52,29 @@ function altLine(c: Contact): string {
   return h === null ? EM_DASH : `${Math.round(mToFt(h))} FT`;
 }
 
-export function IdentifiedContactBody({ contact, own, onClose, style }: {
+/**
+ * In-flight TAKE CONTROLS affordance (#6). When present, the callout offers taking over the shown
+ * contact; `eligible`/`reason` come from the SAME predicate the action itself checks, so the button
+ * is never enabled for a contact that would be refused, and the disabled tooltip names why. A
+ * two-step confirm (owner decision) guards the flight-ending swap.
+ */
+export type TakeoverProps = {
+  eligible: boolean;
+  reason: string | null;
+  confirming: boolean;
+  onRequest(): void;
+  onConfirm(): void;
+  onCancel(): void;
+};
+
+export function IdentifiedContactBody({ contact, own, onClose, style, takeover }: {
   contact: Contact;
   own: { latDeg: number; lonDeg: number } | null;
   onClose(): void;
   /** Screen position (#86 anchor-to-target); omitted in tests, which don't check layout. */
   style?: { left: string; top: string };
+  /** Take-controls affordance (#6); omitted (e.g. in unit tests) renders the read-only callout. */
+  takeover?: TakeoverProps;
 }) {
   const callsign = contact.flight?.trim();
   const rangeStr = own === null
@@ -77,17 +95,42 @@ export function IdentifiedContactBody({ contact, own, onClose, style }: {
       <Row label="GND SPD" value={orDash(contact.gs === null ? null : Math.round(contact.gs), " KT")} />
       <Row label="RANGE" value={rangeStr} />
       <Row label="BEARING" value={bearingStr} />
+      {takeover && (takeover.confirming ? (
+        <div className="identify-takeover">
+          <button type="button" className="control-button control-button-takeover" onClick={takeover.onConfirm}>
+            CONFIRM
+          </button>
+          <button type="button" className="control-button" onClick={takeover.onCancel}>CANCEL</button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="control-button control-button-takeover"
+          disabled={!takeover.eligible}
+          title={takeover.eligible ? undefined : takeover.reason ?? undefined}
+          onClick={takeover.onRequest}
+        >
+          TAKE CONTROLS
+        </button>
+      ))}
       <button type="button" className="control-button" onClick={onClose}>CLOSE</button>
     </div>
   );
 }
 
-export default function IdentifiedContactCallout() {
+export default function IdentifiedContactCallout({ onTakeControls }: {
+  /** Take controls of the shown contact (#6). Omitted -> the callout stays read-only (identify). */
+  onTakeControls?(contact: Contact): void;
+} = {}) {
   const mode = useStore((s) => s.mode);
   const identifiedHex = useStore((s) => s.identifiedHex);
   const contact = useStore((s) => (identifiedHex === null ? undefined : s.contacts.get(identifiedHex)));
   const snapshot = useSyncExternalStore(hudSnapshot.subscribe, hudSnapshot.get, hudSnapshot.get);
   const bundle = useViewer();
+  // Two-step confirm for the flight-swapping takeover (owner: select, then TAKE CONTROLS). Reset
+  // whenever the identified contact changes so a stale confirm can't carry over to a new target.
+  const [confirming, setConfirming] = useState(false);
+  useEffect(() => setConfirming(false), [identifiedHex]);
 
   // Belt-and-braces gate: the mount site already limits this to FLYING/PAUSED, but self-gating
   // keeps the component honest if it is ever mounted elsewhere.
@@ -124,12 +167,32 @@ export default function IdentifiedContactCallout() {
     margins,
   );
 
+  // Only offer TAKE CONTROLS when a handler is wired (FlightSession passes one; tests do not). The
+  // button's enabled state and its disabled tooltip come from the SAME predicate the action checks.
+  let takeover: TakeoverProps | undefined;
+  if (onTakeControls !== undefined) {
+    const elig = checkEligibility(contact);
+    takeover = {
+      eligible: elig.eligible,
+      reason: elig.eligible ? null : elig.reason,
+      confirming,
+      onRequest: () => setConfirming(true),
+      onCancel: () => setConfirming(false),
+      onConfirm: () => {
+        setConfirming(false);
+        onTakeControls(contact);
+        useStore.getState().setIdentifiedHex(null);
+      },
+    };
+  }
+
   return (
     <IdentifiedContactBody
       contact={contact}
       own={own}
       onClose={() => useStore.getState().setIdentifiedHex(null)}
       style={{ left: `${leftPx}px`, top: `${topPx}px` }}
+      takeover={takeover}
     />
   );
 }
