@@ -29,6 +29,7 @@ import {
 import ControlIcon from "../hud/controls/ControlIcon";
 import type { HudSnapshot } from "../hud/snapshot";
 import { EM_DASH } from "../hud/format";
+import { useStore } from "../state/store";
 
 /** Radial deadzone as a fraction of the pad radius — a first guess; owner-tunable on device. */
 const STICK_DEADZONE = 0.12;
@@ -82,6 +83,28 @@ function DiscreteButton({
     >
       {icon ? <span className="touch-btn-icon">{icon}</span> : label}
       {badge != null && <span className="touch-btn-badge">{badge}</span>}
+    </button>
+  );
+}
+
+/**
+ * Precip-radar (WX) toggle. Unlike the DiscreteButtons around it, it does NOT synthesize a key —
+ * it flips the global `radarOn` store flag directly, so it controls the same overlay the browse
+ * StatusBar WX chip and the mobile nav/wx surface do. Amber border while active, like the other
+ * on-state touch buttons (btnClass' stateAmber). Rendered in both variants (desktop cluster +
+ * mobile bar) so the overlay is reachable while flying on either platform.
+ */
+function WxButton() {
+  const radarOn = useStore((s) => s.radarOn);
+  return (
+    <button
+      className={btnClass(false, radarOn)}
+      onPointerDown={(e) => {
+        e.preventDefault();
+        useStore.getState().toggleRadar();
+      }}
+    >
+      WX
     </button>
   );
 }
@@ -342,6 +365,8 @@ export default function TouchControls({
             <DiscreteButton label="CTRL" code="Slash" />
           </>
         )}
+        {/* WX precip-radar toggle (both variants): flips global radarOn directly, not a synth key. */}
+        <WxButton />
         <DiscreteButton label="CAM" code="KeyE" />
         <DiscreteButton
           label="GEAR"

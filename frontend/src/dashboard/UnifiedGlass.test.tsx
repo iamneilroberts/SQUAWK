@@ -54,6 +54,8 @@ function collectProp(node: unknown, key: string, out: unknown[] = []): unknown[]
 const body = (params: ClassParams, o: {
   snapshot?: HudSnapshot | null;
   showWeather?: boolean;
+  showRadar?: boolean;
+  navWeather?: NavWeatherState;
   showHelp?: boolean;
   tacticalMode?: NavMode;
   labelsOn?: boolean;
@@ -69,8 +71,9 @@ const body = (params: ClassParams, o: {
     airports: [ap()],
     navRangeNm: 50,
     weather: { kind: "no-position" } as WeatherState,
-    navWeather: { kind: "no-position" } as NavWeatherState,
+    navWeather: o.navWeather ?? ({ kind: "no-position" } as NavWeatherState),
     showWeather: o.showWeather ?? false,
+    showRadar: o.showRadar ?? false,
     showHelp: o.showHelp ?? false,
     tacticalMode: o.tacticalMode ?? "normal",
     labelsOn: o.labelsOn ?? false,
@@ -160,6 +163,16 @@ describe("weather and controls stay reachable behind folds", () => {
     expect(text(loadC172())).not.toContain("WEATHER");
     expect(text(loadC172(), { showWeather: true })).toContain("WEATHER");
     expect(text(loadC172(), { showHelp: true })).toContain("CONTROLS");
+  });
+});
+
+describe("tactical radar follows the global WX toggle (showRadar), not the METAR fold (showWeather)", () => {
+  const unreachable = { kind: "unreachable" } as NavWeatherState;
+  it("draws the radar chip when showRadar is on", () => {
+    expect(text(loadC172(), { showRadar: true, navWeather: unreachable })).toContain("NO RADAR FEED");
+  });
+  it("does NOT draw radar just because the METAR fold (showWeather) is open", () => {
+    expect(text(loadC172(), { showWeather: true, navWeather: unreachable })).not.toContain("NO RADAR FEED");
   });
 });
 

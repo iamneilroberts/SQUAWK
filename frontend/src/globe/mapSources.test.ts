@@ -61,6 +61,18 @@ describe("attributionFor", () => {
     expect(line).toContain("TERRAIN LOADING…");
   });
 
+  it("credits RainViewer ONLY when the radar overlay is on, and keeps it even in compact mode", () => {
+    const off = attributionFor({ basemap: "SAT", labelsOn: false, terrainNote });
+    expect(off).not.toMatch(/RAINVIEWER/i);
+    const on = attributionFor({ basemap: "SAT", labelsOn: false, radarOn: true, terrainNote });
+    expect(on).toContain("WEATHER © RAINVIEWER");
+    // Required disclosure — survives the compact portrait strip, unlike the courtesy credits.
+    const compact = attributionFor({
+      basemap: "SAT", labelsOn: true, radarOn: true, terrainNote, compact: true,
+    });
+    expect(compact).toContain("WEATHER © RAINVIEWER");
+  });
+
   it("keeps the terrain note verbatim, including the honest flat-ellipsoid fallback", () => {
     const line = attributionFor({
       basemap: "SAT", labelsOn: false, terrainNote: "TERRAIN UNAVAILABLE — FLAT ELLIPSOID",

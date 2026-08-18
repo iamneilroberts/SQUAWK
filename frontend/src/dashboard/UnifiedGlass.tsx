@@ -71,7 +71,7 @@ export function CockpitPrimary({
 
 export function UnifiedGlassBody({
   snapshot, params, contacts, feedStatus, ghostHex, feedRadiusNm, airports,
-  navRangeNm, weather, navWeather, showWeather, showHelp,
+  navRangeNm, weather, navWeather, showWeather, showRadar = false, showHelp,
   tacticalMode, labelsOn, showContacts, onCycleTactical, onToggleContacts,
   onNavRangeChange, onToggleWeather, onToggleHelp, onToggleStrip,
 }: {
@@ -85,7 +85,12 @@ export function UnifiedGlassBody({
   navRangeNm: number;
   weather: WeatherState;
   navWeather: NavWeatherState;
+  /** The METAR/forecast fold toggle (the "WX" header chip). Drives ONLY that fold now. */
   showWeather: boolean;
+  /** Global precip-radar (store `radarOn`): draws the tactical-map 2D overlay, in lockstep with
+   *  the globe drape. Deliberately SEPARATE from showWeather so one WX button controls radar
+   *  everywhere while the header chip still folds the METAR panel independently. */
+  showRadar?: boolean;
   showHelp: boolean;
   /** Tactical-map display mode (#67 rework), owned by DashboardStrip's StripState. */
   tacticalMode: NavMode;
@@ -251,7 +256,7 @@ export function UnifiedGlassBody({
               navRangeNm={navRangeNm}
               feedRadiusNm={feedRadiusNm}
               onRangeChange={onNavRangeChange}
-              showRadar={showWeather}
+              showRadar={showRadar}
               navWeather={navWeather}
               showBasemap
               showLabels={labelsOn}

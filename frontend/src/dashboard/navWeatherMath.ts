@@ -214,6 +214,27 @@ export function buildTileUrl(o: {
   return `${o.host}${o.path}/${size}/${o.z}/${o.x}/${o.y}/${color}/${smooth}_${snow}.png`;
 }
 
+/**
+ * The Cesium UrlTemplateImageryProvider template for a whole frame: {z}/{x}/{y} are Cesium's own
+ * substitution tokens (default WebMercatorTilingScheme matches RainViewer's XYZ), so ONE provider
+ * serves every tile of the frame — the globe-drape counterpart to buildTileUrl's per-tile URL.
+ * Same host/path/params, so the two stay in lockstep.
+ */
+export function buildTileUrlTemplate(o: {
+  host: string;
+  path: string;
+  size?: number;
+  color?: number;
+  smooth?: number;
+  snow?: number;
+}): string {
+  const size = o.size ?? RADAR_TILE_SIZE;
+  const color = o.color ?? RADAR_COLOR;
+  const smooth = o.smooth ?? RADAR_SMOOTH;
+  const snow = o.snow ?? RADAR_SNOW;
+  return `${o.host}${o.path}/${size}/{z}/{x}/{y}/${color}/${smooth}_${snow}.png`;
+}
+
 // ---- honest-offline state machine (cloned from WeatherPanel's WeatherState idiom) -------------
 
 export type NavWeatherState =

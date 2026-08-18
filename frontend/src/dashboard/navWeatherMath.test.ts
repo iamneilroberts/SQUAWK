@@ -8,6 +8,7 @@ import {
   parseManifest,
   pickNewestFrame,
   buildTileUrl,
+  buildTileUrlTemplate,
   radarChipText,
   radarFrameAgeMin,
   RADAR_MAX_Z,
@@ -158,6 +159,11 @@ describe("pickNewestFrame / buildTileUrl", () => {
   it("builds the standard RainViewer XYZ URL", () => {
     const url = buildTileUrl({ host: "https://t", path: "/v2/radar/abc", z: 3, x: 2, y: 1 });
     expect(url).toBe("https://t/v2/radar/abc/256/3/2/1/2/1_1.png");
+  });
+
+  it("builds a Cesium {z}/{x}/{y} template URL with the same path and params", () => {
+    const url = buildTileUrlTemplate({ host: "https://t", path: "/v2/radar/abc" });
+    expect(url).toBe("https://t/v2/radar/abc/256/{z}/{x}/{y}/2/1_1.png");
   });
 });
 

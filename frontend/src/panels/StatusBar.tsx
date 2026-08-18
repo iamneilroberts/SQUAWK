@@ -61,6 +61,11 @@ export function labelsChipLabel(on: boolean): string {
   return on ? "LABELS ON" : "LABELS OFF";
 }
 
+/** Precip-radar (WX) chip label — mirrors labelsChipLabel's on/off shape. */
+export function radarChipLabel(on: boolean): string {
+  return on ? "WX ON" : "WX OFF";
+}
+
 /** Other-aircraft (#85) visibility chip — mirrors labelsChipLabel's on/off shape. */
 export function aircraftChipLabel(on: boolean): string {
   return on ? "AIRCRAFT" : "AIRCRAFT HIDDEN";
@@ -142,6 +147,8 @@ export default function StatusBar(
   const setBasemap = useStore((s) => s.setBasemap);
   const labelsOn = useStore((s) => s.labelsOn);
   const setLabelsOn = useStore((s) => s.setLabelsOn);
+  const radarOn = useStore((s) => s.radarOn);
+  const toggleRadar = useStore((s) => s.toggleRadar);
   const showOtherAircraft = useStore((s) => s.showOtherAircraft);
   const setShowOtherAircraft = useStore((s) => s.setShowOtherAircraft);
   const [now, setNow] = useState(() => new Date());
@@ -219,6 +226,15 @@ export default function StatusBar(
           >
             {labelsChipLabel(labelsOn)}
           </button>
+          {/* WX precip-radar toggle — the browse-reachable twin of the in-flight touch WX button;
+              both flip the same global radarOn (globe drape + tactical NavMap overlay). */}
+          <button
+            type="button"
+            className={radarOn ? "status-chip-button status-chip-button-active" : "status-chip-button"}
+            onClick={() => toggleRadar()}
+          >
+            {radarChipLabel(radarOn)}
+          </button>
           <button
             type="button"
             className={showOtherAircraft ? "status-chip-button status-chip-button-active" : "status-chip-button"}
@@ -236,7 +252,7 @@ export default function StatusBar(
         <span className="status-attribution">AIS · aisstream.io</span>
       )}
       {/* #81: in mobile flight the attribution goes compact so it fits over the touch controls. */}
-      <span className="status-attribution">{attributionFor({ basemap, labelsOn, terrainNote, compact: immersive })}</span>
+      <span className="status-attribution">{attributionFor({ basemap, labelsOn, radarOn, terrainNote, compact: immersive })}</span>
     </div>
   );
 }

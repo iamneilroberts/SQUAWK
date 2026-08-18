@@ -134,12 +134,14 @@ export default function DashboardStrip({
   const lockedMission = useStore((s) => s.lockedMission);
   const radiusNm = useStore((s) => s.radiusNm);
   const labelsOn = useStore((s) => s.labelsOn);
+  const radarOn = useStore((s) => s.radarOn);
   // The primary instruments read the flown class's params (per-class face). Falls back to the
   // C172 before an origin is set — the strip can mount a frame before a takeover exists.
   const params = lockedMission?.aircraftProfile ?? loadC172();
   const weather = useWeather(snapshot);
-  // The WX toggle drives both the METAR fold and the precip-radar overlay; fetch only when on.
-  const navWeather = useNavWeather(snapshot, state.showWeather);
+  // Radar is now the GLOBAL radarOn toggle (globe drape + tactical overlay in lockstep); the WX
+  // header chip's showWeather drives only the METAR/forecast fold. Fetch only while radar is on.
+  const navWeather = useNavWeather(snapshot, radarOn);
 
   // Freeze the sim while the big location map is up; resume (or on unmount) when it closes.
   const mapExpanded = state.tacticalMode === "large";
@@ -194,6 +196,7 @@ export default function DashboardStrip({
       weather={weather}
       navWeather={navWeather}
       showWeather={state.showWeather}
+      showRadar={radarOn}
       showHelp={state.showHelp}
       tacticalMode={state.tacticalMode}
       labelsOn={labelsOn}

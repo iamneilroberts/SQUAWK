@@ -52,9 +52,11 @@ export default function MobileNavWx(
   const origin = useStore((s) => s.origin);
   const radiusNm = useStore((s) => s.radiusNm);
   const labelsOn = useStore((s) => s.labelsOn);
+  const radarOn = useStore((s) => s.radarOn);
   const weather = useWeather(snapshot);
-  // Frugal: only fetch the precip-radar overlay while the panel is actually open.
-  const navWeather = useNavWeather(snapshot, expanded);
+  // Frugal AND global: fetch the precip-radar overlay only while the panel is open AND the global
+  // WX toggle (radarOn) is on — the same flag that drives the globe drape and the desktop tac map.
+  const navWeather = useNavWeather(snapshot, expanded && radarOn);
 
   if (!expanded) {
     return (
@@ -93,7 +95,7 @@ export default function MobileNavWx(
           navRangeNm={navRangeNm}
           feedRadiusNm={radiusNm}
           onRangeChange={setNavRangeNm}
-          showRadar
+          showRadar={radarOn}
           navWeather={navWeather}
           showBasemap
           showLabels={labelsOn}

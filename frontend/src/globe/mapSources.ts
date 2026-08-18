@@ -21,6 +21,7 @@ export const BASEMAP_CREDIT: Readonly<Record<BasemapKind, string>> = {
   CHART: "BASEMAP © ESRI DARK GRAY CANVAS",
 };
 export const PLACES_CREDIT = "PLACES © ESRI";
+export const RAINVIEWER_CREDIT = "WEATHER © RAINVIEWER";
 export const AIRPORTS_CREDIT = "AIRPORTS: OURAIRPORTS (PUBLIC DOMAIN)";
 export const NAVAIDS_CREDIT = "NAVAIDS: OURAIRPORTS (PUBLIC DOMAIN)";
 export const TRAFFIC_CREDIT = "TRAFFIC: AIRPLANES.LIVE / ADSB.LOL / ADSB.FI";
@@ -33,6 +34,9 @@ export const TRAFFIC_CREDIT = "TRAFFIC: AIRPLANES.LIVE / ADSB.LOL / ADSB.FI";
 export function attributionFor(o: {
   basemap: BasemapKind;
   labelsOn: boolean;
+  /** Precip-radar overlay active (store `radarOn`): credit RainViewer, a required disclosure kept
+   *  even in compact mode (like the imagery/terrain/traffic credits). Absent/false = not credited. */
+  radarOn?: boolean;
   terrainNote: string | null;
   /** Compact (#81): mobile flight strip — drop the OurAirports/places PUBLIC-DOMAIN credits
    *  (courtesy, not legally required) so the line fits over the portrait touch controls. The
@@ -42,5 +46,7 @@ export function attributionFor(o: {
   const parts = [BASEMAP_CREDIT[o.basemap], o.terrainNote ?? "TERRAIN LOADING…"];
   if (o.labelsOn && !o.compact) parts.push(PLACES_CREDIT, AIRPORTS_CREDIT, NAVAIDS_CREDIT);
   parts.push(TRAFFIC_CREDIT);
+  // Attribution when active (CLAUDE.md data-sources rule), so never gated by compact.
+  if (o.radarOn) parts.push(RAINVIEWER_CREDIT);
   return parts.join(" · ");
 }

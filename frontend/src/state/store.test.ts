@@ -372,6 +372,24 @@ describe("view preferences", () => {
     expect(useStore.getState().labelsOn).toBe(true);
     useStore.getState().setLabelsOn(false);
   });
+  it("starts with the precip-radar (WX) overlay OFF", () => {
+    expect(useStore.getState().radarOn).toBe(false);
+  });
+  it("sets and toggles the precip-radar overlay", () => {
+    useStore.getState().setRadar(true);
+    expect(useStore.getState().radarOn).toBe(true);
+    useStore.getState().toggleRadar();
+    expect(useStore.getState().radarOn).toBe(false);
+    useStore.getState().toggleRadar();
+    expect(useStore.getState().radarOn).toBe(true);
+    useStore.getState().setRadar(false);
+  });
+  it("leaves radarOn alone when the session resets — it is a preference, not session state", () => {
+    useStore.getState().setRadar(true);
+    useStore.getState().resetSession();
+    expect(useStore.getState().radarOn).toBe(true);
+    useStore.getState().setRadar(false);
+  });
   it("leaves them alone when the session resets — they are preferences, not session state", () => {
     useStore.getState().setBasemap("CHART");
     useStore.getState().setLabelsOn(true);

@@ -68,6 +68,13 @@ type State = {
   basemap: BasemapKind;
   labelsOn: boolean;
   /**
+   * Global precipitation-radar (RainViewer) overlay toggle. A view preference like labelsOn —
+   * drives BOTH the Cesium globe drape (weatherRadarLayer via OverlayLayers) and the tactical
+   * NavMap's 2D overlay, so one WX button controls the radar everywhere. Default OFF; never
+   * touched by resetSession (a preference, not session state).
+   */
+  radarOn: boolean;
+  /**
    * "Display other aircraft" toggle (#85): hides the live-traffic chevron billboards on demand.
    * A view preference like labelsOn/basemap, default ON. The player's own aircraft and the
    * origin ghost are never gated by this — they render through entirely separate paths
@@ -106,6 +113,8 @@ type State = {
   setRadiusNm(n: number): void;
   setBasemap(k: BasemapKind): void;
   setLabelsOn(on: boolean): void;
+  setRadar(on: boolean): void;
+  toggleRadar(): void;
   setShowOtherAircraft(on: boolean): void;
   setImmersive(on: boolean): void;
   setChromeVisible(on: boolean): void;
@@ -247,6 +256,7 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
   radiusNm: 80,
   basemap: "SAT",
   labelsOn: false,
+  radarOn: false,
   showOtherAircraft: true,
   immersive: false,
   chromeVisible: true,
@@ -292,6 +302,14 @@ export const useStore: UseBoundStore<StoreApi<State>> = create<State>()((set, ge
 
   setLabelsOn(on) {
     set({ labelsOn: on });
+  },
+
+  setRadar(on) {
+    set({ radarOn: on });
+  },
+
+  toggleRadar() {
+    set({ radarOn: !get().radarOn });
   },
 
   setShowOtherAircraft(on) {
