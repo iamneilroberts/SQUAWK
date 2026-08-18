@@ -32,6 +32,11 @@ export const GPWS_PULLUP_BASE_FPM = 1600;
 export const GPWS_PULLUP_SLOPE_FPM_PER_FT = 1.6;
 /** Above this height above ground the Mode-1 envelope is disarmed — no descent-rate warning. */
 export const GPWS_ARM_ALT_FT = 2500;
+/** TERRAIN UNVERIFIED is only actionable near the ground: an unknown floor at cruise cannot be
+ *  struck, and at high altitude the sampler routinely can't resolve the low-detail tile under the
+ *  aircraft, so the chip would nag for the whole flight. Above this MSL altitude we suppress it
+ *  (the terrain-independent crash floor, #58, still guards a genuine dive). Owner call 2026-08-18. */
+export const GPWS_TERRAIN_WARN_MAX_ALT_FT = 15000;
 
 /**
  * Ground-proximity warnings, most urgent first, at most one entry. TERRAIN UNVERIFIED (we do not
@@ -39,8 +44,12 @@ export const GPWS_ARM_ALT_FT = 2500;
  * is only ever claimed against a measured clearance.
  */
 export function gpwsWarningsFor(s: HudSnapshot): string[] {
-  // Honest first: if the sampler has no ground height, say so and claim nothing about proximity.
-  if (s.terrainUnverified) return ["TERRAIN UNVERIFIED"];
+  // Honest first: if the sampler has no ground height, say so and claim nothing about proximity —
+  // but only while low enough for an unknown floor to matter. At cruise the chip is pure noise (and
+  // the sampler often can't resolve the tile directly under a high aircraft), so suppress it there.
+  if (s.terrainUnverified) {
+    return mToFt(s.altitudeM) < GPWS_TERRAIN_WARN_MAX_ALT_FT ? ["TERRAIN UNVERIFIED"] : [];
+  }
   if (s.terrainClearanceM === null) return [];
 
   const aglFt = mToFt(s.terrainClearanceM);

@@ -99,6 +99,15 @@ describe("gpwsWarningsFor — sink-rate-aware ground proximity", () => {
     expect(gpwsWarningsFor(snap({ terrainClearanceM: null, terrainUnverified: true })))
       .toEqual(["TERRAIN UNVERIFIED"]);
   });
+
+  it("suppresses TERRAIN UNVERIFIED at cruise but keeps it low, where an unknown floor matters", () => {
+    // High MSL: the chip is noise (and the sampler routinely can't resolve the tile far below).
+    expect(gpwsWarningsFor(snap({ terrainUnverified: true, terrainClearanceM: null, altitudeM: ftToM(26000) })))
+      .toEqual([]);
+    // Low: still the honest "we don't know the ground" message.
+    expect(gpwsWarningsFor(snap({ terrainUnverified: true, terrainClearanceM: null, altitudeM: ftToM(3000) })))
+      .toEqual(["TERRAIN UNVERIFIED"]);
+  });
 });
 
 describe("groundProximityActive — drives the AGL amber emphasis", () => {
