@@ -435,6 +435,17 @@ body {
   padding: 2px 8px;
   background: rgba(5, 7, 10, 0.72);
 }
+/* TERRAIN UNVERIFIED (HudWarning.tsx adds this class) holds full-strength for ~5s, then fades to a
+   faint ghost over 1.2s and stays there (forwards): informational, not a permanent distraction, but
+   never removed — still legible on a glance. Runs once on mount; a genuinely new occurrence remounts
+   the chip and restarts the fade from full strength (no JS timer). */
+@keyframes hud-warning-terrain-fade {
+  from { opacity: 1; }
+  to { opacity: 0.12; }
+}
+.hud-warning-terrain {
+  animation: hud-warning-terrain-fade 1.2s ease 5s forwards;
+}
 /* Issue #5b: brief honest refusal when a re-sync is declined (stale/offline contact). Amber,
    like the other warnings; a backing panel, no shadow. */
 .resync-note {

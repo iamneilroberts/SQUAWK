@@ -23,6 +23,7 @@ import {
   warningsFor,
 } from "./format";
 import { groundProximityActive } from "./gpws";
+import HudWarning from "./HudWarning";
 import { radToDeg, mToFt, msToKt } from "../sim/units";
 
 export type BarField = { label: string; value: string; unit?: string };
@@ -452,7 +453,7 @@ export default function ImmersiveHudBar({
       {warnings.length > 0 && (
         <div className="imm-hud-warnings" role="status" aria-live="polite">
           {warnings.map((warning) => (
-            <span key={warning} className="hud-warning">{warning}</span>
+            <HudWarning key={warning} warning={warning} />
           ))}
         </div>
       )}

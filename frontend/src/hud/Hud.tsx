@@ -21,6 +21,7 @@ import type { ApproachBand } from "../mission/approachBand";
 import type { DescentGuidance } from "../mission/descentGuidance";
 import type { ApproachReadout } from "../mission/approachReadout";
 import EdgeTurnCue from "./EdgeTurnCue";
+import HudWarning from "./HudWarning";
 import {
   formatAirtime, formatAltFt, formatAoaDeg, formatClass, formatClearanceFt,
   formatG, formatHeadingDeg, formatIasKt, formatLightPhase, formatSimRate,
@@ -234,7 +235,7 @@ export default function Hud({
       {warnings.length > 0 && (
         <div className="hud-warnings">
           {warnings.map((w) => (
-            <span key={w} className="hud-warning">{w}</span>
+            <HudWarning key={w} warning={w} />
           ))}
         </div>
       )}
