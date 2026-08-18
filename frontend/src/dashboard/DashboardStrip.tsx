@@ -88,6 +88,12 @@ export function cycleTactical(s: StripState): StripState {
   return { ...s, tacticalMode: nextNavMode(s.tacticalMode) };
 }
 
+/** Tactical-map show/hide (desktop control-strip TAC button, #3): flips between hidden and the
+ *  normal small map only — never the sim-freezing LARGE mode, which stays the chip's job. */
+export function toggleTactical(s: StripState): StripState {
+  return { ...s, tacticalMode: s.tacticalMode === "hidden" ? "normal" : "hidden" };
+}
+
 /** Tactical-map CONTACTS chip: hide/show the traffic blips to declutter the line map. */
 export function toggleContacts(s: StripState): StripState {
   return { ...s, showContacts: !s.showContacts };
@@ -101,10 +107,11 @@ export function toggleContacts(s: StripState): StripState {
 export function stripKeyAction(
   code: string,
   modifiers?: { ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean },
-): "strip" | "help" | null {
+): "strip" | "help" | "tactical" | null {
   if (modifiers?.ctrlKey || modifiers?.metaKey || modifiers?.altKey) return null;
   if (code === "KeyC") return "strip";
   if (code === "Slash") return "help";
+  if (code === "KeyT") return "tactical";
   return null;
 }
 
@@ -147,7 +154,9 @@ export default function DashboardStrip({
     const onKeyDown = (e: KeyboardEvent) => {
       const action = stripKeyAction(e.code, e);
       if (action === null) return;
-      setState((s) => (action === "strip" ? toggleStrip(s) : toggleHelp(s)));
+      setState((s) =>
+        action === "strip" ? toggleStrip(s) : action === "help" ? toggleHelp(s) : toggleTactical(s),
+      );
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);

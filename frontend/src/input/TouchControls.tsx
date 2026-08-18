@@ -333,6 +333,15 @@ export default function TouchControls({
           rudder, afterburner, level-assist and pause were dropped from the mobile UI. Trim is a
           hold (a lever that ramps while held, matching Comma/Period on the keyboard). */}
       <div className="touch-buttons">
+        {/* Desktop-only view toggles (#3): dedicated buttons for the cockpit chrome the mouse pilot
+            can't reach on the glass chips as easily. TAC synthesizes KeyT (tactical map show/hide),
+            CTRL synthesizes Slash (controls help fold) — the same keys DashboardStrip listens for. */}
+        {variant === "desktop" && (
+          <>
+            <DiscreteButton label="TAC" code="KeyT" />
+            <DiscreteButton label="CTRL" code="Slash" />
+          </>
+        )}
         <DiscreteButton label="CAM" code="KeyE" />
         <DiscreteButton
           label="GEAR"

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  defaultStripState, setNavRange, toggleWeather, toggleHelp, toggleStrip, stripKeyAction,
-  stripMountedForMode,
+  defaultStripState, setNavRange, toggleWeather, toggleHelp, toggleStrip, toggleTactical,
+  stripKeyAction, stripMountedForMode,
 } from "./DashboardStrip";
 import { DEFAULT_NAV_RANGE_NM } from "./navMath";
 
@@ -40,6 +40,15 @@ describe("strip state", () => {
     expect(setNavRange(defaultStripState(), 100).navRangeNm).toBe(100);
   });
 
+  it("TAC toggles the tactical map hidden<->normal, never the sim-freezing LARGE (#3)", () => {
+    const hidden = toggleTactical(defaultStripState()); // normal -> hidden
+    expect(hidden.tacticalMode).toBe("hidden");
+    const shown = toggleTactical(hidden); // hidden -> normal
+    expect(shown.tacticalMode).toBe("normal");
+    // From LARGE it collapses to hidden, never leaving the map in the frozen big mode.
+    expect(toggleTactical({ ...defaultStripState(), tacticalMode: "large" }).tacticalMode).toBe("hidden");
+  });
+
   it("toggles the whole strip without disturbing the folds", () => {
     const s = toggleStrip(toggleWeather(defaultStripState()));
     expect(s.open).toBe(false);
@@ -58,9 +67,10 @@ describe("strip state", () => {
 });
 
 describe("strip keys", () => {
-  it("maps KeyC to the whole strip and Slash to the controls-help fold", () => {
+  it("maps KeyC to the whole strip, Slash to the controls-help fold, KeyT to the tactical map", () => {
     expect(stripKeyAction("KeyC")).toBe("strip");
     expect(stripKeyAction("Slash")).toBe("help");
+    expect(stripKeyAction("KeyT")).toBe("tactical");
   });
   it("ignores every flight-control key so the cockpit cannot eat an input", () => {
     for (const code of ["ArrowUp", "ArrowDown", "KeyW", "KeyS", "KeyF", "KeyV", "Escape"]) {

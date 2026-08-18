@@ -39,6 +39,7 @@ export const KEYMAP: Readonly<Record<string, string>> = {
   // They live here so ControlsHelp can render the keymap without a second, hand-copied list.
   KeyE: "exterior / chase camera",
   KeyC: "collapse / restore the cockpit strip",
+  KeyT: "tactical map show / hide",
   KeyY: "re-sync to live aircraft (assist)",
   Slash: "controls help",
 };

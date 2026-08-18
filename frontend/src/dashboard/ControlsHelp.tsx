@@ -31,6 +31,7 @@ export const KEY_LABELS: Readonly<Record<string, string>> = {
   KeyL: "L",
   KeyE: "E",
   KeyC: "C",
+  KeyT: "T",
   KeyY: "Y",
   Comma: ",",
   Period: ".",
@@ -67,7 +68,7 @@ export function groupKeymap(
  * chrome" split; it lives here rather than in KEYMAP because it's a *presentation* grouping,
  * not part of the code -> action contract the sampler and the rest of the app share.
  */
-const COCKPIT_CHROME_CODES = new Set<string>(["Escape", "KeyE", "KeyC", "KeyY", "Slash"]);
+const COCKPIT_CHROME_CODES = new Set<string>(["Escape", "KeyE", "KeyC", "KeyT", "KeyY", "Slash"]);
 
 type ControlsHelpRow = { action: string; keys: string[] };
 
