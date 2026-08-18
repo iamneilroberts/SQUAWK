@@ -2506,9 +2506,20 @@ body {
   transform: scale(0.82);
   transform-origin: top left;
   max-width: min(46vw, 340px);
-  z-index: 5;
+  /* Above the bottom-left tactical card (z 5): if the CONTROLS fold ever grows down far enough to
+     reach it, CONTROLS paints ON TOP instead of vanishing under the opaque map (issue: fold overflow). */
+  z-index: 6;
 }
-.dash-aux { max-width: min(86vw, 380px); }
+/* The WEATHER / CONTROLS folds cap their height and scroll rather than growing down into the
+   bottom-left tactical card. 260px reserve keeps the fold clear of .dash-tactical (bottom:12px).
+   Hidden scrollbar to match the app's cards (owner 2026-08-17 pattern). */
+.dash-aux {
+  max-width: min(86vw, 380px);
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.dash-aux::-webkit-scrollbar { display: none; }
 
 /* Tactical map (NavMap — own-ship + traffic + airports + range rings; it already absorbed the
    old heading-up RadarScope, see NavMap.tsx) — bottom-left corner, shrunk to a corner-sized face. */
