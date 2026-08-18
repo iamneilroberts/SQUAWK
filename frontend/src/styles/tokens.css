@@ -329,6 +329,19 @@ body {
   color: var(--amber); font-size: 9px; letter-spacing: 0.08em; pointer-events: none;
 }
 
+/* ---- WHAT'S NEW changelog (browse-screen entry point) ---- */
+.whatsnew-panel { width: min(560px, 100%); }
+.whatsnew-release + .whatsnew-release { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--grid); }
+.whatsnew-date { color: var(--cyan); }
+.whatsnew-label { margin-left: 8px; color: var(--amber); }
+.whatsnew-items { margin: 6px 0 0 18px; padding: 0; font-size: 11px; line-height: 1.55; }
+.whatsnew-items li { margin: 4px 0; }
+/* Small unseen marker appended after a nav button's label (e.g. WHAT'S NEW). */
+.status-chip-dot {
+  display: inline-block; width: 6px; height: 6px; margin-left: 5px;
+  border-radius: 50%; background: var(--amber); vertical-align: middle;
+}
+
 /* ---- privacy-safe, version-partitioned public leaderboard ---- */
 .leaderboard-control { position: relative; }
 .leaderboard-backdrop {

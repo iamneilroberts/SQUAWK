@@ -3485,3 +3485,12 @@ overflowed top-right) — both windscreen-tag clicks and 3D-scene picks now conv
 compact `IdentifiedContactCallout`. #3 added desktop-only TAC/CTRL buttons to the control
 strip (TAC = new `KeyT`, tactical show/hide hidden↔normal only, never the sim-freezing LARGE;
 CTRL = existing `Slash` help fold).
+
+## 2026-08-18 — "What's New" is a curated data file, not an auto-generator
+
+The browse-screen WHAT'S NEW changelog reads from `frontend/src/data/whatsNew.ts` — a hand-curated,
+newest-first list of MAJOR features / new capabilities (never minor fixes). Git can't tell a major
+feature from a fix and commit subjects aren't user-facing prose, so curation beats auto-generation.
+"Auto-updated" = a convention: prepend an entry when a major feature ships. `frontend/scripts/whats-new-suggest.sh`
+lists feat commits since the newest entry to make curation fast. Unseen-dot state is a localStorage
+last-seen date (`whatsNewSeen.ts`); the modal reuses the tutorial dialog styling.

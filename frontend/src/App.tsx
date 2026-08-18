@@ -45,6 +45,9 @@ import { lockMission, prepareMission } from "./mission/api";
 import { missionChoiceKey, type MissionPreparationView } from "./mission/contract";
 import TutorialPanel from "./tutorial/TutorialPanel";
 import FreeFlightPanel from "./freeflight/FreeFlightPanel";
+import WhatsNew from "./panels/WhatsNew";
+import { WHATS_NEW } from "./data/whatsNew";
+import { isUnseen, WHATS_NEW_SEEN_KEY } from "./panels/whatsNewSeen";
 import { buildFreeFlightMission } from "./freeflight/freeFlight";
 import { buildInstantMission } from "./takeover/instantMission";
 import { readSpawnMode, type SpawnMode } from "./takeover/spawnModePreference";
@@ -266,6 +269,13 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
   // The install/app instructions dialog is lifted here so the fading AppModeHint's HELP link can
   // open it even after the APP button is gone (in flight).
   const [appPanelOpen, setAppPanelOpen] = useState(false);
+  // WHAT'S NEW changelog: last-seen date read once at mount (mirrors the tutorialProgress
+  // pattern above), guarded in try/catch since localStorage can throw (private mode, quota).
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
+  const [whatsNewSeen, setWhatsNewSeen] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try { return window.localStorage.getItem(WHATS_NEW_SEEN_KEY); } catch { return null; }
+  });
   const browseDrawer = narrow && mode === "BROWSE";
   // Mobile immersive/fullscreen flight (#13): collapse the StatusBar to feed-status + attribution,
   // and fade it with the informational chrome while the video-player auto-hide is active.
@@ -651,6 +661,23 @@ export default function App({ initialAuthToken = null }: { initialAuthToken?: st
             )}
             {mode === "BROWSE" && <FreeFlightPanel onStart={startFreeFlight} />}
             {mode === "BROWSE" && <LeaderboardPanel />}
+            {mode === "BROWSE" && (
+              <button
+                className="status-chip-button"
+                type="button"
+                onClick={() => {
+                  setWhatsNewOpen(true);
+                  setWhatsNewSeen(WHATS_NEW[0].date);
+                  try { window.localStorage.setItem(WHATS_NEW_SEEN_KEY, WHATS_NEW[0].date); } catch { /* storage unavailable */ }
+                }}
+              >
+                WHAT'S NEW
+                {isUnseen(WHATS_NEW[0].date, whatsNewSeen) && <span className="status-chip-dot" aria-hidden="true" />}
+              </button>
+            )}
+            {mode === "BROWSE" && whatsNewOpen && (
+              <WhatsNew onClose={() => setWhatsNewOpen(false)} />
+            )}
             <div className="auth-control">
               {profile === null ? (
                 !(mode === "FLYING" && decluttered) && (
