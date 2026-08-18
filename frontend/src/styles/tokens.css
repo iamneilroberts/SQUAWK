@@ -1712,10 +1712,15 @@ body {
 .touch-controls-desktop .touch-level-btn { transform: translateX(calc(-50% - 78px)); }
 .touch-controls-desktop .touch-resync-btn { transform: translateX(calc(-50% + 78px)); }
 .touch-controls-desktop .touch-throttle {
+  /* The desktop throttle is this draggable lever, sitting in the slot the read-only EFIS gauge
+     (.dash-throttle-card, now hidden) used to fill: under the ALT tape on the right edge (owner:
+     lever replaces gauge, 2026-08-18). top-anchored with a min-height so it can't shrink toward
+     0 on short windows (the old bottom-anchored clamp did). */
+  top: 446px;
   right: 16px;
-  bottom: 16px;
+  bottom: auto;
   width: 44px;
-  height: clamp(0px, calc(100vh - 690px), 240px);
+  height: clamp(120px, calc(100vh - 685px), 215px);
   max-height: none;
 }
 
@@ -2756,12 +2761,16 @@ body {
    static amber placard mark for afterburner-capable classes only (ThrottleIndicator.tsx). 446px =
    ALT's top (284) + its height (150) + a 12px gap. */
 .dash-throttle-card {
+  /* Hidden: the desktop throttle is now the draggable lever (.touch-controls-desktop
+     .touch-throttle), which occupies this same slot. Keeping this read-only EFIS gauge would just
+     duplicate it and overlap (owner: lever replaces gauge, 2026-08-18). Left in the DOM (display
+     rather than unrender) so ThrottleIndicator stays mounted and its tests are untouched. */
+  display: none;
   position: absolute;
   top: 446px;
   right: 16px;
   width: 84px;
   padding: 6px 8px 8px;
-  display: flex;
   flex-direction: column;
   align-items: center;
   z-index: 5;
