@@ -1282,6 +1282,25 @@ export default function FlightSession({
           <MobileNavWx snapshot={snapshot} faded={faded} />
         </>
       )}
+      {/* Desktop: mount the SAME control strip so a mouse can drive the throttle lever + discrete
+          buttons (handlers are pointer/synthesized-key based, so a mouse operates them as-is). The
+          virtual stick is suppressed (desktop flies with the canvas mouse-stick + keyboard) and
+          MobileNavWx is omitted (desktop has the glass dashboard). CSS places it as a compact,
+          unobtrusive cluster clear of the dashboard cards. */}
+      {mode === "FLYING" && !narrow && (
+        <TouchControls
+          onStick={onStick}
+          onStickRelease={onStickRelease}
+          onThrottle={onThrottle}
+          throttle={snapshot?.throttle ?? 0}
+          gearFixed={(snapshot?.gear ?? "fixed") === "fixed"}
+          hasSpeedbrake={(originParams?.aero.speedbrakeCd0 ?? 0) > 0}
+          showResync={canResync}
+          snapshot={snapshot}
+          showStick={false}
+          variant="desktop"
+        />
+      )}
       {/* The immersive control row (FULL/EXIT · DCLTR · MENU) mounts on BOTH platforms while
           FLYING: mobile as before, desktop so the player can opt into immersive (owner
           2026-08-12). TouchControls / MobileNavWx above stay mobile-only. `faded` fades this row

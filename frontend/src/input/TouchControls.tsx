@@ -289,6 +289,8 @@ export default function TouchControls({
   hasSpeedbrake,
   showResync,
   snapshot,
+  showStick = true,
+  variant = "mobile",
 }: {
   onStick(roll: number, pitch: number): void;
   onStickRelease(): void;
@@ -302,6 +304,12 @@ export default function TouchControls({
   showResync: boolean;
   /** Live HUD snapshot: feeds the GEAR/BRK glyphs and the FLP+/TRM badges (#48). Null before spawn. */
   snapshot: HudSnapshot | null;
+  /** Render the virtual analog stick. Desktop passes false — it flies with the canvas mouse-stick
+   *  + keyboard, so only the throttle lever + discrete buttons are wanted (mouse-operable as-is). */
+  showStick?: boolean;
+  /** Placement variant: 'mobile' is the full-width bottom bar; 'desktop' is a compact, unobtrusive
+   *  cluster that clears the glass-cockpit cards (CSS in tokens.css keys off .touch-controls-desktop). */
+  variant?: "mobile" | "desktop";
 }) {
   // If the whole overlay unmounts mid-deflection (leaving FLYING), let the stick go so a stale
   // analog target can't linger; the buttons synthesize their own keyup on release already.
@@ -310,8 +318,8 @@ export default function TouchControls({
   const { up: trimBadgeUp, down: trimBadgeDown } = trimBadges(snapshot?.trim);
 
   return (
-    <div className="touch-controls">
-      <VirtualStick onStick={onStick} onRelease={onStickRelease} />
+    <div className={"touch-controls" + (variant === "desktop" ? " touch-controls-desktop" : "")}>
+      {showStick && <VirtualStick onStick={onStick} onRelease={onStickRelease} />}
       <ThrottleSlider throttle={throttle} onThrottle={onThrottle} />
       {/* Beginner return-to-level assist (#5): only rendered while off-level, so it "disappears"
           once the assist (or the pilot) brings the plane back level. Sits above the button row,

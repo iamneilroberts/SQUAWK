@@ -1657,6 +1657,43 @@ body {
 }
 .touch-resync-btn:active { background: rgba(255, 176, 0, 0.4); }
 
+/* ---- Desktop mouse-operable control strip. The SAME TouchControls markup, mounted on wide
+   viewports with the virtual stick suppressed (showStick=false — desktop flies with the canvas
+   mouse-stick + keyboard). Repositioned as an UNOBTRUSIVE cluster that clears the glass-cockpit
+   cards: the discrete buttons in a compact bottom-centre row just ABOVE the control-state readout
+   (.dash-control-strip, bottom:10px), the LEVEL/RE-SYNC assists floating above that row, and the
+   draggable throttle lever on the right edge, height-capped so it stays BELOW the read-only
+   throttle gauge (.dash-throttle-card ends ~650px down). All the mission-terminal look (1px
+   borders, mono, cyan/amber, translucent) is inherited from the shared .touch-* rules; these
+   rules only move/resize. The 2-class selectors outspecify the mobile 1-class + orientation
+   media-query rules, so they win regardless of source order. ---- */
+.touch-controls-desktop .touch-buttons {
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 56px;
+  max-width: min(560px, 70vw);
+  flex-wrap: wrap;
+}
+.touch-controls-desktop .touch-btn {
+  min-width: 40px;
+  min-height: 38px;
+  background: rgba(5, 7, 10, 0.55);
+}
+.touch-controls-desktop .touch-level-btn,
+.touch-controls-desktop .touch-resync-btn {
+  left: 50%;
+  bottom: 104px;
+}
+.touch-controls-desktop .touch-level-btn { transform: translateX(calc(-50% - 78px)); }
+.touch-controls-desktop .touch-resync-btn { transform: translateX(calc(-50% + 78px)); }
+.touch-controls-desktop .touch-throttle {
+  right: 16px;
+  bottom: 16px;
+  width: 44px;
+  height: clamp(0px, calc(100vh - 690px), 240px);
+  max-height: none;
+}
+
 @media (max-width: 1023px) {
   /* Status bar carries the honest feed source + attribution: it WRAPS to more lines rather
      than truncate either (spec §2.1, non-negotiable honesty). Safe-area pad for viewport-fit=cover. */
